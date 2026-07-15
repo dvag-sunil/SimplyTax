@@ -270,6 +270,19 @@ en: {
   step_kap:"Capital gains", s_kap_lead:"Capital income (Anlage KAP) — gains, dividends and interest from stocks, funds and ETFs at banks, brokers and platforms. The saver's allowance (Sparer-Pauschbetrag) of €1,000 per person (€2,000 for joint assessment) is applied automatically in the estimate.",
   platform:"Bank / platform", kap_gains:"Capital income (gains, dividends, interest)", kap_tax:"Capital gains tax withheld (KapESt)", kap_soli:"Solidarity surcharge withheld",
   add_kap:"Add platform", kap_hint:"Taxed at a flat 25% + Soli. The Finanzamt runs a Günstigerprüfung (your personal rate, if lower) on request.",
+  kap_dom:"Capital income subject to German withholding (lines 7–15)",
+  kap_for:"Capital income NOT subject to German withholding (lines 18–26)",
+  k7:"Capital income per bank tax certificate (line 7)", k8:"…of which gains from share sales (line 8)",
+  k12:"Uncompensated losses without share sales (line 12, loss certificate)", k13:"Uncompensated losses from share sales (line 13, loss certificate)",
+  k16:"Saver's allowance already used at the bank (line 16, Freistellungsauftrag)",
+  k16_hint:"Recorded for the Finanzamt — the refund estimate applies the full statutory allowance automatically.",
+  k18:"Domestic capital income without withholding, e.g. private loans (line 18)",
+  k19:"Foreign capital income, e.g. foreign brokers (line 19)",
+  for_hint:"Lines 18/19 are entered as net totals — contained gains and losses are broken out below ('of which').",
+  k20:"…of which gains from share sales (line 20)", k21:"…of which option premiums / gains from futures (line 21)",
+  k22:"…of which losses without share sales (line 22)", k23:"…of which losses from share sales (line 23)",
+  k43:"Capital gains tax withheld (line 43)", k44:"Solidarity surcharge (line 44)", k45:"Church tax on capital gains tax (line 45)",
+  kap_taxes:"Creditable taxes (lines 43–45)",
   m_kap:"Capital gains tax (est.)",
   step_prop:"Rental property", s_prop_lead:"Rental income (Anlage V) — one entry per property. Costs (loan interest, maintenance, depreciation, service charges…) count as expenses; a loss reduces the taxable income.",
   prop_address:"Property (address)", prop_rent:"Rental income (per year)", prop_costs:"Costs / expenses (per year)", add_prop:"Add property", prop_net:"Net result",
@@ -412,6 +425,19 @@ de: {
   step_kap:"Kapitalerträge", s_kap_lead:"Kapitalerträge (Anlage KAP) — Gewinne, Dividenden und Zinsen aus Aktien, Fonds und ETFs bei Banken, Brokern und Plattformen. Der Sparer-Pauschbetrag von 1.000 € pro Person (2.000 € bei Zusammenveranlagung) wird in der Schätzung automatisch berücksichtigt.",
   platform:"Bank / Plattform", kap_gains:"Kapitalerträge (Gewinne, Dividenden, Zinsen)", kap_tax:"Einbehaltene Kapitalertragsteuer (KapESt)", kap_soli:"Einbehaltener Solidaritätszuschlag",
   add_kap:"Plattform hinzufügen", kap_hint:"Pauschal 25 % Steuer + Soli. Die Günstigerprüfung (persönlicher Steuersatz, falls niedriger) übernimmt das Finanzamt auf Antrag.",
+  kap_dom:"Kapitalerträge, die dem inländischen Steuerabzug unterlegen haben (Zeilen 7–15)",
+  kap_for:"Kapitalerträge, die NICHT dem inländischen Steuerabzug unterlegen haben (Zeilen 18–26)",
+  k7:"Kapitalerträge laut Steuerbescheinigung (Zeile 7)", k8:"…darin enthaltene Gewinne aus Aktienveräußerungen (Zeile 8)",
+  k12:"Nicht ausgeglichene Verluste ohne Aktienveräußerung (Zeile 12, Verlustbescheinigung)", k13:"Nicht ausgeglichene Verluste aus Aktienveräußerungen (Zeile 13, Verlustbescheinigung)",
+  k16:"In Anspruch genommener Sparer-Pauschbetrag (Zeile 16, Freistellungsauftrag)",
+  k16_hint:"Zur Erfassung für das Finanzamt — die Erstattungsschätzung wendet den vollen gesetzlichen Pauschbetrag automatisch an.",
+  k18:"Inländische Kapitalerträge ohne Steuerabzug, z. B. Privatdarlehen (Zeile 18)",
+  k19:"Ausländische Kapitalerträge, z. B. Auslandsbroker (Zeile 19)",
+  for_hint:"Zeilen 18/19 werden als Nettosummen eingetragen — enthaltene Gewinne und Verluste werden darunter als ‚darin enthalten' aufgeschlüsselt.",
+  k20:"…darin enthaltene Gewinne aus Aktienveräußerungen (Zeile 20)", k21:"…darin enthaltene Stillhalterprämien / Termingeschäftsgewinne (Zeile 21)",
+  k22:"…darin enthaltene Verluste ohne Aktienveräußerung (Zeile 22)", k23:"…darin enthaltene Verluste aus Aktienveräußerungen (Zeile 23)",
+  k43:"Einbehaltene Kapitalertragsteuer (Zeile 43)", k44:"Solidaritätszuschlag (Zeile 44)", k45:"Kirchensteuer zur Kapitalertragsteuer (Zeile 45)",
+  kap_taxes:"Anzurechnende Steuern (Zeilen 43–45)",
   m_kap:"Kapitalertragsteuer (ca.)",
   step_prop:"Vermietung", s_prop_lead:"Einkünfte aus Vermietung (Anlage V) — ein Eintrag je Immobilie. Kosten (Darlehenszinsen, Instandhaltung, AfA, Nebenkosten…) zählen als Werbungskosten; ein Verlust mindert das zu versteuernde Einkommen.",
   prop_address:"Immobilie (Adresse)", prop_rent:"Mieteinnahmen (pro Jahr)", prop_costs:"Kosten / Aufwendungen (pro Jahr)", add_prop:"Immobilie hinzufügen", prop_net:"Ergebnis",
@@ -590,6 +616,12 @@ function migrateClient(c){
   c.emps = Array.isArray(c.emps)?c.emps:[];
   c.emps.forEach(e=>{ if(e.person!=='B') e.person='A'; });
   c.kap = Array.isArray(c.kap)?c.kap:[];
+  c.kap.forEach(k=>{
+    if(k.person!=='B') k.person='A';
+    if(N(k.gains)>0   && !N(k.k7 )){ k.k7 =k.gains;    k.gains='';    }
+    if(N(k.taxPaid)>0 && !N(k.k43)){ k.k43=k.taxPaid;  k.taxPaid='';  }
+    if(N(k.soliPaid)>0&& !N(k.k44)){ k.k44=k.soliPaid; k.soliPaid=''; }
+  });
   c.props = Array.isArray(c.props)?c.props:[];
   c.privIns = Array.isArray(c.privIns)?c.privIns:[];
   c.wkItems = Array.isArray(c.wkItems)?c.wkItems:[];
@@ -828,9 +860,9 @@ function computeEstimate(c){
   const membB = ['ev','rk','other'].includes(c.p.spouseReligion);
   const kistFactor = joint ? ((membA?0.5:0)+(membB?0.5:0)) : (membA?1:0);
   const kist = taxAfter * kistRate * kistFactor;
-  // capital gains (Anlage KAP): flat 25% + Soli after Sparer-Pauschbetrag (€1,000 / €2,000 joint)
-  const kapGains = (c.kap||[]).reduce((a,k)=>a+N(k.gains),0);
-  const kapPaid  = (c.kap||[]).reduce((a,k)=>a+N(k.taxPaid)+N(k.soliPaid),0);
+  // capital gains (Anlage KAP): line 7 + lines 18/19 (net totals) − uncompensated losses (lines 12/13, loss certificate)
+  const kapGains = (c.kap||[]).reduce((a,k)=>a + N(k.gains) + N(k.k7) + N(k.k18) + N(k.k19) - N(k.k12) - N(k.k13), 0);
+  const kapPaid  = (c.kap||[]).reduce((a,k)=>a + N(k.taxPaid)+N(k.soliPaid) + N(k.k43)+N(k.k44)+N(k.k45), 0);
   const sparer = joint ? 2000 : 1000;
   const kapTaxable = Math.max(0, kapGains - sparer);
   const kap = kapTaxable*0.25 * 1.055;   // 25% KapESt + 5.5% Soli thereon
@@ -1380,22 +1412,46 @@ function stepPrivIns(c){
   ${navRow()}`;
 }
 
-/* --- step 7: capital gains (Anlage KAP) --- */
+/* --- step 8: capital gains (Anlage KAP) — official line structure --- */
 function stepKap(c){
+  const married=c.p.marital==='married';
+  const personOpts=[['A','A — '+(c.p.firstName||'Person A')],['B',('B — '+((c.p.spouseFirst||'')+' '+(c.p.spouseLast||'')).trim()).trim()]];
   const rows=(c.kap||[]).map((k,i)=>`<div class="sum-group" style="margin-bottom:12px">
-    <div class="head"><span>${t('platform')} ${i+1}${k.platform?' · '+esc(k.platform):''}</span>
+    <div class="head"><span>${t('platform')} ${i+1}${married?` <span class="chip ${k.person==='B'?'review':'submitted'}">${k.person==='B'?'B':'A'}</span>`:''}${k.platform?' · '+esc(k.platform):''}</span>
       <span class="edit" onclick="delItem('kap','${k.id}')">🗑 ${t('remove')}</span></div>
     <div style="padding:14px 16px">
-      ${LF('kap',k,'platform',t('platform'),{ph:'Trade Republic, Scalable, ING…'})}
+      ${married?`<div class="grid3">${LF('kap',k,'person',t('person'),{select:personOpts})}</div>`:''}
+      ${LF('kap',k,'platform',t('platform'),{ph:'Trade Republic, Scalable, ING…',hint:i===0?t('kap_hint'):''})}
+      <details class="more" open><summary>${t('kap_dom')}</summary>
+        <div class="grid2">
+          ${LF('kap',k,'k7',t('k7'),{euro:true,ph:'0,00 €'})}
+          ${LF('kap',k,'k8',t('k8'),{euro:true,ph:'0,00 €'})}
+          ${LF('kap',k,'k12',t('k12'),{euro:true,ph:'0,00 €'})}
+          ${LF('kap',k,'k13',t('k13'),{euro:true,ph:'0,00 €'})}
+        </div>
+        ${LF('kap',k,'sparerUsed',t('k16'),{euro:true,ph:'0,00 €',hint:t('k16_hint')})}
+      </details>
+      <details class="more"><summary>${t('kap_for')}</summary>
+        <p style="font-size:12px;color:var(--ink-soft);margin-bottom:10px">${t('for_hint')}</p>
+        <div class="grid2">
+          ${LF('kap',k,'k18',t('k18'),{euro:true,ph:'0,00 €'})}
+          ${LF('kap',k,'k19',t('k19'),{euro:true,ph:'0,00 €'})}
+          ${LF('kap',k,'k20',t('k20'),{euro:true,ph:'0,00 €'})}
+          ${LF('kap',k,'k21',t('k21'),{euro:true,ph:'0,00 €'})}
+          ${LF('kap',k,'k22',t('k22'),{euro:true,ph:'0,00 €'})}
+          ${LF('kap',k,'k23',t('k23'),{euro:true,ph:'0,00 €'})}
+        </div>
+      </details>
+      <div class="section-label">${t('kap_taxes')}</div>
       <div class="grid3">
-        ${LF('kap',k,'gains',t('kap_gains'),{euro:true,ph:'0,00 €',hint:i===0?t('kap_hint'):''})}
-        ${LF('kap',k,'taxPaid',t('kap_tax'),{euro:true,ph:'0,00 €'})}
-        ${LF('kap',k,'soliPaid',t('kap_soli'),{euro:true,ph:'0,00 €'})}
+        ${LF('kap',k,'k43',t('k43'),{euro:true,ph:'0,00 €'})}
+        ${LF('kap',k,'k44',t('k44'),{euro:true,ph:'0,00 €'})}
+        ${LF('kap',k,'k45',t('k45'),{euro:true,ph:'0,00 €'})}
       </div>
     </div></div>`).join('');
   return `<h2>${t('step_kap')}</h2><p class="lead">${t('s_kap_lead')}</p>
   ${rows}
-  <button class="btn btn-ghost btn-sm" onclick="addItem('kap',{platform:'',gains:'',taxPaid:'',soliPaid:''})">＋ ${t('add_kap')}</button>
+  <button class="btn btn-ghost btn-sm" onclick="addItem('kap',{person:'A',platform:'',k7:'',k8:'',k12:'',k13:'',sparerUsed:'',k18:'',k19:'',k20:'',k21:'',k22:'',k23:'',k43:'',k44:'',k45:''})">＋ ${t('add_kap')}</button>
   ${docSection('kap')}
   ${navRow()}`;
 }
@@ -1579,9 +1635,12 @@ function stepSummary(c){
     if(sv.length) empRows.push(['↳ '+t('sv_short'), esc(sv.join(' · '))]);
     if(N(k.ersatz15)>0) empRows.push(['↳ '+t('z15'), eur(N(k.ersatz15))]);
   });
-  const kapRows=(c.kap||[]).map((k,i)=>[
-    `${t('platform')} ${i+1}${k.platform?' — '+esc(k.platform):''}`,
-    esc([N(k.gains)>0?eur(N(k.gains)):'', N(k.taxPaid)>0?'KapESt: '+eur(N(k.taxPaid)):'', N(k.soliPaid)>0?'Soli: '+eur(N(k.soliPaid)):''].filter(Boolean).join(' · '))]);
+  const kapRows=(c.kap||[]).map((k,i)=>{
+    const loss=N(k.k12)+N(k.k13);
+    return [`${marr?'('+(k.person==='B'?'B':'A')+') ':''}${t('platform')} ${i+1}${k.platform?' — '+esc(k.platform):''}`,
+    esc([N(k.k7)>0?'Z7: '+eur(N(k.k7)):'', N(k.k18)>0?'Z18: '+eur(N(k.k18)):'', N(k.k19)>0?'Z19: '+eur(N(k.k19)):'',
+      loss>0?'Verluste: −'+eur(loss):'', N(k.k43)>0?'KapESt: '+eur(N(k.k43)):'', N(k.k45)>0?'KiSt: '+eur(N(k.k45)):''
+    ].filter(Boolean).join(' · '))];});
   const propRows=(c.props||[]).map((p,i)=>[
     esc(p.address||t('prop_address')+' '+(i+1)),
     esc(`${eur(N(p.rent))} − ${eur(N(p.costs))} = ${eur(N(p.rent)-N(p.costs))}`)]);
@@ -1731,8 +1790,14 @@ function buildElsterDataset(c){
     sonderausgaben:{ spenden:N(c.sa.donations), sonstige:N(c.sa.other) },
     aussergewoehnlicheBelastungen:{ krankheitskosten:N(c.ex.medical) },
     haushaltsnaheLeistungen:{ haushaltsnaheDienstleistungen:N(c.ex.household), handwerkerleistungen:N(c.ex.handwerker) },
-    anlageKAP:(c.kap||[]).map(k=>({ institut:k.platform, kapitalertraege:N(k.gains),
-      kapitalertragsteuer:N(k.taxPaid), soli:N(k.soliPaid) })),
+    anlageKAP:(c.kap||[]).map(k=>({ person:k.person==='B'?'B':'A', institut:k.platform,
+      zeile7_kapitalertraege:N(k.k7)+N(k.gains), zeile8_aktiengewinne:N(k.k8),
+      zeile12_verlusteOhneAktien:N(k.k12), zeile13_verlusteAktien:N(k.k13),
+      zeile16_sparerPauschbetragGenutzt:N(k.sparerUsed),
+      zeile18_inlaendischOhneSteuerabzug:N(k.k18), zeile19_auslaendisch:N(k.k19),
+      zeile20_aktiengewinne:N(k.k20), zeile21_stillhalterTermingeschaefte:N(k.k21),
+      zeile22_verlusteOhneAktien:N(k.k22), zeile23_verlusteAktien:N(k.k23),
+      zeile43_kapitalertragsteuer:N(k.k43)+N(k.taxPaid), zeile44_soli:N(k.k44)+N(k.soliPaid), zeile45_kirchensteuer:N(k.k45) })),
     anlageV:(c.props||[]).map(p=>({ objekt:p.address, mieteinnahmen:N(p.rent), werbungskosten:N(p.costs),
       ergebnis:N(p.rent)-N(p.costs) })),
     belege:(c.docs||[]).map(d=>({ id:d.id, name:d.name, bereich:d.section, datum:new Date(d.ts).toISOString() })),
@@ -1850,8 +1915,12 @@ async function exportPDF(){
     const totN=(c.privIns||[]).reduce((a,x)=>a+Math.max(0,N(x.beitrag)-N(x.erstattung)),0);
     row(t('tot_net'), eur(totN)); }
   if((c.kap||[]).length){ y+=3; section(t('step_kap'));
-    (c.kap||[]).forEach((k,i)=>row(`${t('platform')} ${i+1}${k.platform?' — '+k.platform:''}`,
-      [N(k.gains)>0?eur(N(k.gains)):'', N(k.taxPaid)>0?'KapESt '+eur(N(k.taxPaid)):''].filter(Boolean).join(' · ')||' ')); }
+    (c.kap||[]).forEach((k,i)=>{
+      const ab=c.p.marital==='married'?'('+(k.person==='B'?'B':'A')+') ':'';
+      const loss=N(k.k12)+N(k.k13);
+      row(ab+`${t('platform')} ${i+1}${k.platform?' — '+k.platform:''}`,
+        [N(k.k7)>0?'Z7 '+eur(N(k.k7)):'', N(k.k18)>0?'Z18 '+eur(N(k.k18)):'', N(k.k19)>0?'Z19 '+eur(N(k.k19)):'',
+         loss>0?'Verl. -'+eur(loss):'', N(k.k43)>0?'KapESt '+eur(N(k.k43)):''].filter(Boolean).join(' · ')||' '); }); }
   if((c.props||[]).length){ y+=3; section(t('step_prop'));
     (c.props||[]).forEach((p,i)=>row(p.address||`${t('step_prop')} ${i+1}`,
       `${eur(N(p.rent))} - ${eur(N(p.costs))} = ${eur(N(p.rent)-N(p.costs))}`)); }
