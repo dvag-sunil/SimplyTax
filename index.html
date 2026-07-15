@@ -700,8 +700,9 @@ function incTotals(c){
     const isB=e.person==='B';
     a[isB?'fahrtB':'fahrtA']+=N(e.fahrt17)+N(e.pausch18);   // reduces Entfernungspauschale (lines 17/18), per person
     a.rv+=N(e.anRV)+N(e.anRVb); a.kv+=N(e.anKV); a.pv+=N(e.anPV); a[isB?'avB':'avA']+=N(e.anAV); a.pkv+=N(e.pkv28);
+    a.agKV+=N(e.agKV); a.agPKV+=N(e.agPKV); a.agPV+=N(e.agPV);   // tax-free employer subsidies (lines 24a/b/c) reduce the deductible amounts
     return a; },
-    {gross:0,wageTax:0,soli:0,church:0,paid:0,ersatz:0,fahrtA:0,fahrtB:0,rv:0,kv:0,pv:0,avA:0,avB:0,pkv:0});
+    {gross:0,wageTax:0,soli:0,church:0,paid:0,ersatz:0,fahrtA:0,fahrtB:0,rv:0,kv:0,pv:0,avA:0,avB:0,pkv:0,agKV:0,agPKV:0,agPV:0});
 }
 function computeEstimate(c){
   const year = c.taxYear || 2025;
@@ -731,9 +732,14 @@ function computeEstimate(c){
     const per=(joint && x.person==='B')?'B':'A';
     a[per][cat]+=net; a.total+=net; return a;
   },{total:0,A:{basis:0,alters:0,riester:0,vorsorge:0,none:0},B:{basis:0,alters:0,riester:0,vorsorge:0,none:0}});
-  // Vorsorge: RV/KV/PV/PKV fully; the €1,900 "sonstige Vorsorge" pot applies PER PERSON
+  // Vorsorge: RV/KV/PV/PKV; the €1,900 "sonstige Vorsorge" pot applies PER PERSON
+  // Health & care per § 10 (1) Nr. 3 EStG: employee contributions MINUS tax-free employer subsidies (lines 24a/b/c);
+  // GKV additionally reduced by flat 4% for the Krankengeld share (employees have sick-pay entitlement); PV uncut.
+  const kvBasis  = Math.max(0, inc.kv  - inc.agKV ) * 0.96;
+  const pvBasis  = Math.max(0, inc.pv  - inc.agPV );
+  const pkvBasis = Math.max(0, inc.pkv - inc.agPKV);
   const avPotA = inc.avA + (joint?0:inc.avB) + N(c.ins.av) + N(c.ins.other) + pins.A.vorsorge;
-  const vors = inc.rv + inc.kv + inc.pv + inc.pkv
+  const vors = inc.rv + kvBasis + pvBasis + pkvBasis
              + pins.A.basis + pins.A.alters + pins.B.basis + pins.B.alters
              + N(c.ins.rv)+N(c.ins.kv)+N(c.ins.pv)   /* legacy values, if any */
              + Math.min(avPotA, 1900)
