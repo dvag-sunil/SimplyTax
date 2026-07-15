@@ -57,6 +57,9 @@
   .auth-tabs button{flex:1;padding:9px;font-weight:600;font-size:13.5px;color:var(--ink-soft)}
   .auth-tabs button.on{background:var(--ink);color:#fff}
   .auth-err{background:var(--red-soft);border:1px solid #EBC6BD;color:var(--red);border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:14px}
+  details.more{margin:10px 0;border:1px dashed var(--line);border-radius:10px;padding:10px 14px;background:#FBFCFB}
+  details.more summary{cursor:pointer;font-weight:800;font-size:11.5px;color:var(--teal);text-transform:uppercase;letter-spacing:.07em;user-select:none}
+  details.more[open] summary{margin-bottom:12px}
 
   /* ---------- dashboard ---------- */
   .page-head{display:flex;align-items:flex-end;gap:16px;margin-bottom:22px;flex-wrap:wrap}
@@ -270,6 +273,28 @@ en: {
   m_kap:"Capital gains tax (est.)",
   step_prop:"Rental property", s_prop_lead:"Rental income (Anlage V) — one entry per property. Costs (loan interest, maintenance, depreciation, service charges…) count as expenses; a loss reduces the taxable income.",
   prop_address:"Property (address)", prop_rent:"Rental income (per year)", prop_costs:"Costs / expenses (per year)", add_prop:"Add property", prop_net:"Net result",
+  sec_sv:"Social insurance (lines 22–28)", sec_more:"More fields (lines 8–21, 29–34)",
+  kfb:"Child allowances (Kinderfreibeträge)",
+  z7:"Church tax spouse (line 7)", z8:"Pension payments in line 3 (Versorgungsbezüge, line 8)",
+  z9:"Reduced-taxed pension payments, multi-year (line 9)", z10:"Multi-year wages / severance (line 10)",
+  z11:"Wage tax on lines 9/10 (line 11)", z12:"Soli on lines 9/10 (line 12)", z13:"Church tax on lines 9/10 (line 13)", z14:"Church tax spouse on lines 9/10 (line 14)",
+  z15:"Wage replacement benefits: Kurzarbeitergeld, maternity subsidy… (line 15)", z15a:"Of which (Saison-)Kurzarbeitergeld (line 15a, from 2025)",
+  z15_hint:"Tax-free, but raises the tax rate on the rest (Progressionsvorbehalt) — included in the estimate.",
+  z16:"Tax-free wages under DBA / foreign service decree (line 16)",
+  z17:"Employer benefits credited against the commuting allowance (line 17)",
+  z18:"15% flat-taxed employer commuting benefits (line 18)",
+  z17_hint:"Lines 17/18 reduce the deductible commuting allowance — applied automatically.",
+  z19:"Taxable multi-year compensation, not reduced (line 19)", z20:"Tax-free meal allowances, external work (line 20)",
+  z21:"Tax-free employer benefits, double household (line 21)",
+  z22a:"Employer share statutory pension (line 22a)", z22b:"Employer contribution, professional pension fund (line 22b)",
+  z23a:"Employee share statutory pension (line 23a)", z23b:"Employee contribution, professional pension fund (line 23b)",
+  z24a:"Employer subsidy statutory health ins. (line 24a)", z24b:"Employer subsidy private health ins. (line 24b)", z24c:"Employer subsidy care ins. (line 24c)",
+  z25:"Employee statutory health insurance (line 25)", z26:"Employee care insurance (line 26)", z27:"Employee unemployment insurance (line 27)",
+  z28:"Private health/care insurance or minimum lump sum (line 28)",
+  z29:"Assessment base, pension allowance (line 29)", z30:"Calendar year of pension start (line 30)",
+  z31:"First/last month of pension payments (line 31)", z32:"Death benefit / capital settlements (line 32)", z34:"Used allowance DBA Turkey (line 34)",
+  ai_personal_note:"The Identifikationsnummer and date of birth from the document are copied into Personal data automatically — only if those fields are still empty. The Finanzamt printed on the Bescheinigung is the employer's remittance office and is deliberately NOT copied.",
+  sv_short:"Social insurance",
   privacy_foot:"Prototype · Data is stored only in this workspace · GDPR-compliant hosting planned for production"
 },
 de: {
@@ -374,6 +399,28 @@ de: {
   m_kap:"Kapitalertragsteuer (ca.)",
   step_prop:"Vermietung", s_prop_lead:"Einkünfte aus Vermietung (Anlage V) — ein Eintrag je Immobilie. Kosten (Darlehenszinsen, Instandhaltung, AfA, Nebenkosten…) zählen als Werbungskosten; ein Verlust mindert das zu versteuernde Einkommen.",
   prop_address:"Immobilie (Adresse)", prop_rent:"Mieteinnahmen (pro Jahr)", prop_costs:"Kosten / Aufwendungen (pro Jahr)", add_prop:"Immobilie hinzufügen", prop_net:"Ergebnis",
+  sec_sv:"Sozialversicherung (Zeilen 22–28)", sec_more:"Weitere Felder (Zeilen 8–21, 29–34)",
+  kfb:"Zahl der Kinderfreibeträge",
+  z7:"Kirchensteuer Ehegatte (Zeile 7)", z8:"In Zeile 3 enthaltene Versorgungsbezüge (Zeile 8)",
+  z9:"Ermäßigt besteuerte Versorgungsbezüge, mehrere Jahre (Zeile 9)", z10:"Arbeitslohn mehrere Jahre / Entschädigungen (Zeile 10)",
+  z11:"Lohnsteuer zu Zeile 9/10 (Zeile 11)", z12:"Soli zu Zeile 9/10 (Zeile 12)", z13:"Kirchensteuer zu Zeile 9/10 (Zeile 13)", z14:"Kirchensteuer Ehegatte zu Zeile 9/10 (Zeile 14)",
+  z15:"Lohnersatzleistungen: Kurzarbeitergeld, Zuschuss Mutterschaftsgeld… (Zeile 15)", z15a:"Darin enthaltenes (Saison-)Kurzarbeitergeld (Zeile 15a, ab 2025)",
+  z15_hint:"Steuerfrei, erhöht aber den Steuersatz auf das übrige Einkommen (Progressionsvorbehalt) — in der Schätzung berücksichtigt.",
+  z16:"Steuerfreier Arbeitslohn nach DBA / Auslandstätigkeitserlass (Zeile 16)",
+  z17:"Steuerfreie Arbeitgeberleistungen, auf Entfernungspauschale anzurechnen (Zeile 17)",
+  z18:"Pauschal mit 15 % besteuerte Fahrtkosten-Arbeitgeberleistungen (Zeile 18)",
+  z17_hint:"Zeilen 17/18 mindern die absetzbare Entfernungspauschale — wird automatisch angerechnet.",
+  z19:"Steuerpflichtige Entschädigungen mehrere Jahre, nicht ermäßigt (Zeile 19)", z20:"Steuerfreie Verpflegungszuschüsse Auswärtstätigkeit (Zeile 20)",
+  z21:"Steuerfreie Arbeitgeberleistungen doppelte Haushaltsführung (Zeile 21)",
+  z22a:"Arbeitgeberanteil gesetzliche Rentenversicherung (Zeile 22a)", z22b:"Arbeitgeber: berufsständische Versorgung (Zeile 22b)",
+  z23a:"Arbeitnehmeranteil gesetzliche Rentenversicherung (Zeile 23a)", z23b:"Arbeitnehmer: berufsständische Versorgung (Zeile 23b)",
+  z24a:"AG-Zuschuss gesetzliche Krankenversicherung (Zeile 24a)", z24b:"AG-Zuschuss private Krankenversicherung (Zeile 24b)", z24c:"AG-Zuschuss Pflegeversicherung (Zeile 24c)",
+  z25:"Arbeitnehmerbeiträge gesetzliche Krankenversicherung (Zeile 25)", z26:"Arbeitnehmerbeiträge soziale Pflegeversicherung (Zeile 26)", z27:"Arbeitnehmerbeiträge Arbeitslosenversicherung (Zeile 27)",
+  z28:"Private Kranken-/Pflege-Pflichtversicherung oder Mindestvorsorgepauschale (Zeile 28)",
+  z29:"Bemessungsgrundlage Versorgungsfreibetrag (Zeile 29)", z30:"Kalenderjahr des Versorgungsbeginns (Zeile 30)",
+  z31:"Erster/letzter Monat der Versorgungsbezüge (Zeile 31)", z32:"Sterbegeld / Kapitalauszahlungen (Zeile 32)", z34:"Verbrauchter Freibetrag DBA Türkei (Zeile 34)",
+  ai_personal_note:"Identifikationsnummer und Geburtsdatum aus dem Dokument werden automatisch in die persönlichen Daten übernommen — nur, wenn diese Felder noch leer sind. Das auf der Bescheinigung gedruckte Finanzamt ist das Betriebsstättenfinanzamt des Arbeitgebers und wird bewusst NICHT übernommen.",
+  sv_short:"Sozialversicherung",
   privacy_foot:"Prototyp · Daten werden nur in diesem Arbeitsbereich gespeichert · DSGVO-konformes Hosting für die Produktion geplant"
 }};
 
@@ -450,6 +497,15 @@ function migrateClient(c){
   if(c.emps.length===0 && c.inc && (N(c.inc.gross)>0 || (c.inc.employer||'').trim()!=='')){
     c.emps.push(Object.assign({id:uid()}, c.inc));
     c.inc = { employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:'' };
+  }
+  /* legacy: standalone insurance step merged into the (first) employment statement */
+  if(c.emps.length && c.ins && (N(c.ins.rv)>0||N(c.ins.kv)>0||N(c.ins.pv)>0||N(c.ins.av)>0)){
+    const e0=c.emps[0];
+    if(!N(e0.anRV)) e0.anRV=c.ins.rv;
+    if(!N(e0.anKV)) e0.anKV=c.ins.kv;
+    if(!N(e0.anPV)) e0.anPV=c.ins.pv;
+    if(!N(e0.anAV)) e0.anAV=c.ins.av;
+    c.ins.rv=c.ins.kv=c.ins.pv=c.ins.av='';
   }
   c.wk = Object.assign({dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wk||{});
   c.fam = Object.assign({kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',children:[]}, c.fam||{});
@@ -573,8 +629,15 @@ function estBase(zvE, year){
   return Math.floor(T.r4*x - T.d4);
 }
 function incTotals(c){
-  return (c.emps||[]).reduce((a,e)=>{ a.gross+=N(e.gross); a.wageTax+=N(e.wageTax); a.soli+=N(e.soli); a.church+=N(e.churchPaid); return a; },
-    {gross:0,wageTax:0,soli:0,church:0});
+  return (c.emps||[]).reduce((a,e)=>{
+    a.gross+=N(e.gross);
+    a.wageTax+=N(e.wageTax); a.soli+=N(e.soli); a.church+=N(e.churchPaid);
+    a.paid+=N(e.wageTax)+N(e.soli)+N(e.churchPaid)+N(e.churchSpouse)+N(e.lst11)+N(e.soli12)+N(e.kist13)+N(e.kistSp14);
+    a.ersatz+=N(e.ersatz15);                       // Progressionsvorbehalt (line 15)
+    a.fahrtCredit+=N(e.fahrt17)+N(e.pausch18);     // reduces Entfernungspauschale (lines 17/18)
+    a.rv+=N(e.anRV)+N(e.anRVb); a.kv+=N(e.anKV); a.pv+=N(e.anPV); a.av+=N(e.anAV); a.pkv+=N(e.pkv28);
+    return a; },
+    {gross:0,wageTax:0,soli:0,church:0,paid:0,ersatz:0,fahrtCredit:0,rv:0,kv:0,pv:0,av:0,pkv:0});
 }
 function computeEstimate(c){
   const year = c.taxYear || 2025;
@@ -583,7 +646,7 @@ function computeEstimate(c){
   // Werbungskosten
   const days = Math.min(N(c.wk.commuteDays), 366), km = N(c.wk.commuteKm);
   const near = Math.min(km,20), far = Math.max(km-20,0);
-  const commute = days*(near*0.30 + far*0.38);
+  const commute = Math.max(0, days*(near*0.30 + far*0.38) - inc.fahrtCredit);
   const ho = Math.min(N(c.wk.homeOffice)*6, 1260);
   // double household: rent capped €1,000/month + family home trips (Entfernungspauschale) + relocation
   const dhhRent = Math.min(N(c.wk.dhhRent),1000) * Math.min(N(c.wk.dhhMonths),12);
@@ -591,8 +654,10 @@ function computeEstimate(c){
   const dhhTrips = Math.min(N(c.wk.dhhTrips),52) * (dNear*0.30 + dFar*0.38);
   const wk = Math.max(1230, commute + ho + N(c.wk.equipment)+N(c.wk.training)+N(c.wk.other)
                       + dhhRent + dhhTrips + N(c.wk.relocation));
-  // Vorsorge (simplified: RV+KV+PV fully, AV+other capped 1,900)
-  const vors = N(c.ins.rv)+N(c.ins.kv)+N(c.ins.pv)+Math.min(N(c.ins.av)+N(c.ins.other),1900);
+  // Vorsorge from the statements (23a/b RV fully; 25 KV; 26 PV; 28 private KV/PV; AV + other private capped €1,900)
+  const vors = inc.rv + inc.kv + inc.pv + inc.pkv
+             + N(c.ins.rv)+N(c.ins.kv)+N(c.ins.pv)   /* legacy values, if any */
+             + Math.min(inc.av + N(c.ins.av) + N(c.ins.other), 1900);
   // Sonderausgaben incl. per-child childcare (2025: 80% max €4,800/child; before: 2/3 max €4,000) and school fees (30% max €5,000/child)
   const ccRate = year>=2025 ? {r:0.80,cap:4800} : {r:2/3,cap:4000};
   let childcare=0, school=0;
@@ -617,7 +682,14 @@ function computeEstimate(c){
   const propNet = (c.props||[]).reduce((a,p)=>a + (N(p.rent)-N(p.costs)), 0);
   const zvE = Math.max(0, gross + propNet - wk - vors - sa - agb);
   const joint = c.p.marital==='married';
-  const tax = joint ? 2*estBase(zvE/2, year) : estBase(zvE, year);
+  const tariffT = z => joint ? 2*estBase(z/2, year) : estBase(z, year);
+  // Progressionsvorbehalt: tax-free wage replacement (line 15) raises the rate applied to zvE
+  let tax;
+  if(inc.ersatz>0 && zvE>0){
+    tax = Math.floor( tariffT(zvE + inc.ersatz) * (zvE / (zvE + inc.ersatz)) );
+  } else {
+    tax = tariffT(zvE);
+  }
   // §35a credits
   const credit = Math.min(N(c.ex.household)*0.20, 4000) + Math.min(N(c.ex.handwerker)*0.20, 1200);
   const taxAfter = Math.max(0, tax - credit);
@@ -634,7 +706,7 @@ function computeEstimate(c){
   const kapTaxable = Math.max(0, kapGains - sparer);
   const kap = kapTaxable*0.25 * 1.055;   // 25% KapESt + 5.5% Soli thereon
   const owed = taxAfter + soli + kist + kap;
-  const paid = inc.wageTax + inc.soli + inc.church + kapPaid;
+  const paid = inc.paid + kapPaid;
   return { zvE, wk, tax, credit, taxAfter, soli, kist, kap, propNet, owed, paid, refund: paid - owed };
 }
 
@@ -831,24 +903,23 @@ function stepDone(c,i){
   switch(i){
     case 0: return !!(c.p.taxId && c.p.birthDate && c.p.street);
     case 1: return incTotals(c).gross>0;
-    case 2: return N(c.ins.rv)+N(c.ins.kv)>0;
-    case 3: return N(c.wk.commuteDays)+N(c.wk.equipment)+N(c.wk.homeOffice)+N(c.wk.training)+N(c.wk.other)+N(c.wk.dhhRent)+N(c.wk.relocation)>0;
-    case 4: return ((c.fam.children||[]).length)>0 || N(c.fam.support)>0;
-    case 5: return N(c.sa.donations)+N(c.sa.other)>0;
-    case 6: return (c.kap||[]).length>0;
-    case 7: return (c.props||[]).length>0;
-    case 8: return N(c.ex.medical)+N(c.ex.household)+N(c.ex.handwerker)>0;
-    case 9: return c.status==='submitted';
-    case 10: return (c.inq||[]).length>0 && c.inq.every(q=>q.status==='answered');
+    case 2: return N(c.wk.commuteDays)+N(c.wk.equipment)+N(c.wk.homeOffice)+N(c.wk.training)+N(c.wk.other)+N(c.wk.dhhRent)+N(c.wk.relocation)>0;
+    case 3: return ((c.fam.children||[]).length)>0 || N(c.fam.support)>0;
+    case 4: return N(c.sa.donations)+N(c.sa.other)+N(c.ins.other)>0;
+    case 5: return (c.kap||[]).length>0;
+    case 6: return (c.props||[]).length>0;
+    case 7: return N(c.ex.medical)+N(c.ex.household)+N(c.ex.handwerker)>0;
+    case 8: return c.status==='submitted';
+    case 9: return (c.inq||[]).length>0 && c.inq.every(q=>q.status==='answered');
   } return false;
 }
 function clientView(){
   const c=cur(); if(!c){S.view='dash';return dashView();}
-  const stepKeys=['step1','step2','step3','step4','step_fam','step5','step_kap','step_prop','step6','step7','step_inq'];
+  const stepKeys=['step1','step2','step4','step_fam','step5','step_kap','step_prop','step6','step7','step_inq'];
   const stepsHtml = stepKeys.map((k,i)=>`
     <div class="step-item ${S.step===i?'on':''} ${stepDone(c,i)?'done':''}" onclick="S.step=${i};render()">
       <span class="n">${stepDone(c,i)?'✓':i+1}</span> ${t(k)}</div>`).join('');
-  const bodies=[stepPersonal,stepIncome,stepInsurance,stepWork,stepFamily,stepSpecial,stepKap,stepProp,stepHousehold,stepSummary,stepInquiries];
+  const bodies=[stepPersonal,stepIncome,stepWork,stepFamily,stepSpecial,stepKap,stepProp,stepHousehold,stepSummary,stepInquiries];
   return `<main>
     <div class="crumbs"><a onclick="goDash()">← ${t('back_dash')}</a> &nbsp;/&nbsp; <b>${esc(c.p.firstName)} ${esc(c.p.lastName)}</b> · ${t('tax_year')} ${c.taxYear} · ${chip(c.status)}</div>
     <div class="ws">
@@ -965,7 +1036,7 @@ async function deleteDoc(id){
 }
 
 function navRow(){
-  const last = S.step===10;
+  const last = S.step===9;
   return `<div class="nav-row">
     <button class="btn btn-ghost" ${S.step===0?'disabled':''} onclick="S.step--;render()">← ${t('back')}</button>
     ${last?'':`<button class="btn btn-primary" onclick="S.step++;render()">${t('next')} →</button>`}
@@ -1020,12 +1091,57 @@ function stepIncome(c){
         ${LF('emps',emp,'period',t('period'),{ph:'01.01. – 31.12.'})}
         ${LF('emps',emp,'taxClass',t('tax_class'),{select:[['',t('select')],['1','I'],['2','II'],['3','III'],['4','IV'],['5','V'],['6','VI']]})}
       </div>
-      <div class="grid2">
+      <div class="grid3">
+        ${LF('emps',emp,'kfb',t('kfb'),{ph:'2,0'})}
         ${LF('emps',emp,'gross',t('gross'),{euro:true,ph:'0,00 €'})}
         ${LF('emps',emp,'wageTax',t('wage_tax'),{euro:true,ph:'0,00 €'})}
+      </div>
+      <div class="grid3">
         ${LF('emps',emp,'soli',t('soli'),{euro:true,ph:'0,00 €'})}
         ${LF('emps',emp,'churchPaid',t('church_paid'),{euro:true,ph:'0,00 €'})}
+        ${LF('emps',emp,'churchSpouse',t('z7'),{euro:true,ph:'0,00 €'})}
       </div>
+      <details class="more" open><summary>${t('sec_sv')}</summary>
+        <div class="grid3">
+          ${LF('emps',emp,'anRV',t('z23a'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'anRVb',t('z23b'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'anKV',t('z25'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'anPV',t('z26'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'anAV',t('z27'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'pkv28',t('z28'),{euro:true,ph:'0,00 €'})}
+        </div>
+        <div class="grid3">
+          ${LF('emps',emp,'agRV',t('z22a'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'agRVb',t('z22b'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'agKV',t('z24a'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'agPKV',t('z24b'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'agPV',t('z24c'),{euro:true,ph:'0,00 €'})}
+        </div>
+      </details>
+      <details class="more"><summary>${t('sec_more')}</summary>
+        <div class="grid3">
+          ${LF('emps',emp,'vb8',t('z8'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'vb9',t('z9'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'ml10',t('z10'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'lst11',t('z11'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'soli12',t('z12'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'kist13',t('z13'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'kistSp14',t('z14'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'ersatz15',t('z15'),{euro:true,ph:'0,00 €',hint:t('z15_hint')})}
+          ${LF('emps',emp,'kug15a',t('z15a'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'dba16',t('z16'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'fahrt17',t('z17'),{euro:true,ph:'0,00 €',hint:t('z17_hint')})}
+          ${LF('emps',emp,'pausch18',t('z18'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'entsch19',t('z19'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'verpf20',t('z20'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'dhh21',t('z21'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'bmg29',t('z29'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'vbJahr30',t('z30'),{ph:'2020'})}
+          ${LF('emps',emp,'vbMon31',t('z31'),{ph:'01 / 12'})}
+          ${LF('emps',emp,'sterbe32',t('z32'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'fb34',t('z34'),{euro:true,ph:'0,00 €'})}
+        </div>
+      </details>
     </div></div>`).join('');
   const warnTax = emps.some(e=>N(e.wageTax)>0 && N(e.gross)>0 && N(e.wageTax)>N(e.gross)*0.45);
   return `<h2>${t('step2')}</h2><p class="lead">${t('s2_lead2')}</p>
@@ -1033,7 +1149,7 @@ function stepIncome(c){
     <div class="icon">📄</div><b>${t('upload_title')}</b><br>${t('upload_sub')}
   </div>
   ${scan}
-  <p style="font-size:12.5px;color:var(--ink-soft);margin-top:10px">${t('upload_new_hint')} ${t('manual_hint')}</p>
+  <p style="font-size:12.5px;color:var(--ink-soft);margin-top:10px">${t('upload_new_hint')} ${t('ai_personal_note')} ${t('manual_hint')}</p>
   <div class="section-label">${t('income')}</div>
   ${cards}
   <button class="btn btn-ghost btn-sm" onclick="addItem('emps',{employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:''})">＋ ${t('add_emp')}</button>
@@ -1172,6 +1288,7 @@ function stepSpecial(c){
   <div class="grid2">
     ${F('sa','donations',t('donations'),{euro:true,ph:'0,00 €'})}
     ${F('sa','other',t('other_sa'),{euro:true,ph:'0,00 €'})}
+    ${F('ins','other',t('other_ins'),{euro:true,ph:'0,00 €'})}
   </div>${navRow()}`;
 }
 
@@ -1204,14 +1321,21 @@ function stepSummary(c){
       N(k.childcare)>0?t('cc_short')+': '+eur(N(k.childcare)):'',
       N(k.schoolFees)>0?t('sf_short')+': '+eur(N(k.schoolFees)):''
     ].filter(Boolean).join(' · '))]);
-  const empRows=(c.emps||[]).map((k,i)=>[
-    `${t('statement')} ${i+1}${k.employer?' — '+esc(k.employer):''}`,
-    esc([k.taxClass?'StKl '+k.taxClass:'',
-      N(k.gross)>0?t('gross_short')+': '+eur(N(k.gross)):'',
-      N(k.wageTax)>0?'LSt: '+eur(N(k.wageTax)):'',
-      N(k.soli)>0?'Soli: '+eur(N(k.soli)):'',
-      N(k.churchPaid)>0?'KiSt: '+eur(N(k.churchPaid)):''
-    ].filter(Boolean).join(' · '))]);
+  const empRows=[];
+  (c.emps||[]).forEach((k,i)=>{
+    empRows.push([`${t('statement')} ${i+1}${k.employer?' — '+esc(k.employer):''}`,
+      esc([k.taxClass?'StKl '+k.taxClass:'',
+        N(k.gross)>0?t('gross_short')+': '+eur(N(k.gross)):'',
+        N(k.wageTax)>0?'LSt: '+eur(N(k.wageTax)):'',
+        N(k.soli)>0?'Soli: '+eur(N(k.soli)):'',
+        N(k.churchPaid)>0?'KiSt: '+eur(N(k.churchPaid)):''
+      ].filter(Boolean).join(' · '))]);
+    const sv=[N(k.anRV)+N(k.anRVb)>0?'RV: '+eur(N(k.anRV)+N(k.anRVb)):'',
+      N(k.anKV)>0?'KV: '+eur(N(k.anKV)):'', N(k.anPV)>0?'PV: '+eur(N(k.anPV)):'',
+      N(k.anAV)>0?'AV: '+eur(N(k.anAV)):'', N(k.pkv28)>0?'PKV: '+eur(N(k.pkv28)):''].filter(Boolean);
+    if(sv.length) empRows.push(['↳ '+t('sv_short'), esc(sv.join(' · '))]);
+    if(N(k.ersatz15)>0) empRows.push(['↳ '+t('z15'), eur(N(k.ersatz15))]);
+  });
   const kapRows=(c.kap||[]).map((k,i)=>[
     `${t('platform')} ${i+1}${k.platform?' — '+esc(k.platform):''}`,
     esc([N(k.gains)>0?eur(N(k.gains)):'', N(k.taxPaid)>0?'KapESt: '+eur(N(k.taxPaid)):'', N(k.soliPaid)>0?'Soli: '+eur(N(k.soliPaid)):''].filter(Boolean).join(' · '))]);
@@ -1230,19 +1354,17 @@ function stepSummary(c){
     [t('finanzamt'),esc([c.p.finanzamt, c.p.faNumber?'('+c.p.faNumber+')':''].filter(Boolean).join(' '))],
     [t('iban'),esc(c.p.iban)]])}
   ${sumGroup(t('income'),1,empRows)}
-  ${sumGroup(t('insurance'),2,[
-    [t('rv'),m(c.ins.rv)],[t('kv'),m(c.ins.kv)],[t('pv'),m(c.ins.pv)],[t('av'),m(c.ins.av)],[t('other_ins'),m(c.ins.other)]])}
-  ${sumGroup(t('work_exp'),3,[
+  ${sumGroup(t('work_exp'),2,[
     [t('commute_days'),c.wk.commuteDays],[t('commute_km'),c.wk.commuteKm],[t('home_office'),c.wk.homeOffice],
     [t('equipment'),m(c.wk.equipment)],[t('training'),m(c.wk.training)],[t('other_wk'),m(c.wk.other)],
     [t('dhh_rent'),m(c.wk.dhhRent)],[t('dhh_trips'),c.wk.dhhTrips],[t('relocation'),m(c.wk.relocation)]])}
-  ${sumGroup(t('step_fam'),4,[...kidRows,
+  ${sumGroup(t('step_fam'),3,[...kidRows,
     [t('support_amount'),m(c.fam.support)],
     [t('support_where'),N(c.fam.support)>0?{1:t('grp1'),2:t('grp2'),3:t('grp3'),4:t('grp4')}[c.fam.supportGroup]:'']])}
-  ${sumGroup(t('special_exp'),5,[[t('donations'),m(c.sa.donations)],[t('other_sa'),m(c.sa.other)]])}
-  ${sumGroup(t('step_kap'),6,kapRows)}
-  ${sumGroup(t('step_prop'),7,propRows)}
-  ${sumGroup(t('household_g'),8,[[t('medical'),m(c.ex.medical)],[t('household'),m(c.ex.household)],[t('handwerker'),m(c.ex.handwerker)]])}
+  ${sumGroup(t('special_exp'),4,[[t('donations'),m(c.sa.donations)],[t('other_sa'),m(c.sa.other)],[t('other_ins'),m(c.ins.other)]])}
+  ${sumGroup(t('step_kap'),5,kapRows)}
+  ${sumGroup(t('step_prop'),6,propRows)}
+  ${sumGroup(t('household_g'),7,[[t('medical'),m(c.ex.medical)],[t('household'),m(c.ex.household)],[t('handwerker'),m(c.ex.handwerker)]])}
   <div style="margin-top:22px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;align-items:center">
   <button class="btn btn-ghost" onclick="exportPDF()">📄 ${t('pdf_btn')}</button>
   ${submitted
@@ -1360,9 +1482,12 @@ async function exportPDF(){
     if(N(k.wageTax)>0) row('    '+t('wage_tax'), eur(N(k.wageTax)));
     if(N(k.soli)>0) row('    '+t('soli'), eur(N(k.soli)));
     if(N(k.churchPaid)>0) row('    '+t('church_paid'), eur(N(k.churchPaid)));
+    const svParts=[N(k.anRV)+N(k.anRVb)>0?'RV '+eur(N(k.anRV)+N(k.anRVb)):'',
+      N(k.anKV)>0?'KV '+eur(N(k.anKV)):'', N(k.anPV)>0?'PV '+eur(N(k.anPV)):'',
+      N(k.anAV)>0?'AV '+eur(N(k.anAV)):'', N(k.pkv28)>0?'PKV '+eur(N(k.pkv28)):''].filter(Boolean);
+    if(svParts.length) row('    '+t('sv_short'), svParts.join(' · '));
+    if(N(k.ersatz15)>0) row('    '+t('z15'), eur(N(k.ersatz15)));
   });
-  y+=3; section(t('insurance'));
-  row(t('rv'),m(c.ins.rv)); row(t('kv'),m(c.ins.kv)); row(t('pv'),m(c.ins.pv)); row(t('av'),m(c.ins.av)); row(t('other_ins'),m(c.ins.other));
   y+=3; section(t('work_exp'));
   row(t('commute_days'),c.wk.commuteDays); row(t('commute_km'),c.wk.commuteKm); row(t('home_office'),c.wk.homeOffice);
   row(t('equipment'),m(c.wk.equipment)); row(t('training'),m(c.wk.training)); row(t('other_wk'),m(c.wk.other));
@@ -1377,7 +1502,7 @@ async function exportPDF(){
   row(t('support_amount'),m(c.fam.support));
   if(N(c.fam.support)>0) row(t('support_where'), {1:t('grp1'),2:t('grp2'),3:t('grp3'),4:t('grp4')}[c.fam.supportGroup]);
   y+=3; section(t('special_exp'));
-  row(t('donations'),m(c.sa.donations)); row(t('other_sa'),m(c.sa.other));
+  row(t('donations'),m(c.sa.donations)); row(t('other_sa'),m(c.sa.other)); row(t('other_ins'),m(c.ins.other));
   if((c.kap||[]).length){ y+=3; section(t('step_kap'));
     (c.kap||[]).forEach((k,i)=>row(`${t('platform')} ${i+1}${k.platform?' — '+k.platform:''}`,
       [N(k.gains)>0?eur(N(k.gains)):'', N(k.taxPaid)>0?'KapESt '+eur(N(k.taxPaid)):''].filter(Boolean).join(' · ')||' ')); }
@@ -1444,9 +1569,9 @@ async function handleFile(file){
     const block = isPdf
       ? {type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}}
       : {type:'image',source:{type:'base64',media_type:file.type||'image/jpeg',data:b64}};
-    const prompt = `You are reading a German "Ausdruck der elektronischen Lohnsteuerbescheinigung". Extract these values and respond with ONLY a JSON object, no markdown, no explanation. Use numbers with a dot as decimal separator, or "" if not found:
-{"employer":"","period":"","taxClass":"","gross":"","wageTax":"","soli":"","churchPaid":"","rv":"","kv":"","pv":"","av":""}
-Mapping: gross = Bruttoarbeitslohn (Zeile 3); wageTax = einbehaltene Lohnsteuer (Zeile 4); soli = Solidaritätszuschlag (Zeile 5); churchPaid = Kirchensteuer (Zeile 6 + 7); rv = Arbeitnehmeranteil Rentenversicherung (Zeile 23); kv = Arbeitnehmeranteil Krankenversicherung (Zeile 25); pv = Arbeitnehmeranteil Pflegeversicherung (Zeile 26); av = Arbeitnehmeranteil Arbeitslosenversicherung (Zeile 27); taxClass = Steuerklasse (1-6); period = Bescheinigungszeitraum; employer = employer name.`;
+    const prompt = `You are reading a German "Ausdruck der elektronischen Lohnsteuerbescheinigung". Extract the values and respond with ONLY a JSON object, no markdown, no explanation. Use numbers with a dot as decimal separator (e.g. 108623.32), or "" if a field is empty or not found:
+{"employer":"","period":"","taxClass":"","kfb":"","idnr":"","birthDate":"","gross":"","wageTax":"","soli":"","churchPaid":"","churchSpouse":"","vb8":"","vb9":"","ml10":"","lst11":"","soli12":"","kist13":"","kistSp14":"","ersatz15":"","kug15a":"","dba16":"","fahrt17":"","pausch18":"","entsch19":"","verpf20":"","dhh21":"","agRV":"","agRVb":"","anRV":"","anRVb":"","agKV":"","agPKV":"","agPV":"","anKV":"","anPV":"","anAV":"","pkv28":"","bmg29":"","vbJahr30":"","vbMon31":"","sterbe32":"","fb34":""}
+Mapping (Zeile = numbered line on the form): employer = employer name (Anschrift des Arbeitgebers block); period = Bescheinigungszeitraum (Zeile 1); taxClass = Steuerklasse (1-6, from "Steuerklasse/Faktor"); kfb = Zahl der Kinderfreibeträge; idnr = Identifikationsnummer (11 digits); birthDate = Geburtsdatum in YYYY-MM-DD format; gross = Zeile 3 Bruttoarbeitslohn; wageTax = Zeile 4 einbehaltene Lohnsteuer; soli = Zeile 5 Solidaritätszuschlag; churchPaid = Zeile 6 Kirchensteuer Arbeitnehmer; churchSpouse = Zeile 7 Kirchensteuer Ehegatte; vb8 = Zeile 8 Versorgungsbezüge; vb9 = Zeile 9; ml10 = Zeile 10; lst11 = Zeile 11; soli12 = Zeile 12; kist13 = Zeile 13; kistSp14 = Zeile 14; ersatz15 = Zeile 15 Kurzarbeitergeld/Lohnersatzleistungen; kug15a = Zeile 15a; dba16 = Zeile 16 (a+b combined); fahrt17 = Zeile 17; pausch18 = Zeile 18; entsch19 = Zeile 19; verpf20 = Zeile 20; dhh21 = Zeile 21; agRV = Zeile 22a; agRVb = Zeile 22b; anRV = Zeile 23a; anRVb = Zeile 23b; agKV = Zeile 24a; agPKV = Zeile 24b; agPV = Zeile 24c; anKV = Zeile 25; anPV = Zeile 26; anAV = Zeile 27; pkv28 = Zeile 28; bmg29 = Zeile 29; vbJahr30 = Zeile 30; vbMon31 = Zeile 31; sterbe32 = Zeile 32; fb34 = Zeile 34. Do NOT extract the Finanzamt at the bottom of the form (that is the employer's remittance office).`;
     const resp = await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,
@@ -1457,18 +1582,26 @@ Mapping: gross = Bruttoarbeitslohn (Zeile 3); wageTax = einbehaltene Lohnsteuer 
     const j = JSON.parse(clean);
     const c=cur();
     /* every upload creates a NEW income statement — existing entries are never overwritten */
-    const emp={id:uid(),employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:''};
-    const NUMFIELDS = {gross:1,wageTax:1,soli:1,churchPaid:1};
-    const putEmp=(key,val)=>{ if(val!=null && String(val).trim()!==''){
-      emp[key] = NUMFIELDS[key] ? formatDE(N(val)) : String(val);   // AI returns dot-decimals → convert to German format
-      S.aiFields['emps.'+emp.id+'.'+key]=true; } };
-    putEmp('employer',j.employer); putEmp('period',j.period); putEmp('taxClass',j.taxClass);
-    putEmp('gross',j.gross); putEmp('wageTax',j.wageTax); putEmp('soli',j.soli); putEmp('churchPaid',j.churchPaid);
+    const emp={id:uid()};
+    const TEXTF={employer:1,period:1,taxClass:1,kfb:1,vbJahr30:1,vbMon31:1};
+    const EMPKEYS=['employer','period','taxClass','kfb','gross','wageTax','soli','churchPaid','churchSpouse',
+      'vb8','vb9','ml10','lst11','soli12','kist13','kistSp14','ersatz15','kug15a','dba16','fahrt17','pausch18',
+      'entsch19','verpf20','dhh21','agRV','agRVb','anRV','anRVb','agKV','agPKV','agPV','anKV','anPV','anAV',
+      'pkv28','bmg29','vbJahr30','vbMon31','sterbe32','fb34'];
+    EMPKEYS.forEach(k=>{
+      const val=j[k]; if(val==null || String(val).trim()==='') return;
+      if(TEXTF[k]){ emp[k]=String(val); }
+      else { if(N(val)===0) return; emp[k]=formatDE(N(val)); }   // skip 0,00 values to keep the card clean
+      S.aiFields['emps.'+emp.id+'.'+k]=true;
+    });
     (c.emps=c.emps||[]).push(emp);
-    /* insurance contributions are ADDED onto existing totals (multiple employers accumulate) */
-    const addIns=(key,val)=>{ if(val!=null && String(val).trim()!==''){
-      c.ins[key]=formatDE(N(c.ins[key])+N(val)); S.aiFields['ins.'+key]=true; } };
-    addIns('rv',j.rv); addIns('kv',j.kv); addIns('pv',j.pv); addIns('av',j.av);
+    /* personal data: fill ONLY if still empty; the Finanzamt on the form is the employer's and is ignored */
+    if(j.idnr && !(c.p.taxId||'').trim()){ c.p.taxId=String(j.idnr); S.aiFields['p.taxId']=true; }
+    if(j.birthDate && !(c.p.birthDate||'').trim()){
+      let b=String(j.birthDate).trim();
+      const dmy=b.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); if(dmy) b=`${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+      if(/^\d{4}-\d{2}-\d{2}$/.test(b)){ c.p.birthDate=b; S.aiFields['p.birthDate']=true; }
+    }
     c.updatedAt=Date.now(); scheduleSave();
     S.scanState='ok';
   }catch(err){ console.error('extraction failed',err); S.scanState='err'; }
