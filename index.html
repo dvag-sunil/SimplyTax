@@ -295,6 +295,16 @@ en: {
   z31:"First/last month of pension payments (line 31)", z32:"Death benefit / capital settlements (line 32)", z34:"Used allowance DBA Turkey (line 34)",
   ai_personal_note:"The Identifikationsnummer and date of birth from the document are copied into Personal data automatically — only if those fields are still empty. The Finanzamt printed on the Bescheinigung is the employer's remittance office and is deliberately NOT copied.",
   sv_short:"Social insurance",
+  step_priv:"Private expenses (insurances)",
+  s_priv_lead:"All private and statutory insurance policies of the client — pick from the list, enter the contributions paid and any reimbursements received. The tax-deductible categories and their caps are applied automatically in the estimate.",
+  ins_type:"Insurance", beitrag:"Contributions paid (per year)", erstattung:"Reimbursements received (per year)",
+  add_ins:"Add insurance", net_short:"Net",
+  cat_basis:"Basic health & care — fully deductible", cat_alters:"Retirement provision — fully deductible",
+  cat_riester:"Riester — deductible up to €2,100", cat_vorsorge:"Other provision — shared €1,900 cap",
+  cat_none:"Not tax-deductible",
+  totals:"Totals", tot_beitrag:"Total contributions", tot_erst:"Total reimbursements", tot_net:"Total net",
+  tot_deduct:"Thereof tax-relevant (before caps)",
+  priv_note:"Deduction caps (€1,900 other provision, €2,100 Riester) are applied automatically in the refund estimate.",
   privacy_foot:"Prototype · Data is stored only in this workspace · GDPR-compliant hosting planned for production"
 },
 de: {
@@ -421,6 +431,16 @@ de: {
   z31:"Erster/letzter Monat der Versorgungsbezüge (Zeile 31)", z32:"Sterbegeld / Kapitalauszahlungen (Zeile 32)", z34:"Verbrauchter Freibetrag DBA Türkei (Zeile 34)",
   ai_personal_note:"Identifikationsnummer und Geburtsdatum aus dem Dokument werden automatisch in die persönlichen Daten übernommen — nur, wenn diese Felder noch leer sind. Das auf der Bescheinigung gedruckte Finanzamt ist das Betriebsstättenfinanzamt des Arbeitgebers und wird bewusst NICHT übernommen.",
   sv_short:"Sozialversicherung",
+  step_priv:"Private Ausgaben (Versicherungen)",
+  s_priv_lead:"Alle privaten und gesetzlichen Versicherungen des Mandanten — aus der Liste wählen, gezahlte Beiträge und erhaltene Erstattungen eintragen. Die steuerlich absetzbaren Kategorien und ihre Höchstbeträge werden in der Schätzung automatisch berücksichtigt.",
+  ins_type:"Versicherung", beitrag:"Gezahlte Beiträge (pro Jahr)", erstattung:"Erhaltene Erstattungen (pro Jahr)",
+  add_ins:"Versicherung hinzufügen", net_short:"Netto",
+  cat_basis:"Basis Kranken & Pflege — voll absetzbar", cat_alters:"Altersvorsorge — voll absetzbar",
+  cat_riester:"Riester — absetzbar bis 2.100 €", cat_vorsorge:"Sonstige Vorsorge — gemeinsamer Höchstbetrag 1.900 €",
+  cat_none:"Steuerlich nicht absetzbar",
+  totals:"Summen", tot_beitrag:"Summe Beiträge", tot_erst:"Summe Erstattungen", tot_net:"Summe netto",
+  tot_deduct:"Davon steuerlich relevant (vor Höchstbeträgen)",
+  priv_note:"Höchstbeträge (1.900 € sonstige Vorsorge, 2.100 € Riester) werden in der Erstattungsschätzung automatisch angewendet.",
   privacy_foot:"Prototyp · Daten werden nur in diesem Arbeitsbereich gespeichert · DSGVO-konformes Hosting für die Produktion geplant"
 }};
 
@@ -436,6 +456,39 @@ const t = k => (STR[S.lang][k] ?? k);
 const uid = () => 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const BUNDESLAENDER=['Baden-Württemberg','Bayern','Berlin','Brandenburg','Bremen','Hamburg','Hessen','Mecklenburg-Vorpommern','Niedersachsen','Nordrhein-Westfalen','Rheinland-Pfalz','Saarland','Sachsen','Sachsen-Anhalt','Schleswig-Holstein','Thüringen'];
 
+/* German insurance market catalog, grouped by tax treatment:
+   basis = Basisabsicherung KV/PV (fully deductible) · alters = Altersvorsorge §10 Abs.1 Nr.2 (fully)
+   riester = §10a (max €2,100) · vorsorge = sonstige Vorsorgeaufwendungen (shared €1,900 employee cap) · none = not deductible */
+const INS_TYPES=[
+  {k:'pkv',      cat:'basis',    de:'Private Kranken-/Pflegeversicherung (Basis)', en:'Private health & care insurance (basic)'},
+  {k:'gkvfrei',  cat:'basis',    de:'Freiwillige gesetzliche Krankenversicherung', en:'Voluntary statutory health insurance'},
+  {k:'ruerup',   cat:'alters',   de:'Rürup-/Basisrente',                          en:'Rürup pension (Basisrente)'},
+  {k:'rvfrei',   cat:'alters',   de:'Freiwillige gesetzliche Rentenversicherung',  en:'Voluntary statutory pension contributions'},
+  {k:'riester',  cat:'riester',  de:'Riester-Rente',                              en:'Riester pension'},
+  {k:'haftpflicht',cat:'vorsorge',de:'Privathaftpflichtversicherung',             en:'Personal liability insurance'},
+  {k:'kfzhaft',  cat:'vorsorge', de:'Kfz-Haftpflicht (nur Haftpflichtanteil)',    en:'Car liability (liability part only)'},
+  {k:'unfall',   cat:'vorsorge', de:'Unfallversicherung',                         en:'Accident insurance'},
+  {k:'bu',       cat:'vorsorge', de:'Berufsunfähigkeitsversicherung',             en:'Occupational disability insurance'},
+  {k:'risikoleben',cat:'vorsorge',de:'Risikolebensversicherung',                  en:'Term life insurance'},
+  {k:'kvzusatz', cat:'vorsorge', de:'Kranken-Zusatzversicherung (Zahn, stationär…)', en:'Supplementary health (dental, hospital…)'},
+  {k:'pflegezusatz',cat:'vorsorge',de:'Pflegezusatzversicherung',                 en:'Supplementary long-term care insurance'},
+  {k:'krankentagegeld',cat:'vorsorge',de:'Krankentagegeldversicherung',           en:'Sick-pay insurance'},
+  {k:'auslandkv',cat:'vorsorge', de:'Auslandsreise-Krankenversicherung',          en:'Travel health insurance'},
+  {k:'sterbegeld',cat:'vorsorge',de:'Sterbegeldversicherung',                     en:'Funeral expenses insurance'},
+  {k:'tierhaft', cat:'vorsorge', de:'Tierhalterhaftpflicht (Hund, Pferd)',        en:'Pet owner liability (dog, horse)'},
+  {k:'kapitalleben',cat:'vorsorge',de:'Kapitallebensversicherung (Abschluss vor 2005)', en:'Endowment life insurance (pre-2005)'},
+  {k:'hausrat',  cat:'none',     de:'Hausratversicherung',                        en:'Household contents insurance'},
+  {k:'gebaeude', cat:'none',     de:'Wohngebäudeversicherung',                    en:'Homeowners building insurance'},
+  {k:'kasko',    cat:'none',     de:'Kfz-Kasko (Teil-/Vollkasko)',                en:'Car comprehensive (Kasko)'},
+  {k:'rechtsschutz',cat:'none',  de:'Rechtsschutzversicherung (privat)',          en:'Legal expenses insurance (private)'},
+  {k:'reise',    cat:'none',     de:'Reiserücktritt-/Reisegepäckversicherung',    en:'Travel cancellation / luggage insurance'},
+  {k:'elektronik',cat:'none',    de:'Handy-/Elektronikversicherung',              en:'Phone / electronics insurance'},
+  {k:'tierkranken',cat:'none',   de:'Tierkrankenversicherung',                    en:'Pet health insurance'},
+  {k:'fahrrad',  cat:'none',     de:'Fahrradversicherung',                        en:'Bicycle insurance'},
+];
+const INS_CAT = Object.fromEntries(INS_TYPES.map(x=>[x.k,x.cat]));
+const insLabel = k => { const x=INS_TYPES.find(i=>i.k===k); return x ? (S.lang==='de'?x.de:x.en) : ''; };
+
 function newClient(f,l,year,marital){
   return { id:uid(), createdAt:Date.now(), updatedAt:Date.now(),
     status:'draft', transferTicket:null, submittedAt:null, taxYear:year,
@@ -443,7 +496,7 @@ function newClient(f,l,year,marital){
         marital:marital,religion:'none',profession:'',finanzamt:'',faNumber:'',bundesland:'',steuernummer:'',iban:'',
         spouseFirst:'',spouseLast:'',spouseBirth:'',spouseTaxId:'' },
     inc:{ employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:'' },
-    emps:[], kap:[], props:[],
+    emps:[], kap:[], props:[], privIns:[],
     ins:{ rv:'',kv:'',pv:'',av:'',other:'' },
     wk:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',
          dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
@@ -493,6 +546,7 @@ function migrateClient(c){
   c.emps = Array.isArray(c.emps)?c.emps:[];
   c.kap = Array.isArray(c.kap)?c.kap:[];
   c.props = Array.isArray(c.props)?c.props:[];
+  c.privIns = Array.isArray(c.privIns)?c.privIns:[];
   /* legacy: convert the old single income statement into the first list entry */
   if(c.emps.length===0 && c.inc && (N(c.inc.gross)>0 || (c.inc.employer||'').trim()!=='')){
     c.emps.push(Object.assign({id:uid()}, c.inc));
@@ -654,10 +708,17 @@ function computeEstimate(c){
   const dhhTrips = Math.min(N(c.wk.dhhTrips),52) * (dNear*0.30 + dFar*0.38);
   const wk = Math.max(1230, commute + ho + N(c.wk.equipment)+N(c.wk.training)+N(c.wk.other)
                       + dhhRent + dhhTrips + N(c.wk.relocation));
+  // private insurances by tax category (net = contributions − reimbursements)
+  const priv=(c.privIns||[]).reduce((a,x)=>{
+    const net=Math.max(0, N(x.beitrag)-N(x.erstattung));
+    const cat=INS_CAT[x.type]||'vorsorge';
+    a[cat]=(a[cat]||0)+net; a.total+=net; return a;
+  },{total:0,basis:0,alters:0,riester:0,vorsorge:0,none:0});
   // Vorsorge from the statements (23a/b RV fully; 25 KV; 26 PV; 28 private KV/PV; AV + other private capped €1,900)
   const vors = inc.rv + inc.kv + inc.pv + inc.pkv
+             + priv.basis + priv.alters
              + N(c.ins.rv)+N(c.ins.kv)+N(c.ins.pv)   /* legacy values, if any */
-             + Math.min(inc.av + N(c.ins.av) + N(c.ins.other), 1900);
+             + Math.min(inc.av + N(c.ins.av) + N(c.ins.other) + priv.vorsorge, 1900);
   // Sonderausgaben incl. per-child childcare (2025: 80% max €4,800/child; before: 2/3 max €4,000) and school fees (30% max €5,000/child)
   const ccRate = year>=2025 ? {r:0.80,cap:4800} : {r:2/3,cap:4000};
   let childcare=0, school=0;
@@ -672,7 +733,7 @@ function computeEstimate(c){
     childcare = N(c.fam.childcare)>0 ? Math.min(N(c.fam.childcare)*ccRate.r, ccRate.cap*kidsN) : 0;
     school = Math.min(N(c.fam.schoolFees)*0.30, 5000);
   }
-  const sa = Math.max(36, N(c.sa.donations)+N(c.sa.other)) + childcare + school;
+  const sa = Math.max(36, N(c.sa.donations)+N(c.sa.other)) + childcare + school + Math.min(priv.riester, 2100);
   // § 33a support to needy relatives: capped at Grundfreibetrag × country-group factor (no zumutbare Belastung)
   const grpFactor = {1:1, 2:0.75, 3:0.5, 4:0.25}[c.fam.supportGroup] ?? 1;
   const support = Math.min(N(c.fam.support), (TARIFF[year]||TARIFF[2025]).gfb * grpFactor);
@@ -906,20 +967,21 @@ function stepDone(c,i){
     case 2: return N(c.wk.commuteDays)+N(c.wk.equipment)+N(c.wk.homeOffice)+N(c.wk.training)+N(c.wk.other)+N(c.wk.dhhRent)+N(c.wk.relocation)>0;
     case 3: return ((c.fam.children||[]).length)>0 || N(c.fam.support)>0;
     case 4: return N(c.sa.donations)+N(c.sa.other)+N(c.ins.other)>0;
-    case 5: return (c.kap||[]).length>0;
-    case 6: return (c.props||[]).length>0;
-    case 7: return N(c.ex.medical)+N(c.ex.household)+N(c.ex.handwerker)>0;
-    case 8: return c.status==='submitted';
-    case 9: return (c.inq||[]).length>0 && c.inq.every(q=>q.status==='answered');
+    case 5: return (c.privIns||[]).length>0;
+    case 6: return (c.kap||[]).length>0;
+    case 7: return (c.props||[]).length>0;
+    case 8: return N(c.ex.medical)+N(c.ex.household)+N(c.ex.handwerker)>0;
+    case 9: return c.status==='submitted';
+    case 10: return (c.inq||[]).length>0 && c.inq.every(q=>q.status==='answered');
   } return false;
 }
 function clientView(){
   const c=cur(); if(!c){S.view='dash';return dashView();}
-  const stepKeys=['step1','step2','step4','step_fam','step5','step_kap','step_prop','step6','step7','step_inq'];
+  const stepKeys=['step1','step2','step4','step_fam','step5','step_priv','step_kap','step_prop','step6','step7','step_inq'];
   const stepsHtml = stepKeys.map((k,i)=>`
     <div class="step-item ${S.step===i?'on':''} ${stepDone(c,i)?'done':''}" onclick="S.step=${i};render()">
       <span class="n">${stepDone(c,i)?'✓':i+1}</span> ${t(k)}</div>`).join('');
-  const bodies=[stepPersonal,stepIncome,stepWork,stepFamily,stepSpecial,stepKap,stepProp,stepHousehold,stepSummary,stepInquiries];
+  const bodies=[stepPersonal,stepIncome,stepWork,stepFamily,stepSpecial,stepPrivIns,stepKap,stepProp,stepHousehold,stepSummary,stepInquiries];
   return `<main>
     <div class="crumbs"><a onclick="goDash()">← ${t('back_dash')}</a> &nbsp;/&nbsp; <b>${esc(c.p.firstName)} ${esc(c.p.lastName)}</b> · ${t('tax_year')} ${c.taxYear} · ${chip(c.status)}</div>
     <div class="ws">
@@ -1036,7 +1098,7 @@ async function deleteDoc(id){
 }
 
 function navRow(){
-  const last = S.step===9;
+  const last = S.step===10;
   return `<div class="nav-row">
     <button class="btn btn-ghost" ${S.step===0?'disabled':''} onclick="S.step--;render()">← ${t('back')}</button>
     ${last?'':`<button class="btn btn-primary" onclick="S.step++;render()">${t('next')} →</button>`}
@@ -1154,6 +1216,54 @@ function stepIncome(c){
   ${cards}
   <button class="btn btn-ghost btn-sm" onclick="addItem('emps',{employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:''})">＋ ${t('add_emp')}</button>
   ${warnTax?`<div class="warn">⚠️ ${t('warn_taxhigh')}</div>`:''}
+  ${navRow()}`;
+}
+
+/* --- step 6: private expenses (insurances) --- */
+function insSelect(item){
+  const cats=['basis','alters','riester','vorsorge','none'];
+  const groups=cats.map(cat=>{
+    const opts=INS_TYPES.filter(x=>x.cat===cat)
+      .map(x=>`<option value="${x.k}" ${item.type===x.k?'selected':''}>${S.lang==='de'?x.de:x.en}</option>`).join('');
+    return `<optgroup label="${t('cat_'+cat)}">${opts}</optgroup>`;
+  }).join('');
+  return `<div class="field"><label>${t('ins_type')}</label>
+    <select onchange="updItem('privIns','${item.id}','type',this.value,0)">
+      <option value="">${t('select')}</option>${groups}</select></div>`;
+}
+function stepPrivIns(c){
+  const list=c.privIns||[];
+  const cards=list.map((x,i)=>{
+    const net=Math.max(0,N(x.beitrag)-N(x.erstattung));
+    const cat=INS_CAT[x.type];
+    return `<div class="sum-group" style="margin-bottom:12px">
+    <div class="head"><span>${t('ins_type')} ${i+1}${x.type?' · '+esc(insLabel(x.type)):''}
+      ${x.type?`<span class="chip ${cat==='none'?'review':'submitted'}" style="margin-left:8px">${t('cat_'+cat)}</span>`:''}</span>
+      <span class="edit" onclick="delItem('privIns','${x.id}')">🗑 ${t('remove')}</span></div>
+    <div style="padding:14px 16px">
+      ${insSelect(x)}
+      <div class="grid3">
+        ${LF('privIns',x,'beitrag',t('beitrag'),{euro:true,ph:'0,00 €'})}
+        ${LF('privIns',x,'erstattung',t('erstattung'),{euro:true,ph:'0,00 €'})}
+        <div class="field"><label>${t('net_short')}</label>
+          <input value="${eur(net)}" disabled style="background:var(--paper);font-weight:700"></div>
+      </div>
+    </div></div>`;}).join('');
+  const tot=list.reduce((a,x)=>{ a.b+=N(x.beitrag); a.e+=N(x.erstattung);
+    const net=Math.max(0,N(x.beitrag)-N(x.erstattung)); a.n+=net;
+    if((INS_CAT[x.type]||'vorsorge')!=='none') a.d+=net; return a; },{b:0,e:0,n:0,d:0});
+  const totBox = list.length ? `<div class="sum-group" style="margin-top:16px">
+    <div class="head">${t('totals')} — ${t('step_priv')}</div>
+    <div class="sum-row"><span class="l">${t('tot_beitrag')}</span><span class="r num">${eur(tot.b)}</span></div>
+    <div class="sum-row"><span class="l">${t('tot_erst')}</span><span class="r num">−${eur(tot.e)}</span></div>
+    <div class="sum-row"><span class="l"><b>${t('tot_net')}</b></span><span class="r num"><b>${eur(tot.n)}</b></span></div>
+    <div class="sum-row"><span class="l">${t('tot_deduct')}</span><span class="r num" style="color:var(--teal)">${eur(tot.d)}</span></div>
+  </div><p style="font-size:12px;color:var(--ink-soft);margin-top:8px">${t('priv_note')}</p>` : '';
+  return `<h2>${t('step_priv')}</h2><p class="lead">${t('s_priv_lead')}</p>
+  ${cards}
+  <button class="btn btn-ghost btn-sm" onclick="addItem('privIns',{type:'',beitrag:'',erstattung:''})">＋ ${t('add_ins')}</button>
+  ${totBox}
+  ${docSection('privIns')}
   ${navRow()}`;
 }
 
@@ -1362,9 +1472,12 @@ function stepSummary(c){
     [t('support_amount'),m(c.fam.support)],
     [t('support_where'),N(c.fam.support)>0?{1:t('grp1'),2:t('grp2'),3:t('grp3'),4:t('grp4')}[c.fam.supportGroup]:'']])}
   ${sumGroup(t('special_exp'),4,[[t('donations'),m(c.sa.donations)],[t('other_sa'),m(c.sa.other)],[t('other_ins'),m(c.ins.other)]])}
-  ${sumGroup(t('step_kap'),5,kapRows)}
-  ${sumGroup(t('step_prop'),6,propRows)}
-  ${sumGroup(t('household_g'),7,[[t('medical'),m(c.ex.medical)],[t('household'),m(c.ex.household)],[t('handwerker'),m(c.ex.handwerker)]])}
+  ${sumGroup(t('step_priv'),5,(c.privIns||[]).map(x=>[
+    esc(insLabel(x.type)||t('ins_type')),
+    esc(`${eur(N(x.beitrag))} − ${eur(N(x.erstattung))} = ${eur(Math.max(0,N(x.beitrag)-N(x.erstattung)))}${INS_CAT[x.type]==='none'?' ('+t('cat_none')+')':''}`)]))}
+  ${sumGroup(t('step_kap'),6,kapRows)}
+  ${sumGroup(t('step_prop'),7,propRows)}
+  ${sumGroup(t('household_g'),8,[[t('medical'),m(c.ex.medical)],[t('household'),m(c.ex.household)],[t('handwerker'),m(c.ex.handwerker)]])}
   <div style="margin-top:22px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;align-items:center">
   <button class="btn btn-ghost" onclick="exportPDF()">📄 ${t('pdf_btn')}</button>
   ${submitted
@@ -1503,6 +1616,12 @@ async function exportPDF(){
   if(N(c.fam.support)>0) row(t('support_where'), {1:t('grp1'),2:t('grp2'),3:t('grp3'),4:t('grp4')}[c.fam.supportGroup]);
   y+=3; section(t('special_exp'));
   row(t('donations'),m(c.sa.donations)); row(t('other_sa'),m(c.sa.other)); row(t('other_ins'),m(c.ins.other));
+  if((c.privIns||[]).length){ y+=3; section(t('step_priv'));
+    (c.privIns||[]).forEach(x=>{ if(!x.type && N(x.beitrag)===0) return;
+      row(insLabel(x.type)||t('ins_type'),
+        `${eur(N(x.beitrag))} - ${eur(N(x.erstattung))} = ${eur(Math.max(0,N(x.beitrag)-N(x.erstattung)))}`); });
+    const totN=(c.privIns||[]).reduce((a,x)=>a+Math.max(0,N(x.beitrag)-N(x.erstattung)),0);
+    row(t('tot_net'), eur(totN)); }
   if((c.kap||[]).length){ y+=3; section(t('step_kap'));
     (c.kap||[]).forEach((k,i)=>row(`${t('platform')} ${i+1}${k.platform?' — '+k.platform:''}`,
       [N(k.gains)>0?eur(N(k.gains)):'', N(k.taxPaid)>0?'KapESt '+eur(N(k.taxPaid)):''].filter(Boolean).join(' · ')||' ')); }
