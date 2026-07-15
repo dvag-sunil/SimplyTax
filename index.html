@@ -305,6 +305,7 @@ en: {
   totals:"Totals", tot_beitrag:"Total contributions", tot_erst:"Total reimbursements", tot_net:"Total net",
   tot_deduct:"Thereof tax-relevant (before caps)",
   priv_note:"Deduction caps (€1,900 other provision, €2,100 Riester) are applied automatically in the refund estimate.",
+  export_elster:"Export ELSTER dataset (JSON)",
   privacy_foot:"Prototype · Data is stored only in this workspace · GDPR-compliant hosting planned for production"
 },
 de: {
@@ -441,6 +442,7 @@ de: {
   totals:"Summen", tot_beitrag:"Summe Beiträge", tot_erst:"Summe Erstattungen", tot_net:"Summe netto",
   tot_deduct:"Davon steuerlich relevant (vor Höchstbeträgen)",
   priv_note:"Höchstbeträge (1.900 € sonstige Vorsorge, 2.100 € Riester) werden in der Erstattungsschätzung automatisch angewendet.",
+  export_elster:"ELSTER-Datensatz exportieren (JSON)",
   privacy_foot:"Prototyp · Daten werden nur in diesem Arbeitsbereich gespeichert · DSGVO-konformes Hosting für die Produktion geplant"
 }};
 
@@ -1480,6 +1482,7 @@ function stepSummary(c){
   ${sumGroup(t('household_g'),8,[[t('medical'),m(c.ex.medical)],[t('household'),m(c.ex.household)],[t('handwerker'),m(c.ex.handwerker)]])}
   <div style="margin-top:22px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;align-items:center">
   <button class="btn btn-ghost" onclick="exportPDF()">📄 ${t('pdf_btn')}</button>
+  <button class="btn btn-ghost" onclick="exportElster()">⇪ ${t('export_elster')}</button>
   ${submitted
     ? `<div class="extract-ok" style="text-align:center;margin-top:0">✓ ${t('resubmit')} ${dateStr(c.submittedAt)} · ${t('transfer_ticket')}: <b>${c.transferTicket}</b></div>`
     : `<button class="btn btn-amber" style="font-size:15px;padding:13px 30px" onclick="submitElster()">📤 ${t('submit_elster')}</button>`}
@@ -1531,6 +1534,74 @@ function addInq(){ const c=cur(); (c.inq=c.inq||[]).push({id:uid(),ts:Date.now()
 function updInq(id,f,v){ const c=cur(); const q=(c.inq||[]).find(x=>x.id===id); if(q){ q[f]=v; c.updatedAt=Date.now(); scheduleSave(); } }
 function toggleInq(id){ const c=cur(); const q=(c.inq||[]).find(x=>x.id===id); if(q){ q.status=q.status==='open'?'answered':'open'; c.updatedAt=Date.now(); scheduleSave(); render(); } }
 function delInq(id){ const c=cur(); c.inq=(c.inq||[]).filter(x=>x.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
+
+/* ---------------- ELSTER canonical dataset (handover format for the ERiC backend adapter) ---------------- */
+function buildElsterDataset(c){
+  const e=computeEstimate(c); const inc=incTotals(c);
+  const rel={none:'--',ev:'EV',rk:'RK',other:'VD'}[c.p.religion]||'--';
+  return {
+    meta:{ format:'simplytax-interchange', version:'1.0', datenart:'ESt_'+c.taxYear, taxYear:c.taxYear,
+      createdAt:new Date().toISOString(), status:c.status, transferTicket:c.transferTicket,
+      testmerker:true /* backend sets false only in production transmission */ },
+    datenlieferant:(S.user&&S.user.settings)?{ name:S.user.settings.practiceName||S.user.name,
+      anschrift:S.user.settings.address||'', kontakt:S.user.settings.contact||'' }:{ name:S.user?.name||'' },
+    hauptvordruck:{
+      veranlagungsart: c.p.marital==='married'?'zusammenveranlagung':'einzelveranlagung',
+      finanzamt:{ name:c.p.finanzamt||'', bufaNr:c.p.faNumber||'' },
+      steuernummer:c.p.steuernummer||'', bundesland:c.p.bundesland||'',
+      personA:{ idnr:(c.p.taxId||'').replace(/\s/g,''), name:c.p.lastName, vorname:c.p.firstName,
+        geburtsdatum:c.p.birthDate, beruf:c.p.profession, religion:rel,
+        anschrift:{ strasse:c.p.street, hausnummer:c.p.houseNo, plz:c.p.plz, ort:c.p.city } },
+      personB: c.p.marital==='married'?{ idnr:(c.p.spouseTaxId||'').replace(/\s/g,''),
+        name:c.p.spouseLast, vorname:c.p.spouseFirst, geburtsdatum:c.p.spouseBirth }:null,
+      bankverbindung:{ iban:(c.p.iban||'').replace(/\s/g,'') },
+      mitwirkungBerater:true },
+    anlageN:(c.emps||[]).map(k=>({ arbeitgeber:k.employer||'', zeile1_zeitraum:k.period||'',
+      steuerklasse:k.taxClass||'', kinderfreibetraege:k.kfb||'',
+      zeile3_bruttoarbeitslohn:N(k.gross), zeile4_lohnsteuer:N(k.wageTax), zeile5_soli:N(k.soli),
+      zeile6_kirchensteuer:N(k.churchPaid), zeile7_kirchensteuerEhegatte:N(k.churchSpouse),
+      zeile8_versorgungsbezuege:N(k.vb8), zeile9_versorgungMehrjaehrig:N(k.vb9), zeile10_mehrjaehrigEntschaedigung:N(k.ml10),
+      zeile11_lst:N(k.lst11), zeile12_soli:N(k.soli12), zeile13_kist:N(k.kist13), zeile14_kistEhegatte:N(k.kistSp14),
+      zeile15_lohnersatz:N(k.ersatz15), zeile15a_kug:N(k.kug15a), zeile16_dbaAte:N(k.dba16),
+      zeile17_agLeistungenEntfernung:N(k.fahrt17), zeile18_pauschal15:N(k.pausch18),
+      zeile19_entschaedigungen:N(k.entsch19), zeile20_verpflegung:N(k.verpf20), zeile21_dhh:N(k.dhh21),
+      zeile22a_agRV:N(k.agRV), zeile22b_agBerufsstaendisch:N(k.agRVb),
+      zeile23a_anRV:N(k.anRV), zeile23b_anBerufsstaendisch:N(k.anRVb),
+      zeile24a_agZuschussGKV:N(k.agKV), zeile24b_agZuschussPKV:N(k.agPKV), zeile24c_agZuschussPV:N(k.agPV),
+      zeile25_anGKV:N(k.anKV), zeile26_anPV:N(k.anPV), zeile27_anAV:N(k.anAV), zeile28_pkvMindest:N(k.pkv28),
+      zeile29_bmgVersorgungsfreibetrag:N(k.bmg29), zeile30_versorgungsbeginn:k.vbJahr30||'',
+      zeile31_monate:k.vbMon31||'', zeile32_sterbegeld:N(k.sterbe32), zeile34_dbaTuerkei:N(k.fb34) })),
+    werbungskosten:{ entfernungspauschale:{ arbeitstage:N(c.wk.commuteDays), einfacheEntfernungKm:N(c.wk.commuteKm) },
+      homeofficeTage:N(c.wk.homeOffice), arbeitsmittel:N(c.wk.equipment), fortbildung:N(c.wk.training),
+      sonstige:N(c.wk.other), doppelteHaushaltsfuehrung:{ monatsmiete:N(c.wk.dhhRent), monate:N(c.wk.dhhMonths),
+        familienheimfahrten:N(c.wk.dhhTrips), entfernungKm:N(c.wk.dhhKm) }, umzugskosten:N(c.wk.relocation) },
+    anlageVorsorgeaufwand:{ ausLohnsteuerbescheinigungen:{ rv:inc.rv, gkv:inc.kv, pv:inc.pv, av:inc.av, pkv28:inc.pkv },
+      privateVersicherungen:(c.privIns||[]).map(x=>({ typ:x.type, bezeichnung:insLabel(x.type),
+        kategorie:INS_CAT[x.type]||'', beitrag:N(x.beitrag), erstattung:N(x.erstattung),
+        netto:Math.max(0,N(x.beitrag)-N(x.erstattung)) })), sonstigeVersicherungen:N(c.ins.other) },
+    anlageKind:(c.fam.children||[]).map(k=>({ vorname:k.name, geburtsdatum:k.birth, idnr:(k.taxId||'').replace(/\s/g,''),
+      kindergeld:N(k.kindergeld), betreuungskosten:N(k.childcare), schulgeld:N(k.schoolFees) })),
+    anlageUnterhalt: N(c.fam.support)>0?{ betrag:N(c.fam.support), laendergruppe:c.fam.supportGroup }:null,
+    sonderausgaben:{ spenden:N(c.sa.donations), sonstige:N(c.sa.other) },
+    aussergewoehnlicheBelastungen:{ krankheitskosten:N(c.ex.medical) },
+    haushaltsnaheLeistungen:{ haushaltsnaheDienstleistungen:N(c.ex.household), handwerkerleistungen:N(c.ex.handwerker) },
+    anlageKAP:(c.kap||[]).map(k=>({ institut:k.platform, kapitalertraege:N(k.gains),
+      kapitalertragsteuer:N(k.taxPaid), soli:N(k.soliPaid) })),
+    anlageV:(c.props||[]).map(p=>({ objekt:p.address, mieteinnahmen:N(p.rent), werbungskosten:N(p.costs),
+      ergebnis:N(p.rent)-N(p.costs) })),
+    belege:(c.docs||[]).map(d=>({ id:d.id, name:d.name, bereich:d.section, datum:new Date(d.ts).toISOString() })),
+    schaetzung:{ zvE:Math.round(e.zvE), einkommensteuer:Math.round(e.tax), par35aErmaessigung:Math.round(e.credit),
+      soli:Math.round(e.soli), kirchensteuer:Math.round(e.kist), kapitalertragsteuer:Math.round(e.kap),
+      bereitsGezahlt:Math.round(e.paid), erstattung:Math.round(e.refund), hinweis:'Unverbindliche Schätzung' }
+  };
+}
+function exportElster(){
+  const c=cur(); if(!c) return;
+  const blob=new Blob([JSON.stringify(buildElsterDataset(c),null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`elster_dataset_${c.taxYear}_${(c.p.lastName||'client').replace(/[^A-Za-z0-9ÄÖÜäöüß_-]/g,'')}.json`;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+}
 
 /* ---------------- PDF export (client summary) ---------------- */
 function pdfSafe(s){ return String(s??'').replace(/[\u00A0\u202F]/g,' '); }
