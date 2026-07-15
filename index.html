@@ -261,6 +261,15 @@ en: {
   kindergeld:"Kindergeld received (per year)",
   kindergeld_hint:"Record only — the Finanzamt automatically checks whether the child allowance (Kinderfreibetrag) is more favorable (Günstigerprüfung).",
   kg_short:"Kindergeld", cc_short:"Childcare", sf_short:"School fees", remove:"Remove",
+  statement:"Income statement", add_emp:"Add income statement", gross_short:"Gross",
+  s2_lead2:"One entry per employer (also for job changes, second jobs or minijobs with wage tax). Upload each Lohnsteuerbescheinigung — every upload creates a NEW income statement and never overwrites existing entries. Please review every field.",
+  upload_new_hint:"Each upload adds a new statement below. Insurance contributions (lines 22–27) are added onto the Insurance step automatically.",
+  step_kap:"Capital gains", s_kap_lead:"Capital income (Anlage KAP) — gains, dividends and interest from stocks, funds and ETFs at banks, brokers and platforms. The saver's allowance (Sparer-Pauschbetrag) of €1,000 per person (€2,000 for joint assessment) is applied automatically in the estimate.",
+  platform:"Bank / platform", kap_gains:"Capital income (gains, dividends, interest)", kap_tax:"Capital gains tax withheld (KapESt)", kap_soli:"Solidarity surcharge withheld",
+  add_kap:"Add platform", kap_hint:"Taxed at a flat 25% + Soli. The Finanzamt runs a Günstigerprüfung (your personal rate, if lower) on request.",
+  m_kap:"Capital gains tax (est.)",
+  step_prop:"Rental property", s_prop_lead:"Rental income (Anlage V) — one entry per property. Costs (loan interest, maintenance, depreciation, service charges…) count as expenses; a loss reduces the taxable income.",
+  prop_address:"Property (address)", prop_rent:"Rental income (per year)", prop_costs:"Costs / expenses (per year)", add_prop:"Add property", prop_net:"Net result",
   privacy_foot:"Prototype · Data is stored only in this workspace · GDPR-compliant hosting planned for production"
 },
 de: {
@@ -356,6 +365,15 @@ de: {
   kindergeld:"Erhaltenes Kindergeld (pro Jahr)",
   kindergeld_hint:"Nur zur Erfassung — das Finanzamt prüft automatisch, ob der Kinderfreibetrag günstiger ist (Günstigerprüfung).",
   kg_short:"Kindergeld", cc_short:"Betreuung", sf_short:"Schulgeld", remove:"Entfernen",
+  statement:"Einkommensnachweis", add_emp:"Einkommensnachweis hinzufügen", gross_short:"Brutto",
+  s2_lead2:"Je Arbeitgeber ein Eintrag (auch bei Jobwechsel, Zweitjob oder Minijob mit Lohnsteuer). Jede hochgeladene Lohnsteuerbescheinigung legt einen NEUEN Einkommensnachweis an — bestehende Einträge werden nie überschrieben. Bitte jedes Feld prüfen.",
+  upload_new_hint:"Jeder Upload ergänzt unten einen neuen Nachweis. Sozialversicherungsbeiträge (Zeilen 22–27) werden automatisch beim Vorsorgeaufwand aufaddiert.",
+  step_kap:"Kapitalerträge", s_kap_lead:"Kapitalerträge (Anlage KAP) — Gewinne, Dividenden und Zinsen aus Aktien, Fonds und ETFs bei Banken, Brokern und Plattformen. Der Sparer-Pauschbetrag von 1.000 € pro Person (2.000 € bei Zusammenveranlagung) wird in der Schätzung automatisch berücksichtigt.",
+  platform:"Bank / Plattform", kap_gains:"Kapitalerträge (Gewinne, Dividenden, Zinsen)", kap_tax:"Einbehaltene Kapitalertragsteuer (KapESt)", kap_soli:"Einbehaltener Solidaritätszuschlag",
+  add_kap:"Plattform hinzufügen", kap_hint:"Pauschal 25 % Steuer + Soli. Die Günstigerprüfung (persönlicher Steuersatz, falls niedriger) übernimmt das Finanzamt auf Antrag.",
+  m_kap:"Kapitalertragsteuer (ca.)",
+  step_prop:"Vermietung", s_prop_lead:"Einkünfte aus Vermietung (Anlage V) — ein Eintrag je Immobilie. Kosten (Darlehenszinsen, Instandhaltung, AfA, Nebenkosten…) zählen als Werbungskosten; ein Verlust mindert das zu versteuernde Einkommen.",
+  prop_address:"Immobilie (Adresse)", prop_rent:"Mieteinnahmen (pro Jahr)", prop_costs:"Kosten / Aufwendungen (pro Jahr)", add_prop:"Immobilie hinzufügen", prop_net:"Ergebnis",
   privacy_foot:"Prototyp · Daten werden nur in diesem Arbeitsbereich gespeichert · DSGVO-konformes Hosting für die Produktion geplant"
 }};
 
@@ -378,6 +396,7 @@ function newClient(f,l,year,marital){
         marital:marital,religion:'none',profession:'',finanzamt:'',faNumber:'',bundesland:'',steuernummer:'',iban:'',
         spouseFirst:'',spouseLast:'',spouseBirth:'',spouseTaxId:'' },
     inc:{ employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:'' },
+    emps:[], kap:[], props:[],
     ins:{ rv:'',kv:'',pv:'',av:'',other:'' },
     wk:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',
          dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
@@ -424,6 +443,14 @@ async function loadState(){
 }
 function migrateClient(c){
   c.p = Object.assign({faNumber:'',bundesland:''}, c.p||{});
+  c.emps = Array.isArray(c.emps)?c.emps:[];
+  c.kap = Array.isArray(c.kap)?c.kap:[];
+  c.props = Array.isArray(c.props)?c.props:[];
+  /* legacy: convert the old single income statement into the first list entry */
+  if(c.emps.length===0 && c.inc && (N(c.inc.gross)>0 || (c.inc.employer||'').trim()!=='')){
+    c.emps.push(Object.assign({id:uid()}, c.inc));
+    c.inc = { employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:'' };
+  }
   c.wk = Object.assign({dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wk||{});
   c.fam = Object.assign({kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',children:[]}, c.fam||{});
   if(!Array.isArray(c.fam.children)) c.fam.children=[];
@@ -545,9 +572,14 @@ function estBase(zvE, year){
   if(x <= T.z3e) return Math.floor(T.r3*x - T.d3);
   return Math.floor(T.r4*x - T.d4);
 }
+function incTotals(c){
+  return (c.emps||[]).reduce((a,e)=>{ a.gross+=N(e.gross); a.wageTax+=N(e.wageTax); a.soli+=N(e.soli); a.church+=N(e.churchPaid); return a; },
+    {gross:0,wageTax:0,soli:0,church:0});
+}
 function computeEstimate(c){
   const year = c.taxYear || 2025;
-  const gross = N(c.inc.gross);
+  const inc = incTotals(c);
+  const gross = inc.gross;
   // Werbungskosten
   const days = Math.min(N(c.wk.commuteDays), 366), km = N(c.wk.commuteKm);
   const near = Math.min(km,20), far = Math.max(km-20,0);
@@ -581,7 +613,9 @@ function computeEstimate(c){
   const support = Math.min(N(c.fam.support), (TARIFF[year]||TARIFF[2025]).gfb * grpFactor);
   // außergewöhnliche Belastung (zumutbare Belastung roughly 3% of gross) + support
   const agb = Math.max(0, N(c.ex.medical) - gross*0.03) + support;
-  const zvE = Math.max(0, gross - wk - vors - sa - agb);
+  // rental property (Anlage V): net result per property — losses reduce taxable income
+  const propNet = (c.props||[]).reduce((a,p)=>a + (N(p.rent)-N(p.costs)), 0);
+  const zvE = Math.max(0, gross + propNet - wk - vors - sa - agb);
   const joint = c.p.marital==='married';
   const tax = joint ? 2*estBase(zvE/2, year) : estBase(zvE, year);
   // §35a credits
@@ -593,9 +627,15 @@ function computeEstimate(c){
   // church tax: 8% in Bayern & Baden-Württemberg, 9% elsewhere
   const kistRate = (c.p.bundesland==='Bayern'||c.p.bundesland==='Baden-Württemberg') ? 0.08 : 0.09;
   const kist = (c.p.religion==='ev'||c.p.religion==='rk'||c.p.religion==='other') ? taxAfter*kistRate : 0;
-  const owed = taxAfter + soli + kist;
-  const paid = N(c.inc.wageTax)+N(c.inc.soli)+N(c.inc.churchPaid);
-  return { zvE, wk, tax, credit, taxAfter, soli, kist, owed, paid, refund: paid - owed };
+  // capital gains (Anlage KAP): flat 25% + Soli after Sparer-Pauschbetrag (€1,000 / €2,000 joint)
+  const kapGains = (c.kap||[]).reduce((a,k)=>a+N(k.gains),0);
+  const kapPaid  = (c.kap||[]).reduce((a,k)=>a+N(k.taxPaid)+N(k.soliPaid),0);
+  const sparer = joint ? 2000 : 1000;
+  const kapTaxable = Math.max(0, kapGains - sparer);
+  const kap = kapTaxable*0.25 * 1.055;   // 25% KapESt + 5.5% Soli thereon
+  const owed = taxAfter + soli + kist + kap;
+  const paid = inc.wageTax + inc.soli + inc.church + kapPaid;
+  return { zvE, wk, tax, credit, taxAfter, soli, kist, kap, propNet, owed, paid, refund: paid - owed };
 }
 
 /* ---------------- render root ---------------- */
@@ -673,7 +713,7 @@ function dashView(){
           <div class="csub" style="margin-left:44px">${esc(c.p.city||'—')}</div></td>
       <td class="num">${c.taxYear}</td>
       <td>${chip(c.status)}${(c.inq||[]).some(q=>q.status==='open')?` <span class="chip review" title="${t('step_inq')}">❓ ${(c.inq||[]).filter(q=>q.status==='open').length}</span>`:''}</td>
-      <td class="refund-cell num ${cls}">${N(c.inc.gross)>0?eur(e.refund):'—'}</td>
+      <td class="refund-cell num ${cls}">${(e.paid>0||e.zvE>0||e.kap>0)?eur(e.refund):'—'}</td>
       <td class="csub num">${dateStr(c.updatedAt)}</td>
       <td style="text-align:right;white-space:nowrap">
         <button class="btn-sm link-btn" title="${t('pdf_btn')}" onclick="event.stopPropagation();S.currentId='${c.id}';exportPDF()">📄</button>
@@ -790,23 +830,25 @@ const cur = () => S.clients.find(c=>c.id===S.currentId);
 function stepDone(c,i){
   switch(i){
     case 0: return !!(c.p.taxId && c.p.birthDate && c.p.street);
-    case 1: return N(c.inc.gross)>0;
+    case 1: return incTotals(c).gross>0;
     case 2: return N(c.ins.rv)+N(c.ins.kv)>0;
     case 3: return N(c.wk.commuteDays)+N(c.wk.equipment)+N(c.wk.homeOffice)+N(c.wk.training)+N(c.wk.other)+N(c.wk.dhhRent)+N(c.wk.relocation)>0;
     case 4: return ((c.fam.children||[]).length)>0 || N(c.fam.support)>0;
     case 5: return N(c.sa.donations)+N(c.sa.other)>0;
-    case 6: return N(c.ex.medical)+N(c.ex.household)+N(c.ex.handwerker)>0;
-    case 7: return c.status==='submitted';
-    case 8: return (c.inq||[]).length>0 && c.inq.every(q=>q.status==='answered');
+    case 6: return (c.kap||[]).length>0;
+    case 7: return (c.props||[]).length>0;
+    case 8: return N(c.ex.medical)+N(c.ex.household)+N(c.ex.handwerker)>0;
+    case 9: return c.status==='submitted';
+    case 10: return (c.inq||[]).length>0 && c.inq.every(q=>q.status==='answered');
   } return false;
 }
 function clientView(){
   const c=cur(); if(!c){S.view='dash';return dashView();}
-  const stepKeys=['step1','step2','step3','step4','step_fam','step5','step6','step7','step_inq'];
+  const stepKeys=['step1','step2','step3','step4','step_fam','step5','step_kap','step_prop','step6','step7','step_inq'];
   const stepsHtml = stepKeys.map((k,i)=>`
     <div class="step-item ${S.step===i?'on':''} ${stepDone(c,i)?'done':''}" onclick="S.step=${i};render()">
       <span class="n">${stepDone(c,i)?'✓':i+1}</span> ${t(k)}</div>`).join('');
-  const bodies=[stepPersonal,stepIncome,stepInsurance,stepWork,stepFamily,stepSpecial,stepHousehold,stepSummary,stepInquiries];
+  const bodies=[stepPersonal,stepIncome,stepInsurance,stepWork,stepFamily,stepSpecial,stepKap,stepProp,stepHousehold,stepSummary,stepInquiries];
   return `<main>
     <div class="crumbs"><a onclick="goDash()">← ${t('back_dash')}</a> &nbsp;/&nbsp; <b>${esc(c.p.firstName)} ${esc(c.p.lastName)}</b> · ${t('tax_year')} ${c.taxYear} · ${chip(c.status)}</div>
     <div class="ws">
@@ -819,7 +861,7 @@ function clientView(){
 }
 function meter(c){
   const e=computeEstimate(c); const pos=e.refund>=0;
-  const empty = N(c.inc.gross)===0;
+  const empty = !(e.paid>0 || e.zvE>0 || e.kap>0);
   return `<div class="meter">
     <div class="k">${pos?t('meter_title'):t('meter_nach')}</div>
     <div class="big num ${pos?'':'neg'}">${empty?'—':eur(Math.abs(e.refund))}</div>
@@ -830,6 +872,7 @@ function meter(c){
     ${e.credit>0?`<div class="row"><span>${t('m_credit')}</span><b class="num">−${eur(e.credit)}</b></div>`:''}
     ${e.soli>0?`<div class="row"><span>${t('m_soli')}</span><b class="num">${eur(e.soli)}</b></div>`:''}
     ${e.kist>0?`<div class="row"><span>${t('m_kist')}</span><b class="num">${eur(e.kist)}</b></div>`:''}
+    ${e.kap>0?`<div class="row"><span>${t('m_kap')}</span><b class="num">${eur(e.kap)}</b></div>`:''}
     <div class="row"><span>${t('m_paid')}</span><b class="num">${eur(e.paid)}</b></div>
     <div class="foot">${t('meter_foot')}</div>
   </div>`;
@@ -855,10 +898,29 @@ function upd(group,key,val,fmt){
   const c=cur();
   if(fmt && String(val).trim()!=='') val = formatDE(N(val));   // display in German format: 1.234,56
   c[group][key]=val; c.updatedAt=Date.now();
-  if(c.status==='draft' && N(c.inc.gross)>0) {} // status stays draft until summary
   delete S.aiFields[group+'.'+key]; // user edited → no longer pure AI value
   scheduleSave(); render();
 }
+/* --- generic list items (employments, capital gains, properties) --- */
+function LF(list,item,field,label,opts={}){
+  const hint=opts.hint?`<div class="hint">${opts.hint}</div>`:'';
+  const ai=S.aiFields[list+'.'+item.id+'.'+field]?`<span class="ai-flag">AI</span>`:'';
+  if(opts.select){
+    return `<div class="field"><label>${label}${ai}</label>
+      <select onchange="updItem('${list}','${item.id}','${field}',this.value,0)">
+        ${opts.select.map(o=>`<option value="${o[0]}" ${item[field]===o[0]?'selected':''}>${o[1]}</option>`).join('')}
+      </select>${hint}</div>`;
+  }
+  return `<div class="field"><label>${label}${ai}</label>
+    <input type="${opts.type||'text'}" value="${esc(item[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''}
+      onchange="updItem('${list}','${item.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
+}
+function addItem(list,tpl){ const c=cur(); (c[list]=c[list]||[]).push(Object.assign({id:uid()},tpl)); c.updatedAt=Date.now(); scheduleSave(); render(); }
+function delItem(list,id){ const c=cur(); c[list]=(c[list]||[]).filter(x=>x.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
+function updItem(list,id,f,v,fmt){ const c=cur(); const it=(c[list]||[]).find(x=>x.id===id); if(!it) return;
+  if(fmt && String(v).trim()!=='') v=formatDE(N(v));
+  it[f]=v; delete S.aiFields[list+'.'+id+'.'+f]; c.updatedAt=Date.now(); scheduleSave(); render(); }
+
 /* --- documents (Belege) --- */
 const memDocs = {};
 async function storeDocData(id,dataUrl){ await kvSet('klarsteuer-doc-'+id, dataUrl); }
@@ -903,7 +965,7 @@ async function deleteDoc(id){
 }
 
 function navRow(){
-  const last = S.step===8;
+  const last = S.step===10;
   return `<div class="nav-row">
     <button class="btn btn-ghost" ${S.step===0?'disabled':''} onclick="S.step--;render()">← ${t('back')}</button>
     ${last?'':`<button class="btn btn-primary" onclick="S.step++;render()">${t('next')} →</button>`}
@@ -948,25 +1010,76 @@ function stepIncome(c){
   if(S.scanState==='scanning') scan=`<div class="scan-status"><div class="spinner"></div>${t('scanning')}</div>`;
   else if(S.scanState==='ok') scan=`<div class="extract-ok">✓ ${t('scan_ok')}</div>`;
   else if(S.scanState==='err') scan=`<div class="extract-err">${t('scan_err')}</div>`;
-  const e=computeEstimate(c);
-  const warnTax = N(c.inc.wageTax)>0 && N(c.inc.gross)>0 && N(c.inc.wageTax) > N(c.inc.gross)*0.45;
-  return `<h2>${t('step2')}</h2><p class="lead">${t('s2_lead')}</p>
+  const emps=c.emps||[];
+  const cards=emps.map((emp,i)=>`<div class="sum-group" style="margin-bottom:12px">
+    <div class="head"><span>${t('statement')} ${i+1}${emp.employer?' · '+esc(emp.employer):''}</span>
+      <span class="edit" onclick="delItem('emps','${emp.id}')">🗑 ${t('remove')}</span></div>
+    <div style="padding:14px 16px">
+      <div class="grid3">
+        ${LF('emps',emp,'employer',t('employer'))}
+        ${LF('emps',emp,'period',t('period'),{ph:'01.01. – 31.12.'})}
+        ${LF('emps',emp,'taxClass',t('tax_class'),{select:[['',t('select')],['1','I'],['2','II'],['3','III'],['4','IV'],['5','V'],['6','VI']]})}
+      </div>
+      <div class="grid2">
+        ${LF('emps',emp,'gross',t('gross'),{euro:true,ph:'0,00 €'})}
+        ${LF('emps',emp,'wageTax',t('wage_tax'),{euro:true,ph:'0,00 €'})}
+        ${LF('emps',emp,'soli',t('soli'),{euro:true,ph:'0,00 €'})}
+        ${LF('emps',emp,'churchPaid',t('church_paid'),{euro:true,ph:'0,00 €'})}
+      </div>
+    </div></div>`).join('');
+  const warnTax = emps.some(e=>N(e.wageTax)>0 && N(e.gross)>0 && N(e.wageTax)>N(e.gross)*0.45);
+  return `<h2>${t('step2')}</h2><p class="lead">${t('s2_lead2')}</p>
   <div class="dropzone" id="dz" onclick="document.getElementById('fileInput').click()">
     <div class="icon">📄</div><b>${t('upload_title')}</b><br>${t('upload_sub')}
   </div>
   ${scan}
-  <p style="font-size:12.5px;color:var(--ink-soft);margin-top:10px">${t('manual_hint')}</p>
+  <p style="font-size:12.5px;color:var(--ink-soft);margin-top:10px">${t('upload_new_hint')} ${t('manual_hint')}</p>
   <div class="section-label">${t('income')}</div>
-  <div class="grid2">
-    ${F('inc','employer',t('employer'))}
-    ${F('inc','period',t('period'),{ph:'01.01. – 31.12.'})}
-    ${F('inc','taxClass',t('tax_class'),{select:[['',t('select')],['1','I'],['2','II'],['3','III'],['4','IV'],['5','V'],['6','VI']]})}
-    ${F('inc','gross',t('gross'),{euro:true,ph:'0,00 €'})}
-    ${F('inc','wageTax',t('wage_tax'),{euro:true,ph:'0,00 €'})}
-    ${F('inc','soli',t('soli'),{euro:true,ph:'0,00 €'})}
-    ${F('inc','churchPaid',t('church_paid'),{euro:true,ph:'0,00 €'})}
-  </div>
+  ${cards}
+  <button class="btn btn-ghost btn-sm" onclick="addItem('emps',{employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:''})">＋ ${t('add_emp')}</button>
   ${warnTax?`<div class="warn">⚠️ ${t('warn_taxhigh')}</div>`:''}
+  ${navRow()}`;
+}
+
+/* --- step 7: capital gains (Anlage KAP) --- */
+function stepKap(c){
+  const rows=(c.kap||[]).map((k,i)=>`<div class="sum-group" style="margin-bottom:12px">
+    <div class="head"><span>${t('platform')} ${i+1}${k.platform?' · '+esc(k.platform):''}</span>
+      <span class="edit" onclick="delItem('kap','${k.id}')">🗑 ${t('remove')}</span></div>
+    <div style="padding:14px 16px">
+      ${LF('kap',k,'platform',t('platform'),{ph:'Trade Republic, Scalable, ING…'})}
+      <div class="grid3">
+        ${LF('kap',k,'gains',t('kap_gains'),{euro:true,ph:'0,00 €',hint:i===0?t('kap_hint'):''})}
+        ${LF('kap',k,'taxPaid',t('kap_tax'),{euro:true,ph:'0,00 €'})}
+        ${LF('kap',k,'soliPaid',t('kap_soli'),{euro:true,ph:'0,00 €'})}
+      </div>
+    </div></div>`).join('');
+  return `<h2>${t('step_kap')}</h2><p class="lead">${t('s_kap_lead')}</p>
+  ${rows}
+  <button class="btn btn-ghost btn-sm" onclick="addItem('kap',{platform:'',gains:'',taxPaid:'',soliPaid:''})">＋ ${t('add_kap')}</button>
+  ${docSection('kap')}
+  ${navRow()}`;
+}
+
+/* --- step 8: rental property (Anlage V) --- */
+function stepProp(c){
+  const rows=(c.props||[]).map((p,i)=>{
+    const net=N(p.rent)-N(p.costs);
+    return `<div class="sum-group" style="margin-bottom:12px">
+    <div class="head"><span>${t('prop_address').split(' ')[0]} ${i+1}${p.address?' · '+esc(p.address):''}
+      <span class="chip ${net>=0?'submitted':'review'}" style="margin-left:8px">${t('prop_net')}: ${eur(net)}</span></span>
+      <span class="edit" onclick="delItem('props','${p.id}')">🗑 ${t('remove')}</span></div>
+    <div style="padding:14px 16px">
+      ${LF('props',p,'address',t('prop_address'),{ph:'Musterstraße 1, 63065 Offenbach'})}
+      <div class="grid2">
+        ${LF('props',p,'rent',t('prop_rent'),{euro:true,ph:'0,00 €'})}
+        ${LF('props',p,'costs',t('prop_costs'),{euro:true,ph:'0,00 €'})}
+      </div>
+    </div></div>`;}).join('');
+  return `<h2>${t('step_prop')}</h2><p class="lead">${t('s_prop_lead')}</p>
+  ${rows}
+  <button class="btn btn-ghost btn-sm" onclick="addItem('props',{address:'',rent:'',costs:''})">＋ ${t('add_prop')}</button>
+  ${docSection('props')}
   ${navRow()}`;
 }
 
@@ -1091,6 +1204,20 @@ function stepSummary(c){
       N(k.childcare)>0?t('cc_short')+': '+eur(N(k.childcare)):'',
       N(k.schoolFees)>0?t('sf_short')+': '+eur(N(k.schoolFees)):''
     ].filter(Boolean).join(' · '))]);
+  const empRows=(c.emps||[]).map((k,i)=>[
+    `${t('statement')} ${i+1}${k.employer?' — '+esc(k.employer):''}`,
+    esc([k.taxClass?'StKl '+k.taxClass:'',
+      N(k.gross)>0?t('gross_short')+': '+eur(N(k.gross)):'',
+      N(k.wageTax)>0?'LSt: '+eur(N(k.wageTax)):'',
+      N(k.soli)>0?'Soli: '+eur(N(k.soli)):'',
+      N(k.churchPaid)>0?'KiSt: '+eur(N(k.churchPaid)):''
+    ].filter(Boolean).join(' · '))]);
+  const kapRows=(c.kap||[]).map((k,i)=>[
+    `${t('platform')} ${i+1}${k.platform?' — '+esc(k.platform):''}`,
+    esc([N(k.gains)>0?eur(N(k.gains)):'', N(k.taxPaid)>0?'KapESt: '+eur(N(k.taxPaid)):'', N(k.soliPaid)>0?'Soli: '+eur(N(k.soliPaid)):''].filter(Boolean).join(' · '))]);
+  const propRows=(c.props||[]).map((p,i)=>[
+    esc(p.address||t('prop_address')+' '+(i+1)),
+    esc(`${eur(N(p.rent))} − ${eur(N(p.costs))} = ${eur(N(p.rent)-N(p.costs))}`)]);
   return `<h2>${t('step7')}</h2><p class="lead">${t('s7_lead')}</p>
   ${sumGroup(t('personal'),0,[
     [t('client'),esc(c.p.firstName+' '+c.p.lastName)],
@@ -1102,13 +1229,7 @@ function stepSummary(c){
     [t('bundesland'),esc(c.p.bundesland)],
     [t('finanzamt'),esc([c.p.finanzamt, c.p.faNumber?'('+c.p.faNumber+')':''].filter(Boolean).join(' '))],
     [t('iban'),esc(c.p.iban)]])}
-  ${sumGroup(t('income'),1,[
-    [t('employer'),esc(c.inc.employer)],
-    [t('tax_class'),esc(c.inc.taxClass)],
-    [t('gross'),m(c.inc.gross)],
-    [t('wage_tax'),m(c.inc.wageTax)],
-    [t('soli'),m(c.inc.soli)],
-    [t('church_paid'),m(c.inc.churchPaid)]])}
+  ${sumGroup(t('income'),1,empRows)}
   ${sumGroup(t('insurance'),2,[
     [t('rv'),m(c.ins.rv)],[t('kv'),m(c.ins.kv)],[t('pv'),m(c.ins.pv)],[t('av'),m(c.ins.av)],[t('other_ins'),m(c.ins.other)]])}
   ${sumGroup(t('work_exp'),3,[
@@ -1119,7 +1240,9 @@ function stepSummary(c){
     [t('support_amount'),m(c.fam.support)],
     [t('support_where'),N(c.fam.support)>0?{1:t('grp1'),2:t('grp2'),3:t('grp3'),4:t('grp4')}[c.fam.supportGroup]:'']])}
   ${sumGroup(t('special_exp'),5,[[t('donations'),m(c.sa.donations)],[t('other_sa'),m(c.sa.other)]])}
-  ${sumGroup(t('household_g'),6,[[t('medical'),m(c.ex.medical)],[t('household'),m(c.ex.household)],[t('handwerker'),m(c.ex.handwerker)]])}
+  ${sumGroup(t('step_kap'),6,kapRows)}
+  ${sumGroup(t('step_prop'),7,propRows)}
+  ${sumGroup(t('household_g'),8,[[t('medical'),m(c.ex.medical)],[t('household'),m(c.ex.household)],[t('handwerker'),m(c.ex.handwerker)]])}
   <div style="margin-top:22px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;align-items:center">
   <button class="btn btn-ghost" onclick="exportPDF()">📄 ${t('pdf_btn')}</button>
   ${submitted
@@ -1231,9 +1354,13 @@ async function exportPDF(){
   row(t('steuernummer'), c.p.steuernummer);
   row(t('iban'), c.p.iban);
   y+=3; section(t('income'));
-  row(t('employer'), c.inc.employer); row(t('period'), c.inc.period); row(t('tax_class'), c.inc.taxClass);
-  row(t('gross'), m(c.inc.gross)); row(t('wage_tax'), m(c.inc.wageTax));
-  row(t('soli'), m(c.inc.soli)); row(t('church_paid'), m(c.inc.churchPaid));
+  (c.emps||[]).forEach((k,i)=>{
+    row(`${t('statement')} ${i+1}${k.employer?' — '+k.employer:''}`, [k.period, k.taxClass?'StKl '+k.taxClass:''].filter(Boolean).join(' · ')||' ');
+    if(N(k.gross)>0) row('    '+t('gross_short'), eur(N(k.gross)));
+    if(N(k.wageTax)>0) row('    '+t('wage_tax'), eur(N(k.wageTax)));
+    if(N(k.soli)>0) row('    '+t('soli'), eur(N(k.soli)));
+    if(N(k.churchPaid)>0) row('    '+t('church_paid'), eur(N(k.churchPaid)));
+  });
   y+=3; section(t('insurance'));
   row(t('rv'),m(c.ins.rv)); row(t('kv'),m(c.ins.kv)); row(t('pv'),m(c.ins.pv)); row(t('av'),m(c.ins.av)); row(t('other_ins'),m(c.ins.other));
   y+=3; section(t('work_exp'));
@@ -1251,13 +1378,19 @@ async function exportPDF(){
   if(N(c.fam.support)>0) row(t('support_where'), {1:t('grp1'),2:t('grp2'),3:t('grp3'),4:t('grp4')}[c.fam.supportGroup]);
   y+=3; section(t('special_exp'));
   row(t('donations'),m(c.sa.donations)); row(t('other_sa'),m(c.sa.other));
+  if((c.kap||[]).length){ y+=3; section(t('step_kap'));
+    (c.kap||[]).forEach((k,i)=>row(`${t('platform')} ${i+1}${k.platform?' — '+k.platform:''}`,
+      [N(k.gains)>0?eur(N(k.gains)):'', N(k.taxPaid)>0?'KapESt '+eur(N(k.taxPaid)):''].filter(Boolean).join(' · ')||' ')); }
+  if((c.props||[]).length){ y+=3; section(t('step_prop'));
+    (c.props||[]).forEach((p,i)=>row(p.address||`${t('step_prop')} ${i+1}`,
+      `${eur(N(p.rent))} - ${eur(N(p.costs))} = ${eur(N(p.rent)-N(p.costs))}`)); }
   y+=3; section(t('household_g'));
   row(t('medical'),m(c.ex.medical)); row(t('household'),m(c.ex.household)); row(t('handwerker'),m(c.ex.handwerker));
   if((c.docs||[]).length){ row(t('pdf_docs'), String(c.docs.length)); }
   /* estimate box */
-  checkPage(56); y+=4;
+  checkPage(64); y+=4;
   const boxTop=y;
-  doc.setFillColor(230,242,237); doc.roundedRect(ML-2, boxTop-2, (MR-ML)+4, 48, 2.5, 2.5, 'F');
+  doc.setFillColor(230,242,237); doc.roundedRect(ML-2, boxTop-2, (MR-ML)+4, 54, 2.5, 2.5, 'F');
   doc.setTextColor(...TEAL); doc.setFont('helvetica','bold'); doc.setFontSize(10);
   doc.text(pdfSafe(t('pdf_est')).toUpperCase(), ML+2, y+4); y+=10;
   const erow=(l,v)=>{ doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...GRAY);
@@ -1267,12 +1400,13 @@ async function exportPDF(){
   if(e.credit>0) erow(t('m_credit'), '-'+eur(e.credit));
   if(e.soli>0) erow(t('m_soli'), eur(e.soli));
   if(e.kist>0) erow(t('m_kist'), eur(e.kist));
+  if(e.kap>0) erow(t('m_kap'), eur(e.kap));
   erow(t('m_paid'), eur(e.paid));
   y+=3; doc.setFont('helvetica','bold'); doc.setFontSize(12.5);
   const pos=e.refund>=0; doc.setTextColor(...(pos?TEAL:RED));
   doc.text(pdfSafe(pos?t('meter_title'):t('meter_nach')), ML+2, y);
   doc.text(pdfSafe(eur(Math.abs(e.refund))), MR-2, y, {align:'right'});
-  y=boxTop+52;
+  y=boxTop+58;
   if(c.status==='submitted'){ checkPage(10);
     doc.setFontSize(9.5); doc.setFont('helvetica','normal'); doc.setTextColor(...INK);
     doc.text(pdfSafe(`${t('transfer_ticket')}: ${c.transferTicket} · ${t('resubmit')} ${dateStr(c.submittedAt)}`), ML, y); y+=6; }
@@ -1322,13 +1456,19 @@ Mapping: gross = Bruttoarbeitslohn (Zeile 3); wageTax = einbehaltene Lohnsteuer 
     const clean = text.replace(/```json|```/g,'').trim();
     const j = JSON.parse(clean);
     const c=cur();
-    const NUMFIELDS = {gross:1,wageTax:1,soli:1,churchPaid:1,rv:1,kv:1,pv:1,av:1};
-    const put=(grp,key,val)=>{ if(val!=null && String(val).trim()!==''){
-      c[grp][key] = NUMFIELDS[key] ? formatDE(N(val)) : String(val);   // AI returns dot-decimals → convert to German format
-      S.aiFields[grp+'.'+key]=true; } };
-    put('inc','employer',j.employer); put('inc','period',j.period); put('inc','taxClass',j.taxClass);
-    put('inc','gross',j.gross); put('inc','wageTax',j.wageTax); put('inc','soli',j.soli); put('inc','churchPaid',j.churchPaid);
-    put('ins','rv',j.rv); put('ins','kv',j.kv); put('ins','pv',j.pv); put('ins','av',j.av);
+    /* every upload creates a NEW income statement — existing entries are never overwritten */
+    const emp={id:uid(),employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:''};
+    const NUMFIELDS = {gross:1,wageTax:1,soli:1,churchPaid:1};
+    const putEmp=(key,val)=>{ if(val!=null && String(val).trim()!==''){
+      emp[key] = NUMFIELDS[key] ? formatDE(N(val)) : String(val);   // AI returns dot-decimals → convert to German format
+      S.aiFields['emps.'+emp.id+'.'+key]=true; } };
+    putEmp('employer',j.employer); putEmp('period',j.period); putEmp('taxClass',j.taxClass);
+    putEmp('gross',j.gross); putEmp('wageTax',j.wageTax); putEmp('soli',j.soli); putEmp('churchPaid',j.churchPaid);
+    (c.emps=c.emps||[]).push(emp);
+    /* insurance contributions are ADDED onto existing totals (multiple employers accumulate) */
+    const addIns=(key,val)=>{ if(val!=null && String(val).trim()!==''){
+      c.ins[key]=formatDE(N(c.ins[key])+N(val)); S.aiFields['ins.'+key]=true; } };
+    addIns('rv',j.rv); addIns('kv',j.kv); addIns('pv',j.pv); addIns('av',j.av);
     c.updatedAt=Date.now(); scheduleSave();
     S.scanState='ok';
   }catch(err){ console.error('extraction failed',err); S.scanState='err'; }
