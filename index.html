@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SimplyTax — Tax Filing Workspace</title>
+<style>
+  :root{
+    --ink:#12283A; --ink-soft:#3C5468; --paper:#F6F8F7; --card:#FFFFFF;
+    --line:#DFE7E4; --teal:#0E7C66; --teal-dark:#0A5D4D; --teal-soft:#E3F1EC;
+    --amber:#D98A1F; --amber-soft:#FBF1DF; --red:#B4432F; --red-soft:#F9E9E5;
+    --blue-soft:#E7EEF6; --radius:14px; --shadow:0 1px 2px rgba(18,40,58,.06),0 6px 18px rgba(18,40,58,.07);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:'Segoe UI',system-ui,-apple-system,Roboto,'Helvetica Neue',sans-serif;background:var(--paper);color:var(--ink);font-size:15px;line-height:1.5}
+  h1,h2,h3,.display{font-family:Georgia,'Times New Roman',serif;letter-spacing:-.01em}
+  button{font:inherit;cursor:pointer;border:none;background:none}
+  input,select,textarea{font:inherit;color:var(--ink)}
+  .num{font-variant-numeric:tabular-nums}
+
+  /* ---------- layout ---------- */
+  .topbar{position:sticky;top:0;z-index:50;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:10px 22px}
+  .logo{display:flex;align-items:center;gap:10px;font-family:Georgia,serif;font-size:20px;font-weight:700;color:var(--ink)}
+  .logo-mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--teal),var(--teal-dark));color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-family:Georgia,serif}
+  .topbar .spacer{flex:1}
+  .lang-toggle{display:flex;border:1px solid var(--line);border-radius:99px;overflow:hidden;background:var(--paper)}
+  .lang-toggle button{padding:5px 14px;font-size:13px;font-weight:600;color:var(--ink-soft)}
+  .lang-toggle button.on{background:var(--ink);color:#fff}
+  .link-btn{color:var(--ink-soft);font-size:13.5px;font-weight:600;padding:6px 10px;border-radius:8px}
+  .link-btn:hover{background:var(--paper)}
+  main{max-width:1120px;margin:0 auto;padding:28px 22px 80px}
+
+  /* ---------- buttons ---------- */
+  .btn{display:inline-flex;align-items:center;gap:8px;border-radius:10px;padding:10px 18px;font-weight:600;font-size:14px;transition:.15s}
+  .btn-primary{background:var(--teal);color:#fff}
+  .btn-primary:hover{background:var(--teal-dark)}
+  .btn-ghost{border:1px solid var(--line);background:var(--card);color:var(--ink)}
+  .btn-ghost:hover{border-color:var(--ink-soft)}
+  .btn-amber{background:var(--ink);color:#fff}
+  .btn-amber:hover{background:#1d3a52}
+  .btn[disabled]{opacity:.5;cursor:not-allowed}
+  .btn-sm{padding:6px 12px;font-size:13px;border-radius:8px}
+
+  /* ---------- login ---------- */
+  .login-wrap{min-height:calc(100vh - 53px);display:flex;align-items:center;justify-content:center;padding:24px}
+  .login-card{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);width:400px;max-width:100%;padding:38px 36px}
+  .login-card h1{font-size:26px;margin:14px 0 6px}
+  .login-card p.sub{color:var(--ink-soft);font-size:14px;margin-bottom:24px}
+  .field{margin-bottom:16px}
+  .field label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+  .field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;outline:none;transition:.15s}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
+  .field .hint{font-size:12px;color:var(--ink-soft);margin-top:4px}
+  .demo-note{margin-top:18px;font-size:12.5px;color:var(--ink-soft);background:var(--paper);border:1px dashed var(--line);border-radius:10px;padding:10px 12px}
+  .auth-tabs{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:16px 0 20px;background:var(--paper)}
+  .auth-tabs button{flex:1;padding:9px;font-weight:600;font-size:13.5px;color:var(--ink-soft)}
+  .auth-tabs button.on{background:var(--ink);color:#fff}
+  .auth-err{background:var(--red-soft);border:1px solid #EBC6BD;color:var(--red);border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:14px}
+
+  /* ---------- dashboard ---------- */
+  .page-head{display:flex;align-items:flex-end;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+  .page-head h1{font-size:28px}
+  .page-head p{color:var(--ink-soft);font-size:14px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:26px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow)}
+  .stat .k{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft)}
+  .stat .v{font-family:Georgia,serif;font-size:28px;margin-top:4px}
+  .stat .v.teal{color:var(--teal)}
+  .toolbar{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+  .search{flex:1;min-width:220px;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:0 12px}
+  .search input{border:none;outline:none;padding:10px 0;flex:1;background:transparent}
+  .filter-sel{border:1px solid var(--line);border-radius:10px;padding:9px 12px;background:var(--card)}
+
+  .client-table{width:100%;border-collapse:separate;border-spacing:0;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+  .client-table th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);background:#FBFCFB}
+  .client-table td{padding:14px 16px;border-bottom:1px solid var(--line);vertical-align:middle}
+  .client-table tr:last-child td{border-bottom:none}
+  .client-table tbody tr{cursor:pointer;transition:.12s}
+  .client-table tbody tr:hover{background:var(--teal-soft)}
+  .avatar{width:34px;height:34px;border-radius:50%;background:var(--blue-soft);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;margin-right:10px}
+  .cname{font-weight:600}
+  .csub{font-size:12.5px;color:var(--ink-soft)}
+  .chip{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:3px 11px;font-size:12.5px;font-weight:600}
+  .chip::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+  .chip.draft{background:var(--blue-soft);color:#3A5A7C}
+  .chip.review{background:var(--amber-soft);color:var(--amber)}
+  .chip.submitted{background:var(--teal-soft);color:var(--teal)}
+  .refund-cell{font-weight:700}
+  .refund-cell.pos{color:var(--teal)} .refund-cell.neg{color:var(--red)}
+  .empty{padding:60px 20px;text-align:center;color:var(--ink-soft)}
+  .empty .big{font-size:40px;margin-bottom:10px}
+
+  /* ---------- workspace ---------- */
+  .crumbs{font-size:13px;color:var(--ink-soft);margin-bottom:14px}
+  .crumbs a{color:var(--teal);cursor:pointer;text-decoration:none;font-weight:600}
+  .ws{display:grid;grid-template-columns:210px 1fr 260px;gap:20px;align-items:start}
+  @media(max-width:980px){.ws{grid-template-columns:1fr}.steps{display:flex;overflow-x:auto;gap:6px}.step-item{white-space:nowrap}}
+  .steps{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:10px;box-shadow:var(--shadow)}
+  .step-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;font-size:13.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;transition:.12s}
+  .step-item:hover{background:var(--paper)}
+  .step-item.on{background:var(--ink);color:#fff}
+  .step-item .n{width:22px;height:22px;border-radius:50%;border:1.5px solid currentColor;display:inline-flex;align-items:center;justify-content:center;font-size:11.5px;flex:none}
+  .step-item.done .n{background:var(--teal);border-color:var(--teal);color:#fff}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:26px 28px}
+  .panel h2{font-size:21px;margin-bottom:4px}
+  .panel .lead{color:var(--ink-soft);font-size:14px;margin-bottom:22px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px 16px}
+  @media(max-width:640px){.grid2,.grid3{grid-template-columns:1fr}}
+  .section-label{font-size:12px;font-weight:800;color:var(--teal);text-transform:uppercase;letter-spacing:.08em;margin:20px 0 12px;padding-top:16px;border-top:1px solid var(--line)}
+  .section-label:first-of-type{margin-top:0;padding-top:0;border-top:none}
+  .nav-row{display:flex;justify-content:space-between;margin-top:26px;padding-top:18px;border-top:1px solid var(--line)}
+  .warn{background:var(--amber-soft);border:1px solid #F0D9AE;color:#7A5410;border-radius:10px;padding:10px 14px;font-size:13.5px;margin-top:14px}
+
+  /* refund meter — signature element */
+  .meter{background:linear-gradient(160deg,#12283A,#1B3A52);color:#fff;border-radius:var(--radius);padding:22px;box-shadow:var(--shadow);position:sticky;top:74px}
+  .meter .k{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#9FC1B8}
+  .meter .big{font-family:Georgia,serif;font-size:34px;margin:8px 0 2px;color:#7FD8BE}
+  .meter .big.neg{color:#F2A78F}
+  .meter .sub{font-size:12px;color:#B9CBD9}
+  .meter hr{border:none;border-top:1px solid rgba(255,255,255,.14);margin:16px 0}
+  .meter .row{display:flex;justify-content:space-between;font-size:12.5px;color:#D6E2EC;padding:3px 0}
+  .meter .row b{color:#fff;font-weight:600}
+  .meter .foot{margin-top:14px;font-size:11px;color:#8FA6B8;line-height:1.45}
+
+  /* upload */
+  .dropzone{border:2px dashed var(--line);border-radius:14px;padding:34px 20px;text-align:center;color:var(--ink-soft);background:#FBFCFB;transition:.15s;cursor:pointer}
+  .dropzone:hover,.dropzone.drag{border-color:var(--teal);background:var(--teal-soft)}
+  .dropzone .icon{font-size:34px;margin-bottom:8px}
+  .dropzone b{color:var(--ink)}
+  .scan-status{display:flex;align-items:center;gap:12px;background:var(--blue-soft);border-radius:10px;padding:12px 16px;margin-top:14px;font-size:14px}
+  .spinner{width:18px;height:18px;border:2.5px solid #B9CBD9;border-top-color:var(--ink);border-radius:50%;animation:spin .8s linear infinite;flex:none}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .extract-ok{background:var(--teal-soft);border:1px solid #BEE0D4;color:var(--teal-dark);border-radius:10px;padding:12px 16px;margin-top:14px;font-size:13.5px}
+  .extract-err{background:var(--red-soft);border:1px solid #EBC6BD;color:var(--red);border-radius:10px;padding:12px 16px;margin-top:14px;font-size:13.5px}
+  .ai-flag{display:inline-block;background:var(--amber-soft);color:var(--amber);font-size:10.5px;font-weight:800;border-radius:5px;padding:1px 6px;margin-left:6px;letter-spacing:.03em;vertical-align:middle}
+
+  /* summary */
+  .sum-group{border:1px solid var(--line);border-radius:12px;margin-bottom:14px;overflow:hidden}
+  .sum-group .head{display:flex;justify-content:space-between;align-items:center;background:#FBFCFB;padding:10px 16px;font-weight:700;font-size:14px;border-bottom:1px solid var(--line)}
+  .sum-group .head .edit{color:var(--teal);font-size:12.5px;font-weight:700;cursor:pointer}
+  .sum-row{display:flex;justify-content:space-between;gap:16px;padding:8px 16px;font-size:13.5px;border-bottom:1px solid #F0F4F2}
+  .sum-row:last-child{border-bottom:none}
+  .sum-row .l{color:var(--ink-soft)} .sum-row .r{font-weight:600;text-align:right}
+
+  /* modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(18,40,58,.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+  .modal{background:var(--card);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.25);width:480px;max-width:100%;max-height:90vh;overflow:auto;padding:30px}
+  .modal h2{font-size:21px;margin-bottom:6px}
+  .success-mark{width:58px;height:58px;border-radius:50%;background:var(--teal-soft);color:var(--teal);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px}
+  .ticket{background:var(--paper);border:1px dashed var(--line);border-radius:10px;padding:12px 16px;font-family:ui-monospace,Consolas,monospace;font-size:14px;text-align:center;margin:14px 0;letter-spacing:.04em}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:12px;padding:12px 22px;font-size:14px;font-weight:600;box-shadow:var(--shadow);z-index:200;animation:fadeup .3s}
+  @keyframes fadeup{from{opacity:0;transform:translate(-50%,12px)}to{opacity:1;transform:translate(-50%,0)}}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<input type="file" id="fileInput" accept="image/*,application/pdf" class="hidden">
+<input type="file" id="docInput" accept="image/*,application/pdf" multiple class="hidden">
+
+<script>
+/* =====================================================================
+   SimplyTax — Phase 1 (admin-only)
+   English default · German toggle · in-memory + persistent storage
+===================================================================== */
+
+/* ---------------- i18n ---------------- */
+const STR = {
+en: {
+  appName:"SimplyTax", tagline:"Your tax filing workspace",
+  login_title:"Welcome back", login_sub:"Sign in to manage your clients' tax returns.",
+  email:"Email", password:"Password", sign_in:"Sign in",
+  demo_note:"Prototype: any email and password will work. Real authentication is added in the production phase.",
+  logout:"Log out", dashboard:"Dashboard",
+  clients:"Clients", drafts:"Drafts", in_review:"In review", submitted:"Submitted", est_refunds:"Est. total refunds",
+  search_ph:"Search clients by name…", all_statuses:"All statuses", all_years:"All years",
+  new_client:"New client", client:"Client", tax_year:"Tax year", status:"Status", est_refund:"Est. refund", updated:"Updated",
+  status_draft:"Draft", status_review:"In review", status_submitted:"Submitted",
+  empty_title:"No clients yet", empty_sub:"Create your first client profile to start a tax return.",
+  first_name:"First name", last_name:"Last name", marital:"Marital status",
+  single:"Single", married:"Married — joint assessment (Zusammenveranlagung)",
+  create:"Create profile", cancel:"Cancel",
+  back_dash:"Dashboard",
+  step1:"Personal data", step2:"Employment income", step3:"Insurance (Vorsorge)", step4:"Work expenses", step5:"Special expenses", step6:"Household & other", step7:"Review & submit",
+  s1_lead:"Basic data for the main form (Hauptvordruck ESt 1 A).",
+  birth_date:"Date of birth", tax_id:"Tax ID (IdNr, 11 digits)", tax_id_hint:"The personal Steuer-Identifikationsnummer.",
+  street:"Street", house_no:"No.", plz:"Postal code", city:"City",
+  religion:"Church tax (religion)", rel_none:"None (no church tax)", rel_ev:"Protestant (EV)", rel_rk:"Catholic (RK)", rel_other:"Other",
+  profession:"Profession", finanzamt:"Tax office (Finanzamt)", steuernummer:"Tax number (if available)",
+  iban:"IBAN (for the refund)", spouse:"Spouse (Person B)",
+  s2_lead:"Upload the Lohnsteuerbescheinigung — the app reads the values automatically. Please review every field before continuing.",
+  upload_title:"Upload Lohnsteuerbescheinigung", upload_sub:"Drop a photo or PDF here, or click to choose a file",
+  scanning:"Reading the document with AI…", scan_ok:"Values extracted. Please check each field carefully — AI-filled fields are marked.",
+  scan_err:"The document could not be read automatically. You can enter the values manually below.",
+  employer:"Employer", period:"Employment period", tax_class:"Tax class (Steuerklasse)",
+  gross:"Gross salary (line 3)", wage_tax:"Wage tax withheld (line 4)", soli:"Solidarity surcharge (line 5)", church_paid:"Church tax withheld (lines 6/7)",
+  s3_lead:"Social insurance contributions — usually taken from lines 22–27 of the Lohnsteuerbescheinigung. Almost every taxpayer needs this section (Anlage Vorsorgeaufwand).",
+  rv:"Pension insurance, employee share (line 23)", kv:"Health insurance, employee share (line 25)", pv:"Long-term care insurance (line 26)", av:"Unemployment insurance (line 27)",
+  other_ins:"Other insurance (liability, accident…)",
+  s4_lead:"Deductible job-related costs (Anlage N). The flat allowance of €1,230 is applied automatically if your entries are lower.",
+  commute_days:"Commuting days per year", commute_km:"One-way distance (km)", home_office:"Home-office days",
+  equipment:"Work equipment (laptop, desk…)", training:"Training / professional development", other_wk:"Other work expenses",
+  s5_lead:"Special expenses (Sonderausgaben). The minimum flat amount of €36 is applied automatically.",
+  donations:"Donations (with receipt)", other_sa:"Other special expenses",
+  s6_lead:"Extraordinary burdens and household services (§ 35a EStG — 20% of labor costs are credited directly against the tax).",
+  medical:"Medical costs (extraordinary burden)", household:"Household services (labor costs)", handwerker:"Craftsmen services (labor costs)",
+  s7_lead:"Check all data. Submission goes to ELSTER — in this prototype the transmission is simulated.",
+  submit_elster:"Submit to ELSTER", resubmit:"Submitted on", edit:"Edit",
+  personal:"Personal data", income:"Employment income", insurance:"Insurance", work_exp:"Work expenses", special_exp:"Special expenses", household_g:"Household & other",
+  meter_title:"Estimated refund", meter_nach:"Estimated back payment",
+  m_zve:"Taxable income (est.)", m_tax:"Income tax (est.)", m_soli:"Solidarity surch.", m_kist:"Church tax", m_paid:"Already paid", m_credit:"§ 35a credit",
+  meter_foot:"Non-binding estimate (unverbindliche Schätzung). The final assessment (Bescheid) by the Finanzamt may differ.",
+  next:"Next", back:"Back",
+  submitting:"Transmitting to ELSTER…",
+  success_title:"Return submitted", success_sub:"The tax return was transmitted successfully (simulation).",
+  transfer_ticket:"Transfer ticket", close:"Close",
+  warn_taxhigh:"Wage tax seems very high compared to the gross salary — please double-check.",
+  warn_days:"More than 300 commuting days is unusual — please verify.",
+  confirm_del:"Delete this client profile permanently?", delete:"Delete",
+  saved:"Saved", lang_en:"EN", lang_de:"DE",
+  select:"Please select…", year:"Year",
+  no_results:"No clients match your search.",
+  manual_hint:"No document? Enter the values manually — all fields stay editable.",
+  step_fam:"Children & family support",
+  s4b:"Double household (doppelte Haushaltsführung) — for a work-related second home. Rent is deductible up to €1,000 per month; weekly family home trips count with the commuting allowance.",
+  dhh_h:"Double household", dhh_rent:"Monthly rent, second home", dhh_months:"Months", dhh_trips:"Family home trips per year", dhh_km:"Distance to family home (km)",
+  relocation:"Work-related relocation costs",
+  s_fam_lead:"Costs for children (Anlage Kind) and support payments to needy relatives — e.g., parents abroad (Anlage Unterhalt, § 33a EStG).",
+  children_h:"Children", kids_count:"Number of children", childcare:"Childcare costs (per year, with invoices)", school_fees:"School fees (private school)",
+  kids_hint:"2025: 80% deductible, max. €4,800 per child · 2023–2024: two thirds, max. €4,000 per child.",
+  school_hint:"30% deductible, max. €5,000.",
+  support_h:"Support for parents / relatives", support_amount:"Support paid (per year)", support_where:"Where does the supported person live?",
+  grp1:"Germany / country group 1 (full maximum)", grp2:"Country group 2 (¾ of maximum)", grp3:"Country group 3 (½ of maximum, e.g. India)", grp4:"Country group 4 (¼ of maximum)",
+  support_hint:"Deductible up to the annual maximum (§ 33a EStG), reduced by country group. The recipient's own income can reduce the amount further.",
+  new_year:"New tax year", new_year_for:"New tax year for", year_exists:"A return for this year already exists for this client.",
+  copy_note:"Personal data will be copied over — income and expenses start empty.",
+  docs_h:"Documents (Belege)", docs_lead:"Attach receipts and proofs — kept with the return in case the Finanzamt requests verification.",
+  add_doc:"Add document", doc_too_big:"File is too large (max. 3 MB).", no_docs:"No documents attached yet.", download:"Download",
+  step_inq:"Finanzamt inquiries", s_inq_lead:"Questions from the Finanzamt (Rückfragen) usually reach the client by post. Log them here, contact the client, and record the answer. In the production version, electronic notices are retrieved via ELSTER.",
+  add_inq:"Add inquiry", inq_q:"Question from the Finanzamt", inq_a:"Answer / internal note",
+  inq_open:"Open", inq_answered:"Answered", no_inq:"No inquiries logged yet.", mark_answered:"Mark answered", reopen:"Reopen",
+  pdf_btn:"Download PDF summary", pdf_title:"Income tax return — summary for the client",
+  pdf_est:"Estimated result", pdf_generated:"Generated on", pdf_docs:"Attached documents (Belege)",
+  pdf_page:"Page", pdf_fail:"The PDF library could not be loaded. Please check the internet connection and try again.",
+  tab_signin:"Sign in", tab_register:"Create account",
+  register_title:"Create your account", register_sub:"Each tax consultant gets their own workspace — your clients are visible only to you.",
+  practice_name:"Your name / practice (Kanzlei)", confirm_pass:"Confirm password", register_btn:"Create account",
+  err_exists:"An account with this email already exists.", err_creds:"Email or password is incorrect.",
+  err_match:"The passwords do not match.", err_short:"The password needs at least 8 characters.", err_fields:"Please fill in all fields.",
+  auth_note:"Prototype: accounts and data are stored in this workspace only, strictly separated per account. The production version adds server-side authentication with encrypted passwords and two-factor login (2FA).",
+  bundesland:"Federal state (Bundesland)", fa_name:"Tax office name", fa_number:"Tax office number (BUFA, 4 digits)",
+  fa_hint:"The 4-digit federal tax office number identifies the receiving Finanzamt in the ELSTER transmission.",
+  err_fa:"Please enter the 4-digit Finanzamt number (BUFA) in Personal data before submitting.",
+  err_taxid:"Please enter the 11-digit tax ID (IdNr) in Personal data before submitting.",
+  submitting_to:"Receiving tax office",
+  settings:"Settings", settings_title:"Practice settings", settings_sub:"Shown as letterhead on the PDF summary for your clients.",
+  s_practice:"Practice / consultant name", s_address:"Address line", s_contact:"Phone / email", save:"Save",
+  child:"Child", add_child:"Add child", child_name:"First name", child_taxid:"Child's tax ID (IdNr, 11 digits)",
+  kindergeld:"Kindergeld received (per year)",
+  kindergeld_hint:"Record only — the Finanzamt automatically checks whether the child allowance (Kinderfreibetrag) is more favorable (Günstigerprüfung).",
+  kg_short:"Kindergeld", cc_short:"Childcare", sf_short:"School fees", remove:"Remove",
+  privacy_foot:"Prototype · Data is stored only in this workspace · GDPR-compliant hosting planned for production"
+},
+de: {
+  appName:"SimplyTax", tagline:"Ihr Arbeitsbereich für Steuererklärungen",
+  login_title:"Willkommen zurück", login_sub:"Melden Sie sich an, um die Steuererklärungen Ihrer Mandanten zu verwalten.",
+  email:"E-Mail", password:"Passwort", sign_in:"Anmelden",
+  demo_note:"Prototyp: Beliebige E-Mail und Passwort funktionieren. Echte Authentifizierung folgt in der Produktionsphase.",
+  logout:"Abmelden", dashboard:"Übersicht",
+  clients:"Mandanten", drafts:"Entwürfe", in_review:"In Prüfung", submitted:"Übermittelt", est_refunds:"Gesch. Erstattungen ges.",
+  search_ph:"Mandanten nach Name suchen…", all_statuses:"Alle Status", all_years:"Alle Jahre",
+  new_client:"Neuer Mandant", client:"Mandant", tax_year:"Steuerjahr", status:"Status", est_refund:"Gesch. Erstattung", updated:"Aktualisiert",
+  status_draft:"Entwurf", status_review:"In Prüfung", status_submitted:"Übermittelt",
+  empty_title:"Noch keine Mandanten", empty_sub:"Legen Sie das erste Mandantenprofil an, um eine Steuererklärung zu beginnen.",
+  first_name:"Vorname", last_name:"Nachname", marital:"Familienstand",
+  single:"Ledig", married:"Verheiratet — Zusammenveranlagung",
+  create:"Profil anlegen", cancel:"Abbrechen",
+  back_dash:"Übersicht",
+  step1:"Persönliche Daten", step2:"Arbeitslohn", step3:"Vorsorgeaufwand", step4:"Werbungskosten", step5:"Sonderausgaben", step6:"Haushalt & Sonstiges", step7:"Prüfen & Absenden",
+  s1_lead:"Grunddaten für den Hauptvordruck ESt 1 A.",
+  birth_date:"Geburtsdatum", tax_id:"Steuer-ID (IdNr, 11 Ziffern)", tax_id_hint:"Die persönliche Steuer-Identifikationsnummer.",
+  street:"Straße", house_no:"Nr.", plz:"PLZ", city:"Ort",
+  religion:"Kirchensteuer (Religion)", rel_none:"Keine (keine Kirchensteuer)", rel_ev:"Evangelisch (EV)", rel_rk:"Katholisch (RK)", rel_other:"Andere",
+  profession:"Beruf", finanzamt:"Finanzamt", steuernummer:"Steuernummer (falls vorhanden)",
+  iban:"IBAN (für die Erstattung)", spouse:"Ehepartner/in (Person B)",
+  s2_lead:"Lohnsteuerbescheinigung hochladen — die App liest die Werte automatisch aus. Bitte prüfen Sie jedes Feld, bevor Sie fortfahren.",
+  upload_title:"Lohnsteuerbescheinigung hochladen", upload_sub:"Foto oder PDF hier ablegen oder klicken, um eine Datei zu wählen",
+  scanning:"Dokument wird mit KI ausgelesen…", scan_ok:"Werte übernommen. Bitte prüfen Sie jedes Feld sorgfältig — KI-Felder sind markiert.",
+  scan_err:"Das Dokument konnte nicht automatisch gelesen werden. Sie können die Werte unten manuell eintragen.",
+  employer:"Arbeitgeber", period:"Beschäftigungszeitraum", tax_class:"Steuerklasse",
+  gross:"Bruttoarbeitslohn (Zeile 3)", wage_tax:"Einbehaltene Lohnsteuer (Zeile 4)", soli:"Solidaritätszuschlag (Zeile 5)", church_paid:"Einbehaltene Kirchensteuer (Zeile 6/7)",
+  s3_lead:"Sozialversicherungsbeiträge — in der Regel aus den Zeilen 22–27 der Lohnsteuerbescheinigung. Fast jede steuerpflichtige Person braucht diesen Abschnitt (Anlage Vorsorgeaufwand).",
+  rv:"Rentenversicherung, Arbeitnehmeranteil (Zeile 23)", kv:"Krankenversicherung, Arbeitnehmeranteil (Zeile 25)", pv:"Pflegeversicherung (Zeile 26)", av:"Arbeitslosenversicherung (Zeile 27)",
+  other_ins:"Weitere Versicherungen (Haftpflicht, Unfall…)",
+  s4_lead:"Abziehbare berufliche Kosten (Anlage N). Der Arbeitnehmer-Pauschbetrag von 1.230 € wird automatisch angesetzt, wenn Ihre Angaben darunter liegen.",
+  commute_days:"Arbeitstage mit Fahrt zur Arbeit", commute_km:"Einfache Entfernung (km)", home_office:"Homeoffice-Tage",
+  equipment:"Arbeitsmittel (Laptop, Schreibtisch…)", training:"Fortbildung", other_wk:"Sonstige Werbungskosten",
+  s5_lead:"Sonderausgaben. Der Pauschbetrag von 36 € wird automatisch berücksichtigt.",
+  donations:"Spenden (mit Beleg)", other_sa:"Weitere Sonderausgaben",
+  s6_lead:"Außergewöhnliche Belastungen und haushaltsnahe Leistungen (§ 35a EStG — 20 % der Arbeitskosten werden direkt von der Steuer abgezogen).",
+  medical:"Krankheitskosten (außergew. Belastung)", household:"Haushaltsnahe Dienstleistungen (Arbeitskosten)", handwerker:"Handwerkerleistungen (Arbeitskosten)",
+  s7_lead:"Alle Daten prüfen. Die Abgabe erfolgt an ELSTER — im Prototyp wird die Übermittlung simuliert.",
+  submit_elster:"An ELSTER übermitteln", resubmit:"Übermittelt am", edit:"Bearbeiten",
+  personal:"Persönliche Daten", income:"Arbeitslohn", insurance:"Vorsorge", work_exp:"Werbungskosten", special_exp:"Sonderausgaben", household_g:"Haushalt & Sonstiges",
+  meter_title:"Voraussichtliche Erstattung", meter_nach:"Voraussichtliche Nachzahlung",
+  m_zve:"Zu verst. Einkommen (ca.)", m_tax:"Einkommensteuer (ca.)", m_soli:"Solidaritätszuschlag", m_kist:"Kirchensteuer", m_paid:"Bereits gezahlt", m_credit:"§ 35a-Ermäßigung",
+  meter_foot:"Unverbindliche Schätzung. Der endgültige Bescheid des Finanzamts kann abweichen.",
+  next:"Weiter", back:"Zurück",
+  submitting:"Übermittlung an ELSTER…",
+  success_title:"Erklärung übermittelt", success_sub:"Die Steuererklärung wurde erfolgreich übermittelt (Simulation).",
+  transfer_ticket:"Transferticket", close:"Schließen",
+  warn_taxhigh:"Die Lohnsteuer wirkt im Verhältnis zum Bruttolohn sehr hoch — bitte prüfen.",
+  warn_days:"Mehr als 300 Arbeitstage sind ungewöhnlich — bitte prüfen.",
+  confirm_del:"Dieses Mandantenprofil endgültig löschen?", delete:"Löschen",
+  saved:"Gespeichert", lang_en:"EN", lang_de:"DE",
+  select:"Bitte wählen…", year:"Jahr",
+  no_results:"Keine Mandanten gefunden.",
+  manual_hint:"Kein Dokument? Werte einfach manuell eintragen — alle Felder bleiben editierbar.",
+  step_fam:"Kinder & Unterhalt",
+  s4b:"Doppelte Haushaltsführung — bei beruflicher Zweitwohnung. Miete bis 1.000 € pro Monat absetzbar; wöchentliche Familienheimfahrten zählen mit der Entfernungspauschale.",
+  dhh_h:"Doppelte Haushaltsführung", dhh_rent:"Monatsmiete Zweitwohnung", dhh_months:"Monate", dhh_trips:"Familienheimfahrten pro Jahr", dhh_km:"Entfernung zum Hauptwohnsitz (km)",
+  relocation:"Beruflich bedingte Umzugskosten",
+  s_fam_lead:"Kosten für Kinder (Anlage Kind) und Unterhaltszahlungen an bedürftige Angehörige — z. B. Eltern im Ausland (Anlage Unterhalt, § 33a EStG).",
+  children_h:"Kinder", kids_count:"Anzahl Kinder", childcare:"Kinderbetreuungskosten (pro Jahr, mit Rechnung)", school_fees:"Schulgeld (Privatschule)",
+  kids_hint:"2025: 80 % absetzbar, max. 4.800 € je Kind · 2023–2024: zwei Drittel, max. 4.000 € je Kind.",
+  school_hint:"30 % absetzbar, max. 5.000 €.",
+  support_h:"Unterhalt für Eltern / Angehörige", support_amount:"Gezahlter Unterhalt (pro Jahr)", support_where:"Wo lebt die unterstützte Person?",
+  grp1:"Deutschland / Ländergruppe 1 (voller Höchstbetrag)", grp2:"Ländergruppe 2 (¾ des Höchstbetrags)", grp3:"Ländergruppe 3 (½ des Höchstbetrags, z. B. Indien)", grp4:"Ländergruppe 4 (¼ des Höchstbetrags)",
+  support_hint:"Absetzbar bis zum Jahreshöchstbetrag (§ 33a EStG), gekürzt nach Ländergruppe. Eigene Einkünfte der unterstützten Person mindern den Betrag zusätzlich.",
+  new_year:"Neues Steuerjahr", new_year_for:"Neues Steuerjahr für", year_exists:"Für dieses Jahr existiert bereits eine Erklärung dieses Mandanten.",
+  copy_note:"Persönliche Daten werden übernommen — Einkünfte und Ausgaben starten leer.",
+  docs_h:"Belege (Dokumente)", docs_lead:"Belege und Nachweise anhängen — sie bleiben bei der Erklärung gespeichert, falls das Finanzamt Nachweise anfordert.",
+  add_doc:"Beleg hinzufügen", doc_too_big:"Datei ist zu groß (max. 3 MB).", no_docs:"Noch keine Belege angehängt.", download:"Herunterladen",
+  step_inq:"Rückfragen Finanzamt", s_inq_lead:"Rückfragen des Finanzamts erreichen den Mandanten in der Regel per Post. Erfassen Sie sie hier, kontaktieren Sie den Mandanten und dokumentieren Sie die Antwort. In der Produktionsversion werden elektronische Mitteilungen über ELSTER abgerufen.",
+  add_inq:"Rückfrage erfassen", inq_q:"Frage des Finanzamts", inq_a:"Antwort / interne Notiz",
+  inq_open:"Offen", inq_answered:"Beantwortet", no_inq:"Noch keine Rückfragen erfasst.", mark_answered:"Als beantwortet markieren", reopen:"Wieder öffnen",
+  pdf_btn:"PDF-Zusammenfassung herunterladen", pdf_title:"Einkommensteuererklärung — Zusammenfassung für den Mandanten",
+  pdf_est:"Voraussichtliches Ergebnis", pdf_generated:"Erstellt am", pdf_docs:"Angehängte Belege",
+  pdf_page:"Seite", pdf_fail:"Die PDF-Bibliothek konnte nicht geladen werden. Bitte Internetverbindung prüfen und erneut versuchen.",
+  tab_signin:"Anmelden", tab_register:"Konto erstellen",
+  register_title:"Konto erstellen", register_sub:"Jede Steuerberaterin und jeder Berater erhält einen eigenen Arbeitsbereich — Ihre Mandanten sind nur für Sie sichtbar.",
+  practice_name:"Ihr Name / Kanzlei", confirm_pass:"Passwort bestätigen", register_btn:"Konto erstellen",
+  err_exists:"Ein Konto mit dieser E-Mail existiert bereits.", err_creds:"E-Mail oder Passwort ist falsch.",
+  err_match:"Die Passwörter stimmen nicht überein.", err_short:"Das Passwort braucht mindestens 8 Zeichen.", err_fields:"Bitte alle Felder ausfüllen.",
+  auth_note:"Prototyp: Konten und Daten werden nur in diesem Arbeitsbereich gespeichert, strikt getrennt je Konto. Die Produktionsversion ergänzt serverseitige Authentifizierung mit verschlüsselten Passwörtern und Zwei-Faktor-Login (2FA).",
+  bundesland:"Bundesland", fa_name:"Name des Finanzamts", fa_number:"Finanzamtsnummer (BUFA, 4-stellig)",
+  fa_hint:"Die 4-stellige Bundesfinanzamtsnummer identifiziert das empfangende Finanzamt bei der ELSTER-Übermittlung.",
+  err_fa:"Bitte vor der Übermittlung die 4-stellige Finanzamtsnummer (BUFA) in den persönlichen Daten eintragen.",
+  err_taxid:"Bitte vor der Übermittlung die 11-stellige Steuer-ID (IdNr) in den persönlichen Daten eintragen.",
+  submitting_to:"Empfangendes Finanzamt",
+  settings:"Einstellungen", settings_title:"Kanzlei-Einstellungen", settings_sub:"Wird als Briefkopf auf der PDF-Zusammenfassung für Ihre Mandanten verwendet.",
+  s_practice:"Kanzlei / Name", s_address:"Adresszeile", s_contact:"Telefon / E-Mail", save:"Speichern",
+  child:"Kind", add_child:"Kind hinzufügen", child_name:"Vorname", child_taxid:"Steuer-ID des Kindes (IdNr, 11 Ziffern)",
+  kindergeld:"Erhaltenes Kindergeld (pro Jahr)",
+  kindergeld_hint:"Nur zur Erfassung — das Finanzamt prüft automatisch, ob der Kinderfreibetrag günstiger ist (Günstigerprüfung).",
+  kg_short:"Kindergeld", cc_short:"Betreuung", sf_short:"Schulgeld", remove:"Entfernen",
+  privacy_foot:"Prototyp · Daten werden nur in diesem Arbeitsbereich gespeichert · DSGVO-konformes Hosting für die Produktion geplant"
+}};
+
+/* ---------------- state ---------------- */
+let S = {
+  lang:'en', loggedIn:false, view:'login',
+  accounts:[], user:null, authMode:'login',
+  clients:[], currentId:null, step:0,
+  search:'', fStatus:'all', fYear:'all',
+  aiFields:{}, scanState:null, // null | 'scanning' | 'ok' | 'err'
+};
+const t = k => (STR[S.lang][k] ?? k);
+const uid = () => 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const BUNDESLAENDER=['Baden-Württemberg','Bayern','Berlin','Brandenburg','Bremen','Hamburg','Hessen','Mecklenburg-Vorpommern','Niedersachsen','Nordrhein-Westfalen','Rheinland-Pfalz','Saarland','Sachsen','Sachsen-Anhalt','Schleswig-Holstein','Thüringen'];
+
+function newClient(f,l,year,marital){
+  return { id:uid(), createdAt:Date.now(), updatedAt:Date.now(),
+    status:'draft', transferTicket:null, submittedAt:null, taxYear:year,
+    p:{ firstName:f,lastName:l,birthDate:'',taxId:'',street:'',houseNo:'',plz:'',city:'',
+        marital:marital,religion:'none',profession:'',finanzamt:'',faNumber:'',bundesland:'',steuernummer:'',iban:'',
+        spouseFirst:'',spouseLast:'',spouseBirth:'',spouseTaxId:'' },
+    inc:{ employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:'' },
+    ins:{ rv:'',kv:'',pv:'',av:'',other:'' },
+    wk:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',
+         dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
+    fam:{ kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',children:[] },
+    sa:{ donations:'',other:'' },
+    ex:{ medical:'',household:'',handwerker:'' },
+    docs:[], inq:[] };
+}
+
+/* ---------------- persistence & accounts (artifact storage with fallback) ---------------- */
+const mem={};
+async function kvGet(k){ try{ if(window.storage){ const r=await window.storage.get(k); if(r && r.value!=null) return r.value; } }catch(e){} return mem[k]??null; }
+async function kvSet(k,v){ try{ if(window.storage){ await window.storage.set(k,v); return; } }catch(e){} mem[k]=v; }
+async function kvDel(k){ try{ if(window.storage){ await window.storage.delete(k); return; } }catch(e){} delete mem[k]; }
+
+async function saveState(){
+  await kvSet('klarsteuer-prefs', JSON.stringify({lang:S.lang}));
+  if(S.user) await kvSet('klarsteuer-data-'+S.user.id, JSON.stringify({clients:S.clients}));
+}
+async function loadUserData(){
+  const v=await kvGet('klarsteuer-data-'+S.user.id);
+  let cl=[]; if(v){ try{ cl=JSON.parse(v).clients||[]; }catch(e){} }
+  S.clients=cl.map(migrateClient);
+}
+async function loadState(){
+  const p=await kvGet('klarsteuer-prefs'); if(p){ try{ S.lang=JSON.parse(p).lang||'en'; }catch(e){} }
+  const acc=await kvGet('klarsteuer-accounts'); if(acc){ try{ S.accounts=JSON.parse(acc)||[]; }catch(e){} }
+  const sess=await kvGet('klarsteuer-session');
+  if(sess){ const u=S.accounts.find(a=>a.id===sess);
+    if(u){ S.user=u; await loadUserData(); S.loggedIn=true; S.view='dash'; } }
+}
+function migrateClient(c){
+  c.p = Object.assign({faNumber:'',bundesland:''}, c.p||{});
+  c.wk = Object.assign({dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wk||{});
+  c.fam = Object.assign({kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',children:[]}, c.fam||{});
+  if(!Array.isArray(c.fam.children)) c.fam.children=[];
+  /* legacy: convert old lump-sum childcare/school fees into a first child entry */
+  if(c.fam.children.length===0 && (N(c.fam.childcare)>0 || N(c.fam.schoolFees)>0)){
+    c.fam.children.push({id:uid(),name:'',birth:'',taxId:'',kindergeld:'',childcare:c.fam.childcare,schoolFees:c.fam.schoolFees});
+    c.fam.childcare=''; c.fam.schoolFees='';
+  }
+  c.docs = c.docs||[]; c.inq = c.inq||[];
+  return c;
+}
+let saveTimer=null;
+function scheduleSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(saveState,600); }
+
+/* ---------------- authentication (prototype — production uses server-side auth + 2FA) ---------------- */
+async function hashPass(email,pass){
+  try{
+    const data=new TextEncoder().encode(email.toLowerCase()+'::'+pass);
+    const buf=await crypto.subtle.digest('SHA-256',data);
+    return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+  }catch(e){ return 'b64:'+btoa(unescape(encodeURIComponent(email.toLowerCase()+'::'+pass))); }
+}
+function authErr(msg){ const el=document.getElementById('auth-err'); if(el){ el.textContent=msg; el.classList.remove('hidden'); } }
+function setAuthMode(m){ S.authMode=m; render(); }
+async function doLogin(){
+  const email=(document.getElementById('lg-email')?.value||'').trim().toLowerCase();
+  const pass=document.getElementById('lg-pass')?.value||'';
+  if(!email||!pass){ authErr(t('err_fields')); return; }
+  const h=await hashPass(email,pass);
+  const u=S.accounts.find(a=>a.email===email && a.passHash===h);
+  if(!u){ authErr(t('err_creds')); return; }
+  S.user=u; await kvSet('klarsteuer-session',u.id);
+  await loadUserData(); S.loggedIn=true; S.view='dash'; render();
+}
+async function doRegister(){
+  const name=(document.getElementById('rg-name')?.value||'').trim();
+  const email=(document.getElementById('rg-email')?.value||'').trim().toLowerCase();
+  const p1=document.getElementById('rg-pass')?.value||'', p2=document.getElementById('rg-pass2')?.value||'';
+  if(!name||!email||!p1||!p2){ authErr(t('err_fields')); return; }
+  if(p1.length<8){ authErr(t('err_short')); return; }
+  if(p1!==p2){ authErr(t('err_match')); return; }
+  if(S.accounts.some(a=>a.email===email)){ authErr(t('err_exists')); return; }
+  const u={ id:uid(), name, email, passHash:await hashPass(email,p1), createdAt:Date.now(), twoFA:false };
+  S.accounts.push(u);
+  await kvSet('klarsteuer-accounts', JSON.stringify(S.accounts));
+  S.user=u; await kvSet('klarsteuer-session',u.id);
+  /* one-time migration: attach data from the old single-workspace version to the first account */
+  S.clients=[];
+  if(S.accounts.length===1){
+    const legacy=await kvGet('klarsteuer-v1');
+    if(legacy){ try{ S.clients=(JSON.parse(legacy).clients||[]).map(migrateClient); }catch(e){} await kvDel('klarsteuer-v1'); }
+  }
+  await saveState();
+  S.loggedIn=true; S.view='dash'; render();
+}
+async function logout(){
+  await kvDel('klarsteuer-session');
+  S.user=null; S.clients=[]; S.loggedIn=false; S.view='login'; S.authMode='login'; render();
+}
+function setLang(l){ S.lang=l; scheduleSave(); render(); }
+
+/* ---------------- practice settings (PDF letterhead) ---------------- */
+function showSettings(){
+  const slot=document.getElementById('modal-slot'); if(!slot||!S.user) return;
+  const s=S.user.settings||{};
+  slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal">
+    <h2>${t('settings_title')}</h2>
+    <p style="color:var(--ink-soft);font-size:13.5px;margin:6px 0 16px">${t('settings_sub')}</p>
+    <div class="field"><label>${t('s_practice')}</label><input id="st-name" value="${esc(s.practiceName||S.user.name||'')}"></div>
+    <div class="field"><label>${t('s_address')}</label><input id="st-addr" value="${esc(s.address||'')}" placeholder="Musterstraße 1, 63065 Offenbach am Main"></div>
+    <div class="field"><label>${t('s_contact')}</label><input id="st-contact" value="${esc(s.contact||'')}" placeholder="+49 69 000000 · info@kanzlei.de"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+      <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
+      <button class="btn btn-primary" onclick="saveSettings()">${t('save')}</button>
+    </div></div></div>`;
+}
+async function saveSettings(){
+  const v=id=>(document.getElementById(id)?.value||'').trim();
+  S.user.settings={ practiceName:v('st-name'), address:v('st-addr'), contact:v('st-contact') };
+  await kvSet('klarsteuer-accounts', JSON.stringify(S.accounts));
+  const m=document.querySelector('.modal-bg'); if(m) m.remove();
+}
+
+/* ---------------- number & format helpers ---------------- */
+const N = v => {
+  let s = String(v??'').trim().replace(/[€\s]/g,'');
+  if(!s) return 0;
+  const hasC = s.includes(','), hasD = s.includes('.');
+  if(hasC && hasD){
+    // last separator wins as decimal: "1.234,56" → German · "1,234.56" → English
+    if(s.lastIndexOf(',') > s.lastIndexOf('.')) s = s.replace(/\./g,'').replace(',','.');
+    else s = s.replace(/,/g,'');
+  } else if(hasC){ s = s.replace(',','.'); }               // "1234,56" → German decimal
+  else if(hasD){
+    const p = s.split('.');
+    if(!(p.length===2 && p[1].length<=2 && p[1].length>0)) s = s.replace(/\./g,''); // "1.234" → thousands, "45000.5" → decimal
+  }
+  const n = parseFloat(s); return isNaN(n)?0:n;
+};
+function formatDE(n){
+  const hasFrac = Math.abs(n - Math.round(n)) > 0.004;
+  return new Intl.NumberFormat('de-DE',{minimumFractionDigits:hasFrac?2:0,maximumFractionDigits:2}).format(n);
+}
+function eur(n){ return new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(Math.round(n)); }
+function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function dateStr(ts){ return new Date(ts).toLocaleDateString(S.lang==='de'?'de-DE':'en-GB'); }
+
+/* ---------------- tax engine (§32a EStG, simplified estimate) ---------------- */
+const TARIFF = {
+  2023:{gfb:10908, z1e:15999, a1:979.18,  z2e:62809, a2:192.59, c2:966.53,  z3e:277825, r3:.42, d3:9972.98,  r4:.45, d4:18307.73},
+  2024:{gfb:11784, z1e:17005, a1:954.80,  z2e:66760, a2:181.19, c2:991.21,  z3e:277825, r3:.42, d3:10636.31, r4:.45, d4:18971.06},
+  2025:{gfb:12096, z1e:17443, a1:932.30,  z2e:68480, a2:176.64, c2:1015.13, z3e:277825, r3:.42, d3:10911.92, r4:.45, d4:19246.67},
+};
+function estBase(zvE, year){
+  const T = TARIFF[year] || TARIFF[2025]; const x = Math.floor(zvE);
+  if(x <= T.gfb) return 0;
+  if(x <= T.z1e){ const y=(x-T.gfb)/10000; return Math.floor((T.a1*y+1400)*y); }
+  if(x <= T.z2e){ const z=(x-T.z1e)/10000; return Math.floor((T.a2*z+2397)*z+T.c2); }
+  if(x <= T.z3e) return Math.floor(T.r3*x - T.d3);
+  return Math.floor(T.r4*x - T.d4);
+}
+function computeEstimate(c){
+  const year = c.taxYear || 2025;
+  const gross = N(c.inc.gross);
+  // Werbungskosten
+  const days = Math.min(N(c.wk.commuteDays), 366), km = N(c.wk.commuteKm);
+  const near = Math.min(km,20), far = Math.max(km-20,0);
+  const commute = days*(near*0.30 + far*0.38);
+  const ho = Math.min(N(c.wk.homeOffice)*6, 1260);
+  // double household: rent capped €1,000/month + family home trips (Entfernungspauschale) + relocation
+  const dhhRent = Math.min(N(c.wk.dhhRent),1000) * Math.min(N(c.wk.dhhMonths),12);
+  const dKm = N(c.wk.dhhKm), dNear = Math.min(dKm,20), dFar = Math.max(dKm-20,0);
+  const dhhTrips = Math.min(N(c.wk.dhhTrips),52) * (dNear*0.30 + dFar*0.38);
+  const wk = Math.max(1230, commute + ho + N(c.wk.equipment)+N(c.wk.training)+N(c.wk.other)
+                      + dhhRent + dhhTrips + N(c.wk.relocation));
+  // Vorsorge (simplified: RV+KV+PV fully, AV+other capped 1,900)
+  const vors = N(c.ins.rv)+N(c.ins.kv)+N(c.ins.pv)+Math.min(N(c.ins.av)+N(c.ins.other),1900);
+  // Sonderausgaben incl. per-child childcare (2025: 80% max €4,800/child; before: 2/3 max €4,000) and school fees (30% max €5,000/child)
+  const ccRate = year>=2025 ? {r:0.80,cap:4800} : {r:2/3,cap:4000};
+  let childcare=0, school=0;
+  const kidsArr = c.fam.children||[];
+  if(kidsArr.length){
+    for(const k of kidsArr){
+      childcare += Math.min(N(k.childcare)*ccRate.r, ccRate.cap);
+      school += Math.min(N(k.schoolFees)*0.30, 5000);
+    }
+  } else { /* legacy lump-sum fallback */
+    const kidsN = Math.max(N(c.fam.kids),1);
+    childcare = N(c.fam.childcare)>0 ? Math.min(N(c.fam.childcare)*ccRate.r, ccRate.cap*kidsN) : 0;
+    school = Math.min(N(c.fam.schoolFees)*0.30, 5000);
+  }
+  const sa = Math.max(36, N(c.sa.donations)+N(c.sa.other)) + childcare + school;
+  // § 33a support to needy relatives: capped at Grundfreibetrag × country-group factor (no zumutbare Belastung)
+  const grpFactor = {1:1, 2:0.75, 3:0.5, 4:0.25}[c.fam.supportGroup] ?? 1;
+  const support = Math.min(N(c.fam.support), (TARIFF[year]||TARIFF[2025]).gfb * grpFactor);
+  // außergewöhnliche Belastung (zumutbare Belastung roughly 3% of gross) + support
+  const agb = Math.max(0, N(c.ex.medical) - gross*0.03) + support;
+  const zvE = Math.max(0, gross - wk - vors - sa - agb);
+  const joint = c.p.marital==='married';
+  const tax = joint ? 2*estBase(zvE/2, year) : estBase(zvE, year);
+  // §35a credits
+  const credit = Math.min(N(c.ex.household)*0.20, 4000) + Math.min(N(c.ex.handwerker)*0.20, 1200);
+  const taxAfter = Math.max(0, tax - credit);
+  // Soli (simplified Freigrenze)
+  const freig = joint ? 39900 : 19950;
+  const soli = taxAfter > freig ? taxAfter*0.055 : 0;
+  // church tax: 8% in Bayern & Baden-Württemberg, 9% elsewhere
+  const kistRate = (c.p.bundesland==='Bayern'||c.p.bundesland==='Baden-Württemberg') ? 0.08 : 0.09;
+  const kist = (c.p.religion==='ev'||c.p.religion==='rk'||c.p.religion==='other') ? taxAfter*kistRate : 0;
+  const owed = taxAfter + soli + kist;
+  const paid = N(c.inc.wageTax)+N(c.inc.soli)+N(c.inc.churchPaid);
+  return { zvE, wk, tax, credit, taxAfter, soli, kist, owed, paid, refund: paid - owed };
+}
+
+/* ---------------- render root ---------------- */
+const app = document.getElementById('app');
+function render(){
+  let html = topbar();
+  if(!S.loggedIn) html += loginView();
+  else if(S.view==='dash') html += dashView();
+  else if(S.view==='client') html += clientView();
+  app.innerHTML = html;
+  bindGlobal();
+}
+
+function topbar(){
+  return `<div class="topbar">
+    <div class="logo"><div class="logo-mark">S</div>${t('appName')}</div>
+    <div class="spacer"></div>
+    <div class="lang-toggle">
+      <button class="${S.lang==='en'?'on':''}" onclick="setLang('en')">${t('lang_en')}</button>
+      <button class="${S.lang==='de'?'on':''}" onclick="setLang('de')">${t('lang_de')}</button>
+    </div>
+    ${S.loggedIn?`<span style="font-size:13px;font-weight:600;color:var(--ink-soft)">👤 ${esc(S.user?.name||'')}</span><button class="link-btn" onclick="showSettings()">⚙ ${t('settings')}</button><button class="link-btn" onclick="logout()">${t('logout')}</button>`:''}
+  </div>`;
+}
+
+/* ---------------- login ---------------- */
+function loginView(){
+  const reg = S.authMode==='register';
+  return `<div class="login-wrap"><div class="login-card">
+    <div class="logo"><div class="logo-mark">S</div>${t('appName')}</div>
+    <div class="auth-tabs">
+      <button class="${!reg?'on':''}" onclick="setAuthMode('login')">${t('tab_signin')}</button>
+      <button class="${reg?'on':''}" onclick="setAuthMode('register')">${t('tab_register')}</button>
+    </div>
+    <h1>${reg?t('register_title'):t('login_title')}</h1>
+    <p class="sub">${reg?t('register_sub'):t('login_sub')}</p>
+    <div id="auth-err" class="auth-err hidden"></div>
+    ${reg?`
+    <div class="field"><label>${t('practice_name')}</label><input id="rg-name" placeholder="Kanzlei Beispiel"></div>
+    <div class="field"><label>${t('email')}</label><input id="rg-email" type="email" placeholder="you@example.com"></div>
+    <div class="field"><label>${t('password')}</label><input id="rg-pass" type="password" placeholder="••••••••"></div>
+    <div class="field"><label>${t('confirm_pass')}</label><input id="rg-pass2" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doRegister()"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doRegister()">${t('register_btn')}</button>`
+    :`
+    <div class="field"><label>${t('email')}</label><input id="lg-email" type="email" placeholder="you@example.com"></div>
+    <div class="field"><label>${t('password')}</label><input id="lg-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doLogin()">${t('sign_in')}</button>`}
+    <div class="demo-note">🔐 ${t('auth_note')}</div>
+  </div></div>`;
+}
+
+/* ---------------- dashboard ---------------- */
+function chip(status){
+  const map={draft:['draft',t('status_draft')],review:['review',t('status_review')],submitted:['submitted',t('status_submitted')]};
+  const m=map[status]||map.draft; return `<span class="chip ${m[0]}">${m[1]}</span>`;
+}
+function dashView(){
+  const cs = S.clients;
+  const totRef = cs.reduce((a,c)=>{const r=computeEstimate(c).refund; return a+(r>0?r:0);},0);
+  const years = [...new Set(cs.map(c=>c.taxYear))].sort().reverse();
+  let list = cs.filter(c=>{
+    const name=(c.p.firstName+' '+c.p.lastName).toLowerCase();
+    if(S.search && !name.includes(S.search.toLowerCase())) return false;
+    if(S.fStatus!=='all' && c.status!==S.fStatus) return false;
+    if(S.fYear!=='all' && String(c.taxYear)!==S.fYear) return false;
+    return true;
+  }).sort((a,b)=>b.updatedAt-a.updatedAt);
+
+  const rows = list.map(c=>{
+    const e=computeEstimate(c);
+    const cls = e.refund>=0?'pos':'neg';
+    return `<tr onclick="openClient('${c.id}')">
+      <td><span class="avatar">${esc((c.p.firstName[0]||'')+(c.p.lastName[0]||''))}</span>
+          <span class="cname">${esc(c.p.firstName)} ${esc(c.p.lastName)}</span>
+          <div class="csub" style="margin-left:44px">${esc(c.p.city||'—')}</div></td>
+      <td class="num">${c.taxYear}</td>
+      <td>${chip(c.status)}${(c.inq||[]).some(q=>q.status==='open')?` <span class="chip review" title="${t('step_inq')}">❓ ${(c.inq||[]).filter(q=>q.status==='open').length}</span>`:''}</td>
+      <td class="refund-cell num ${cls}">${N(c.inc.gross)>0?eur(e.refund):'—'}</td>
+      <td class="csub num">${dateStr(c.updatedAt)}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="btn-sm link-btn" title="${t('pdf_btn')}" onclick="event.stopPropagation();S.currentId='${c.id}';exportPDF()">📄</button>
+        <button class="btn-sm link-btn" title="${t('new_year')}" onclick="event.stopPropagation();showNewYear('${c.id}')">⧉ ${t('year')}</button>
+        <button class="btn-sm link-btn" onclick="event.stopPropagation();delClient('${c.id}')">🗑</button></td>
+    </tr>`;
+  }).join('');
+
+  return `<main>
+    <div class="page-head"><div><h1>${t('dashboard')}</h1><p>${t('tagline')}</p></div>
+      <div class="spacer" style="flex:1"></div>
+      <button class="btn btn-primary" onclick="showNewClient()">＋ ${t('new_client')}</button></div>
+    <div class="stats">
+      <div class="stat"><div class="k">${t('clients')}</div><div class="v num">${cs.length}</div></div>
+      <div class="stat"><div class="k">${t('drafts')}</div><div class="v num">${cs.filter(c=>c.status==='draft').length}</div></div>
+      <div class="stat"><div class="k">${t('submitted')}</div><div class="v num">${cs.filter(c=>c.status==='submitted').length}</div></div>
+      <div class="stat"><div class="k">${t('est_refunds')}</div><div class="v teal num">${eur(totRef)}</div></div>
+    </div>
+    <div class="toolbar">
+      <div class="search">🔎<input placeholder="${t('search_ph')}" value="${esc(S.search)}" oninput="S.search=this.value;renderKeepFocus(this)"></div>
+      <select class="filter-sel" onchange="S.fStatus=this.value;render()">
+        <option value="all" ${S.fStatus==='all'?'selected':''}>${t('all_statuses')}</option>
+        <option value="draft" ${S.fStatus==='draft'?'selected':''}>${t('status_draft')}</option>
+        <option value="review" ${S.fStatus==='review'?'selected':''}>${t('status_review')}</option>
+        <option value="submitted" ${S.fStatus==='submitted'?'selected':''}>${t('status_submitted')}</option>
+      </select>
+      <select class="filter-sel" onchange="S.fYear=this.value;render()">
+        <option value="all">${t('all_years')}</option>
+        ${years.map(y=>`<option ${S.fYear===String(y)?'selected':''}>${y}</option>`).join('')}
+      </select>
+    </div>
+    ${cs.length===0
+      ? `<div class="client-table"><div class="empty"><div class="big">🗂️</div><h3>${t('empty_title')}</h3><p>${t('empty_sub')}</p><br><button class="btn btn-primary" onclick="showNewClient()">＋ ${t('new_client')}</button></div></div>`
+      : list.length===0
+      ? `<div class="client-table"><div class="empty">${t('no_results')}</div></div>`
+      : `<table class="client-table"><thead><tr>
+          <th>${t('client')}</th><th>${t('tax_year')}</th><th>${t('status')}</th><th>${t('est_refund')}</th><th>${t('updated')}</th><th></th>
+        </tr></thead><tbody>${rows}</tbody></table>`}
+    <p style="margin-top:26px;font-size:12px;color:var(--ink-soft);text-align:center">${t('privacy_foot')}</p>
+    <div id="modal-slot"></div>
+  </main>`;
+}
+function renderKeepFocus(inp){ const v=inp.value, pos=inp.selectionStart; render();
+  const el=document.querySelector('.search input'); if(el){el.focus(); el.setSelectionRange(pos,pos);} }
+
+function showNewClient(){
+  const slot=document.getElementById('modal-slot');
+  const yrs=[2026,2025,2024,2023];
+  slot.innerHTML = `<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal">
+    <h2>${t('new_client')}</h2><br>
+    <div class="grid2">
+      <div class="field"><label>${t('first_name')}</label><input id="nc-f"></div>
+      <div class="field"><label>${t('last_name')}</label><input id="nc-l"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>${t('tax_year')}</label><select id="nc-y">${yrs.map(y=>`<option>${y}</option>`).join('')}</select></div>
+      <div class="field"><label>${t('marital')}</label><select id="nc-m"><option value="single">${t('single')}</option><option value="married">${t('married')}</option></select></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+      <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
+      <button class="btn btn-primary" onclick="createClient()">${t('create')}</button>
+    </div></div></div>`;
+  document.getElementById('nc-f').focus();
+}
+function createClient(){
+  const f=document.getElementById('nc-f').value.trim(), l=document.getElementById('nc-l').value.trim();
+  if(!f && !l) return;
+  const c=newClient(f,l,parseInt(document.getElementById('nc-y').value),document.getElementById('nc-m').value);
+  S.clients.push(c); scheduleSave();
+  S.currentId=c.id; S.step=0; S.view='client'; S.scanState=null; S.aiFields={}; render();
+}
+function delClient(id){
+  if(!confirm(t('confirm_del'))) return;
+  const c=S.clients.find(x=>x.id===id);
+  if(c && c.docs) c.docs.forEach(d=>removeDocData(d.id));
+  S.clients=S.clients.filter(c=>c.id!==id); scheduleSave(); render();
+}
+/* --- multi-year: clone a client's personal data into a new tax year --- */
+function samePerson(a,b){
+  if(a.p.taxId && b.p.taxId) return a.p.taxId.replace(/\s/g,'')===b.p.taxId.replace(/\s/g,'');
+  return a.p.firstName===b.p.firstName && a.p.lastName===b.p.lastName && (a.p.birthDate||'')===(b.p.birthDate||'');
+}
+function personYears(c){ return S.clients.filter(o=>samePerson(o,c)).map(o=>o.taxYear); }
+function showNewYear(id){
+  const c=S.clients.find(x=>x.id===id); if(!c) return;
+  const used=personYears(c);
+  const yrs=[2026,2025,2024,2023].filter(y=>!used.includes(y));
+  if(yrs.length===0){ alert(t('year_exists')); return; }
+  const slot=document.getElementById('modal-slot');
+  slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal">
+    <h2>${t('new_year_for')} ${esc(c.p.firstName)} ${esc(c.p.lastName)}</h2>
+    <p style="color:var(--ink-soft);font-size:13.5px;margin:8px 0 16px">${t('copy_note')}</p>
+    <div class="field"><label>${t('tax_year')}</label><select id="ny-y">${yrs.map(y=>`<option>${y}</option>`).join('')}</select></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+      <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
+      <button class="btn btn-primary" onclick="createYearClone('${c.id}')">${t('create')}</button>
+    </div></div></div>`;
+}
+function createYearClone(id){
+  const src=S.clients.find(x=>x.id===id); if(!src) return;
+  const y=parseInt(document.getElementById('ny-y').value);
+  if(personYears(src).includes(y)){ alert(t('year_exists')); return; }
+  const c=newClient(src.p.firstName,src.p.lastName,y,src.p.marital);
+  c.p=JSON.parse(JSON.stringify(src.p));           // carry over personal data
+  S.clients.push(c); scheduleSave();
+  const m=document.querySelector('.modal-bg'); if(m) m.remove();
+  S.currentId=c.id; S.step=0; S.view='client'; S.scanState=null; S.aiFields={}; render();
+}
+function openClient(id){ S.currentId=id; S.step=0; S.view='client'; S.scanState=null; S.aiFields={}; render(); }
+function goDash(){ S.view='dash'; render(); }
+
+/* ---------------- client workspace ---------------- */
+const cur = () => S.clients.find(c=>c.id===S.currentId);
+function stepDone(c,i){
+  switch(i){
+    case 0: return !!(c.p.taxId && c.p.birthDate && c.p.street);
+    case 1: return N(c.inc.gross)>0;
+    case 2: return N(c.ins.rv)+N(c.ins.kv)>0;
+    case 3: return N(c.wk.commuteDays)+N(c.wk.equipment)+N(c.wk.homeOffice)+N(c.wk.training)+N(c.wk.other)+N(c.wk.dhhRent)+N(c.wk.relocation)>0;
+    case 4: return ((c.fam.children||[]).length)>0 || N(c.fam.support)>0;
+    case 5: return N(c.sa.donations)+N(c.sa.other)>0;
+    case 6: return N(c.ex.medical)+N(c.ex.household)+N(c.ex.handwerker)>0;
+    case 7: return c.status==='submitted';
+    case 8: return (c.inq||[]).length>0 && c.inq.every(q=>q.status==='answered');
+  } return false;
+}
+function clientView(){
+  const c=cur(); if(!c){S.view='dash';return dashView();}
+  const stepKeys=['step1','step2','step3','step4','step_fam','step5','step6','step7','step_inq'];
+  const stepsHtml = stepKeys.map((k,i)=>`
+    <div class="step-item ${S.step===i?'on':''} ${stepDone(c,i)?'done':''}" onclick="S.step=${i};render()">
+      <span class="n">${stepDone(c,i)?'✓':i+1}</span> ${t(k)}</div>`).join('');
+  const bodies=[stepPersonal,stepIncome,stepInsurance,stepWork,stepFamily,stepSpecial,stepHousehold,stepSummary,stepInquiries];
+  return `<main>
+    <div class="crumbs"><a onclick="goDash()">← ${t('back_dash')}</a> &nbsp;/&nbsp; <b>${esc(c.p.firstName)} ${esc(c.p.lastName)}</b> · ${t('tax_year')} ${c.taxYear} · ${chip(c.status)}</div>
+    <div class="ws">
+      <div class="steps">${stepsHtml}</div>
+      <div class="panel">${bodies[S.step](c)}</div>
+      ${meter(c)}
+    </div>
+    <div id="modal-slot"></div>
+  </main>`;
+}
+function meter(c){
+  const e=computeEstimate(c); const pos=e.refund>=0;
+  const empty = N(c.inc.gross)===0;
+  return `<div class="meter">
+    <div class="k">${pos?t('meter_title'):t('meter_nach')}</div>
+    <div class="big num ${pos?'':'neg'}">${empty?'—':eur(Math.abs(e.refund))}</div>
+    <div class="sub">${t('tax_year')} ${c.taxYear}</div>
+    <hr>
+    <div class="row"><span>${t('m_zve')}</span><b class="num">${eur(e.zvE)}</b></div>
+    <div class="row"><span>${t('m_tax')}</span><b class="num">${eur(e.tax)}</b></div>
+    ${e.credit>0?`<div class="row"><span>${t('m_credit')}</span><b class="num">−${eur(e.credit)}</b></div>`:''}
+    ${e.soli>0?`<div class="row"><span>${t('m_soli')}</span><b class="num">${eur(e.soli)}</b></div>`:''}
+    ${e.kist>0?`<div class="row"><span>${t('m_kist')}</span><b class="num">${eur(e.kist)}</b></div>`:''}
+    <div class="row"><span>${t('m_paid')}</span><b class="num">${eur(e.paid)}</b></div>
+    <div class="foot">${t('meter_foot')}</div>
+  </div>`;
+}
+
+/* --- field helper: binds to c[group][key] --- */
+function F(group,key,label,opts={}){
+  const c=cur(); const v=c[group][key];
+  const ai = S.aiFields[group+'.'+key] ? `<span class="ai-flag">AI</span>` : '';
+  const type = opts.type||'text';
+  const hint = opts.hint?`<div class="hint">${opts.hint}</div>`:'';
+  if(opts.select){
+    return `<div class="field"><label>${label}${ai}</label>
+      <select onchange="upd('${group}','${key}',this.value)">
+        ${opts.select.map(o=>`<option value="${o[0]}" ${v===o[0]?'selected':''}>${o[1]}</option>`).join('')}
+      </select>${hint}</div>`;
+  }
+  return `<div class="field"><label>${label}${ai}</label>
+    <input type="${type}" value="${esc(v)}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''}
+      onchange="upd('${group}','${key}',this.value,${opts.euro?1:0})">${hint}</div>`;
+}
+function upd(group,key,val,fmt){
+  const c=cur();
+  if(fmt && String(val).trim()!=='') val = formatDE(N(val));   // display in German format: 1.234,56
+  c[group][key]=val; c.updatedAt=Date.now();
+  if(c.status==='draft' && N(c.inc.gross)>0) {} // status stays draft until summary
+  delete S.aiFields[group+'.'+key]; // user edited → no longer pure AI value
+  scheduleSave(); render();
+}
+/* --- documents (Belege) --- */
+const memDocs = {};
+async function storeDocData(id,dataUrl){ try{ if(window.storage){ await window.storage.set('klarsteuer-doc-'+id, dataUrl); return; } }catch(e){} memDocs[id]=dataUrl; }
+async function getDocData(id){ try{ if(window.storage){ const r=await window.storage.get('klarsteuer-doc-'+id); if(r && r.value) return r.value; } }catch(e){} return memDocs[id]||null; }
+async function removeDocData(id){ try{ if(window.storage) await window.storage.delete('klarsteuer-doc-'+id); }catch(e){} delete memDocs[id]; }
+
+function docSection(sec){
+  const c=cur(); const docs=(c.docs||[]).filter(d=>d.section===sec);
+  const rows = docs.map(d=>`<div class="sum-row">
+      <span class="l">📎 ${esc(d.name)} <span class="csub">(${Math.max(1,Math.round(d.size/1024))} KB · ${dateStr(d.ts)})</span></span>
+      <span class="r" style="white-space:nowrap">
+        <button class="btn-sm link-btn" onclick="downloadDoc('${d.id}','${esc(d.name)}')">⬇ ${t('download')}</button>
+        <button class="btn-sm link-btn" onclick="deleteDoc('${d.id}')">🗑</button></span>
+    </div>`).join('');
+  return `<div class="section-label">${t('docs_h')}</div>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:10px">${t('docs_lead')}</p>
+    <div class="sum-group">${rows || `<div class="sum-row"><span class="l" style="font-style:italic">${t('no_docs')}</span></div>`}</div>
+    <button class="btn btn-ghost btn-sm" onclick="S.docTarget='${sec}';document.getElementById('docInput').click()">📎 ${t('add_doc')}</button>`;
+}
+document.getElementById('docInput').addEventListener('change', async e=>{
+  const files=[...e.target.files]; e.target.value='';
+  const c=cur(); if(!c) return;
+  for(const f of files){
+    if(f.size > 3*1024*1024){ alert(t('doc_too_big')); continue; }
+    try{
+      const dataUrl = await new Promise((res,rej)=>{ const r=new FileReader();
+        r.onload=()=>res(r.result); r.onerror=()=>rej(new Error('read')); r.readAsDataURL(f); });
+      const id=uid();
+      await storeDocData(id,dataUrl);
+      (c.docs=c.docs||[]).push({id,name:f.name,size:f.size,section:S.docTarget||'fam',ts:Date.now()});
+    }catch(err){ console.error(err); }
+  }
+  c.updatedAt=Date.now(); scheduleSave(); render();
+});
+async function downloadDoc(id,name){
+  const d=await getDocData(id); if(!d) return;
+  const a=document.createElement('a'); a.href=d; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+}
+async function deleteDoc(id){
+  const c=cur(); c.docs=(c.docs||[]).filter(x=>x.id!==id);
+  await removeDocData(id); c.updatedAt=Date.now(); scheduleSave(); render();
+}
+
+function navRow(){
+  const last = S.step===8;
+  return `<div class="nav-row">
+    <button class="btn btn-ghost" ${S.step===0?'disabled':''} onclick="S.step--;render()">← ${t('back')}</button>
+    ${last?'':`<button class="btn btn-primary" onclick="S.step++;render()">${t('next')} →</button>`}
+  </div>`;
+}
+
+/* --- step 1: personal --- */
+function stepPersonal(c){
+  const married = c.p.marital==='married';
+  return `<h2>${t('step1')}</h2><p class="lead">${t('s1_lead')}</p>
+  <div class="section-label">${t('personal')}</div>
+  <div class="grid2">
+    ${F('p','firstName',t('first_name'))} ${F('p','lastName',t('last_name'))}
+    ${F('p','birthDate',t('birth_date'),{type:'date'})}
+    ${F('p','taxId',t('tax_id'),{ph:'12 345 678 901',hint:t('tax_id_hint')})}
+  </div>
+  <div class="grid3">
+    ${F('p','street',t('street'))} ${F('p','houseNo',t('house_no'))} ${F('p','plz',t('plz'))}
+  </div>
+  <div class="grid2">
+    ${F('p','city',t('city'))}
+    ${F('p','marital',t('marital'),{select:[['single',t('single')],['married',t('married')]]})}
+    ${F('p','religion',t('religion'),{select:[['none',t('rel_none')],['ev',t('rel_ev')],['rk',t('rel_rk')],['other',t('rel_other')]]})}
+    ${F('p','profession',t('profession'))}
+    ${F('p','bundesland',t('bundesland'),{select:[['',t('select')],...BUNDESLAENDER.map(b=>[b,b])]})}
+    ${F('p','finanzamt',t('fa_name'),{ph:'z. B. Finanzamt Offenbach am Main'})}
+    ${F('p','faNumber',t('fa_number'),{ph:'2644',hint:t('fa_hint')})}
+    ${F('p','steuernummer',t('steuernummer'))}
+  </div>
+  ${F('p','iban',t('iban'),{ph:'DE00 0000 0000 0000 0000 00'})}
+  ${married?`<div class="section-label">${t('spouse')}</div>
+    <div class="grid2">
+      ${F('p','spouseFirst',t('first_name'))} ${F('p','spouseLast',t('last_name'))}
+      ${F('p','spouseBirth',t('birth_date'),{type:'date'})} ${F('p','spouseTaxId',t('tax_id'))}
+    </div>`:''}
+  ${navRow()}`;
+}
+
+/* --- step 2: income + upload --- */
+function stepIncome(c){
+  let scan='';
+  if(S.scanState==='scanning') scan=`<div class="scan-status"><div class="spinner"></div>${t('scanning')}</div>`;
+  else if(S.scanState==='ok') scan=`<div class="extract-ok">✓ ${t('scan_ok')}</div>`;
+  else if(S.scanState==='err') scan=`<div class="extract-err">${t('scan_err')}</div>`;
+  const e=computeEstimate(c);
+  const warnTax = N(c.inc.wageTax)>0 && N(c.inc.gross)>0 && N(c.inc.wageTax) > N(c.inc.gross)*0.45;
+  return `<h2>${t('step2')}</h2><p class="lead">${t('s2_lead')}</p>
+  <div class="dropzone" id="dz" onclick="document.getElementById('fileInput').click()">
+    <div class="icon">📄</div><b>${t('upload_title')}</b><br>${t('upload_sub')}
+  </div>
+  ${scan}
+  <p style="font-size:12.5px;color:var(--ink-soft);margin-top:10px">${t('manual_hint')}</p>
+  <div class="section-label">${t('income')}</div>
+  <div class="grid2">
+    ${F('inc','employer',t('employer'))}
+    ${F('inc','period',t('period'),{ph:'01.01. – 31.12.'})}
+    ${F('inc','taxClass',t('tax_class'),{select:[['',t('select')],['1','I'],['2','II'],['3','III'],['4','IV'],['5','V'],['6','VI']]})}
+    ${F('inc','gross',t('gross'),{euro:true,ph:'0,00 €'})}
+    ${F('inc','wageTax',t('wage_tax'),{euro:true,ph:'0,00 €'})}
+    ${F('inc','soli',t('soli'),{euro:true,ph:'0,00 €'})}
+    ${F('inc','churchPaid',t('church_paid'),{euro:true,ph:'0,00 €'})}
+  </div>
+  ${warnTax?`<div class="warn">⚠️ ${t('warn_taxhigh')}</div>`:''}
+  ${navRow()}`;
+}
+
+/* --- step 3: insurance --- */
+function stepInsurance(c){
+  return `<h2>${t('step3')}</h2><p class="lead">${t('s3_lead')}</p>
+  <div class="grid2">
+    ${F('ins','rv',t('rv'),{euro:true,ph:'0,00 €'})}
+    ${F('ins','kv',t('kv'),{euro:true,ph:'0,00 €'})}
+    ${F('ins','pv',t('pv'),{euro:true,ph:'0,00 €'})}
+    ${F('ins','av',t('av'),{euro:true,ph:'0,00 €'})}
+    ${F('ins','other',t('other_ins'),{euro:true,ph:'0,00 €'})}
+  </div>${navRow()}`;
+}
+
+/* --- step 4: work expenses --- */
+function stepWork(c){
+  const warnDays = N(c.wk.commuteDays)>300;
+  return `<h2>${t('step4')}</h2><p class="lead">${t('s4_lead')}</p>
+  <div class="grid3">
+    ${F('wk','commuteDays',t('commute_days'),{euro:true,ph:'220'})}
+    ${F('wk','commuteKm',t('commute_km'),{euro:true,ph:'15'})}
+    ${F('wk','homeOffice',t('home_office'),{euro:true,ph:'60'})}
+  </div>
+  <div class="grid3">
+    ${F('wk','equipment',t('equipment'),{euro:true,ph:'0,00 €'})}
+    ${F('wk','training',t('training'),{euro:true,ph:'0,00 €'})}
+    ${F('wk','other',t('other_wk'),{euro:true,ph:'0,00 €'})}
+  </div>
+  ${warnDays?`<div class="warn">⚠️ ${t('warn_days')}</div>`:''}
+  <div class="section-label">${t('dhh_h')}</div>
+  <p class="lead" style="margin-bottom:14px">${t('s4b')}</p>
+  <div class="grid2">
+    ${F('wk','dhhRent',t('dhh_rent'),{euro:true,ph:'0,00 €'})}
+    ${F('wk','dhhMonths',t('dhh_months'),{euro:true,ph:'12'})}
+    ${F('wk','dhhTrips',t('dhh_trips'),{euro:true,ph:'46'})}
+    ${F('wk','dhhKm',t('dhh_km'),{euro:true,ph:'250'})}
+  </div>
+  ${F('wk','relocation',t('relocation'),{euro:true,ph:'0,00 €'})}
+  ${docSection('wk')}
+  ${navRow()}`;
+}
+
+/* --- step 5: children & family support --- */
+function CF(kid,field,label,opts={}){
+  const type=opts.type||'text';
+  const hint=opts.hint?`<div class="hint">${opts.hint}</div>`:'';
+  return `<div class="field"><label>${label}</label>
+    <input type="${type}" value="${esc(kid[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''}
+      onchange="updChild('${kid.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
+}
+function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kindergeld:'',childcare:'',schoolFees:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
+function delChild(id){ const c=cur(); c.fam.children=(c.fam.children||[]).filter(k=>k.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
+function updChild(id,f,v,fmt){ const c=cur(); const k=(c.fam.children||[]).find(x=>x.id===id); if(!k) return;
+  if(fmt && String(v).trim()!=='') v=formatDE(N(v)); k[f]=v; c.updatedAt=Date.now(); scheduleSave(); render(); }
+
+function stepFamily(c){
+  const kids=c.fam.children||[];
+  const cards=kids.map((k,i)=>`<div class="sum-group" style="margin-bottom:12px">
+    <div class="head"><span>${t('child')} ${i+1}${k.name?' · '+esc(k.name):''}</span>
+      <span class="edit" onclick="delChild('${k.id}')">🗑 ${t('remove')}</span></div>
+    <div style="padding:14px 16px">
+      <div class="grid3">
+        ${CF(k,'name',t('child_name'))}
+        ${CF(k,'birth',t('birth_date'),{type:'date'})}
+        ${CF(k,'taxId',t('child_taxid'),{ph:'12 345 678 901'})}
+      </div>
+      <div class="grid3">
+        ${CF(k,'kindergeld',t('kindergeld'),{euro:true,ph:'0,00 €',hint:t('kindergeld_hint')})}
+        ${CF(k,'childcare',t('childcare'),{euro:true,ph:'0,00 €',hint:t('kids_hint')})}
+        ${CF(k,'schoolFees',t('school_fees'),{euro:true,ph:'0,00 €',hint:t('school_hint')})}
+      </div>
+    </div></div>`).join('');
+  return `<h2>${t('step_fam')}</h2><p class="lead">${t('s_fam_lead')}</p>
+  <div class="section-label">${t('children_h')}</div>
+  ${cards}
+  <button class="btn btn-ghost btn-sm" onclick="addChild()">＋ ${t('add_child')}</button>
+  <div class="section-label">${t('support_h')}</div>
+  <div class="grid2">
+    ${F('fam','support',t('support_amount'),{euro:true,ph:'0,00 €',hint:t('support_hint')})}
+    ${F('fam','supportGroup',t('support_where'),{select:[['1',t('grp1')],['2',t('grp2')],['3',t('grp3')],['4',t('grp4')]]})}
+  </div>
+  ${docSection('fam')}
+  ${navRow()}`;
+}
+
+/* --- step 5: special expenses --- */
+function stepSpecial(c){
+  return `<h2>${t('step5')}</h2><p class="lead">${t('s5_lead')}</p>
+  <div class="grid2">
+    ${F('sa','donations',t('donations'),{euro:true,ph:'0,00 €'})}
+    ${F('sa','other',t('other_sa'),{euro:true,ph:'0,00 €'})}
+  </div>${navRow()}`;
+}
+
+/* --- step 6: household & extraordinary --- */
+function stepHousehold(c){
+  return `<h2>${t('step6')}</h2><p class="lead">${t('s6_lead')}</p>
+  <div class="grid3">
+    ${F('ex','medical',t('medical'),{euro:true,ph:'0,00 €'})}
+    ${F('ex','household',t('household'),{euro:true,ph:'0,00 €'})}
+    ${F('ex','handwerker',t('handwerker'),{euro:true,ph:'0,00 €'})}
+  </div>
+  ${docSection('ex')}
+  ${navRow()}`;
+}
+
+/* --- step 7: summary + submit --- */
+function sumGroup(title, stepIdx, rows){
+  const body = rows.filter(r=>r[1]!==''&&r[1]!=null).map(r=>`<div class="sum-row"><span class="l">${r[0]}</span><span class="r">${r[1]}</span></div>`).join('')
+    || `<div class="sum-row"><span class="l" style="font-style:italic">—</span></div>`;
+  return `<div class="sum-group"><div class="head">${title}<span class="edit" onclick="S.step=${stepIdx};render()">${t('edit')} ✎</span></div>${body}</div>`;
+}
+function stepSummary(c){
+  const e=computeEstimate(c);
+  const m=v=>N(v)>0?eur(N(v)):'';
+  const submitted = c.status==='submitted';
+  const kidRows=(c.fam.children||[]).map((k,i)=>[
+    `${t('child')} ${i+1}${k.name?' — '+esc(k.name):''}`,
+    esc([k.birth, k.taxId,
+      N(k.kindergeld)>0?t('kg_short')+': '+eur(N(k.kindergeld)):'',
+      N(k.childcare)>0?t('cc_short')+': '+eur(N(k.childcare)):'',
+      N(k.schoolFees)>0?t('sf_short')+': '+eur(N(k.schoolFees)):''
+    ].filter(Boolean).join(' · '))]);
+  return `<h2>${t('step7')}</h2><p class="lead">${t('s7_lead')}</p>
+  ${sumGroup(t('personal'),0,[
+    [t('client'),esc(c.p.firstName+' '+c.p.lastName)],
+    [t('birth_date'),esc(c.p.birthDate)],
+    [t('tax_id'),esc(c.p.taxId)],
+    [t('city'),esc((c.p.street?c.p.street+' '+c.p.houseNo+', ':'')+c.p.plz+' '+c.p.city)],
+    [t('marital'),c.p.marital==='married'?t('married'):t('single')],
+    [t('religion'),{none:t('rel_none'),ev:t('rel_ev'),rk:t('rel_rk'),other:t('rel_other')}[c.p.religion]],
+    [t('bundesland'),esc(c.p.bundesland)],
+    [t('finanzamt'),esc([c.p.finanzamt, c.p.faNumber?'('+c.p.faNumber+')':''].filter(Boolean).join(' '))],
+    [t('iban'),esc(c.p.iban)]])}
+  ${sumGroup(t('income'),1,[
+    [t('employer'),esc(c.inc.employer)],
+    [t('tax_class'),esc(c.inc.taxClass)],
+    [t('gross'),m(c.inc.gross)],
+    [t('wage_tax'),m(c.inc.wageTax)],
+    [t('soli'),m(c.inc.soli)],
+    [t('church_paid'),m(c.inc.churchPaid)]])}
+  ${sumGroup(t('insurance'),2,[
+    [t('rv'),m(c.ins.rv)],[t('kv'),m(c.ins.kv)],[t('pv'),m(c.ins.pv)],[t('av'),m(c.ins.av)],[t('other_ins'),m(c.ins.other)]])}
+  ${sumGroup(t('work_exp'),3,[
+    [t('commute_days'),c.wk.commuteDays],[t('commute_km'),c.wk.commuteKm],[t('home_office'),c.wk.homeOffice],
+    [t('equipment'),m(c.wk.equipment)],[t('training'),m(c.wk.training)],[t('other_wk'),m(c.wk.other)],
+    [t('dhh_rent'),m(c.wk.dhhRent)],[t('dhh_trips'),c.wk.dhhTrips],[t('relocation'),m(c.wk.relocation)]])}
+  ${sumGroup(t('step_fam'),4,[...kidRows,
+    [t('support_amount'),m(c.fam.support)],
+    [t('support_where'),N(c.fam.support)>0?{1:t('grp1'),2:t('grp2'),3:t('grp3'),4:t('grp4')}[c.fam.supportGroup]:'']])}
+  ${sumGroup(t('special_exp'),5,[[t('donations'),m(c.sa.donations)],[t('other_sa'),m(c.sa.other)]])}
+  ${sumGroup(t('household_g'),6,[[t('medical'),m(c.ex.medical)],[t('household'),m(c.ex.household)],[t('handwerker'),m(c.ex.handwerker)]])}
+  <div style="margin-top:22px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;align-items:center">
+  <button class="btn btn-ghost" onclick="exportPDF()">📄 ${t('pdf_btn')}</button>
+  ${submitted
+    ? `<div class="extract-ok" style="text-align:center;margin-top:0">✓ ${t('resubmit')} ${dateStr(c.submittedAt)} · ${t('transfer_ticket')}: <b>${c.transferTicket}</b></div>`
+    : `<button class="btn btn-amber" style="font-size:15px;padding:13px 30px" onclick="submitElster()">📤 ${t('submit_elster')}</button>`}
+  </div>`;
+}
+function submitElster(){
+  const c0=cur();
+  if(!/^\d{4}$/.test((c0.p.faNumber||'').trim())){ alert(t('err_fa')); S.step=0; render(); return; }
+  if(!/^\d{11}$/.test((c0.p.taxId||'').replace(/\s/g,''))){ alert(t('err_taxid')); S.step=0; render(); return; }
+  const faLine = `${t('submitting_to')}: <b>${esc(c0.p.faNumber)}</b> ${esc(c0.p.finanzamt||'')}`;
+  const slot=document.getElementById('modal-slot');
+  slot.innerHTML=`<div class="modal-bg"><div class="modal" style="text-align:center">
+    <div class="scan-status" style="justify-content:center"><div class="spinner"></div>${t('submitting')}</div>
+    <p style="margin-top:12px;font-size:13.5px;color:var(--ink-soft)">${faLine}</p></div></div>`;
+  setTimeout(()=>{
+    const c=cur();
+    c.status='submitted'; c.submittedAt=Date.now(); c.updatedAt=Date.now();
+    c.transferTicket='ET-'+c.taxYear+'-'+Math.random().toString(36).slice(2,8).toUpperCase()+'-'+Math.floor(1000+Math.random()*9000);
+    scheduleSave();
+    slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this){this.remove();render()}"><div class="modal" style="text-align:center">
+      <div class="success-mark">✓</div>
+      <h2>${t('success_title')}</h2><p style="color:var(--ink-soft);font-size:14px">${t('success_sub')}</p>
+      <p style="font-size:13px;color:var(--ink-soft);margin-top:6px">${faLine}</p>
+      <div class="ticket">${c.transferTicket}</div>
+      <button class="btn btn-primary" onclick="this.closest('.modal-bg').remove();render()">${t('close')}</button>
+    </div></div>`;
+  }, 1800);
+}
+
+/* --- step 9: Finanzamt inquiries (Rückfragen) --- */
+function stepInquiries(c){
+  const list=(c.inq||[]).slice().sort((a,b)=>b.ts-a.ts).map(q=>`<div class="sum-group">
+    <div class="head"><span>${dateStr(q.ts)} &nbsp; ${q.status==='open'
+        ?`<span class="chip review">${t('inq_open')}</span>`
+        :`<span class="chip submitted">${t('inq_answered')}</span>`}</span>
+      <span style="white-space:nowrap">
+        <button class="btn-sm link-btn" onclick="toggleInq('${q.id}')">${q.status==='open'?'✓ '+t('mark_answered'):t('reopen')}</button>
+        <button class="btn-sm link-btn" onclick="delInq('${q.id}')">🗑</button></span></div>
+    <div style="padding:14px 16px">
+      <div class="field"><label>${t('inq_q')}</label><textarea rows="2" onchange="updInq('${q.id}','q',this.value)">${esc(q.q)}</textarea></div>
+      <div class="field" style="margin-bottom:0"><label>${t('inq_a')}</label><textarea rows="2" onchange="updInq('${q.id}','a',this.value)">${esc(q.a)}</textarea></div>
+    </div></div>`).join('');
+  return `<h2>${t('step_inq')}</h2><p class="lead">${t('s_inq_lead')}</p>
+    ${list || `<div class="sum-group"><div class="sum-row"><span class="l" style="font-style:italic">${t('no_inq')}</span></div></div>`}
+    <div style="margin-top:14px"><button class="btn btn-primary" onclick="addInq()">＋ ${t('add_inq')}</button></div>
+    ${navRow()}`;
+}
+function addInq(){ const c=cur(); (c.inq=c.inq||[]).push({id:uid(),ts:Date.now(),q:'',a:'',status:'open'}); c.updatedAt=Date.now(); scheduleSave(); render(); }
+function updInq(id,f,v){ const c=cur(); const q=(c.inq||[]).find(x=>x.id===id); if(q){ q[f]=v; c.updatedAt=Date.now(); scheduleSave(); } }
+function toggleInq(id){ const c=cur(); const q=(c.inq||[]).find(x=>x.id===id); if(q){ q.status=q.status==='open'?'answered':'open'; c.updatedAt=Date.now(); scheduleSave(); render(); } }
+function delInq(id){ const c=cur(); c.inq=(c.inq||[]).filter(x=>x.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
+
+/* ---------------- PDF export (client summary) ---------------- */
+function pdfSafe(s){ return String(s??'').replace(/[\u00A0\u202F]/g,' '); }
+async function ensureJsPDF(){
+  if(window.jspdf && window.jspdf.jsPDF) return true;
+  return new Promise(res=>{ const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload=()=>res(true); s.onerror=()=>res(false); document.head.appendChild(s); });
+}
+async function exportPDF(){
+  if(!await ensureJsPDF()){ alert(t('pdf_fail')); return; }
+  const c=cur(); if(!c) return;
+  const e=computeEstimate(c);
+  const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});
+  const ML=18, MR=192; let y=0;
+  const INK=[18,40,58], TEAL=[14,124,102], GRAY=[100,116,130], RED=[180,67,47];
+  /* header band — practice letterhead from settings */
+  const prac=(S.user&&S.user.settings)||{};
+  doc.setFillColor(...INK); doc.rect(0,0,210,26,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(14);
+  doc.text(pdfSafe(prac.practiceName||S.user?.name||'SimplyTax'), ML, 11);
+  doc.setFontSize(8.5); doc.setFont('helvetica','normal');
+  const headSub=[prac.address, prac.contact].filter(Boolean).join('  ·  ');
+  if(headSub) doc.text(pdfSafe(headSub), ML, 16.5);
+  doc.text(pdfSafe(t('pdf_title')), ML, headSub?21.5:19);
+  doc.setFontSize(11); doc.setFont('helvetica','bold');
+  doc.text(pdfSafe(t('tax_year')+' '+c.taxYear), MR, 12, {align:'right'});
+  doc.setFontSize(9); doc.setFont('helvetica','normal');
+  const st = c.status==='submitted' ? `${t('status_submitted')} · ${dateStr(c.submittedAt)}`
+           : (c.status==='review' ? t('status_review') : t('status_draft'));
+  doc.text(pdfSafe(st), MR, 18, {align:'right'});
+  y=36;
+  const checkPage=(need=8)=>{ if(y>282-need){ doc.addPage(); y=20; } };
+  const section=(title)=>{ checkPage(14); doc.setTextColor(...TEAL); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+    doc.text(pdfSafe(title).toUpperCase(), ML, y);
+    doc.setDrawColor(223,231,228); doc.setLineWidth(.3); doc.line(ML, y+1.5, MR, y+1.5); y+=7; };
+  const row=(label,value)=>{ if(value===''||value==null) return; checkPage();
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...GRAY);
+    doc.text(pdfSafe(label), ML, y);
+    doc.setTextColor(...INK); doc.setFont('helvetica','bold');
+    doc.text(pdfSafe(value), MR, y, {align:'right'}); y+=5.6; };
+  const m=v=>N(v)>0?eur(N(v)):'';
+  /* client head */
+  doc.setTextColor(...INK); doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.text(pdfSafe(`${c.p.firstName} ${c.p.lastName}`.trim()||'—'), ML, y); y+=6;
+  const addr=[c.p.street?`${c.p.street} ${c.p.houseNo}`.trim():'', [c.p.plz,c.p.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  if(addr){ doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...GRAY); doc.text(pdfSafe(addr), ML, y); y+=5; }
+  y+=3;
+  section(t('personal'));
+  row(t('birth_date'), c.p.birthDate);
+  row(t('tax_id'), c.p.taxId);
+  row(t('marital'), c.p.marital==='married'?t('married'):t('single'));
+  row(t('religion'), {none:t('rel_none'),ev:t('rel_ev'),rk:t('rel_rk'),other:t('rel_other')}[c.p.religion]||'');
+  row(t('bundesland'), c.p.bundesland);
+  row(t('finanzamt'), [c.p.finanzamt, c.p.faNumber?'('+c.p.faNumber+')':''].filter(Boolean).join(' '));
+  row(t('steuernummer'), c.p.steuernummer);
+  row(t('iban'), c.p.iban);
+  y+=3; section(t('income'));
+  row(t('employer'), c.inc.employer); row(t('period'), c.inc.period); row(t('tax_class'), c.inc.taxClass);
+  row(t('gross'), m(c.inc.gross)); row(t('wage_tax'), m(c.inc.wageTax));
+  row(t('soli'), m(c.inc.soli)); row(t('church_paid'), m(c.inc.churchPaid));
+  y+=3; section(t('insurance'));
+  row(t('rv'),m(c.ins.rv)); row(t('kv'),m(c.ins.kv)); row(t('pv'),m(c.ins.pv)); row(t('av'),m(c.ins.av)); row(t('other_ins'),m(c.ins.other));
+  y+=3; section(t('work_exp'));
+  row(t('commute_days'),c.wk.commuteDays); row(t('commute_km'),c.wk.commuteKm); row(t('home_office'),c.wk.homeOffice);
+  row(t('equipment'),m(c.wk.equipment)); row(t('training'),m(c.wk.training)); row(t('other_wk'),m(c.wk.other));
+  row(t('dhh_rent'),m(c.wk.dhhRent)); row(t('dhh_trips'),c.wk.dhhTrips); row(t('relocation'),m(c.wk.relocation));
+  y+=3; section(t('step_fam'));
+  (c.fam.children||[]).forEach((k,i)=>{
+    row(`${t('child')} ${i+1}${k.name?' — '+k.name:''}`, [k.birth,k.taxId].filter(Boolean).join(' · ')||' ');
+    if(N(k.kindergeld)>0) row('    '+t('kg_short'), eur(N(k.kindergeld)));
+    if(N(k.childcare)>0) row('    '+t('cc_short'), eur(N(k.childcare)));
+    if(N(k.schoolFees)>0) row('    '+t('sf_short'), eur(N(k.schoolFees)));
+  });
+  row(t('support_amount'),m(c.fam.support));
+  if(N(c.fam.support)>0) row(t('support_where'), {1:t('grp1'),2:t('grp2'),3:t('grp3'),4:t('grp4')}[c.fam.supportGroup]);
+  y+=3; section(t('special_exp'));
+  row(t('donations'),m(c.sa.donations)); row(t('other_sa'),m(c.sa.other));
+  y+=3; section(t('household_g'));
+  row(t('medical'),m(c.ex.medical)); row(t('household'),m(c.ex.household)); row(t('handwerker'),m(c.ex.handwerker));
+  if((c.docs||[]).length){ row(t('pdf_docs'), String(c.docs.length)); }
+  /* estimate box */
+  checkPage(56); y+=4;
+  const boxTop=y;
+  doc.setFillColor(230,242,237); doc.roundedRect(ML-2, boxTop-2, (MR-ML)+4, 48, 2.5, 2.5, 'F');
+  doc.setTextColor(...TEAL); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+  doc.text(pdfSafe(t('pdf_est')).toUpperCase(), ML+2, y+4); y+=10;
+  const erow=(l,v)=>{ doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...GRAY);
+    doc.text(pdfSafe(l), ML+2, y); doc.setTextColor(...INK); doc.setFont('helvetica','bold');
+    doc.text(pdfSafe(v), MR-2, y, {align:'right'}); y+=4.8; };
+  erow(t('m_zve'), eur(e.zvE)); erow(t('m_tax'), eur(e.tax));
+  if(e.credit>0) erow(t('m_credit'), '-'+eur(e.credit));
+  if(e.soli>0) erow(t('m_soli'), eur(e.soli));
+  if(e.kist>0) erow(t('m_kist'), eur(e.kist));
+  erow(t('m_paid'), eur(e.paid));
+  y+=3; doc.setFont('helvetica','bold'); doc.setFontSize(12.5);
+  const pos=e.refund>=0; doc.setTextColor(...(pos?TEAL:RED));
+  doc.text(pdfSafe(pos?t('meter_title'):t('meter_nach')), ML+2, y);
+  doc.text(pdfSafe(eur(Math.abs(e.refund))), MR-2, y, {align:'right'});
+  y=boxTop+52;
+  if(c.status==='submitted'){ checkPage(10);
+    doc.setFontSize(9.5); doc.setFont('helvetica','normal'); doc.setTextColor(...INK);
+    doc.text(pdfSafe(`${t('transfer_ticket')}: ${c.transferTicket} · ${t('resubmit')} ${dateStr(c.submittedAt)}`), ML, y); y+=6; }
+  /* disclaimer */
+  checkPage(16);
+  doc.setFontSize(8); doc.setTextColor(...GRAY); doc.setFont('helvetica','normal');
+  doc.text(doc.splitTextToSize(pdfSafe(t('meter_foot')), MR-ML), ML, y);
+  /* footers */
+  const pages=doc.getNumberOfPages();
+  for(let i=1;i<=pages;i++){ doc.setPage(i); doc.setFontSize(8); doc.setTextColor(...GRAY); doc.setFont('helvetica','normal');
+    doc.text(pdfSafe(`${t('pdf_generated')} ${dateStr(Date.now())} · ${prac.practiceName||S.user?.name||'SimplyTax'}`), ML, 292);
+    doc.text(pdfSafe(`${t('pdf_page')} ${i}/${pages}`), MR, 292, {align:'right'}); }
+  const safeName=(c.p.lastName||'Client').replace(/[^A-Za-z0-9ÄÖÜäöüß_-]/g,'');
+  doc.save(`Steuererklaerung_${c.taxYear}_${safeName}.pdf`);
+}
+
+/* ---------------- AI extraction (Lohnsteuerbescheinigung) ---------------- */
+function bindGlobal(){
+  const dz=document.getElementById('dz');
+  if(dz){
+    ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('drag')}));
+    ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag')}));
+    dz.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) handleFile(f); });
+  }
+}
+document.getElementById('fileInput').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(f) handleFile(f); e.target.value='';
+});
+async function handleFile(file){
+  S.scanState='scanning'; render();
+  try{
+    const b64 = await new Promise((res,rej)=>{ const r=new FileReader();
+      r.onload=()=>res(r.result.split(',')[1]); r.onerror=()=>rej(new Error('read')); r.readAsDataURL(file); });
+    const isPdf = file.type==='application/pdf';
+    const block = isPdf
+      ? {type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}}
+      : {type:'image',source:{type:'base64',media_type:file.type||'image/jpeg',data:b64}};
+    const prompt = `You are reading a German "Ausdruck der elektronischen Lohnsteuerbescheinigung". Extract these values and respond with ONLY a JSON object, no markdown, no explanation. Use numbers with a dot as decimal separator, or "" if not found:
+{"employer":"","period":"","taxClass":"","gross":"","wageTax":"","soli":"","churchPaid":"","rv":"","kv":"","pv":"","av":""}
+Mapping: gross = Bruttoarbeitslohn (Zeile 3); wageTax = einbehaltene Lohnsteuer (Zeile 4); soli = Solidaritätszuschlag (Zeile 5); churchPaid = Kirchensteuer (Zeile 6 + 7); rv = Arbeitnehmeranteil Rentenversicherung (Zeile 23); kv = Arbeitnehmeranteil Krankenversicherung (Zeile 25); pv = Arbeitnehmeranteil Pflegeversicherung (Zeile 26); av = Arbeitnehmeranteil Arbeitslosenversicherung (Zeile 27); taxClass = Steuerklasse (1-6); period = Bescheinigungszeitraum; employer = employer name.`;
+    const resp = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,
+        messages:[{role:'user',content:[block,{type:'text',text:prompt}]}]})});
+    const data = await resp.json();
+    const text = (data.content||[]).filter(i=>i.type==='text').map(i=>i.text).join('\n');
+    const clean = text.replace(/```json|```/g,'').trim();
+    const j = JSON.parse(clean);
+    const c=cur();
+    const NUMFIELDS = {gross:1,wageTax:1,soli:1,churchPaid:1,rv:1,kv:1,pv:1,av:1};
+    const put=(grp,key,val)=>{ if(val!=null && String(val).trim()!==''){
+      c[grp][key] = NUMFIELDS[key] ? formatDE(N(val)) : String(val);   // AI returns dot-decimals → convert to German format
+      S.aiFields[grp+'.'+key]=true; } };
+    put('inc','employer',j.employer); put('inc','period',j.period); put('inc','taxClass',j.taxClass);
+    put('inc','gross',j.gross); put('inc','wageTax',j.wageTax); put('inc','soli',j.soli); put('inc','churchPaid',j.churchPaid);
+    put('ins','rv',j.rv); put('ins','kv',j.kv); put('ins','pv',j.pv); put('ins','av',j.av);
+    c.updatedAt=Date.now(); scheduleSave();
+    S.scanState='ok';
+  }catch(err){ console.error('extraction failed',err); S.scanState='err'; }
+  render();
+}
+
+/* ---------------- boot ---------------- */
+(async()=>{ await loadState(); render(); })();
+</script>
+</body>
+</html>
