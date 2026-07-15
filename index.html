@@ -389,9 +389,22 @@ function newClient(f,l,year,marital){
 
 /* ---------------- persistence & accounts (artifact storage with fallback) ---------------- */
 const mem={};
-async function kvGet(k){ try{ if(window.storage){ const r=await window.storage.get(k); if(r && r.value!=null) return r.value; } }catch(e){} return mem[k]??null; }
-async function kvSet(k,v){ try{ if(window.storage){ await window.storage.set(k,v); return; } }catch(e){} mem[k]=v; }
-async function kvDel(k){ try{ if(window.storage){ await window.storage.delete(k); return; } }catch(e){} delete mem[k]; }
+/* storage layers: Claude artifact storage → browser localStorage (e.g. GitHub Pages) → in-memory */
+async function kvGet(k){
+  try{ if(window.storage){ const r=await window.storage.get(k); if(r && r.value!=null) return r.value; } }catch(e){}
+  try{ const v=localStorage.getItem(k); if(v!=null) return v; }catch(e){}
+  return mem[k]??null;
+}
+async function kvSet(k,v){
+  try{ if(window.storage){ await window.storage.set(k,v); return; } }catch(e){}
+  try{ localStorage.setItem(k,v); return; }catch(e){}
+  mem[k]=v;
+}
+async function kvDel(k){
+  try{ if(window.storage){ await window.storage.delete(k); } }catch(e){}
+  try{ localStorage.removeItem(k); }catch(e){}
+  delete mem[k];
+}
 
 async function saveState(){
   await kvSet('klarsteuer-prefs', JSON.stringify({lang:S.lang}));
@@ -848,9 +861,9 @@ function upd(group,key,val,fmt){
 }
 /* --- documents (Belege) --- */
 const memDocs = {};
-async function storeDocData(id,dataUrl){ try{ if(window.storage){ await window.storage.set('klarsteuer-doc-'+id, dataUrl); return; } }catch(e){} memDocs[id]=dataUrl; }
-async function getDocData(id){ try{ if(window.storage){ const r=await window.storage.get('klarsteuer-doc-'+id); if(r && r.value) return r.value; } }catch(e){} return memDocs[id]||null; }
-async function removeDocData(id){ try{ if(window.storage) await window.storage.delete('klarsteuer-doc-'+id); }catch(e){} delete memDocs[id]; }
+async function storeDocData(id,dataUrl){ await kvSet('klarsteuer-doc-'+id, dataUrl); }
+async function getDocData(id){ return await kvGet('klarsteuer-doc-'+id); }
+async function removeDocData(id){ await kvDel('klarsteuer-doc-'+id); }
 
 function docSection(sec){
   const c=cur(); const docs=(c.docs||[]).filter(d=>d.section===sec);
