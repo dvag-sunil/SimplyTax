@@ -305,6 +305,10 @@ en: {
   totals:"Totals", tot_beitrag:"Total contributions", tot_erst:"Total reimbursements", tot_net:"Total net",
   tot_deduct:"Thereof tax-relevant (before caps)",
   priv_note:"Deduction caps (€1,900 other provision, €2,100 Riester) are applied automatically in the refund estimate.",
+  step_wki:"Werbungskosten (itemized)",
+  s_wki_lead:"Itemized job-related expenses per person — pick a category, describe the item, and enter the annual amount. These add onto the structured Work expenses (commuting, home office…). Enter each cost only once.",
+  wki_type:"Category", wki_desc:"Description (optional)", wki_amount:"Amount (per year)",
+  add_wki:"Add expense item", wki_tot_a:"Total Person A", wki_tot_b:"Total Person B",
   export_elster:"Export ELSTER dataset (JSON)",
   person:"Belongs to (person)", person_b_detect:"Assigned to Person B (spouse) — Identifikationsnummer did not match Person A.",
   privacy_foot:"Prototype · Data is stored only in this workspace · GDPR-compliant hosting planned for production"
@@ -443,6 +447,10 @@ de: {
   totals:"Summen", tot_beitrag:"Summe Beiträge", tot_erst:"Summe Erstattungen", tot_net:"Summe netto",
   tot_deduct:"Davon steuerlich relevant (vor Höchstbeträgen)",
   priv_note:"Höchstbeträge (1.900 € sonstige Vorsorge, 2.100 € Riester) werden in der Erstattungsschätzung automatisch angewendet.",
+  step_wki:"Werbungskosten (Einzelposten)",
+  s_wki_lead:"Berufliche Ausgaben als Einzelposten je Person — Kategorie wählen, Posten beschreiben, Jahresbetrag eintragen. Diese ergänzen die strukturierten Werbungskosten (Pendlerpauschale, Homeoffice…). Jede Ausgabe bitte nur einmal erfassen.",
+  wki_type:"Kategorie", wki_desc:"Bezeichnung (optional)", wki_amount:"Betrag (pro Jahr)",
+  add_wki:"Posten hinzufügen", wki_tot_a:"Summe Person A", wki_tot_b:"Summe Person B",
   export_elster:"ELSTER-Datensatz exportieren (JSON)",
   person:"Gehört zu (Person)", person_b_detect:"Person B (Ehepartner) zugeordnet — Identifikationsnummer stimmte nicht mit Person A überein.",
   privacy_foot:"Prototyp · Daten werden nur in diesem Arbeitsbereich gespeichert · DSGVO-konformes Hosting für die Produktion geplant"
@@ -493,6 +501,34 @@ const INS_TYPES=[
 const INS_CAT = Object.fromEntries(INS_TYPES.map(x=>[x.k,x.cat]));
 const insLabel = k => { const x=INS_TYPES.find(i=>i.k===k); return x ? (S.lang==='de'?x.de:x.en) : ''; };
 
+/* Itemized Werbungskosten categories (§ 9 EStG), modeled on professional worksheets */
+const WKI_TYPES=[
+  {k:'auswaerts', de:'Auswärtstätigkeiten (Reisekosten, Verpflegungsmehraufwand)', en:'Business trips (travel costs, meal allowances)',
+    hde:'Fahrt-, Übernachtungskosten und Verpflegungspauschalen bei beruflichen Auswärtstätigkeiten.', hen:'Travel, lodging and meal allowances for work away from the first workplace.'},
+  {k:'arbeitszimmer', de:'Arbeitszimmer', en:'Home office room (Arbeitszimmer)',
+    hde:'Nur wenn das Arbeitszimmer Mittelpunkt der beruflichen Tätigkeit ist; alternativ Jahrespauschale 1.260 € (ab 2023). Sonst Homeoffice-Pauschale nutzen.', hen:'Only if the room is the center of professional activity; alternatively the €1,260 annual flat rate (since 2023). Otherwise use the home-office allowance.'},
+  {k:'bewerbung', de:'Bewerbungskosten', en:'Job application costs',
+    hde:'Unabhängig vom Erfolg der Bewerbung absetzbar.', hen:'Deductible regardless of whether the application succeeds.'},
+  {k:'dhh', de:'Doppelte Haushaltsführung (Einzelposten)', en:'Double household (itemized)',
+    hde:'Nur hier ODER im Schritt Werbungskosten (strukturiert) erfassen — nicht doppelt.', hen:'Enter here OR in the structured Work expenses step — not twice.'},
+  {k:'afa', de:'Abschreibung Arbeitsmittel (über 952 € brutto)', en:'Depreciation of work equipment (over €952 gross)',
+    hde:'Gegenstände über 952 € brutto werden über die Nutzungsdauer abgeschrieben — hier den Jahresbetrag (AfA) eintragen.', hen:'Items over €952 gross are depreciated over their useful life — enter the annual depreciation amount.'},
+  {k:'kommunikation', de:'Kommunikationskosten (Telefon, Internet)', en:'Communication costs (phone, internet)',
+    hde:'Ohne Einzelnachweis üblicherweise 20 % der Kosten, max. 20 € pro Monat.', hen:'Without itemized proof, typically 20% of costs, max. €20 per month.'},
+  {k:'umzug', de:'Umzugskosten (beruflich veranlasst)', en:'Relocation costs (work-related)',
+    hde:'Beruflich veranlasst, z. B. Fahrzeitverkürzung um mind. 1 Stunde. Nur einmal erfassen (hier oder strukturiert).', hen:'Work-related, e.g. commute shortened by at least 1 hour. Enter only once (here or structured).'},
+  {k:'unfall', de:'Unfallkosten auf beruflicher Fahrt', en:'Accident costs on a work journey',
+    hde:'Schäden auf beruflichen Fahrten (Unfall, Beschädigung, Diebstahl).', hen:'Damage on work journeys (accident, damage, theft).'},
+  {k:'sonstige', de:'Sonstige Werbungskosten (Kontoführung, Berufsverband, Fachliteratur…)', en:'Other work expenses (account fees, associations, literature…)',
+    hde:'Z. B. Kontoführungspauschale 16 €, Beiträge zu Berufsverbänden, Fachliteratur, berufliche Rechtsverteidigung.', hen:'E.g. €16 account-fee flat rate, professional associations, trade literature, job-related legal defense.'},
+  {k:'steuerberatung', de:'Steuerberatungskosten (nur beruflicher Anteil)', en:'Tax advisory costs (income-related portion only)',
+    hde:'Seit 2006 ist nur der auf die Einkünfteermittlung entfallende Anteil absetzbar — nicht der private Teil.', hen:'Since 2006 only the portion related to determining income is deductible — not the private part.'},
+  {k:'fahrzeug', de:'Fahrzeugkosten (individueller km-Satz)', en:'Vehicle costs (individual km rate)',
+    hde:'Individueller km-Satz aus Jahreskosten und Fahrleistung, z. B. für Dienstreisen statt der Pauschale.', hen:'Individual km rate from annual costs and mileage, e.g. for business trips instead of the flat rate.'},
+];
+const wkiLabel = k => { const x=WKI_TYPES.find(i=>i.k===k); return x ? (S.lang==='de'?x.de:x.en) : ''; };
+const wkiHint  = k => { const x=WKI_TYPES.find(i=>i.k===k); return x ? (S.lang==='de'?x.hde:x.hen) : ''; };
+
 function newClient(f,l,year,marital){
   return { id:uid(), createdAt:Date.now(), updatedAt:Date.now(),
     status:'draft', transferTicket:null, submittedAt:null, taxYear:year,
@@ -500,7 +536,7 @@ function newClient(f,l,year,marital){
         marital:marital,religion:'none',profession:'',finanzamt:'',faNumber:'',bundesland:'',steuernummer:'',iban:'',
         spouseFirst:'',spouseLast:'',spouseBirth:'',spouseTaxId:'',spouseReligion:'none' },
     inc:{ employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:'' },
-    emps:[], kap:[], props:[], privIns:[],
+    emps:[], kap:[], props:[], privIns:[], wkItems:[],
     ins:{ rv:'',kv:'',pv:'',av:'',other:'' },
     wk:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',
          dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
@@ -556,6 +592,8 @@ function migrateClient(c){
   c.kap = Array.isArray(c.kap)?c.kap:[];
   c.props = Array.isArray(c.props)?c.props:[];
   c.privIns = Array.isArray(c.privIns)?c.privIns:[];
+  c.wkItems = Array.isArray(c.wkItems)?c.wkItems:[];
+  c.wkItems.forEach(x=>{ if(x.person!=='B') x.person='A'; });
   /* legacy: convert the old single income statement into the first list entry */
   if(c.emps.length===0 && c.inc && (N(c.inc.gross)>0 || (c.inc.employer||'').trim()!=='')){
     c.emps.push(Object.assign({id:uid()}, c.inc));
@@ -721,8 +759,10 @@ function computeEstimate(c){
     return commute+ho+N(w.equipment)+N(w.training)+N(w.other)+dhhRent+dhhTrips+N(w.relocation); };
   const employedB = joint && (c.emps||[]).some(x=>x.person==='B' && N(x.gross)>0);
   const employedA = (c.emps||[]).some(x=>N(x.gross)>0 && (!joint || x.person!=='B'));
-  const costsA = calcWK(c.wk, inc.fahrtA + (joint?0:inc.fahrtB));
-  const costsB = joint ? calcWK(c.wkB, inc.fahrtB) : 0;
+  const itemsA = (c.wkItems||[]).filter(x=>!joint || x.person!=='B').reduce((a,x)=>a+N(x.amount),0);
+  const itemsB = joint ? (c.wkItems||[]).filter(x=>x.person==='B').reduce((a,x)=>a+N(x.amount),0) : 0;
+  const costsA = calcWK(c.wk, inc.fahrtA + (joint?0:inc.fahrtB)) + itemsA;
+  const costsB = joint ? calcWK(c.wkB, inc.fahrtB) + itemsB : 0;
   const wk = (employedA ? Math.max(1230,costsA) : costsA)
            + (joint ? (employedB ? Math.max(1230,costsB) : costsB) : 0);
   // private insurances by tax category AND person (caps apply per person)
@@ -994,22 +1034,23 @@ function stepDone(c,i){
     case 1: return incTotals(c).gross>0;
     case 2: return N(c.wk.commuteDays)+N(c.wk.equipment)+N(c.wk.homeOffice)+N(c.wk.training)+N(c.wk.other)+N(c.wk.dhhRent)+N(c.wk.relocation)>0;
     case 3: return ((c.fam.children||[]).length)>0 || N(c.fam.support)>0;
-    case 4: return N(c.sa.donations)+N(c.sa.other)+N(c.ins.other)>0;
-    case 5: return (c.privIns||[]).length>0;
-    case 6: return (c.kap||[]).length>0;
-    case 7: return (c.props||[]).length>0;
-    case 8: return N(c.ex.medical)+N(c.ex.household)+N(c.ex.handwerker)>0;
-    case 9: return c.status==='submitted';
-    case 10: return (c.inq||[]).length>0 && c.inq.every(q=>q.status==='answered');
+    case 4: return (c.wkItems||[]).length>0;
+    case 5: return N(c.sa.donations)+N(c.sa.other)+N(c.ins.other)>0;
+    case 6: return (c.privIns||[]).length>0;
+    case 7: return (c.kap||[]).length>0;
+    case 8: return (c.props||[]).length>0;
+    case 9: return N(c.ex.medical)+N(c.ex.household)+N(c.ex.handwerker)>0;
+    case 10: return c.status==='submitted';
+    case 11: return (c.inq||[]).length>0 && c.inq.every(q=>q.status==='answered');
   } return false;
 }
 function clientView(){
   const c=cur(); if(!c){S.view='dash';return dashView();}
-  const stepKeys=['step1','step2','step4','step_fam','step5','step_priv','step_kap','step_prop','step6','step7','step_inq'];
+  const stepKeys=['step1','step2','step4','step_fam','step_wki','step5','step_priv','step_kap','step_prop','step6','step7','step_inq'];
   const stepsHtml = stepKeys.map((k,i)=>`
     <div class="step-item ${S.step===i?'on':''} ${stepDone(c,i)?'done':''}" onclick="S.step=${i};render()">
       <span class="n">${stepDone(c,i)?'✓':i+1}</span> ${t(k)}</div>`).join('');
-  const bodies=[stepPersonal,stepIncome,stepWork,stepFamily,stepSpecial,stepPrivIns,stepKap,stepProp,stepHousehold,stepSummary,stepInquiries];
+  const bodies=[stepPersonal,stepIncome,stepWork,stepFamily,stepWkItems,stepSpecial,stepPrivIns,stepKap,stepProp,stepHousehold,stepSummary,stepInquiries];
   return `<main>
     <div class="crumbs"><a onclick="goDash()">← ${t('back_dash')}</a> &nbsp;/&nbsp; <b>${esc(c.p.firstName)} ${esc(c.p.lastName)}</b> · ${t('tax_year')} ${c.taxYear} · ${chip(c.status)}</div>
     <div class="ws">
@@ -1126,7 +1167,7 @@ async function deleteDoc(id){
 }
 
 function navRow(){
-  const last = S.step===10;
+  const last = S.step===11;
   return `<div class="nav-row">
     <button class="btn btn-ghost" ${S.step===0?'disabled':''} onclick="S.step--;render()">← ${t('back')}</button>
     ${last?'':`<button class="btn btn-primary" onclick="S.step++;render()">${t('next')} →</button>`}
@@ -1250,6 +1291,41 @@ function stepIncome(c){
   ${cards}
   <button class="btn btn-ghost btn-sm" onclick="addItem('emps',{person:'A',employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:''})">＋ ${t('add_emp')}</button>
   ${warnTax?`<div class="warn">⚠️ ${t('warn_taxhigh')}</div>`:''}
+  ${navRow()}`;
+}
+
+/* --- step 5: itemized Werbungskosten (§ 9 EStG) --- */
+function stepWkItems(c){
+  const list=c.wkItems||[];
+  const married=c.p.marital==='married';
+  const personOpts=[['A','A — '+(c.p.firstName||'Person A')],['B',('B — '+((c.p.spouseFirst||'')+' '+(c.p.spouseLast||'')).trim()).trim()]];
+  const cards=list.map((x,i)=>`<div class="sum-group" style="margin-bottom:12px">
+    <div class="head"><span>${t('wki_type')} ${i+1}${married?` <span class="chip ${x.person==='B'?'review':'submitted'}">${x.person==='B'?'B':'A'}</span>`:''}${x.type?' · '+esc(wkiLabel(x.type)):''}</span>
+      <span class="edit" onclick="delItem('wkItems','${x.id}')">🗑 ${t('remove')}</span></div>
+    <div style="padding:14px 16px">
+      ${married?`<div class="grid3">${LF('wkItems',x,'person',t('person'),{select:personOpts})}</div>`:''}
+      <div class="field"><label>${t('wki_type')}</label>
+        <select onchange="updItem('wkItems','${x.id}','type',this.value,0)">
+          <option value="">${t('select')}</option>
+          ${WKI_TYPES.map(w=>`<option value="${w.k}" ${x.type===w.k?'selected':''}>${S.lang==='de'?w.de:w.en}</option>`).join('')}
+        </select>${x.type?`<div class="hint">${wkiHint(x.type)}</div>`:''}</div>
+      <div class="grid2">
+        ${LF('wkItems',x,'desc',t('wki_desc'),{ph:'z. B. Fachbuch, Laptop-AfA…'})}
+        ${LF('wkItems',x,'amount',t('wki_amount'),{euro:true,ph:'0,00 €'})}
+      </div>
+    </div></div>`).join('');
+  const totA=list.filter(x=>x.person!=='B').reduce((a,x)=>a+N(x.amount),0);
+  const totB=list.filter(x=>x.person==='B').reduce((a,x)=>a+N(x.amount),0);
+  const totBox = list.length ? `<div class="sum-group" style="margin-top:16px">
+    <div class="head">${t('totals')} — ${t('step_wki')}</div>
+    <div class="sum-row"><span class="l">${t('wki_tot_a')}</span><span class="r num"><b>${eur(totA)}</b></span></div>
+    ${married?`<div class="sum-row"><span class="l">${t('wki_tot_b')}</span><span class="r num"><b>${eur(totB)}</b></span></div>`:''}
+  </div>` : '';
+  return `<h2>${t('step_wki')}</h2><p class="lead">${t('s_wki_lead')}</p>
+  ${cards}
+  <button class="btn btn-ghost btn-sm" onclick="addItem('wkItems',{person:'A',type:'',desc:'',amount:''})">＋ ${t('add_wki')}</button>
+  ${totBox}
+  ${docSection('wkItems')}
   ${navRow()}`;
 }
 
@@ -1532,13 +1608,16 @@ function stepSummary(c){
   ${sumGroup(t('step_fam'),3,[...kidRows,
     [t('support_amount'),m(c.fam.support)],
     [t('support_where'),N(c.fam.support)>0?{1:t('grp1'),2:t('grp2'),3:t('grp3'),4:t('grp4')}[c.fam.supportGroup]:'']])}
-  ${sumGroup(t('special_exp'),4,[[t('donations'),m(c.sa.donations)],[t('other_sa'),m(c.sa.other)],[t('other_ins'),m(c.ins.other)]])}
-  ${sumGroup(t('step_priv'),5,(c.privIns||[]).map(x=>[
+  ${sumGroup(t('step_wki'),4,(c.wkItems||[]).map(x=>[
+    `${marr?'('+(x.person==='B'?'B':'A')+') ':''}${esc(wkiLabel(x.type)||t('wki_type'))}${x.desc?' — '+esc(x.desc):''}`,
+    m(x.amount)]))}
+  ${sumGroup(t('special_exp'),5,[[t('donations'),m(c.sa.donations)],[t('other_sa'),m(c.sa.other)],[t('other_ins'),m(c.ins.other)]])}
+  ${sumGroup(t('step_priv'),6,(c.privIns||[]).map(x=>[
     esc(insLabel(x.type)||t('ins_type')),
     esc(`${eur(N(x.beitrag))} − ${eur(N(x.erstattung))} = ${eur(Math.max(0,N(x.beitrag)-N(x.erstattung)))}${INS_CAT[x.type]==='none'?' ('+t('cat_none')+')':''}`)]))}
-  ${sumGroup(t('step_kap'),6,kapRows)}
-  ${sumGroup(t('step_prop'),7,propRows)}
-  ${sumGroup(t('household_g'),8,[[t('medical'),m(c.ex.medical)],[t('household'),m(c.ex.household)],[t('handwerker'),m(c.ex.handwerker)]])}
+  ${sumGroup(t('step_kap'),7,kapRows)}
+  ${sumGroup(t('step_prop'),8,propRows)}
+  ${sumGroup(t('household_g'),9,[[t('medical'),m(c.ex.medical)],[t('household'),m(c.ex.household)],[t('handwerker'),m(c.ex.handwerker)]])}
   <div style="margin-top:22px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;align-items:center">
   <button class="btn btn-ghost" onclick="exportPDF()">📄 ${t('pdf_btn')}</button>
   <button class="btn btn-ghost" onclick="exportElster()">⇪ ${t('export_elster')}</button>
@@ -1639,7 +1718,9 @@ function buildElsterDataset(c){
       personB: c.p.marital==='married' ? { entfernungspauschale:{ arbeitstage:N(c.wkB.commuteDays), einfacheEntfernungKm:N(c.wkB.commuteKm) },
         homeofficeTage:N(c.wkB.homeOffice), arbeitsmittel:N(c.wkB.equipment), fortbildung:N(c.wkB.training),
         sonstige:N(c.wkB.other), doppelteHaushaltsfuehrung:{ monatsmiete:N(c.wkB.dhhRent), monate:N(c.wkB.dhhMonths),
-          familienheimfahrten:N(c.wkB.dhhTrips), entfernungKm:N(c.wkB.dhhKm) }, umzugskosten:N(c.wkB.relocation) } : null },
+          familienheimfahrten:N(c.wkB.dhhTrips), entfernungKm:N(c.wkB.dhhKm) }, umzugskosten:N(c.wkB.relocation) } : null,
+      einzelposten:(c.wkItems||[]).map(x=>({ person:x.person==='B'?'B':'A', kategorie:x.type,
+        bezeichnung:[wkiLabel(x.type),x.desc].filter(Boolean).join(' — '), betrag:N(x.amount) })) },
     anlageVorsorgeaufwand:{ ausLohnsteuerbescheinigungen:{ rv:inc.rv, gkv:inc.kv, pv:inc.pv, av:inc.av, pkv28:inc.pkv },
       privateVersicherungen:(c.privIns||[]).map(x=>({ person:x.person==='B'?'B':'A', typ:x.type, bezeichnung:insLabel(x.type),
         kategorie:INS_CAT[x.type]||'', beitrag:N(x.beitrag), erstattung:N(x.erstattung),
@@ -1747,6 +1828,10 @@ async function exportPDF(){
     row('(B) '+t('equipment'),m(c.wkB.equipment)); row('(B) '+t('training'),m(c.wkB.training)); row('(B) '+t('other_wk'),m(c.wkB.other));
     row('(B) '+t('dhh_rent'),m(c.wkB.dhhRent)); row('(B) '+t('relocation'),m(c.wkB.relocation));
   }
+  if((c.wkItems||[]).length){ y+=3; section(t('step_wki'));
+    (c.wkItems||[]).forEach(x=>{ if(!x.type && N(x.amount)===0) return;
+      const ab=c.p.marital==='married'?'('+(x.person==='B'?'B':'A')+') ':'';
+      row(ab+(wkiLabel(x.type)||t('wki_type'))+(x.desc?' — '+x.desc:''), m(x.amount)||' '); }); }
   y+=3; section(t('step_fam'));
   (c.fam.children||[]).forEach((k,i)=>{
     row(`${t('child')} ${i+1}${k.name?' — '+k.name:''}`, [k.birth,k.taxId].filter(Boolean).join(' · ')||' ');
