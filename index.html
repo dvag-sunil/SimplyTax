@@ -498,11 +498,13 @@ function newClient(f,l,year,marital){
     status:'draft', transferTicket:null, submittedAt:null, taxYear:year,
     p:{ firstName:f,lastName:l,birthDate:'',taxId:'',street:'',houseNo:'',plz:'',city:'',
         marital:marital,religion:'none',profession:'',finanzamt:'',faNumber:'',bundesland:'',steuernummer:'',iban:'',
-        spouseFirst:'',spouseLast:'',spouseBirth:'',spouseTaxId:'' },
+        spouseFirst:'',spouseLast:'',spouseBirth:'',spouseTaxId:'',spouseReligion:'none' },
     inc:{ employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:'' },
     emps:[], kap:[], props:[], privIns:[],
     ins:{ rv:'',kv:'',pv:'',av:'',other:'' },
     wk:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',
+         dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
+    wkB:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',
          dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
     fam:{ kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',children:[] },
     sa:{ donations:'',other:'' },
@@ -546,7 +548,9 @@ async function loadState(){
     if(u){ S.user=u; await loadUserData(); S.loggedIn=true; S.view='dash'; } }
 }
 function migrateClient(c){
-  c.p = Object.assign({faNumber:'',bundesland:''}, c.p||{});
+  c.p = Object.assign({faNumber:'',bundesland:'',spouseReligion:'none'}, c.p||{});
+  c.wkB = Object.assign({commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wkB||{});
+  (Array.isArray(c.privIns)?c.privIns:[]).forEach(x=>{ if(x.person!=='B') x.person='A'; });
   c.emps = Array.isArray(c.emps)?c.emps:[];
   c.emps.forEach(e=>{ if(e.person!=='B') e.person='A'; });
   c.kap = Array.isArray(c.kap)?c.kap:[];
@@ -693,40 +697,47 @@ function incTotals(c){
     a.wageTax+=N(e.wageTax); a.soli+=N(e.soli); a.church+=N(e.churchPaid);
     a.paid+=N(e.wageTax)+N(e.soli)+N(e.churchPaid)+N(e.churchSpouse)+N(e.lst11)+N(e.soli12)+N(e.kist13)+N(e.kistSp14);
     a.ersatz+=N(e.ersatz15);                       // Progressionsvorbehalt (line 15)
-    a.fahrtCredit+=N(e.fahrt17)+N(e.pausch18);     // reduces Entfernungspauschale (lines 17/18)
-    a.rv+=N(e.anRV)+N(e.anRVb); a.kv+=N(e.anKV); a.pv+=N(e.anPV); a.av+=N(e.anAV); a.pkv+=N(e.pkv28);
+    const isB=e.person==='B';
+    a[isB?'fahrtB':'fahrtA']+=N(e.fahrt17)+N(e.pausch18);   // reduces Entfernungspauschale (lines 17/18), per person
+    a.rv+=N(e.anRV)+N(e.anRVb); a.kv+=N(e.anKV); a.pv+=N(e.anPV); a[isB?'avB':'avA']+=N(e.anAV); a.pkv+=N(e.pkv28);
     return a; },
-    {gross:0,wageTax:0,soli:0,church:0,paid:0,ersatz:0,fahrtCredit:0,rv:0,kv:0,pv:0,av:0,pkv:0});
+    {gross:0,wageTax:0,soli:0,church:0,paid:0,ersatz:0,fahrtA:0,fahrtB:0,rv:0,kv:0,pv:0,avA:0,avB:0,pkv:0});
 }
 function computeEstimate(c){
   const year = c.taxYear || 2025;
   const inc = incTotals(c);
   const gross = inc.gross;
-  // Werbungskosten
-  const days = Math.min(N(c.wk.commuteDays), 366), km = N(c.wk.commuteKm);
-  const near = Math.min(km,20), far = Math.max(km-20,0);
-  const commute = Math.max(0, days*(near*0.30 + far*0.38) - inc.fahrtCredit);
-  const ho = Math.min(N(c.wk.homeOffice)*6, 1260);
-  // double household: rent capped €1,000/month + family home trips (Entfernungspauschale) + relocation
-  const dhhRent = Math.min(N(c.wk.dhhRent),1000) * Math.min(N(c.wk.dhhMonths),12);
-  const dKm = N(c.wk.dhhKm), dNear = Math.min(dKm,20), dFar = Math.max(dKm-20,0);
-  const dhhTrips = Math.min(N(c.wk.dhhTrips),52) * (dNear*0.30 + dFar*0.38);
-  // Arbeitnehmer-Pauschbetrag: €1,230 per employed person (A and B each, for joint assessment)
-  const workingPersons = new Set((c.emps||[]).filter(x=>N(x.gross)>0).map(x=>x.person==='B'?'B':'A'));
-  const pausch = 1230 * Math.max(1, c.p.marital==='married' ? workingPersons.size : 1);
-  const wk = Math.max(pausch, commute + ho + N(c.wk.equipment)+N(c.wk.training)+N(c.wk.other)
-                      + dhhRent + dhhTrips + N(c.wk.relocation));
-  // private insurances by tax category (net = contributions − reimbursements)
-  const priv=(c.privIns||[]).reduce((a,x)=>{
+  const joint = c.p.marital==='married';
+  // Werbungskosten per person: €1,230 lump sum each (if employed) OR actual costs, per person
+  const calcWK = (w,fCredit)=>{ w=w||{};
+    const days=Math.min(N(w.commuteDays),366), km=N(w.commuteKm);
+    const near=Math.min(km,20), far=Math.max(km-20,0);
+    const commute=Math.max(0, days*(near*0.30+far*0.38)-(fCredit||0));
+    const ho=Math.min(N(w.homeOffice)*6,1260);
+    const dhhRent=Math.min(N(w.dhhRent),1000)*Math.min(N(w.dhhMonths),12);
+    const dKm=N(w.dhhKm), dNear=Math.min(dKm,20), dFar=Math.max(dKm-20,0);
+    const dhhTrips=Math.min(N(w.dhhTrips),52)*(dNear*0.30+dFar*0.38);
+    return commute+ho+N(w.equipment)+N(w.training)+N(w.other)+dhhRent+dhhTrips+N(w.relocation); };
+  const employedB = joint && (c.emps||[]).some(x=>x.person==='B' && N(x.gross)>0);
+  const employedA = (c.emps||[]).some(x=>N(x.gross)>0 && (!joint || x.person!=='B'));
+  const costsA = calcWK(c.wk, inc.fahrtA + (joint?0:inc.fahrtB));
+  const costsB = joint ? calcWK(c.wkB, inc.fahrtB) : 0;
+  const wk = (employedA ? Math.max(1230,costsA) : costsA)
+           + (joint ? (employedB ? Math.max(1230,costsB) : costsB) : 0);
+  // private insurances by tax category AND person (caps apply per person)
+  const pins=(c.privIns||[]).reduce((a,x)=>{
     const net=Math.max(0, N(x.beitrag)-N(x.erstattung));
     const cat=INS_CAT[x.type]||'vorsorge';
-    a[cat]=(a[cat]||0)+net; a.total+=net; return a;
-  },{total:0,basis:0,alters:0,riester:0,vorsorge:0,none:0});
-  // Vorsorge from the statements (23a/b RV fully; 25 KV; 26 PV; 28 private KV/PV; AV + other private capped €1,900)
+    const per=(joint && x.person==='B')?'B':'A';
+    a[per][cat]+=net; a.total+=net; return a;
+  },{total:0,A:{basis:0,alters:0,riester:0,vorsorge:0,none:0},B:{basis:0,alters:0,riester:0,vorsorge:0,none:0}});
+  // Vorsorge: RV/KV/PV/PKV fully; the €1,900 "sonstige Vorsorge" pot applies PER PERSON
+  const avPotA = inc.avA + (joint?0:inc.avB) + N(c.ins.av) + N(c.ins.other) + pins.A.vorsorge;
   const vors = inc.rv + inc.kv + inc.pv + inc.pkv
-             + priv.basis + priv.alters
+             + pins.A.basis + pins.A.alters + pins.B.basis + pins.B.alters
              + N(c.ins.rv)+N(c.ins.kv)+N(c.ins.pv)   /* legacy values, if any */
-             + Math.min(inc.av + N(c.ins.av) + N(c.ins.other) + priv.vorsorge, 1900);
+             + Math.min(avPotA, 1900)
+             + (joint ? Math.min(inc.avB + pins.B.vorsorge, 1900) : 0);
   // Sonderausgaben incl. per-child childcare (2025: 80% max €4,800/child; before: 2/3 max €4,000) and school fees (30% max €5,000/child)
   const ccRate = year>=2025 ? {r:0.80,cap:4800} : {r:2/3,cap:4000};
   let childcare=0, school=0;
@@ -741,7 +752,8 @@ function computeEstimate(c){
     childcare = N(c.fam.childcare)>0 ? Math.min(N(c.fam.childcare)*ccRate.r, ccRate.cap*kidsN) : 0;
     school = Math.min(N(c.fam.schoolFees)*0.30, 5000);
   }
-  const sa = Math.max(36, N(c.sa.donations)+N(c.sa.other)) + childcare + school + Math.min(priv.riester, 2100);
+  const sa = Math.max(36, N(c.sa.donations)+N(c.sa.other)) + childcare + school
+             + Math.min(pins.A.riester, 2100) + (joint ? Math.min(pins.B.riester, 2100) : 0);
   // § 33a support to needy relatives: capped at Grundfreibetrag × country-group factor (no zumutbare Belastung)
   const grpFactor = {1:1, 2:0.75, 3:0.5, 4:0.25}[c.fam.supportGroup] ?? 1;
   const support = Math.min(N(c.fam.support), (TARIFF[year]||TARIFF[2025]).gfb * grpFactor);
@@ -750,7 +762,6 @@ function computeEstimate(c){
   // rental property (Anlage V): net result per property — losses reduce taxable income
   const propNet = (c.props||[]).reduce((a,p)=>a + (N(p.rent)-N(p.costs)), 0);
   const zvE = Math.max(0, gross + propNet - wk - vors - sa - agb);
-  const joint = c.p.marital==='married';
   const tariffT = z => joint ? 2*estBase(z/2, year) : estBase(z, year);
   // Progressionsvorbehalt: tax-free wage replacement (line 15) raises the rate applied to zvE
   let tax;
@@ -765,9 +776,12 @@ function computeEstimate(c){
   // Soli (simplified Freigrenze)
   const freig = joint ? 39900 : 19950;
   const soli = taxAfter > freig ? taxAfter*0.055 : 0;
-  // church tax: 8% in Bayern & Baden-Württemberg, 9% elsewhere
+  // church tax: 8% BY/BW, 9% elsewhere — levied PER PERSON (half of the joint tax each)
   const kistRate = (c.p.bundesland==='Bayern'||c.p.bundesland==='Baden-Württemberg') ? 0.08 : 0.09;
-  const kist = (c.p.religion==='ev'||c.p.religion==='rk'||c.p.religion==='other') ? taxAfter*kistRate : 0;
+  const membA = ['ev','rk','other'].includes(c.p.religion);
+  const membB = ['ev','rk','other'].includes(c.p.spouseReligion);
+  const kistFactor = joint ? ((membA?0.5:0)+(membB?0.5:0)) : (membA?1:0);
+  const kist = taxAfter * kistRate * kistFactor;
   // capital gains (Anlage KAP): flat 25% + Soli after Sparer-Pauschbetrag (€1,000 / €2,000 joint)
   const kapGains = (c.kap||[]).reduce((a,k)=>a+N(k.gains),0);
   const kapPaid  = (c.kap||[]).reduce((a,k)=>a+N(k.taxPaid)+N(k.soliPaid),0);
@@ -1141,6 +1155,7 @@ function stepPersonal(c){
     <div class="grid2">
       ${F('p','spouseFirst',t('first_name'))} ${F('p','spouseLast',t('last_name'))}
       ${F('p','spouseBirth',t('birth_date'),{type:'date'})} ${F('p','spouseTaxId',t('tax_id'))}
+      ${F('p','spouseReligion',t('religion'),{select:[['none',t('rel_none')],['ev',t('rel_ev')],['rk',t('rel_rk')],['other',t('rel_other')]]})}
     </div>`:''}
   ${navRow()}`;
 }
@@ -1246,14 +1261,17 @@ function insSelect(item){
 }
 function stepPrivIns(c){
   const list=c.privIns||[];
+  const married=c.p.marital==='married';
+  const personOpts=[['A','A — '+(c.p.firstName||'Person A')],['B',('B — '+((c.p.spouseFirst||'')+' '+(c.p.spouseLast||'')).trim()).trim()]];
   const cards=list.map((x,i)=>{
     const net=Math.max(0,N(x.beitrag)-N(x.erstattung));
     const cat=INS_CAT[x.type];
     return `<div class="sum-group" style="margin-bottom:12px">
-    <div class="head"><span>${t('ins_type')} ${i+1}${x.type?' · '+esc(insLabel(x.type)):''}
+    <div class="head"><span>${t('ins_type')} ${i+1}${married?` <span class="chip ${x.person==='B'?'review':'submitted'}">${x.person==='B'?'B':'A'}</span>`:''}${x.type?' · '+esc(insLabel(x.type)):''}
       ${x.type?`<span class="chip ${cat==='none'?'review':'submitted'}" style="margin-left:8px">${t('cat_'+cat)}</span>`:''}</span>
       <span class="edit" onclick="delItem('privIns','${x.id}')">🗑 ${t('remove')}</span></div>
     <div style="padding:14px 16px">
+      ${married?`<div class="grid3">${LF('privIns',x,'person',t('person'),{select:personOpts})}</div>`:''}
       ${insSelect(x)}
       <div class="grid3">
         ${LF('privIns',x,'beitrag',t('beitrag'),{euro:true,ph:'0,00 €'})}
@@ -1274,7 +1292,7 @@ function stepPrivIns(c){
   </div><p style="font-size:12px;color:var(--ink-soft);margin-top:8px">${t('priv_note')}</p>` : '';
   return `<h2>${t('step_priv')}</h2><p class="lead">${t('s_priv_lead')}</p>
   ${cards}
-  <button class="btn btn-ghost btn-sm" onclick="addItem('privIns',{type:'',beitrag:'',erstattung:''})">＋ ${t('add_ins')}</button>
+  <button class="btn btn-ghost btn-sm" onclick="addItem('privIns',{person:'A',type:'',beitrag:'',erstattung:''})">＋ ${t('add_ins')}</button>
   ${totBox}
   ${docSection('privIns')}
   ${navRow()}`;
@@ -1358,6 +1376,25 @@ function stepWork(c){
     ${F('wk','dhhKm',t('dhh_km'),{euro:true,ph:'250'})}
   </div>
   ${F('wk','relocation',t('relocation'),{euro:true,ph:'0,00 €'})}
+  ${c.p.marital==='married'?`
+  <div class="section-label">Person B — ${esc((c.p.spouseFirst||'')+' '+(c.p.spouseLast||'')).trim()||t('spouse')}</div>
+  <div class="grid3">
+    ${F('wkB','commuteDays',t('commute_days'),{euro:true,ph:'220'})}
+    ${F('wkB','commuteKm',t('commute_km'),{euro:true,ph:'15'})}
+    ${F('wkB','homeOffice',t('home_office'),{euro:true,ph:'60'})}
+  </div>
+  <div class="grid3">
+    ${F('wkB','equipment',t('equipment'),{euro:true,ph:'0,00 €'})}
+    ${F('wkB','training',t('training'),{euro:true,ph:'0,00 €'})}
+    ${F('wkB','other',t('other_wk'),{euro:true,ph:'0,00 €'})}
+  </div>
+  <div class="grid2">
+    ${F('wkB','dhhRent',t('dhh_rent'),{euro:true,ph:'0,00 €'})}
+    ${F('wkB','dhhMonths',t('dhh_months'),{euro:true,ph:'12'})}
+    ${F('wkB','dhhTrips',t('dhh_trips'),{euro:true,ph:'46'})}
+    ${F('wkB','dhhKm',t('dhh_km'),{euro:true,ph:'250'})}
+  </div>
+  ${F('wkB','relocation',t('relocation'),{euro:true,ph:'0,00 €'})}`:''}
   ${docSection('wk')}
   ${navRow()}`;
 }
@@ -1481,7 +1518,11 @@ function stepSummary(c){
   ${sumGroup(t('work_exp'),2,[
     [t('commute_days'),c.wk.commuteDays],[t('commute_km'),c.wk.commuteKm],[t('home_office'),c.wk.homeOffice],
     [t('equipment'),m(c.wk.equipment)],[t('training'),m(c.wk.training)],[t('other_wk'),m(c.wk.other)],
-    [t('dhh_rent'),m(c.wk.dhhRent)],[t('dhh_trips'),c.wk.dhhTrips],[t('relocation'),m(c.wk.relocation)]])}
+    [t('dhh_rent'),m(c.wk.dhhRent)],[t('dhh_trips'),c.wk.dhhTrips],[t('relocation'),m(c.wk.relocation)],
+    ...(marr?[
+      ['(B) '+t('commute_days'),c.wkB.commuteDays],['(B) '+t('commute_km'),c.wkB.commuteKm],['(B) '+t('home_office'),c.wkB.homeOffice],
+      ['(B) '+t('equipment'),m(c.wkB.equipment)],['(B) '+t('training'),m(c.wkB.training)],['(B) '+t('other_wk'),m(c.wkB.other)],
+      ['(B) '+t('dhh_rent'),m(c.wkB.dhhRent)],['(B) '+t('relocation'),m(c.wkB.relocation)]]:[])])}
   ${sumGroup(t('step_fam'),3,[...kidRows,
     [t('support_amount'),m(c.fam.support)],
     [t('support_where'),N(c.fam.support)>0?{1:t('grp1'),2:t('grp2'),3:t('grp3'),4:t('grp4')}[c.fam.supportGroup]:'']])}
@@ -1565,7 +1606,8 @@ function buildElsterDataset(c){
         geburtsdatum:c.p.birthDate, beruf:c.p.profession, religion:rel,
         anschrift:{ strasse:c.p.street, hausnummer:c.p.houseNo, plz:c.p.plz, ort:c.p.city } },
       personB: c.p.marital==='married'?{ idnr:(c.p.spouseTaxId||'').replace(/\s/g,''),
-        name:c.p.spouseLast, vorname:c.p.spouseFirst, geburtsdatum:c.p.spouseBirth }:null,
+        name:c.p.spouseLast, vorname:c.p.spouseFirst, geburtsdatum:c.p.spouseBirth,
+        religion:({none:'--',ev:'EV',rk:'RK',other:'VD'}[c.p.spouseReligion]||'--') }:null,
       bankverbindung:{ iban:(c.p.iban||'').replace(/\s/g,'') },
       mitwirkungBerater:true },
     anlageN:(c.emps||[]).map(k=>({ person:k.person==='B'?'B':'A', arbeitgeber:k.employer||'', zeile1_zeitraum:k.period||'',
@@ -1583,12 +1625,17 @@ function buildElsterDataset(c){
       zeile25_anGKV:N(k.anKV), zeile26_anPV:N(k.anPV), zeile27_anAV:N(k.anAV), zeile28_pkvMindest:N(k.pkv28),
       zeile29_bmgVersorgungsfreibetrag:N(k.bmg29), zeile30_versorgungsbeginn:k.vbJahr30||'',
       zeile31_monate:k.vbMon31||'', zeile32_sterbegeld:N(k.sterbe32), zeile34_dbaTuerkei:N(k.fb34) })),
-    werbungskosten:{ entfernungspauschale:{ arbeitstage:N(c.wk.commuteDays), einfacheEntfernungKm:N(c.wk.commuteKm) },
-      homeofficeTage:N(c.wk.homeOffice), arbeitsmittel:N(c.wk.equipment), fortbildung:N(c.wk.training),
-      sonstige:N(c.wk.other), doppelteHaushaltsfuehrung:{ monatsmiete:N(c.wk.dhhRent), monate:N(c.wk.dhhMonths),
-        familienheimfahrten:N(c.wk.dhhTrips), entfernungKm:N(c.wk.dhhKm) }, umzugskosten:N(c.wk.relocation) },
+    werbungskosten:{
+      personA:{ entfernungspauschale:{ arbeitstage:N(c.wk.commuteDays), einfacheEntfernungKm:N(c.wk.commuteKm) },
+        homeofficeTage:N(c.wk.homeOffice), arbeitsmittel:N(c.wk.equipment), fortbildung:N(c.wk.training),
+        sonstige:N(c.wk.other), doppelteHaushaltsfuehrung:{ monatsmiete:N(c.wk.dhhRent), monate:N(c.wk.dhhMonths),
+          familienheimfahrten:N(c.wk.dhhTrips), entfernungKm:N(c.wk.dhhKm) }, umzugskosten:N(c.wk.relocation) },
+      personB: c.p.marital==='married' ? { entfernungspauschale:{ arbeitstage:N(c.wkB.commuteDays), einfacheEntfernungKm:N(c.wkB.commuteKm) },
+        homeofficeTage:N(c.wkB.homeOffice), arbeitsmittel:N(c.wkB.equipment), fortbildung:N(c.wkB.training),
+        sonstige:N(c.wkB.other), doppelteHaushaltsfuehrung:{ monatsmiete:N(c.wkB.dhhRent), monate:N(c.wkB.dhhMonths),
+          familienheimfahrten:N(c.wkB.dhhTrips), entfernungKm:N(c.wkB.dhhKm) }, umzugskosten:N(c.wkB.relocation) } : null },
     anlageVorsorgeaufwand:{ ausLohnsteuerbescheinigungen:{ rv:inc.rv, gkv:inc.kv, pv:inc.pv, av:inc.av, pkv28:inc.pkv },
-      privateVersicherungen:(c.privIns||[]).map(x=>({ typ:x.type, bezeichnung:insLabel(x.type),
+      privateVersicherungen:(c.privIns||[]).map(x=>({ person:x.person==='B'?'B':'A', typ:x.type, bezeichnung:insLabel(x.type),
         kategorie:INS_CAT[x.type]||'', beitrag:N(x.beitrag), erstattung:N(x.erstattung),
         netto:Math.max(0,N(x.beitrag)-N(x.erstattung)) })), sonstigeVersicherungen:N(c.ins.other) },
     anlageKind:(c.fam.children||[]).map(k=>({ vorname:k.name, geburtsdatum:k.birth, idnr:(k.taxId||'').replace(/\s/g,''),
@@ -1689,6 +1736,11 @@ async function exportPDF(){
   row(t('commute_days'),c.wk.commuteDays); row(t('commute_km'),c.wk.commuteKm); row(t('home_office'),c.wk.homeOffice);
   row(t('equipment'),m(c.wk.equipment)); row(t('training'),m(c.wk.training)); row(t('other_wk'),m(c.wk.other));
   row(t('dhh_rent'),m(c.wk.dhhRent)); row(t('dhh_trips'),c.wk.dhhTrips); row(t('relocation'),m(c.wk.relocation));
+  if(c.p.marital==='married'){
+    row('(B) '+t('commute_days'),c.wkB.commuteDays); row('(B) '+t('commute_km'),c.wkB.commuteKm); row('(B) '+t('home_office'),c.wkB.homeOffice);
+    row('(B) '+t('equipment'),m(c.wkB.equipment)); row('(B) '+t('training'),m(c.wkB.training)); row('(B) '+t('other_wk'),m(c.wkB.other));
+    row('(B) '+t('dhh_rent'),m(c.wkB.dhhRent)); row('(B) '+t('relocation'),m(c.wkB.relocation));
+  }
   y+=3; section(t('step_fam'));
   (c.fam.children||[]).forEach((k,i)=>{
     row(`${t('child')} ${i+1}${k.name?' — '+k.name:''}`, [k.birth,k.taxId].filter(Boolean).join(' · ')||' ');
