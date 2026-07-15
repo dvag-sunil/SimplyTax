@@ -306,6 +306,7 @@ en: {
   tot_deduct:"Thereof tax-relevant (before caps)",
   priv_note:"Deduction caps (€1,900 other provision, €2,100 Riester) are applied automatically in the refund estimate.",
   export_elster:"Export ELSTER dataset (JSON)",
+  person:"Belongs to (person)", person_b_detect:"Assigned to Person B (spouse) — Identifikationsnummer did not match Person A.",
   privacy_foot:"Prototype · Data is stored only in this workspace · GDPR-compliant hosting planned for production"
 },
 de: {
@@ -443,6 +444,7 @@ de: {
   tot_deduct:"Davon steuerlich relevant (vor Höchstbeträgen)",
   priv_note:"Höchstbeträge (1.900 € sonstige Vorsorge, 2.100 € Riester) werden in der Erstattungsschätzung automatisch angewendet.",
   export_elster:"ELSTER-Datensatz exportieren (JSON)",
+  person:"Gehört zu (Person)", person_b_detect:"Person B (Ehepartner) zugeordnet — Identifikationsnummer stimmte nicht mit Person A überein.",
   privacy_foot:"Prototyp · Daten werden nur in diesem Arbeitsbereich gespeichert · DSGVO-konformes Hosting für die Produktion geplant"
 }};
 
@@ -546,6 +548,7 @@ async function loadState(){
 function migrateClient(c){
   c.p = Object.assign({faNumber:'',bundesland:''}, c.p||{});
   c.emps = Array.isArray(c.emps)?c.emps:[];
+  c.emps.forEach(e=>{ if(e.person!=='B') e.person='A'; });
   c.kap = Array.isArray(c.kap)?c.kap:[];
   c.props = Array.isArray(c.props)?c.props:[];
   c.privIns = Array.isArray(c.privIns)?c.privIns:[];
@@ -708,7 +711,10 @@ function computeEstimate(c){
   const dhhRent = Math.min(N(c.wk.dhhRent),1000) * Math.min(N(c.wk.dhhMonths),12);
   const dKm = N(c.wk.dhhKm), dNear = Math.min(dKm,20), dFar = Math.max(dKm-20,0);
   const dhhTrips = Math.min(N(c.wk.dhhTrips),52) * (dNear*0.30 + dFar*0.38);
-  const wk = Math.max(1230, commute + ho + N(c.wk.equipment)+N(c.wk.training)+N(c.wk.other)
+  // Arbeitnehmer-Pauschbetrag: €1,230 per employed person (A and B each, for joint assessment)
+  const workingPersons = new Set((c.emps||[]).filter(x=>N(x.gross)>0).map(x=>x.person==='B'?'B':'A'));
+  const pausch = 1230 * Math.max(1, c.p.marital==='married' ? workingPersons.size : 1);
+  const wk = Math.max(pausch, commute + ho + N(c.wk.equipment)+N(c.wk.training)+N(c.wk.other)
                       + dhhRent + dhhTrips + N(c.wk.relocation));
   // private insurances by tax category (net = contributions − reimbursements)
   const priv=(c.privIns||[]).reduce((a,x)=>{
@@ -1146,10 +1152,15 @@ function stepIncome(c){
   else if(S.scanState==='ok') scan=`<div class="extract-ok">✓ ${t('scan_ok')}</div>`;
   else if(S.scanState==='err') scan=`<div class="extract-err">${t('scan_err')}</div>`;
   const emps=c.emps||[];
+  const married=c.p.marital==='married';
+  const personOpts=[['A','A — '+(c.p.firstName||'Person A')],['B','B — '+((c.p.spouseFirst||'')+' '+(c.p.spouseLast||'')).trim()||'B — Person B']];
   const cards=emps.map((emp,i)=>`<div class="sum-group" style="margin-bottom:12px">
-    <div class="head"><span>${t('statement')} ${i+1}${emp.employer?' · '+esc(emp.employer):''}</span>
+    <div class="head"><span>${t('statement')} ${i+1}
+      ${married?`<span class="chip ${emp.person==='B'?'review':'submitted'}" style="margin-left:6px">${emp.person==='B'?'B':'A'}</span>`:''}
+      ${emp.employer?' · '+esc(emp.employer):''}</span>
       <span class="edit" onclick="delItem('emps','${emp.id}')">🗑 ${t('remove')}</span></div>
     <div style="padding:14px 16px">
+      ${married?`<div class="grid3">${LF('emps',emp,'person',t('person'),{select:personOpts})}</div>`:''}
       <div class="grid3">
         ${LF('emps',emp,'employer',t('employer'))}
         ${LF('emps',emp,'period',t('period'),{ph:'01.01. – 31.12.'})}
@@ -1216,7 +1227,7 @@ function stepIncome(c){
   <p style="font-size:12.5px;color:var(--ink-soft);margin-top:10px">${t('upload_new_hint')} ${t('ai_personal_note')} ${t('manual_hint')}</p>
   <div class="section-label">${t('income')}</div>
   ${cards}
-  <button class="btn btn-ghost btn-sm" onclick="addItem('emps',{employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:''})">＋ ${t('add_emp')}</button>
+  <button class="btn btn-ghost btn-sm" onclick="addItem('emps',{person:'A',employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:''})">＋ ${t('add_emp')}</button>
   ${warnTax?`<div class="warn">⚠️ ${t('warn_taxhigh')}</div>`:''}
   ${navRow()}`;
 }
@@ -1434,8 +1445,9 @@ function stepSummary(c){
       N(k.schoolFees)>0?t('sf_short')+': '+eur(N(k.schoolFees)):''
     ].filter(Boolean).join(' · '))]);
   const empRows=[];
+  const marr=c.p.marital==='married';
   (c.emps||[]).forEach((k,i)=>{
-    empRows.push([`${t('statement')} ${i+1}${k.employer?' — '+esc(k.employer):''}`,
+    empRows.push([`${t('statement')} ${i+1}${marr?' ('+(k.person==='B'?'B':'A')+')':''}${k.employer?' — '+esc(k.employer):''}`,
       esc([k.taxClass?'StKl '+k.taxClass:'',
         N(k.gross)>0?t('gross_short')+': '+eur(N(k.gross)):'',
         N(k.wageTax)>0?'LSt: '+eur(N(k.wageTax)):'',
@@ -1556,7 +1568,7 @@ function buildElsterDataset(c){
         name:c.p.spouseLast, vorname:c.p.spouseFirst, geburtsdatum:c.p.spouseBirth }:null,
       bankverbindung:{ iban:(c.p.iban||'').replace(/\s/g,'') },
       mitwirkungBerater:true },
-    anlageN:(c.emps||[]).map(k=>({ arbeitgeber:k.employer||'', zeile1_zeitraum:k.period||'',
+    anlageN:(c.emps||[]).map(k=>({ person:k.person==='B'?'B':'A', arbeitgeber:k.employer||'', zeile1_zeitraum:k.period||'',
       steuerklasse:k.taxClass||'', kinderfreibetraege:k.kfb||'',
       zeile3_bruttoarbeitslohn:N(k.gross), zeile4_lohnsteuer:N(k.wageTax), zeile5_soli:N(k.soli),
       zeile6_kirchensteuer:N(k.churchPaid), zeile7_kirchensteuerEhegatte:N(k.churchSpouse),
@@ -1661,7 +1673,8 @@ async function exportPDF(){
   row(t('iban'), c.p.iban);
   y+=3; section(t('income'));
   (c.emps||[]).forEach((k,i)=>{
-    row(`${t('statement')} ${i+1}${k.employer?' — '+k.employer:''}`, [k.period, k.taxClass?'StKl '+k.taxClass:''].filter(Boolean).join(' · ')||' ');
+    const ab=c.p.marital==='married'?' ('+(k.person==='B'?'B':'A')+')':'';
+    row(`${t('statement')} ${i+1}${ab}${k.employer?' — '+k.employer:''}`, [k.period, k.taxClass?'StKl '+k.taxClass:''].filter(Boolean).join(' · ')||' ');
     if(N(k.gross)>0) row('    '+t('gross_short'), eur(N(k.gross)));
     if(N(k.wageTax)>0) row('    '+t('wage_tax'), eur(N(k.wageTax)));
     if(N(k.soli)>0) row('    '+t('soli'), eur(N(k.soli)));
@@ -1785,12 +1798,25 @@ Mapping (Zeile = numbered line on the form): employer = employer name (Anschrift
       S.aiFields['emps.'+emp.id+'.'+k]=true;
     });
     (c.emps=c.emps||[]).push(emp);
-    /* personal data: fill ONLY if still empty; the Finanzamt on the form is the employer's and is ignored */
-    if(j.idnr && !(c.p.taxId||'').trim()){ c.p.taxId=String(j.idnr); S.aiFields['p.taxId']=true; }
-    if(j.birthDate && !(c.p.birthDate||'').trim()){
-      let b=String(j.birthDate).trim();
-      const dmy=b.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); if(dmy) b=`${dmy[3]}-${dmy[2]}-${dmy[1]}`;
-      if(/^\d{4}-\d{2}-\d{2}$/.test(b)){ c.p.birthDate=b; S.aiFields['p.birthDate']=true; }
+    /* person A/B detection via Identifikationsnummer (married couples) */
+    emp.person='A';
+    const idnrClean=j.idnr?String(j.idnr).replace(/\s/g,''):'';
+    const aId=(c.p.taxId||'').replace(/\s/g,''), bId=(c.p.spouseTaxId||'').replace(/\s/g,'');
+    if(c.p.marital==='married' && idnrClean){
+      if(bId && idnrClean===bId){ emp.person='B'; }
+      else if(aId && idnrClean!==aId){
+        emp.person='B';
+        if(!bId){ c.p.spouseTaxId=String(j.idnr); S.aiFields['p.spouseTaxId']=true; }
+      }
+    }
+    /* personal data: fill ONLY if still empty and the document belongs to person A; employer's Finanzamt is ignored */
+    if(emp.person==='A'){
+      if(j.idnr && !(c.p.taxId||'').trim()){ c.p.taxId=String(j.idnr); S.aiFields['p.taxId']=true; }
+      if(j.birthDate && !(c.p.birthDate||'').trim()){
+        let b=String(j.birthDate).trim();
+        const dmy=b.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); if(dmy) b=`${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+        if(/^\d{4}-\d{2}-\d{2}$/.test(b)){ c.p.birthDate=b; S.aiFields['p.birthDate']=true; }
+      }
     }
     c.updatedAt=Date.now(); scheduleSave();
     S.scanState='ok';
