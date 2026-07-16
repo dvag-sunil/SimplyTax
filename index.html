@@ -1811,13 +1811,57 @@ function exportElster(){
 function pdfSafe(s){ return String(s??'').replace(/[\u00A0\u202F]/g,' '); }
 async function ensureJsPDF(){
   if(window.jspdf && window.jspdf.jsPDF) return true;
-  return new Promise(res=>{ const s=document.createElement('script');
-    s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-    s.onload=()=>res(true); s.onerror=()=>res(false); document.head.appendChild(s); });
+  const load = src => new Promise(res=>{ const s=document.createElement('script');
+    s.src=src; s.onload=()=>res(true); s.onerror=()=>res(false); document.head.appendChild(s); });
+  if(await load('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js') && window.jspdf) return true;
+  if(await load('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js') && window.jspdf) return true;
+  return !!(window.jspdf && window.jspdf.jsPDF);
 }
 async function exportPDF(){
-  if(!await ensureJsPDF()){ alert(t('pdf_fail')); return; }
   const c=cur(); if(!c) return;
+  if(!await ensureJsPDF()){ printFallback(c); return; }
+  try{ buildPDF(c); }
+  catch(err){ console.error('PDF generation failed:', err); printFallback(c); }
+}
+/* fallback: print-ready window (browser "Save as PDF") — works without any external library */
+function printFallback(c){
+  const e=computeEstimate(c);
+  const prac=(S.user&&S.user.settings)||{};
+  const m=v=>N(v)>0?eur(N(v)):'';
+  const sec=(title,rows)=>{ const body=rows.filter(r=>r[1]).map(r=>`<tr><td>${esc(r[0])}</td><td style="text-align:right;font-weight:600">${esc(r[1])}</td></tr>`).join('');
+    return body?`<h3>${esc(title)}</h3><table>${body}</table>`:''; };
+  const empRows=(c.emps||[]).map((k,i)=>[`${t('statement')} ${i+1}${k.employer?' — '+k.employer:''}`,
+    [N(k.gross)>0?t('gross_short')+' '+eur(N(k.gross)):'', N(k.wageTax)>0?'LSt '+eur(N(k.wageTax)):''].filter(Boolean).join(' · ')]);
+  const pos=e.refund>=0;
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(t('pdf_title'))}</title>
+  <style>body{font-family:Georgia,serif;max-width:720px;margin:24px auto;color:#12283A;font-size:14px}
+  h1{font-size:20px;border-bottom:3px solid #0E7C66;padding-bottom:8px} h3{color:#0E7C66;font-size:13px;text-transform:uppercase;letter-spacing:.05em;margin:18px 0 6px;border-bottom:1px solid #DFE7E4}
+  table{width:100%;border-collapse:collapse} td{padding:3px 0;font-size:13px}
+  .box{background:#E6F2ED;border-radius:8px;padding:14px 18px;margin-top:20px}
+  .big{font-size:19px;font-weight:700;color:${pos?'#0E7C66':'#B4432F'}} .foot{margin-top:18px;font-size:11px;color:#647482}</style></head><body>
+  <h1>${esc(prac.practiceName||S.user?.name||'SimplyTax')} — ${esc(t('pdf_title'))}</h1>
+  <p><b>${esc(c.p.firstName+' '+c.p.lastName)}</b> · ${t('tax_year')} ${c.taxYear} · ${c.status==='submitted'?t('status_submitted')+' '+dateStr(c.submittedAt):t('status_draft')}</p>
+  ${sec(t('income'),empRows)}
+  ${sec(t('work_exp'),[[t('commute_days'),c.wk.commuteDays],[t('equipment'),m(c.wk.equipment)],[t('training'),m(c.wk.training)]])}
+  ${sec(t('special_exp'),[[t('donations'),m(c.sa.donations)]])}
+  <div class="box"><h3 style="border:none;margin-top:0">${esc(t('pdf_est'))}</h3>
+    <table><tr><td>${t('m_zve')}</td><td style="text-align:right">${eur(e.zvE)}</td></tr>
+    <tr><td>${t('m_tax')}</td><td style="text-align:right">${eur(e.tax)}</td></tr>
+    <tr><td>${t('m_paid')}</td><td style="text-align:right">${eur(e.paid)}</td></tr></table>
+    <div class="big">${pos?t('meter_title'):t('meter_nach')}: ${eur(Math.abs(e.refund))}</div></div>
+  <p class="foot">${esc(t('meter_foot'))} · ${t('pdf_generated')} ${dateStr(Date.now())}</p>
+  <script>window.print();</scr`+`ipt></body></html>`;
+  /* CSP-safe: sandboxed environments allow only 'self' and blob: for frames — so open a Blob URL, never about:blank */
+  const url = URL.createObjectURL(new Blob([html],{type:'text/html'}));
+  let w = null;
+  try{ w = window.open(url,'_blank'); }catch(e){}
+  if(!w){
+    const a=document.createElement('a'); a.href=url; a.target='_blank'; a.rel='noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  setTimeout(()=>URL.revokeObjectURL(url), 60000);
+}
+function buildPDF(c){
   const e=computeEstimate(c);
   const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});
   const ML=18, MR=192; let y=0;
@@ -1952,7 +1996,14 @@ async function exportPDF(){
     doc.text(pdfSafe(`${t('pdf_generated')} ${dateStr(Date.now())} · ${prac.practiceName||S.user?.name||'SimplyTax'}`), ML, 292);
     doc.text(pdfSafe(`${t('pdf_page')} ${i}/${pages}`), MR, 292, {align:'right'}); }
   const safeName=(c.p.lastName||'Client').replace(/[^A-Za-z0-9ÄÖÜäöüß_-]/g,'');
-  doc.save(`Steuererklaerung_${c.taxYear}_${safeName}.pdf`);
+  const fname=`Steuererklaerung_${c.taxYear}_${safeName}.pdf`;
+  try{ doc.save(fname); }
+  catch(e){
+    /* sandboxed environments: deliver via blob URL anchor instead */
+    const url=doc.output('bloburl');
+    const a=document.createElement('a'); a.href=url; a.download=fname; a.rel='noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
 }
 
 /* ---------------- AI extraction (Lohnsteuerbescheinigung) ---------------- */
