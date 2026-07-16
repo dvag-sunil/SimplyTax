@@ -169,6 +169,22 @@
    English default · German toggle · in-memory + persistent storage
 ===================================================================== */
 
+/* =====================================================================
+   BACKEND TOGGLE — set enabled:true and your API URL to use the PostgreSQL
+   backend (see /backend). false = local/browser storage only (current mode).
+===================================================================== */
+const BACKEND = { enabled:false, baseUrl:'https://api.your-domain.de' };
+let authToken = null;
+async function api(path, method='GET', body){
+  const r = await fetch(BACKEND.baseUrl+path, {
+    method,
+    headers:{ 'Content-Type':'application/json', ...(authToken?{Authorization:'Bearer '+authToken}:{}) },
+    body: body?JSON.stringify(body):undefined });
+  const data = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(data.error || ('HTTP '+r.status));
+  return data;
+}
+
 /* ---------------- i18n ---------------- */
 const STR = {
 en: {
@@ -595,15 +611,33 @@ async function kvDel(k){
 
 async function saveState(){
   await kvSet('klarsteuer-prefs', JSON.stringify({lang:S.lang}));
-  if(S.user) await kvSet('klarsteuer-data-'+S.user.id, JSON.stringify({clients:S.clients}));
+  if(!S.user) return;
+  if(BACKEND.enabled){
+    try{ await api('/api/clients/bulk','PUT',{clients:S.clients}); }
+    catch(e){ console.error('backend sync failed:', e.message); }
+    return;
+  }
+  await kvSet('klarsteuer-data-'+S.user.id, JSON.stringify({clients:S.clients}));
 }
 async function loadUserData(){
+  if(BACKEND.enabled){
+    try{ const r=await api('/api/clients'); S.clients=(r.clients||[]).map(migrateClient); }
+    catch(e){ console.error('backend load failed:', e.message); S.clients=[]; }
+    return;
+  }
   const v=await kvGet('klarsteuer-data-'+S.user.id);
   let cl=[]; if(v){ try{ cl=JSON.parse(v).clients||[]; }catch(e){} }
   S.clients=cl.map(migrateClient);
 }
 async function loadState(){
   const p=await kvGet('klarsteuer-prefs'); if(p){ try{ S.lang=JSON.parse(p).lang||'en'; }catch(e){} }
+  if(BACKEND.enabled){
+    const tok=await kvGet('klarsteuer-token');
+    if(tok){ authToken=tok;
+      try{ const r=await api('/api/auth/me'); S.user=r.user; await loadUserData(); S.loggedIn=true; S.view='dash'; }
+      catch(e){ authToken=null; await kvDel('klarsteuer-token'); } }
+    return;
+  }
   const acc=await kvGet('klarsteuer-accounts'); if(acc){ try{ S.accounts=JSON.parse(acc)||[]; }catch(e){} }
   const sess=await kvGet('klarsteuer-session');
   if(sess){ const u=S.accounts.find(a=>a.id===sess);
@@ -669,6 +703,13 @@ async function doLogin(){
   const email=(document.getElementById('lg-email')?.value||'').trim().toLowerCase();
   const pass=document.getElementById('lg-pass')?.value||'';
   if(!email||!pass){ authErr(t('err_fields')); return; }
+  if(BACKEND.enabled){
+    try{ const r=await api('/api/auth/login','POST',{email,password:pass});
+      authToken=r.token; S.user=r.user; await kvSet('klarsteuer-token',r.token);
+      await loadUserData(); S.loggedIn=true; S.view='dash'; render();
+    }catch(e){ authErr(e.message==='bad_credentials'?t('err_creds'):t('err_creds')); }
+    return;
+  }
   const h=await hashPass(email,pass);
   const u=S.accounts.find(a=>a.email===email && a.passHash===h);
   if(!u){ authErr(t('err_creds')); return; }
@@ -682,6 +723,13 @@ async function doRegister(){
   if(!name||!email||!p1||!p2){ authErr(t('err_fields')); return; }
   if(p1.length<8){ authErr(t('err_short')); return; }
   if(p1!==p2){ authErr(t('err_match')); return; }
+  if(BACKEND.enabled){
+    try{ const r=await api('/api/auth/register','POST',{name,email,password:p1});
+      authToken=r.token; S.user=r.user; await kvSet('klarsteuer-token',r.token);
+      S.clients=[]; S.loggedIn=true; S.view='dash'; render();
+    }catch(e){ authErr(e.message==='email_exists'?t('err_exists'):t('err_fields')); }
+    return;
+  }
   if(S.accounts.some(a=>a.email===email)){ authErr(t('err_exists')); return; }
   const u={ id:uid(), name, email, passHash:await hashPass(email,p1), createdAt:Date.now(), twoFA:false };
   S.accounts.push(u);
@@ -697,7 +745,7 @@ async function doRegister(){
   S.loggedIn=true; S.view='dash'; render();
 }
 async function logout(){
-  await kvDel('klarsteuer-session');
+  await kvDel('klarsteuer-session'); await kvDel('klarsteuer-token'); authToken=null;
   S.user=null; S.clients=[]; S.loggedIn=false; S.view='login'; S.authMode='login'; render();
 }
 function setLang(l){ S.lang=l; scheduleSave(); render(); }
