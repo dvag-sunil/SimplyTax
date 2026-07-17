@@ -1,0 +1,26 @@
+# Render Blueprint — deploy the SimplyTax API with "New +" -> "Blueprint" on render.com
+# Secrets (sync: false) are entered once in the Render dashboard, never stored in git.
+services:
+  - type: web
+    name: simplytax-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL          # Supabase -> Settings -> Database -> Session pooler URI
+        sync: false                #   postgres://postgres.erctmlhbupumvtnixlnc:[PASSWORD]@aws-0-eu-west-2.pooler.supabase.com:5432/postgres
+      - key: JWT_SECRET            # long random string, 64+ characters
+        sync: false
+      - key: ALLOWED_ORIGIN
+        value: https://dvag-sunil.github.io
+      - key: FRONTEND_URL
+        value: https://dvag-sunil.github.io/SimplyTax/
+      - key: PRICE_CENTS
+        value: "995"
+      - key: STRIPE_SECRET_KEY     # leave empty until payments go live
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET # leave empty until payments go live
+        sync: false
