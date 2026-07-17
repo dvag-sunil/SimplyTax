@@ -30,3 +30,14 @@ CREATE TABLE IF NOT EXISTS audit_log (                -- prepared for the monito
   detail     jsonb NOT NULL DEFAULT '{}',
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS payments (
+  id           bigserial PRIMARY KEY,
+  user_id      uuid REFERENCES users(id) ON DELETE SET NULL,
+  client_id    text,
+  session_id   text UNIQUE NOT NULL,
+  amount_cents integer NOT NULL,
+  currency     text NOT NULL DEFAULT 'eur',
+  status       text NOT NULL DEFAULT 'paid',
+  created_at   timestamptz NOT NULL DEFAULT now()
+);

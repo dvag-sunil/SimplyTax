@@ -177,7 +177,12 @@ const BACKEND = { enabled:false, baseUrl:'https://api.your-domain.de' };
 /* PAYMENT TOGGLE — Steuerfuchs model: preparation & calculation free, payment unlocks
    PDF download + ELSTER submission PER RETURN. Prototype simulates the payment;
    production connects Stripe Checkout via the backend (see production checklist). */
-const PAYMENT = { enabled:false, pricePerReturn:9.95, currency:'EUR' };
+const PAYMENT = {
+  enabled:false,
+  provider:'simulated',   // 'simulated' | 'stripe_link' (no backend needed) | 'stripe_backend' (with Supabase/API)
+  paymentLink:'https://buy.stripe.com/REPLACE_ME',  // for 'stripe_link': create in Stripe Dashboard -> Payment Links
+  pricePerReturn:9.95, currency:'EUR'
+};
 const isPaid = c => !PAYMENT.enabled || (c && c.pay && c.pay.status==='paid');
 function showPayModal(){
   const c=cur(); const slot=document.getElementById('modal-slot'); if(!c||!slot) return;
@@ -194,13 +199,43 @@ function showPayModal(){
 }
 async function payNow(){
   const c=cur(); if(!c) return;
-  /* production: const s=await api('/api/payments/checkout','POST',{clientId:c.id}); location.href=s.url;
-     the Stripe webhook then sets pay.status='paid' server-side. Prototype simulates: */
+  /* Level B: full Checkout via backend + webhook (tamper-proof) */
+  if(PAYMENT.provider==='stripe_backend' && BACKEND.enabled){
+    try{ const r=await api('/api/payments/checkout','POST',{clientId:c.id}); location.href=r.url; }
+    catch(e){ alert('Stripe: '+e.message); }
+    return;
+  }
+  /* Level A: Stripe Payment Link — works without a backend (beta-grade unlock) */
+  if(PAYMENT.provider==='stripe_link' && PAYMENT.paymentLink && !PAYMENT.paymentLink.includes('REPLACE_ME')){
+    await kvSet('klarsteuer-pending-pay', c.id);
+    location.href = PAYMENT.paymentLink + (PAYMENT.paymentLink.includes('?')?'&':'?')
+                  + 'client_reference_id=' + encodeURIComponent(c.id);
+    return;
+  }
+  /* simulated (prototype) */
   c.pay={ status:'paid', paidAt:Date.now(), amount:PAYMENT.pricePerReturn,
           txId:'PAY-'+Math.random().toString(36).slice(2,8).toUpperCase() };
   c.updatedAt=Date.now(); scheduleSave();
   const m=document.querySelector('.modal-bg'); if(m) m.remove();
   render();
+}
+/* on return from Stripe (success_url contains ?session_id=...) */
+async function handleStripeReturn(){
+  let qs=null; try{ qs=new URLSearchParams(location.search); }catch(e){ return; }
+  const sid=qs && qs.get('session_id'); if(!sid) return;
+  try{
+    if(PAYMENT.provider==='stripe_backend' && BACKEND.enabled){
+      const r=await api('/api/payments/verify','POST',{sessionId:sid});
+      const c=S.clients.find(x=>x.id===r.clientId);
+      if(r.paid && c){ c.pay={status:'paid',paidAt:Date.now(),amount:PAYMENT.pricePerReturn,txId:sid.slice(0,24)}; scheduleSave(); }
+    } else if(PAYMENT.provider==='stripe_link'){
+      const pend=await kvGet('klarsteuer-pending-pay');
+      const c=S.clients.find(x=>x.id===pend);
+      if(c){ c.pay={status:'paid',paidAt:Date.now(),amount:PAYMENT.pricePerReturn,txId:sid.slice(0,24)}; scheduleSave(); }
+      await kvDel('klarsteuer-pending-pay');
+    }
+  }catch(e){ console.error('stripe return:', e.message); }
+  try{ history.replaceState({},'',location.pathname); }catch(e){}
 }
 let authToken = null;
 async function api(path, method='GET', body){
@@ -2184,7 +2219,7 @@ Mapping (Zeile = numbered line on the form): employer = employer name (Anschrift
 }
 
 /* ---------------- boot ---------------- */
-(async()=>{ await loadState(); render(); })();
+(async()=>{ await loadState(); await handleStripeReturn(); render(); })();
 </script>
 </body>
 </html>

@@ -18,6 +18,40 @@ const app = express();
 app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({ origin: ALLOWED_ORIGIN.split(','), credentials: false }));
+
+/* ---------- Stripe (Level B: Checkout + webhook, tamper-proof) ---------- */
+const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
+const PRICE_CENTS = parseInt(process.env.PRICE_CENTS || '995', 10);
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dvag-sunil.github.io/SimplyTax/';
+async function markPaid(userId, clientId, sessionId, amountCents){
+  await pool.query(
+    `INSERT INTO payments(user_id, client_id, session_id, amount_cents, status)
+     VALUES ($1,$2,$3,$4,'paid') ON CONFLICT (session_id) DO NOTHING`,
+    [userId, clientId, sessionId, amountCents]);
+  await pool.query(
+    `UPDATE clients SET data = jsonb_set(data, '{pay}',
+       jsonb_build_object('status','paid','paidAt', (extract(epoch from now())*1000)::bigint,
+                          'amount', $3::numeric/100, 'txId', $4::text), true),
+       updated_at = now()
+     WHERE id=$1 AND user_id=$2`,
+    [clientId, userId, amountCents, sessionId.slice(0,24)]);
+}
+/* webhook uses the RAW body for signature verification — registered before express.json */
+app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  if (!stripe || !process.env.STRIPE_WEBHOOK_SECRET) return res.status(501).json({ error: 'stripe_disabled' });
+  let event;
+  try { event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], process.env.STRIPE_WEBHOOK_SECRET); }
+  catch (e) { return res.status(400).json({ error: 'bad_signature' }); }
+  if (event.type === 'checkout.session.completed') {
+    const sess = event.data.object;
+    if (sess.payment_status === 'paid' && sess.metadata?.userId && sess.metadata?.clientId) {
+      await markPaid(sess.metadata.userId, sess.metadata.clientId, sess.id, sess.amount_total || PRICE_CENTS);
+      audit(sess.metadata.userId, 'payment_webhook', { clientId: sess.metadata.clientId, session: sess.id });
+    }
+  }
+  res.json({ received: true });
+});
+
 app.use(express.json({ limit: '10mb' }));
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 30 }));   // brute-force protection
 app.use('/api', rateLimit({ windowMs: 60 * 1000, max: 120 }));
@@ -118,6 +152,34 @@ app.put('/api/clients/bulk', auth, async (req, res) => {
 app.delete('/api/clients/:id', auth, async (req, res) => {
   await pool.query('DELETE FROM clients WHERE id=$1 AND user_id=$2', [req.params.id, req.user.sub]);
   res.json({ ok: true });
+});
+
+/* create a Checkout session for one return */
+app.post('/api/payments/checkout', auth, async (req, res) => {
+  if (!stripe) return res.status(501).json({ error: 'stripe_disabled' });
+  const { clientId } = req.body || {};
+  if (!clientId) return res.status(400).json({ error: 'invalid_input' });
+  const session = await stripe.checkout.sessions.create({
+    mode: 'payment',
+    line_items: [{ quantity: 1, price_data: { currency: 'eur', unit_amount: PRICE_CENTS,
+      product_data: { name: 'SimplyTax — Freischaltung Steuererklärung' } } }],
+    client_reference_id: clientId,
+    metadata: { userId: req.user.sub, clientId },
+    success_url: FRONTEND_URL + '?session_id={CHECKOUT_SESSION_ID}',
+    cancel_url: FRONTEND_URL,
+  });
+  res.json({ url: session.url });
+});
+
+/* frontend verification after redirect (webhook remains the source of truth) */
+app.post('/api/payments/verify', auth, async (req, res) => {
+  if (!stripe) return res.status(501).json({ error: 'stripe_disabled' });
+  const { sessionId } = req.body || {};
+  if (!sessionId) return res.status(400).json({ error: 'invalid_input' });
+  const sess = await stripe.checkout.sessions.retrieve(sessionId);
+  const paid = sess.payment_status === 'paid' && sess.metadata?.userId === req.user.sub;
+  if (paid) await markPaid(req.user.sub, sess.metadata.clientId, sess.id, sess.amount_total || PRICE_CENTS);
+  res.json({ paid, clientId: sess.metadata?.clientId || null });
 });
 
 app.listen(PORT, () => console.log(`SimplyTax API listening on :${PORT}`));
