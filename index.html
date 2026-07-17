@@ -60,6 +60,10 @@
   details.more{margin:10px 0;border:1px dashed var(--line);border-radius:10px;padding:10px 14px;background:#FBFCFB}
   details.more summary{cursor:pointer;font-weight:800;font-size:11.5px;color:var(--teal);text-transform:uppercase;letter-spacing:.07em;user-select:none}
   details.more[open] summary{margin-bottom:12px}
+  .infobox{background:var(--blue-soft);border:1px solid #CBD9E8;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;line-height:1.5;clear:both}
+  .infobox .ib-row{margin:4px 0}
+  .info-btn{float:right;font-size:17px;color:var(--teal);padding:2px 8px;border-radius:8px}
+  .info-btn:hover{background:var(--teal-soft)}
 
   /* ---------- dashboard ---------- */
   .page-head{display:flex;align-items:flex-end;gap:16px;margin-bottom:22px;flex-wrap:wrap}
@@ -364,6 +368,7 @@ en: {
   k22:"…of which losses without share sales (line 22)", k23:"…of which losses from share sales (line 23)",
   k43:"Capital gains tax withheld (line 43)", k44:"Solidarity surcharge (line 44)", k45:"Church tax on capital gains tax (line 45)",
   kap_taxes:"Creditable taxes (lines 43–45)",
+  ib_what:"What to enter:", ib_docs:"Typical documents:", ib_anlage:"Tax form:",
   pay_title:"Unlock this tax return", pay_sub:"Preparation and calculation are free. Downloading the client PDF and submitting to ELSTER are enabled after payment for this return (one-time, per return).",
   pay_now:"Pay now", pay_locked:"Locked until payment", paid_on:"Paid on",
   pay_sim_note:"Prototype: the payment is simulated. In production, Stripe Checkout runs via the backend and a webhook unlocks the return.",
@@ -524,6 +529,7 @@ de: {
   k22:"…darin enthaltene Verluste ohne Aktienveräußerung (Zeile 22)", k23:"…darin enthaltene Verluste aus Aktienveräußerungen (Zeile 23)",
   k43:"Einbehaltene Kapitalertragsteuer (Zeile 43)", k44:"Solidaritätszuschlag (Zeile 44)", k45:"Kirchensteuer zur Kapitalertragsteuer (Zeile 45)",
   kap_taxes:"Anzurechnende Steuern (Zeilen 43–45)",
+  ib_what:"Was wird hier erfasst:", ib_docs:"Typische Unterlagen:", ib_anlage:"Steuerformular:",
   pay_title:"Diese Steuererklärung freischalten", pay_sub:"Erfassung und Berechnung sind kostenlos. PDF-Download und ELSTER-Übermittlung werden nach Zahlung für diese Erklärung freigeschaltet (einmalig, je Erklärung).",
   pay_now:"Jetzt bezahlen", pay_locked:"Bis zur Zahlung gesperrt", paid_on:"Bezahlt am",
   pay_sim_note:"Prototyp: Die Zahlung wird simuliert. In Produktion läuft Stripe Checkout über das Backend; ein Webhook schaltet die Erklärung frei.",
@@ -577,7 +583,7 @@ let S = {
   accounts:[], user:null, authMode:'login',
   clients:[], currentId:null, step:0,
   search:'', fStatus:'all', fYear:'all',
-  aiFields:{}, scanState:null, // null | 'scanning' | 'ok' | 'err'
+  aiFields:{}, scanState:null, infoOpen:false, // scanState: null | 'scanning' | 'ok' | 'err'
 };
 const t = k => (STR[S.lang][k] ?? k);
 const uid = () => 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -643,6 +649,43 @@ const WKI_TYPES=[
 ];
 const wkiLabel = k => { const x=WKI_TYPES.find(i=>i.k===k); return x ? (S.lang==='de'?x.de:x.en) : ''; };
 const wkiHint  = k => { const x=WKI_TYPES.find(i=>i.k===k); return x ? (S.lang==='de'?x.hde:x.hen) : ''; };
+
+/* per-step client guidance shown via the (i) button: what to enter, documents, tax form */
+const STEP_INFO={
+step1:{en:{what:"The client's personal data (and spouse for joint assessment), the bank account for the refund, and the receiving tax office (Bundesland, name, 4-digit BUFA number).",docs:"ID card, Steuer-ID letter (11-digit IdNr), IBAN.",anlage:"Hauptvordruck ESt 1 A"},
+       de:{what:"Persönliche Daten des Mandanten (und des Ehepartners bei Zusammenveranlagung), Bankverbindung für die Erstattung und das zuständige Finanzamt (Bundesland, Name, 4-stellige BUFA-Nummer).",docs:"Ausweis, Schreiben mit der Steuer-ID (11-stellige IdNr), IBAN.",anlage:"Hauptvordruck ESt 1 A"}},
+step2:{en:{what:"Wage data per employer, exactly as printed on the Lohnsteuerbescheinigung (lines 1–34) incl. social insurance — one statement per job; upload creates them automatically.",docs:"Lohnsteuerbescheinigung(en) from every employer of the year.",anlage:"Anlage N · Anlage Vorsorgeaufwand"},
+       de:{what:"Lohndaten je Arbeitgeber, genau wie auf der Lohnsteuerbescheinigung (Zeilen 1–34) inkl. Sozialversicherung — ein Nachweis pro Job; der Upload legt sie automatisch an.",docs:"Lohnsteuerbescheinigung(en) aller Arbeitgeber des Jahres.",anlage:"Anlage N · Anlage Vorsorgeaufwand"}},
+step4:{en:{what:"Job-related costs per person: commuting, home office, work equipment, training, double household, relocation — plus itemized categories (Arbeitszimmer, communication, tax advisory…). €1,230 lump sum applies automatically.",docs:"Invoices, tickets, rental contract of the second home, course confirmations.",anlage:"Anlage N — Werbungskosten (§ 9 EStG)"},
+       de:{what:"Berufliche Kosten je Person: Pendlerpauschale, Homeoffice, Arbeitsmittel, Fortbildung, doppelte Haushaltsführung, Umzug — plus Einzelposten (Arbeitszimmer, Kommunikation, Steuerberatung…). Der Pauschbetrag von 1.230 € gilt automatisch.",docs:"Rechnungen, Tickets, Mietvertrag der Zweitwohnung, Kursbestätigungen.",anlage:"Anlage N — Werbungskosten (§ 9 EStG)"}},
+step_fam:{en:{what:"Each child with its own tax ID, Kindergeld received, childcare costs and school fees — plus support payments to needy relatives (e.g. parents abroad, reduced by country group).",docs:"Kindergeld notice, childcare invoices, school fee invoices, bank transfer proofs for support.",anlage:"Anlage Kind · Anlage Unterhalt (§ 33a EStG)"},
+       de:{what:"Jedes Kind mit eigener Steuer-ID, erhaltenem Kindergeld, Betreuungskosten und Schulgeld — plus Unterhaltszahlungen an bedürftige Angehörige (z. B. Eltern im Ausland, gekürzt nach Ländergruppe).",docs:"Kindergeldbescheid, Betreuungsrechnungen, Schulgeldrechnungen, Überweisungsbelege für Unterhalt.",anlage:"Anlage Kind · Anlage Unterhalt (§ 33a EStG)"}},
+step5:{en:{what:"Donations with receipts, other special expenses, and further private insurance not listed elsewhere.",docs:"Donation receipts (Zuwendungsbestätigungen).",anlage:"Sonderausgaben (§§ 10, 10b EStG)"},
+       de:{what:"Spenden mit Beleg, weitere Sonderausgaben und sonstige private Versicherungen, die nirgendwo sonst erfasst sind.",docs:"Spendenbescheinigungen (Zuwendungsbestätigungen).",anlage:"Sonderausgaben (§§ 10, 10b EStG)"}},
+step_priv:{en:{what:"All insurance policies with contributions paid and reimbursements received per year — the tax categories (fully deductible, €1,900 pot, Riester €2,100, not deductible) are applied automatically per person.",docs:"Annual statements of each insurance (Beitragsbescheinigungen).",anlage:"Anlage Vorsorgeaufwand (§ 10 EStG)"},
+       de:{what:"Alle Versicherungen mit gezahlten Beiträgen und erhaltenen Erstattungen pro Jahr — die Steuerkategorien (voll absetzbar, 1.900-€-Topf, Riester 2.100 €, nicht absetzbar) werden automatisch je Person angewendet.",docs:"Jahres-/Beitragsbescheinigungen jeder Versicherung.",anlage:"Anlage Vorsorgeaufwand (§ 10 EStG)"}},
+step_kap:{en:{what:"Capital income per bank/platform: domestic with German withholding (lines 7–15), foreign/no withholding (lines 18–26), loss certificates, used saver's allowance and the withheld taxes (lines 43–45).",docs:"Bank tax certificate (Steuerbescheinigung), Verlustbescheinigung, foreign broker annual report.",anlage:"Anlage KAP (§ 20, § 32d EStG)"},
+       de:{what:"Kapitalerträge je Bank/Plattform: inländisch mit Steuerabzug (Zeilen 7–15), ausländisch/ohne Abzug (Zeilen 18–26), Verlustbescheinigungen, genutzter Sparer-Pauschbetrag und einbehaltene Steuern (Zeilen 43–45).",docs:"Steuerbescheinigung der Bank, Verlustbescheinigung, Jahresreport des Auslandsbrokers.",anlage:"Anlage KAP (§ 20, § 32d EStG)"}},
+step_prop:{en:{what:"One entry per rented property: annual rental income and all costs (loan interest, maintenance, depreciation, service charges) — a loss reduces the taxable income.",docs:"Rent statements, loan interest certificate, invoices, Nebenkostenabrechnung.",anlage:"Anlage V (§ 21 EStG)"},
+       de:{what:"Ein Eintrag je vermieteter Immobilie: Jahresmieteinnahmen und alle Kosten (Darlehenszinsen, Instandhaltung, AfA, Nebenkosten) — ein Verlust mindert das zu versteuernde Einkommen.",docs:"Mietabrechnungen, Zinsbescheinigung der Bank, Rechnungen, Nebenkostenabrechnung.",anlage:"Anlage V (§ 21 EStG)"}},
+step6:{en:{what:"Medical costs above the reasonable burden, and household/craftsmen services — only the LABOR cost counts and it must be paid by bank transfer (20% credited directly against the tax).",docs:"Invoices with labor cost shown separately + bank transfer proofs.",anlage:"Außergew. Belastungen (§ 33) · § 35a EStG"},
+       de:{what:"Krankheitskosten oberhalb der zumutbaren Belastung sowie haushaltsnahe Dienst- und Handwerkerleistungen — nur der ARBEITSKOSTENANTEIL zählt und muss per Überweisung bezahlt sein (20 % direkt von der Steuer).",docs:"Rechnungen mit ausgewiesenem Arbeitskostenanteil + Überweisungsbelege.",anlage:"Außergew. Belastungen (§ 33) · § 35a EStG"}},
+step7:{en:{what:"Final check of all data. The PDF summary is for the client; submission transmits the complete return to the Finanzamt via ELSTER.",docs:"—",anlage:"Complete return (all Anlagen)"},
+       de:{what:"Abschließende Prüfung aller Daten. Die PDF-Zusammenfassung ist für den Mandanten; die Abgabe übermittelt die komplette Erklärung über ELSTER an das Finanzamt.",docs:"—",anlage:"Gesamte Erklärung (alle Anlagen)"}},
+step_inq:{en:{what:"Log letters from the Finanzamt, record your answer and send it electronically (as 'Sonstige Nachricht'; receipts as Belegnachreichung).",docs:"The Finanzamt letter forwarded by the client.",anlage:"Sonstige Nachricht · Belegnachreichung"},
+       de:{what:"Schreiben des Finanzamts erfassen, Antwort dokumentieren und elektronisch senden (als 'Sonstige Nachricht'; Belege als Belegnachreichung).",docs:"Das vom Mandanten weitergeleitete Finanzamtsschreiben.",anlage:"Sonstige Nachricht · Belegnachreichung"}}
+};
+function stepInfoBox(i){
+  const keys=['step1','step2','step4','step_fam','step5','step_priv','step_kap','step_prop','step6','step7','step_inq'];
+  const info=STEP_INFO[keys[i]]; if(!info) return '';
+  const L=S.lang==='de'?info.de:info.en;
+  return `<button class="info-btn" title="Info" onclick="S.infoOpen=!S.infoOpen;render()">ⓘ</button>
+    ${S.infoOpen?`<div class="infobox">
+      <div class="ib-row"><b>${t('ib_what')}</b> ${L.what}</div>
+      <div class="ib-row"><b>${t('ib_docs')}</b> ${L.docs}</div>
+      <div class="ib-row"><b>${t('ib_anlage')}</b> <span class="chip submitted">${L.anlage}</span></div>
+    </div>`:''}`;
+}
 
 function newClient(f,l,year,marital){
   return { id:uid(), createdAt:Date.now(), updatedAt:Date.now(),
@@ -1209,7 +1252,7 @@ function clientView(){
     <div class="crumbs"><a onclick="goDash()">← ${t('back_dash')}</a> &nbsp;/&nbsp; <b>${esc(c.p.firstName)} ${esc(c.p.lastName)}</b> · ${t('tax_year')} ${c.taxYear} · ${chip(c.status)}</div>
     <div class="ws">
       <div class="steps">${stepsHtml}</div>
-      <div class="panel">${bodies[S.step](c)}</div>
+      <div class="panel">${stepInfoBox(S.step)}${bodies[S.step](c)}</div>
       ${meter(c)}
     </div>
     <div id="modal-slot"></div>
