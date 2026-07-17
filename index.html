@@ -288,6 +288,8 @@ en: {
   step_inq:"Finanzamt inquiries", s_inq_lead:"Questions from the Finanzamt (Rückfragen) usually reach the client by post. Log them here, contact the client, and record the answer. In the production version, electronic notices are retrieved via ELSTER.",
   add_inq:"Add inquiry", inq_q:"Question from the Finanzamt", inq_a:"Answer / internal note",
   inq_open:"Open", inq_answered:"Answered", no_inq:"No inquiries logged yet.", mark_answered:"Mark answered", reopen:"Reopen",
+  inq_send:"Send answer via ELSTER", inq_sent_on:"Sent to Finanzamt on",
+  inq_send_hint:"In production this transmits as a 'Sonstige Nachricht an das Finanzamt' (Belege as Belegnachreichung) via ERiC — simulated here.",
   pdf_btn:"Download PDF summary", pdf_title:"Income tax return — summary for the client",
   pdf_est:"Estimated result", pdf_generated:"Generated on", pdf_docs:"Attached documents (Belege)",
   pdf_page:"Page", pdf_fail:"The PDF library could not be loaded. Please check the internet connection and try again.",
@@ -446,6 +448,8 @@ de: {
   step_inq:"Rückfragen Finanzamt", s_inq_lead:"Rückfragen des Finanzamts erreichen den Mandanten in der Regel per Post. Erfassen Sie sie hier, kontaktieren Sie den Mandanten und dokumentieren Sie die Antwort. In der Produktionsversion werden elektronische Mitteilungen über ELSTER abgerufen.",
   add_inq:"Rückfrage erfassen", inq_q:"Frage des Finanzamts", inq_a:"Antwort / interne Notiz",
   inq_open:"Offen", inq_answered:"Beantwortet", no_inq:"Noch keine Rückfragen erfasst.", mark_answered:"Als beantwortet markieren", reopen:"Wieder öffnen",
+  inq_send:"Antwort über ELSTER senden", inq_sent_on:"An das Finanzamt gesendet am",
+  inq_send_hint:"In Produktion erfolgt die Übermittlung als 'Sonstige Nachricht an das Finanzamt' (Belege als Belegnachreichung) über ERiC — hier simuliert.",
   pdf_btn:"PDF-Zusammenfassung herunterladen", pdf_title:"Einkommensteuererklärung — Zusammenfassung für den Mandanten",
   pdf_est:"Voraussichtliches Ergebnis", pdf_generated:"Erstellt am", pdf_docs:"Angehängte Belege",
   pdf_page:"Seite", pdf_fail:"Die PDF-Bibliothek konnte nicht geladen werden. Bitte Internetverbindung prüfen und erneut versuchen.",
@@ -1801,6 +1805,12 @@ function stepInquiries(c){
     <div style="padding:14px 16px">
       <div class="field"><label>${t('inq_q')}</label><textarea rows="2" onchange="updInq('${q.id}','q',this.value)">${esc(q.q)}</textarea></div>
       <div class="field" style="margin-bottom:0"><label>${t('inq_a')}</label><textarea rows="2" onchange="updInq('${q.id}','a',this.value)">${esc(q.a)}</textarea></div>
+      <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        ${q.sentAt
+          ? `<span class="chip submitted">✓ ${t('inq_sent_on')} ${dateStr(q.sentAt)} · ${q.ticket}</span>`
+          : `<button class="btn btn-primary btn-sm" onclick="sendInq('${q.id}')">📤 ${t('inq_send')}</button>
+             <span style="font-size:11.5px;color:var(--ink-soft)">${t('inq_send_hint')}</span>`}
+      </div>
     </div></div>`).join('');
   return `<h2>${t('step_inq')}</h2><p class="lead">${t('s_inq_lead')}</p>
     ${list || `<div class="sum-group"><div class="sum-row"><span class="l" style="font-style:italic">${t('no_inq')}</span></div></div>`}
@@ -1810,6 +1820,12 @@ function stepInquiries(c){
 function addInq(){ const c=cur(); (c.inq=c.inq||[]).push({id:uid(),ts:Date.now(),q:'',a:'',status:'open'}); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function updInq(id,f,v){ const c=cur(); const q=(c.inq||[]).find(x=>x.id===id); if(q){ q[f]=v; c.updatedAt=Date.now(); scheduleSave(); } }
 function toggleInq(id){ const c=cur(); const q=(c.inq||[]).find(x=>x.id===id); if(q){ q.status=q.status==='open'?'answered':'open'; c.updatedAt=Date.now(); scheduleSave(); render(); } }
+function sendInq(id){
+  const c=cur(); const q=(c.inq||[]).find(x=>x.id===id); if(!q) return;
+  if(!(q.a||'').trim()){ alert(t('err_fields')); return; }
+  q.sentAt=Date.now(); q.ticket='FA-'+c.taxYear+'-'+Math.random().toString(36).slice(2,8).toUpperCase();
+  q.status='answered'; c.updatedAt=Date.now(); scheduleSave(); render();
+}
 function delInq(id){ const c=cur(); c.inq=(c.inq||[]).filter(x=>x.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
 
 /* ---------------- ELSTER canonical dataset (handover format for the ERiC backend adapter) ---------------- */
