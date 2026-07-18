@@ -165,7 +165,7 @@
 <body>
 <div id="app"></div>
 <input type="file" id="fileInput" accept="image/*,application/pdf" class="hidden">
-<input type="file" id="docInput" accept="image/*,application/pdf" multiple class="hidden">
+<input type="file" id="docInput" accept="image/*,application/pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple class="hidden">
 
 <script>
 /* =====================================================================
@@ -323,7 +323,7 @@ en: {
   new_year:"New tax year", new_year_for:"New tax year for", year_exists:"A return for this year already exists for this client.",
   copy_note:"Personal data will be copied over — income and expenses start empty.",
   docs_h:"Documents (Belege)", docs_lead:"Attach receipts and proofs — kept with the return in case the Finanzamt requests verification.",
-  add_doc:"Add document", doc_too_big:"File is too large (max. 3 MB).", no_docs:"No documents attached yet.", download:"Download",
+  add_doc:"Add document", doc_too_big:"File is too large (max. 5 MB after compression). Larger receipts cannot be forwarded to the Finanzamt electronically.", doc_bad_type:"Only PDF, Word (.doc/.docx) and image files are allowed.", no_docs:"No documents attached yet.", download:"Download",
   step_inq:"Finanzamt inquiries", s_inq_lead:"Questions from the Finanzamt (Rückfragen) usually reach the client by post. Log them here, contact the client, and record the answer. In the production version, electronic notices are retrieved via ELSTER.",
   add_inq:"Add inquiry", inq_q:"Question from the Finanzamt", inq_a:"Answer / internal note",
   inq_open:"Open", inq_answered:"Answered", no_inq:"No inquiries logged yet.", mark_answered:"Mark answered", reopen:"Reopen",
@@ -484,7 +484,7 @@ de: {
   new_year:"Neues Steuerjahr", new_year_for:"Neues Steuerjahr für", year_exists:"Für dieses Jahr existiert bereits eine Erklärung dieses Mandanten.",
   copy_note:"Persönliche Daten werden übernommen — Einkünfte und Ausgaben starten leer.",
   docs_h:"Belege (Dokumente)", docs_lead:"Belege und Nachweise anhängen — sie bleiben bei der Erklärung gespeichert, falls das Finanzamt Nachweise anfordert.",
-  add_doc:"Beleg hinzufügen", doc_too_big:"Datei ist zu groß (max. 3 MB).", no_docs:"Noch keine Belege angehängt.", download:"Herunterladen",
+  add_doc:"Beleg hinzufügen", doc_too_big:"Datei ist zu groß (max. 5 MB nach Komprimierung). Größere Belege können nicht elektronisch an das Finanzamt weitergereicht werden.", doc_bad_type:"Nur PDF-, Word- (.doc/.docx) und Bilddateien sind erlaubt.", no_docs:"Noch keine Belege angehängt.", download:"Herunterladen",
   step_inq:"Rückfragen Finanzamt", s_inq_lead:"Rückfragen des Finanzamts erreichen den Mandanten in der Regel per Post. Erfassen Sie sie hier, kontaktieren Sie den Mandanten und dokumentieren Sie die Antwort. In der Produktionsversion werden elektronische Mitteilungen über ELSTER abgerufen.",
   add_inq:"Rückfrage erfassen", inq_q:"Frage des Finanzamts", inq_a:"Antwort / interne Notiz",
   inq_open:"Offen", inq_answered:"Beantwortet", no_inq:"Noch keine Rückfragen erfasst.", mark_answered:"Als beantwortet markieren", reopen:"Wieder öffnen",
@@ -1322,9 +1322,47 @@ function updItem(list,id,f,v,fmt){ const c=cur(); const it=(c[list]||[]).find(x=
 
 /* --- documents (Belege) --- */
 const memDocs = {};
-async function storeDocData(id,dataUrl){ await kvSet('klarsteuer-doc-'+id, dataUrl); }
-async function getDocData(id){ return await kvGet('klarsteuer-doc-'+id); }
-async function removeDocData(id){ await kvDel('klarsteuer-doc-'+id); }
+async function storeDocData(id,dataUrl){
+  if(BACKEND.enabled){
+    try{ await api('/api/docs','POST',{id,dataUrl}); return; }
+    catch(e){ console.error('doc upload failed, keeping local:', e.message); }
+  }
+  await kvSet('klarsteuer-doc-'+id, dataUrl);
+}
+async function getDocData(id){
+  if(BACKEND.enabled){
+    try{ const r=await api('/api/docs/'+encodeURIComponent(id)); if(r && r.url) return r.url; }
+    catch(e){ /* fall through to local (e.g. docs uploaded before cloud storage) */ }
+  }
+  return await kvGet('klarsteuer-doc-'+id);
+}
+async function removeDocData(id){
+  if(BACKEND.enabled){ try{ await api('/api/docs/'+encodeURIComponent(id),'DELETE'); }catch(e){} }
+  await kvDel('klarsteuer-doc-'+id);
+}
+/* image compression: max 2200px edge, JPEG q0.85 — text on receipts stays sharp */
+function readDataUrl(f){ return new Promise((res,rej)=>{ const r=new FileReader();
+  r.onload=()=>res(r.result); r.onerror=()=>rej(new Error('read')); r.readAsDataURL(f); }); }
+function compressImage(file){
+  return new Promise((resolve)=>{
+    const url=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload=async ()=>{
+      URL.revokeObjectURL(url);
+      try{
+        const MAX=2200; let w=img.width,h=img.height;
+        if(w>MAX||h>MAX){ const k=Math.min(MAX/w,MAX/h); w=Math.round(w*k); h=Math.round(h*k); }
+        const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        const out=cv.toDataURL('image/jpeg',0.85);
+        const orig=await readDataUrl(file);
+        resolve(out.length < orig.length ? out : orig);   // never make the file bigger
+      }catch(e){ resolve(await readDataUrl(file).catch(()=>null)); }
+    };
+    img.onerror=async ()=>{ URL.revokeObjectURL(url); resolve(await readDataUrl(file).catch(()=>null)); };
+    img.src=url;
+  });
+}
 
 function docSection(sec){
   const c=cur(); const docs=(c.docs||[]).filter(d=>d.section===sec);
@@ -1342,21 +1380,37 @@ function docSection(sec){
 document.getElementById('docInput').addEventListener('change', async e=>{
   const files=[...e.target.files]; e.target.value='';
   const c=cur(); if(!c) return;
+  const okType = f => {
+    const t=(f.type||'').toLowerCase(), n=(f.name||'').toLowerCase();
+    if(t.startsWith('image/')) return true;
+    if(t==='application/pdf' || n.endsWith('.pdf')) return true;
+    if(t==='application/msword' || t==='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+       || n.endsWith('.doc') || n.endsWith('.docx')) return true;
+    if(!t && /\.(jpe?g|png|gif|webp|heic)$/.test(n)) return true;
+    return false;
+  };
   for(const f of files){
-    if(f.size > 3*1024*1024){ alert(t('doc_too_big')); continue; }
+    if(!okType(f)){ alert(t('doc_bad_type')); continue; }
     try{
-      const dataUrl = await new Promise((res,rej)=>{ const r=new FileReader();
-        r.onload=()=>res(r.result); r.onerror=()=>rej(new Error('read')); r.readAsDataURL(f); });
+      const dataUrl = (f.type||'').startsWith('image/') ? await compressImage(f) : await readDataUrl(f);
+      if(!dataUrl){ continue; }
+      const bytes = Math.round((dataUrl.length - dataUrl.indexOf(',') - 1) * 0.75);
+      if(bytes > 5*1024*1024){ alert(t('doc_too_big')); continue; }   // 5 MB after compression (ELSTER-friendly)
       const id=uid();
       await storeDocData(id,dataUrl);
-      (c.docs=c.docs||[]).push({id,name:f.name,size:f.size,section:S.docTarget||'fam',ts:Date.now()});
+      (c.docs=c.docs||[]).push({id,name:f.name,size:bytes,section:S.docTarget||'fam',ts:Date.now()});
     }catch(err){ console.error(err); }
   }
   c.updatedAt=Date.now(); scheduleSave(); render();
 });
 async function downloadDoc(id,name){
-  const d=await getDocData(id); if(!d) return;
+  let d=await getDocData(id); if(!d) return;
+  if(/^https?:/.test(d)){
+    try{ const b=await (await fetch(d)).blob(); d=URL.createObjectURL(b); }
+    catch(e){ window.open && window.open(d,'_blank'); return; }
+  }
   const a=document.createElement('a'); a.href=d; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  if(d.startsWith('blob:')) setTimeout(()=>URL.revokeObjectURL(d), 60000);
 }
 async function deleteDoc(id){
   const c=cur(); c.docs=(c.docs||[]).filter(x=>x.id!==id);
