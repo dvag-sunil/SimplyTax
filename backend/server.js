@@ -23,6 +23,27 @@ app.use(cors({ origin: ALLOWED_ORIGIN.split(','), credentials: false }));
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 const PRICE_CENTS = parseInt(process.env.PRICE_CENTS || '995', 10);
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dvag-sunil.github.io/SimplyTax/';
+
+/* ---------- Supabase Storage for Belege (private bucket, service key server-side only) ---------- */
+const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
+const BELEGE_BUCKET = 'belege';
+const DOC_MAX_BYTES = 5 * 1024 * 1024;
+const DOC_MIME_OK = m => /^image\//.test(m) || m === 'application/pdf'
+  || m === 'application/msword'
+  || m === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const sbHeaders = () => ({ Authorization: 'Bearer ' + SUPABASE_SERVICE_KEY, apikey: SUPABASE_SERVICE_KEY });
+const storageOn = () => !!(SUPABASE_URL && SUPABASE_SERVICE_KEY);
+async function sbEnsureBucket(){
+  if (!storageOn()) return;
+  try {
+    const r = await fetch(SUPABASE_URL + '/storage/v1/bucket', {
+      method: 'POST', headers: { ...sbHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: BELEGE_BUCKET, name: BELEGE_BUCKET, public: false, file_size_limit: DOC_MAX_BYTES }) });
+    if (!r.ok && r.status !== 409) console.error('bucket create:', r.status, await r.text());
+  } catch (e) { console.error('bucket create failed:', e.message); }
+}
+sbEnsureBucket();
 async function markPaid(userId, clientId, sessionId, amountCents){
   await pool.query(
     `INSERT INTO payments(user_id, client_id, session_id, amount_cents, status)
@@ -180,6 +201,42 @@ app.post('/api/payments/verify', auth, async (req, res) => {
   const paid = sess.payment_status === 'paid' && sess.metadata?.userId === req.user.sub;
   if (paid) await markPaid(req.user.sub, sess.metadata.clientId, sess.id, sess.amount_total || PRICE_CENTS);
   res.json({ paid, clientId: sess.metadata?.clientId || null });
+});
+
+/* ---------- Belege (documents) ---------- */
+app.post('/api/docs', auth, async (req, res) => {
+  if (!storageOn()) return res.status(501).json({ error: 'storage_disabled' });
+  const { id, dataUrl } = req.body || {};
+  const m = /^data:([^;]+);base64,(.+)$/.exec(dataUrl || '');
+  if (!id || !m) return res.status(400).json({ error: 'invalid_input' });
+  const mime = m[1].toLowerCase();
+  if (!DOC_MIME_OK(mime)) return res.status(415).json({ error: 'bad_type' });
+  const buf = Buffer.from(m[2], 'base64');
+  if (buf.length > DOC_MAX_BYTES) return res.status(413).json({ error: 'too_large' });
+  const path = `${req.user.sub}/${encodeURIComponent(id)}`;
+  const r = await fetch(`${SUPABASE_URL}/storage/v1/object/${BELEGE_BUCKET}/${path}`, {
+    method: 'POST', headers: { ...sbHeaders(), 'Content-Type': mime, 'x-upsert': 'true' }, body: buf });
+  if (!r.ok) { console.error('doc upload:', r.status, await r.text()); return res.status(502).json({ error: 'storage_error' }); }
+  audit(req.user.sub, 'doc_upload', { id, bytes: buf.length, mime });
+  res.json({ ok: true });
+});
+
+app.get('/api/docs/:id', auth, async (req, res) => {
+  if (!storageOn()) return res.status(501).json({ error: 'storage_disabled' });
+  const path = `${req.user.sub}/${encodeURIComponent(req.params.id)}`;
+  const r = await fetch(`${SUPABASE_URL}/storage/v1/object/sign/${BELEGE_BUCKET}/${path}`, {
+    method: 'POST', headers: { ...sbHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expiresIn: 600 }) });
+  if (!r.ok) return res.status(404).json({ error: 'not_found' });
+  const j = await r.json();
+  res.json({ url: SUPABASE_URL + '/storage/v1' + j.signedURL });
+});
+
+app.delete('/api/docs/:id', auth, async (req, res) => {
+  if (!storageOn()) return res.status(501).json({ error: 'storage_disabled' });
+  const path = `${req.user.sub}/${encodeURIComponent(req.params.id)}`;
+  await fetch(`${SUPABASE_URL}/storage/v1/object/${BELEGE_BUCKET}/${path}`, { method: 'DELETE', headers: sbHeaders() });
+  res.json({ ok: true });
 });
 
 app.listen(PORT, () => console.log(`SimplyTax API listening on :${PORT}`));
