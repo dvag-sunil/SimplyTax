@@ -24,3 +24,7 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET # leave empty until payments go live
         sync: false
+      - key: SUPABASE_URL
+        value: https://erctmlhbupumvtnixlnc.supabase.co
+      - key: SUPABASE_SERVICE_KEY  # Supabase -> Settings -> API -> service_role (secret!)
+        sync: false
