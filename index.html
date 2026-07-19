@@ -385,6 +385,16 @@ en: {
   realsplit:"Support paid to ex-spouse (Realsplitting, Anlage U)",
   realsplit_hint:"Deductible up to €13,805 as Sonderausgaben — requires the recipient's consent (Anlage U); the recipient then taxes it.",
   loss_carry:"Loss carryforward from prior years (§ 10d)",
+  sec_rente:"Pensions (Anlage R)", add_rente:"Add pension",
+  rente_type:"Pension type", rente_ges:"Statutory pension (gesetzliche Rente)", rente_priv:"Private annuity (Ertragsanteil)",
+  rente_amount:"Gross pension received (per year)", rente_start:"Year the pension started",
+  rente_pct:"Ertragsanteil in % (from the § 22 table)",
+  rente_hint:"The taxable share is derived automatically from the start year (2005 = 50%, rising to 83.5% for 2025 starts; § 22 EStG incl. Wachstumschancengesetz). €102 expenses lump sum per person is applied automatically.",
+  rente_pct_hint:"Typical values: start at age 60 → 22%, 63 → 20%, 65 → 18%, 67 → 17%.",
+  sec_energ:"Energetic renovation of your own home (§ 35c)",
+  energ_cost:"Eligible renovation costs (insulation, windows, heating…)",
+  energ_stage:"Installment year", energ_s1:"1st year (7%)", energ_s2:"2nd year (7%)", energ_s3:"3rd year (6%)",
+  energ_hint:"20% of up to €200,000 credited directly against the tax over 3 years (7% + 7% + 6%). Requirements: self-used home older than 10 years and a Fachunternehmer certificate.",
   loss_hint:"The amount from your last loss-assessment notice (Verlustfeststellungsbescheid).",
   single_parent_hint:"Yes = at least one child lives in your household and no other adult lives with you. Relief: €4,260 + €240 per further child — applied automatically.",
   pay_title:"Unlock this tax return", pay_sub:"Preparation and calculation are free. Downloading the client PDF and submitting to ELSTER are enabled after payment for this return (one-time, per return).",
@@ -564,6 +574,16 @@ de: {
   realsplit:"Unterhalt an Ex-Ehegatten (Realsplitting, Anlage U)",
   realsplit_hint:"Bis 13.805 € als Sonderausgaben absetzbar — erfordert die Zustimmung des Empfängers (Anlage U); dieser versteuert die Zahlungen.",
   loss_carry:"Verlustvortrag aus Vorjahren (§ 10d)",
+  sec_rente:"Renten (Anlage R)", add_rente:"Rente hinzufügen",
+  rente_type:"Rentenart", rente_ges:"Gesetzliche Rente", rente_priv:"Private Rente (Ertragsanteil)",
+  rente_amount:"Erhaltene Bruttorente (pro Jahr)", rente_start:"Jahr des Rentenbeginns",
+  rente_pct:"Ertragsanteil in % (aus der Tabelle § 22)",
+  rente_hint:"Der Besteuerungsanteil wird automatisch aus dem Beginnjahr abgeleitet (2005 = 50 %, steigend bis 83,5 % bei Beginn 2025; § 22 EStG inkl. Wachstumschancengesetz). Der Werbungskosten-Pauschbetrag von 102 € je Person wird automatisch angesetzt.",
+  rente_pct_hint:"Typische Werte: Beginn mit 60 → 22 %, 63 → 20 %, 65 → 18 %, 67 → 17 %.",
+  sec_energ:"Energetische Sanierung der eigenen Wohnung (§ 35c)",
+  energ_cost:"Begünstigte Sanierungskosten (Dämmung, Fenster, Heizung…)",
+  energ_stage:"Förderjahr", energ_s1:"1. Jahr (7 %)", energ_s2:"2. Jahr (7 %)", energ_s3:"3. Jahr (6 %)",
+  energ_hint:"20 % von bis zu 200.000 € werden über 3 Jahre direkt von der Steuer abgezogen (7 % + 7 % + 6 %). Voraussetzung: selbst genutztes Wohneigentum älter als 10 Jahre und Bescheinigung des Fachunternehmens.",
   loss_hint:"Der Betrag aus dem letzten Verlustfeststellungsbescheid.",
   single_parent_hint:"Ja = mindestens ein Kind lebt in Ihrem Haushalt und keine weitere volljährige Person wohnt bei Ihnen. Entlastung: 4.260 € + 240 € je weiteres Kind — wird automatisch angesetzt.",
   pay_title:"Diese Steuererklärung freischalten", pay_sub:"Erfassung und Berechnung sind kostenlos. PDF-Download und ELSTER-Übermittlung werden nach Zahlung für diese Erklärung freigeschaltet (einmalig, je Erklärung).",
@@ -730,9 +750,9 @@ function newClient(f,l,year,marital){
         marital:marital,religion:'none',profession:'',finanzamt:'',faNumber:'',bundesland:'',steuernummer:'',iban:'',
         spouseFirst:'',spouseLast:'',spouseBirth:'',spouseTaxId:'',spouseReligion:'none',singleParent:'no' },
     inc:{ employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:'' },
-    emps:[], kap:[], props:[], privIns:[], wkItems:[],
+    emps:[], kap:[], props:[], privIns:[], wkItems:[], rente:[],
     oth:{ ersatz:'', gdbA:'', gdbB:'', fahrtA:'', fahrtB:'', pflegeA:'', pflegeB:'', kidTransfer:'',
-          realsplitting:'', lossCarry:'', soGain:'', soUnterhalt:'' },
+          realsplitting:'', lossCarry:'', soGain:'', soUnterhalt:'', energCost:'', energStage:'' },
     ins:{ rv:'',kv:'',pv:'',av:'',other:'' },
     wk:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',
          dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
@@ -813,7 +833,9 @@ function migrateClient(c){
   c.props = Array.isArray(c.props)?c.props:[];
   c.privIns = Array.isArray(c.privIns)?c.privIns:[];
   c.oth = Object.assign({ersatz:'',gdbA:'',gdbB:'',fahrtA:'',fahrtB:'',pflegeA:'',pflegeB:'',kidTransfer:'',
-    realsplitting:'',lossCarry:'',soGain:'',soUnterhalt:''}, c.oth||{});
+    realsplitting:'',lossCarry:'',soGain:'',soUnterhalt:'',energCost:'',energStage:''}, c.oth||{});
+  c.rente = Array.isArray(c.rente)?c.rente:[];
+  c.rente.forEach(r=>{ if(r.person!=='B') r.person='A'; });
   c.wkItems = Array.isArray(c.wkItems)?c.wkItems:[];
   c.wkItems.forEach(x=>{ if(x.person!=='B') x.person='A'; });
   (c.docs||[]).forEach(d=>{ if(d.section==='wkItems') d.section='wk'; });
@@ -1078,10 +1100,19 @@ function computeEstimate(c){
   const wageBaseA=(c.emps||[]).reduce((a,x)=>a+(x.person==='B'?0:Math.max(0,N(x.gross)-N(x.vb8))),0);
   const wageBaseB=(c.emps||[]).reduce((a,x)=>a+(x.person==='B'?Math.max(0,N(x.gross)-N(x.vb8)):0),0);
   const aeb = aebFor(c.p.birthDate, wageBaseA) + (joint ? aebFor(c.p.spouseBirth, wageBaseB) : 0);
+  // Anlage R: taxable share by start year (§ 22 incl. WtChG: 2005=50%, +2pp to 2020, +1pp to 2022, +0.5pp after)
+  const rentePct = sy => { sy=parseInt(sy)||2005;
+    if(sy<=2005) return 50; if(sy<=2020) return 50+2*(sy-2005);
+    if(sy<=2022) return 80+(sy-2020); return Math.min(100, 82+0.5*(sy-2022)); };
+  const renteAgg=(c.rente||[]).reduce((a,r)=>{ const amt=N(r.amount); if(amt<=0) return a;
+    const pct = r.type==='privat' ? Math.min(100,Math.max(0,N(r.pct))) : rentePct(r.startYear);
+    a.taxable += amt*pct/100; a.persons.add(r.person==='B'?'B':'A'); return a; },
+    {taxable:0, persons:new Set()});
+  const renteNet = Math.max(0, renteAgg.taxable - 102*renteAgg.persons.size);   // WK-Pauschbetrag €102 p.p.
   // Anlage SO: private sales § 23 (Freigrenze: full amount taxable at/above the limit) + received support
   const soFG = year>=2024 ? 1000 : 600;
   const soTaxable = (N(c.oth.soGain) >= soFG ? N(c.oth.soGain) : 0) + N(c.oth.soUnterhalt);
-  const zvE = Math.max(0, gross + propNet + soTaxable - wk - vors - sa - inc.kistSA - agb - entl - aeb
+  const zvE = Math.max(0, gross + propNet + soTaxable + renteNet - wk - vors - sa - inc.kistSA - agb - entl - aeb
                           - N(c.oth.lossCarry));          // § 10d Verlustvortrag
   const tariffT = z => joint ? 2*estBase(z/2, year) : estBase(z, year);
   // Progressionsvorbehalt § 32b: employer benefits (line 15) + further benefits (Elterngeld, Krankengeld, ALG I…)
@@ -1099,7 +1130,11 @@ function computeEstimate(c){
     if(tax - taxKfb > kindergeldRecv){ tax = taxKfb; kgHinzu = kindergeldRecv; }  // Kindergeld added back
   }
   // §35a credits
-  const credit = Math.min(N(c.ex.household)*0.20, 4000) + Math.min(N(c.ex.handwerker)*0.20, 1200);
+  // § 35c energetic renovation: 7% / 7% / 6% of max €200,000, capped 14k/14k/12k per installment year
+  const energPct = {'1':0.07,'2':0.07,'3':0.06}[c.oth.energStage]||0;
+  const energCap = {'1':14000,'2':14000,'3':12000}[c.oth.energStage]||0;
+  const energ = Math.min(Math.min(N(c.oth.energCost),200000)*energPct, energCap);
+  const credit = Math.min(N(c.ex.household)*0.20, 4000) + Math.min(N(c.ex.handwerker)*0.20, 1200) + energ;
   const taxAfter = Math.max(0, tax - credit);
   // Soli: Freigrenze per year + Milderungszone 11.9% (§§ 3, 4 SolZG); Abgeltungsteuer keeps flat 5.5%
   const SOLI_FG = {2023:17543, 2024:18130, 2025:19950, 2026:19950};
@@ -1119,7 +1154,12 @@ function computeEstimate(c){
   const kap = kapTaxable*0.25 * 1.055;   // 25% KapESt + 5.5% Soli thereon
   const owed = taxAfter + kgHinzu + soli + kist + kap;
   const paid = inc.paid + kapPaid;
-  return { zvE, wk, tax, credit, taxAfter, soli, kist, kap, propNet, owed, paid, refund: paid - owed };
+  // Mobilitätsprämie §§ 101 ff. EStG: cash payout for low incomes with commutes > 20 km
+  const gfbY = ((TARIFF[year]||TARIFF[2025]).gfb) * (joint?2:1);
+  const farEP = Math.min(N(c.wk.commuteDays),366)*Math.max(N(c.wk.commuteKm)-20,0)*0.38
+              + (joint ? Math.min(N(c.wkB.commuteDays),366)*Math.max(N(c.wkB.commuteKm)-20,0)*0.38 : 0);
+  const mob = (zvE < gfbY && farEP > 0) ? 0.14 * Math.min(farEP, gfbY - zvE) : 0;
+  return { zvE, wk, tax, credit, taxAfter, soli, kist, kap, propNet, owed, paid, mob, refund: paid - owed + mob };
 }
 
 /* ---------------- render root ---------------- */
@@ -1630,6 +1670,23 @@ function stepIncome(c){
   <button class="btn btn-ghost btn-sm" onclick="addItem('emps',{person:'A',employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:''})">＋ ${t('add_emp')}</button>
   <div class="section-label">${t('sec_ersatz')}</div>
   ${F('oth','ersatz',t('ersatz_lbl'),{euro:true,ph:'0,00 €',hint:t('ersatz_hint')})}
+  <div class="section-label">${t('sec_rente')}</div>
+  ${(c.rente||[]).map((r,i)=>`<div class="sum-group" style="margin-bottom:12px">
+    <div class="head"><span>${t('sec_rente')} ${i+1}${c.p.marital==='married'?` <span class="chip ${r.person==='B'?'review':'submitted'}">${r.person==='B'?'B':'A'}</span>`:''}</span>
+      <span class="edit" onclick="delItem('rente','${r.id}')">🗑 ${t('remove')}</span></div>
+    <div style="padding:14px 16px">
+      <div class="grid3">
+        ${c.p.marital==='married'?LF('rente',r,'person',t('person'),{select:[['A','A — '+(c.p.firstName||'A')],['B','B — '+((c.p.spouseFirst||'')+' '+(c.p.spouseLast||'')).trim()]]}):''}
+        ${LF('rente',r,'type',t('rente_type'),{select:[['gesetzlich',t('rente_ges')],['privat',t('rente_priv')]]})}
+        ${LF('rente',r,'amount',t('rente_amount'),{euro:true,ph:'0,00 €',hint:i===0?t('rente_hint'):''})}
+      </div>
+      <div class="grid2">
+        ${r.type==='privat'
+          ? LF('rente',r,'pct',t('rente_pct'),{ph:'18',hint:t('rente_pct_hint')})
+          : LF('rente',r,'startYear',t('rente_start'),{ph:'2020'})}
+      </div>
+    </div></div>`).join('')}
+  <button class="btn btn-ghost btn-sm" onclick="addItem('rente',{person:'A',type:'gesetzlich',amount:'',startYear:'',pct:''})">＋ ${t('add_rente')}</button>
   ${warnTax?`<div class="warn">⚠️ ${t('warn_taxhigh')}</div>`:''}
   ${navRow()}`;
 }
@@ -1912,6 +1969,11 @@ function stepHousehold(c){
     ${F('ex','household',t('household'),{euro:true,ph:'0,00 €'})}
     ${F('ex','handwerker',t('handwerker'),{euro:true,ph:'0,00 €'})}
   </div>
+  <div class="section-label">${t('sec_energ')}</div>
+  <div class="grid2">
+    ${F('oth','energCost',t('energ_cost'),{euro:true,ph:'0,00 €',hint:t('energ_hint')})}
+    ${F('oth','energStage',t('energ_stage'),{select:[['',t('select')],['1',t('energ_s1')],['2',t('energ_s2')],['3',t('energ_s3')]]})}
+  </div>
   <div class="section-label">${t('sec_disab')}</div>
   <p style="font-size:12.5px;color:var(--ink-soft);margin:-4px 0 12px">${t('disab_hint')}</p>
   <div class="grid3">
@@ -2143,6 +2205,9 @@ function buildElsterDataset(c){
       zeile43_kapitalertragsteuer:N(k.k43)+N(k.taxPaid), zeile44_soli:N(k.k44)+N(k.soliPaid), zeile45_kirchensteuer:N(k.k45) })),
     anlageV:(c.props||[]).map(p=>({ objekt:p.address, mieteinnahmen:N(p.rent), werbungskosten:N(p.costs),
       ergebnis:N(p.rent)-N(p.costs) })),
+    anlageR:(c.rente||[]).map(r=>({ person:r.person==='B'?'B':'A', art:r.type||'gesetzlich',
+      jahresbetrag:N(r.amount), rentenbeginn:r.startYear||'', ertragsanteilProzent:r.type==='privat'?N(r.pct):null })),
+    par35cEnergetisch:{ aufwendungen:N(c.oth.energCost), foerderjahr:c.oth.energStage||'' },
     weitereAngaben:{ ersatzleistungen:N(c.oth.ersatz), verlustvortrag:N(c.oth.lossCarry),
       realsplittingAnlageU:Math.min(N(c.oth.realsplitting),13805),
       behinderung:{ gdbA:c.oth.gdbA||'', gdbB:c.oth.gdbB||'', fahrtA:N(c.oth.fahrtA), fahrtB:N(c.oth.fahrtB),
