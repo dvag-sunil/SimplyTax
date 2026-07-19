@@ -369,6 +369,8 @@ en: {
   k43:"Capital gains tax withheld (line 43)", k44:"Solidarity surcharge (line 44)", k45:"Church tax on capital gains tax (line 45)",
   kap_taxes:"Creditable taxes (lines 43–45)",
   ib_what:"What to enter:", ib_docs:"Typical documents:", ib_anlage:"Tax form:",
+  single_parent:"Single parent (§ 24b relief)", opt_yes:"Yes", opt_no:"No",
+  single_parent_hint:"Yes = at least one child lives in your household and no other adult lives with you. Relief: €4,260 + €240 per further child — applied automatically.",
   pay_title:"Unlock this tax return", pay_sub:"Preparation and calculation are free. Downloading the client PDF and submitting to ELSTER are enabled after payment for this return (one-time, per return).",
   pay_now:"Pay now", pay_locked:"Locked until payment", paid_on:"Paid on",
   pay_sim_note:"Prototype: the payment is simulated. In production, Stripe Checkout runs via the backend and a webhook unlocks the return.",
@@ -530,6 +532,8 @@ de: {
   k43:"Einbehaltene Kapitalertragsteuer (Zeile 43)", k44:"Solidaritätszuschlag (Zeile 44)", k45:"Kirchensteuer zur Kapitalertragsteuer (Zeile 45)",
   kap_taxes:"Anzurechnende Steuern (Zeilen 43–45)",
   ib_what:"Was wird hier erfasst:", ib_docs:"Typische Unterlagen:", ib_anlage:"Steuerformular:",
+  single_parent:"Alleinerziehend (Entlastungsbetrag § 24b)", opt_yes:"Ja", opt_no:"Nein",
+  single_parent_hint:"Ja = mindestens ein Kind lebt in Ihrem Haushalt und keine weitere volljährige Person wohnt bei Ihnen. Entlastung: 4.260 € + 240 € je weiteres Kind — wird automatisch angesetzt.",
   pay_title:"Diese Steuererklärung freischalten", pay_sub:"Erfassung und Berechnung sind kostenlos. PDF-Download und ELSTER-Übermittlung werden nach Zahlung für diese Erklärung freigeschaltet (einmalig, je Erklärung).",
   pay_now:"Jetzt bezahlen", pay_locked:"Bis zur Zahlung gesperrt", paid_on:"Bezahlt am",
   pay_sim_note:"Prototyp: Die Zahlung wird simuliert. In Produktion läuft Stripe Checkout über das Backend; ein Webhook schaltet die Erklärung frei.",
@@ -692,7 +696,7 @@ function newClient(f,l,year,marital){
     status:'draft', transferTicket:null, submittedAt:null, taxYear:year,
     p:{ firstName:f,lastName:l,birthDate:'',taxId:'',street:'',houseNo:'',plz:'',city:'',
         marital:marital,religion:'none',profession:'',finanzamt:'',faNumber:'',bundesland:'',steuernummer:'',iban:'',
-        spouseFirst:'',spouseLast:'',spouseBirth:'',spouseTaxId:'',spouseReligion:'none' },
+        spouseFirst:'',spouseLast:'',spouseBirth:'',spouseTaxId:'',spouseReligion:'none',singleParent:'no' },
     inc:{ employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:'' },
     emps:[], kap:[], props:[], privIns:[], wkItems:[],
     ins:{ rv:'',kv:'',pv:'',av:'',other:'' },
@@ -760,7 +764,7 @@ async function loadState(){
     if(u){ S.user=u; await loadUserData(); S.loggedIn=true; S.view='dash'; } }
 }
 function migrateClient(c){
-  c.p = Object.assign({faNumber:'',bundesland:'',spouseReligion:'none'}, c.p||{});
+  c.p = Object.assign({faNumber:'',bundesland:'',spouseReligion:'none',singleParent:'no'}, c.p||{});
   c.wkB = Object.assign({commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wkB||{});
   (Array.isArray(c.privIns)?c.privIns:[]).forEach(x=>{ if(x.person!=='B') x.person='A'; });
   c.emps = Array.isArray(c.emps)?c.emps:[];
@@ -932,13 +936,14 @@ function incTotals(c){
     a.gross+=N(e.gross);
     a.wageTax+=N(e.wageTax); a.soli+=N(e.soli); a.church+=N(e.churchPaid);
     a.paid+=N(e.wageTax)+N(e.soli)+N(e.churchPaid)+N(e.churchSpouse)+N(e.lst11)+N(e.soli12)+N(e.kist13)+N(e.kistSp14);
+    a.kistSA+=N(e.churchPaid)+N(e.churchSpouse)+N(e.kist13)+N(e.kistSp14);   // § 10 (1) Nr. 4: paid KiSt is a Sonderausgabe (not line 45)
     a.ersatz+=N(e.ersatz15);                       // Progressionsvorbehalt (line 15)
     const isB=e.person==='B';
     a[isB?'fahrtB':'fahrtA']+=N(e.fahrt17)+N(e.pausch18);   // reduces Entfernungspauschale (lines 17/18), per person
     a.rv+=N(e.anRV)+N(e.anRVb); a.kv+=N(e.anKV); a.pv+=N(e.anPV); a[isB?'avB':'avA']+=N(e.anAV); a.pkv+=N(e.pkv28);
     a.agKV+=N(e.agKV); a.agPKV+=N(e.agPKV); a.agPV+=N(e.agPV);   // tax-free employer subsidies (lines 24a/b/c) reduce the deductible amounts
     return a; },
-    {gross:0,wageTax:0,soli:0,church:0,paid:0,ersatz:0,fahrtA:0,fahrtB:0,rv:0,kv:0,pv:0,avA:0,avB:0,pkv:0,agKV:0,agPKV:0,agPV:0});
+    {gross:0,wageTax:0,soli:0,church:0,paid:0,kistSA:0,ersatz:0,fahrtA:0,fahrtB:0,rv:0,kv:0,pv:0,avA:0,avB:0,pkv:0,agKV:0,agPKV:0,agPV:0});
 }
 function computeEstimate(c){
   const year = c.taxYear || 2025;
@@ -1001,11 +1006,36 @@ function computeEstimate(c){
   // § 33a support to needy relatives: capped at Grundfreibetrag × country-group factor (no zumutbare Belastung)
   const grpFactor = {1:1, 2:0.75, 3:0.5, 4:0.25}[c.fam.supportGroup] ?? 1;
   const support = Math.min(N(c.fam.support), (TARIFF[year]||TARIFF[2025]).gfb * grpFactor);
-  // außergewöhnliche Belastung (zumutbare Belastung roughly 3% of gross) + support
-  const agb = Math.max(0, N(c.ex.medical) - gross*0.03) + support;
   // rental property (Anlage V): net result per property — losses reduce taxable income
   const propNet = (c.props||[]).reduce((a,p)=>a + (N(p.rent)-N(p.costs)), 0);
-  const zvE = Math.max(0, gross + propNet - wk - vors - sa - agb);
+  // außergewöhnliche Belastung — zumutbare Belastung per § 33 Abs. 3 EStG, tier-wise (BFH VI R 75/14)
+  const kidsN = (c.fam.children||[]).length;
+  const gde = Math.max(0, gross + propNet - wk);            // approximated Gesamtbetrag der Einkünfte
+  const zPct = kidsN>=3 ? [0.01,0.01,0.02]
+             : kidsN>=1 ? [0.02,0.03,0.04]
+             : (joint ? [0.04,0.05,0.06] : [0.05,0.06,0.07]);
+  let zumutbar = Math.min(gde,15340)*zPct[0];
+  if(gde>15340) zumutbar += (Math.min(gde,51130)-15340)*zPct[1];
+  if(gde>51130) zumutbar += (gde-51130)*zPct[2];
+  const agb = Math.max(0, N(c.ex.medical) - zumutbar) + support;
+  // § 24b Entlastungsbetrag für Alleinerziehende: 4,260 € + 240 € per further child
+  const entl = (!joint && c.p.singleParent==='yes' && kidsN>=1) ? 4260 + 240*(kidsN-1) : 0;
+  // § 24a Altersentlastungsbetrag: cohort-frozen percentage on wages (excl. Versorgungsbezüge)
+  const aebFor = (birth, base) => {
+    if(!birth || base<=0) return 0;
+    const by=parseInt(String(birth).slice(0,4)); if(!by) return 0;
+    const first=by+65; if(first>year) return 0;             // 64th year completed before the tax year
+    let p; if(first<=2005) p=40;
+    else if(first<=2020) p=40-1.6*(first-2005);
+    else if(first<=2022) p=16-0.8*(first-2020);
+    else p=14.4-0.4*(first-2022);                            // Wachstumschancengesetz melting 0.4pp/yr
+    p=Math.max(0,p)/100; if(p<=0) return 0;
+    return Math.min(Math.floor(base*p), Math.round(p*4750));
+  };
+  const wageBaseA=(c.emps||[]).reduce((a,x)=>a+(x.person==='B'?0:Math.max(0,N(x.gross)-N(x.vb8))),0);
+  const wageBaseB=(c.emps||[]).reduce((a,x)=>a+(x.person==='B'?Math.max(0,N(x.gross)-N(x.vb8)):0),0);
+  const aeb = aebFor(c.p.birthDate, wageBaseA) + (joint ? aebFor(c.p.spouseBirth, wageBaseB) : 0);
+  const zvE = Math.max(0, gross + propNet - wk - vors - sa - inc.kistSA - agb - entl - aeb);
   const tariffT = z => joint ? 2*estBase(z/2, year) : estBase(z, year);
   // Progressionsvorbehalt: tax-free wage replacement (line 15) raises the rate applied to zvE
   let tax;
@@ -1017,9 +1047,10 @@ function computeEstimate(c){
   // §35a credits
   const credit = Math.min(N(c.ex.household)*0.20, 4000) + Math.min(N(c.ex.handwerker)*0.20, 1200);
   const taxAfter = Math.max(0, tax - credit);
-  // Soli (simplified Freigrenze)
-  const freig = joint ? 39900 : 19950;
-  const soli = taxAfter > freig ? taxAfter*0.055 : 0;
+  // Soli: Freigrenze per year + Milderungszone 11.9% (§§ 3, 4 SolZG); Abgeltungsteuer keeps flat 5.5%
+  const SOLI_FG = {2023:17543, 2024:18130, 2025:19950, 2026:19950};
+  const freig = (SOLI_FG[year]||19950) * (joint?2:1);
+  const soli = taxAfter<=freig ? 0 : Math.min(taxAfter*0.055, (taxAfter-freig)*0.119);
   // church tax: 8% BY/BW, 9% elsewhere — levied PER PERSON (half of the joint tax each)
   const kistRate = (c.p.bundesland==='Bayern'||c.p.bundesland==='Baden-Württemberg') ? 0.08 : 0.09;
   const membA = ['ev','rk','other'].includes(c.p.religion);
@@ -1442,6 +1473,7 @@ function stepPersonal(c){
   <div class="grid2">
     ${F('p','city',t('city'))}
     ${F('p','marital',t('marital'),{select:[['single',t('single')],['married',t('married')]]})}
+    ${c.p.marital!=='married' ? F('p','singleParent',t('single_parent'),{select:[['no',t('opt_no')],['yes',t('opt_yes')]],hint:t('single_parent_hint')}) : ''}
     ${F('p','religion',t('religion'),{select:[['none',t('rel_none')],['ev',t('rel_ev')],['rk',t('rel_rk')],['other',t('rel_other')]]})}
     ${F('p','profession',t('profession'))}
     ${F('p','bundesland',t('bundesland'),{select:[['',t('select')],...BUNDESLAENDER.map(b=>[b,b])]})}
