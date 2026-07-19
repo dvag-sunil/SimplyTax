@@ -370,6 +370,22 @@ en: {
   kap_taxes:"Creditable taxes (lines 43–45)",
   ib_what:"What to enter:", ib_docs:"Typical documents:", ib_anlage:"Tax form:",
   single_parent:"Single parent (§ 24b relief)", opt_yes:"Yes", opt_no:"No",
+  sec_ersatz:"Further wage replacement benefits", ersatz_lbl:"Elterngeld, Krankengeld (health fund), ALG I… (per year)",
+  ersatz_hint:"These benefits appear on NO Lohnsteuerbescheinigung but MUST be declared above €410 (filing becomes mandatory, § 46 EStG). Tax-free, but they raise the tax rate (Progressionsvorbehalt, § 32b) — included in the estimate.",
+  sec_disab:"Disability & care lump sums (§ 33b)",
+  gdb:"Degree of disability (GdB)", gdb_blind:"Blind / helpless / care grade 4–5 (€7,400)",
+  fahrt_p:"Disability travel lump sum", fahrt_900:"€900 (GdB ≥ 80, or ≥ 70 + mark G)", fahrt_4500:"€4,500 (aG, Bl, TBl, H)",
+  pflege_p:"Care lump sum (unpaid home care)", pflege_2:"€600 (care grade 2)", pflege_3:"€1,100 (care grade 3)", pflege_45:"€1,800 (grade 4–5)",
+  kid_transfer:"Disability allowance transferred from child(ren)",
+  disab_hint:"Lump sums count WITHOUT the reasonable-burden threshold. A child's allowance can be transferred to the parents.",
+  sec_so:"Private sales & other income (Anlage SO)",
+  so_gain:"Gains from private sales held under 1 year (crypto, gold…)",
+  so_hint:"Held longer than 1 year = completely tax-free. Below the exemption limit (€1,000 since 2024; €600 before) nothing is taxed — at or above it, the FULL amount is taxable.",
+  so_unterhalt:"Spousal support received (with Realsplitting consent)",
+  realsplit:"Support paid to ex-spouse (Realsplitting, Anlage U)",
+  realsplit_hint:"Deductible up to €13,805 as Sonderausgaben — requires the recipient's consent (Anlage U); the recipient then taxes it.",
+  loss_carry:"Loss carryforward from prior years (§ 10d)",
+  loss_hint:"The amount from your last loss-assessment notice (Verlustfeststellungsbescheid).",
   single_parent_hint:"Yes = at least one child lives in your household and no other adult lives with you. Relief: €4,260 + €240 per further child — applied automatically.",
   pay_title:"Unlock this tax return", pay_sub:"Preparation and calculation are free. Downloading the client PDF and submitting to ELSTER are enabled after payment for this return (one-time, per return).",
   pay_now:"Pay now", pay_locked:"Locked until payment", paid_on:"Paid on",
@@ -533,6 +549,22 @@ de: {
   kap_taxes:"Anzurechnende Steuern (Zeilen 43–45)",
   ib_what:"Was wird hier erfasst:", ib_docs:"Typische Unterlagen:", ib_anlage:"Steuerformular:",
   single_parent:"Alleinerziehend (Entlastungsbetrag § 24b)", opt_yes:"Ja", opt_no:"Nein",
+  sec_ersatz:"Weitere Lohnersatzleistungen", ersatz_lbl:"Elterngeld, Krankengeld (Krankenkasse), ALG I… (pro Jahr)",
+  ersatz_hint:"Diese Leistungen stehen auf KEINER Lohnsteuerbescheinigung, müssen aber ab 410 € erklärt werden (Abgabepflicht, § 46 EStG). Steuerfrei, aber sie erhöhen den Steuersatz (Progressionsvorbehalt, § 32b) — in der Schätzung berücksichtigt.",
+  sec_disab:"Behinderten- & Pflege-Pauschbeträge (§ 33b)",
+  gdb:"Grad der Behinderung (GdB)", gdb_blind:"Blind / hilflos / Pflegegrad 4–5 (7.400 €)",
+  fahrt_p:"Behinderungsbedingte Fahrtkostenpauschale", fahrt_900:"900 € (GdB ≥ 80, oder ≥ 70 + Merkzeichen G)", fahrt_4500:"4.500 € (aG, Bl, TBl, H)",
+  pflege_p:"Pflege-Pauschbetrag (unentgeltliche häusliche Pflege)", pflege_2:"600 € (Pflegegrad 2)", pflege_3:"1.100 € (Pflegegrad 3)", pflege_45:"1.800 € (Grad 4–5)",
+  kid_transfer:"Vom Kind übertragener Behinderten-Pauschbetrag",
+  disab_hint:"Pauschbeträge zählen OHNE zumutbare Belastung. Der Pauschbetrag eines Kindes kann auf die Eltern übertragen werden.",
+  sec_so:"Private Veräußerungsgeschäfte & sonstige Einkünfte (Anlage SO)",
+  so_gain:"Gewinne aus privaten Veräußerungen unter 1 Jahr Haltedauer (Krypto, Gold…)",
+  so_hint:"Länger als 1 Jahr gehalten = komplett steuerfrei. Unter der Freigrenze (1.000 € seit 2024; davor 600 €) bleibt alles steuerfrei — ab Erreichen ist der VOLLE Betrag steuerpflichtig.",
+  so_unterhalt:"Erhaltener Ehegatten-Unterhalt (mit Zustimmung zum Realsplitting)",
+  realsplit:"Unterhalt an Ex-Ehegatten (Realsplitting, Anlage U)",
+  realsplit_hint:"Bis 13.805 € als Sonderausgaben absetzbar — erfordert die Zustimmung des Empfängers (Anlage U); dieser versteuert die Zahlungen.",
+  loss_carry:"Verlustvortrag aus Vorjahren (§ 10d)",
+  loss_hint:"Der Betrag aus dem letzten Verlustfeststellungsbescheid.",
   single_parent_hint:"Ja = mindestens ein Kind lebt in Ihrem Haushalt und keine weitere volljährige Person wohnt bei Ihnen. Entlastung: 4.260 € + 240 € je weiteres Kind — wird automatisch angesetzt.",
   pay_title:"Diese Steuererklärung freischalten", pay_sub:"Erfassung und Berechnung sind kostenlos. PDF-Download und ELSTER-Übermittlung werden nach Zahlung für diese Erklärung freigeschaltet (einmalig, je Erklärung).",
   pay_now:"Jetzt bezahlen", pay_locked:"Bis zur Zahlung gesperrt", paid_on:"Bezahlt am",
@@ -699,6 +731,8 @@ function newClient(f,l,year,marital){
         spouseFirst:'',spouseLast:'',spouseBirth:'',spouseTaxId:'',spouseReligion:'none',singleParent:'no' },
     inc:{ employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:'' },
     emps:[], kap:[], props:[], privIns:[], wkItems:[],
+    oth:{ ersatz:'', gdbA:'', gdbB:'', fahrtA:'', fahrtB:'', pflegeA:'', pflegeB:'', kidTransfer:'',
+          realsplitting:'', lossCarry:'', soGain:'', soUnterhalt:'' },
     ins:{ rv:'',kv:'',pv:'',av:'',other:'' },
     wk:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',
          dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
@@ -778,6 +812,8 @@ function migrateClient(c){
   });
   c.props = Array.isArray(c.props)?c.props:[];
   c.privIns = Array.isArray(c.privIns)?c.privIns:[];
+  c.oth = Object.assign({ersatz:'',gdbA:'',gdbB:'',fahrtA:'',fahrtB:'',pflegeA:'',pflegeB:'',kidTransfer:'',
+    realsplitting:'',lossCarry:'',soGain:'',soUnterhalt:''}, c.oth||{});
   c.wkItems = Array.isArray(c.wkItems)?c.wkItems:[];
   c.wkItems.forEach(x=>{ if(x.person!=='B') x.person='A'; });
   (c.docs||[]).forEach(d=>{ if(d.section==='wkItems') d.section='wk'; });
@@ -1002,7 +1038,8 @@ function computeEstimate(c){
     school = Math.min(N(c.fam.schoolFees)*0.30, 5000);
   }
   const sa = Math.max(36, N(c.sa.donations)+N(c.sa.other)) + childcare + school
-             + Math.min(pins.A.riester, 2100) + (joint ? Math.min(pins.B.riester, 2100) : 0);
+             + Math.min(pins.A.riester, 2100) + (joint ? Math.min(pins.B.riester, 2100) : 0)
+             + Math.min(N(c.oth.realsplitting), 13805);   // Realsplitting § 10 (1a) Nr. 1 (Anlage U)
   // § 33a support to needy relatives: capped at Grundfreibetrag × country-group factor (no zumutbare Belastung)
   const grpFactor = {1:1, 2:0.75, 3:0.5, 4:0.25}[c.fam.supportGroup] ?? 1;
   const support = Math.min(N(c.fam.support), (TARIFF[year]||TARIFF[2025]).gfb * grpFactor);
@@ -1017,7 +1054,13 @@ function computeEstimate(c){
   let zumutbar = Math.min(gde,15340)*zPct[0];
   if(gde>15340) zumutbar += (Math.min(gde,51130)-15340)*zPct[1];
   if(gde>51130) zumutbar += (gde-51130)*zPct[2];
-  const agb = Math.max(0, N(c.ex.medical) - zumutbar) + support;
+  // § 33b lump sums: count WITHOUT zumutbare Belastung
+  const GDB={ '20':384,'30':620,'40':860,'50':1140,'60':1440,'70':1780,'80':2120,'90':2400,'100':2840,'blind':7400 };
+  const disab = (GDB[c.oth.gdbA]||0) + (joint?(GDB[c.oth.gdbB]||0):0)
+              + N(c.oth.fahrtA) + (joint?N(c.oth.fahrtB):0)
+              + N(c.oth.pflegeA) + (joint?N(c.oth.pflegeB):0)
+              + N(c.oth.kidTransfer);
+  const agb = Math.max(0, N(c.ex.medical) - zumutbar) + support + disab;
   // § 24b Entlastungsbetrag für Alleinerziehende: 4,260 € + 240 € per further child
   const entl = (!joint && c.p.singleParent==='yes' && kidsN>=1) ? 4260 + 240*(kidsN-1) : 0;
   // § 24a Altersentlastungsbetrag: cohort-frozen percentage on wages (excl. Versorgungsbezüge)
@@ -1035,14 +1078,25 @@ function computeEstimate(c){
   const wageBaseA=(c.emps||[]).reduce((a,x)=>a+(x.person==='B'?0:Math.max(0,N(x.gross)-N(x.vb8))),0);
   const wageBaseB=(c.emps||[]).reduce((a,x)=>a+(x.person==='B'?Math.max(0,N(x.gross)-N(x.vb8)):0),0);
   const aeb = aebFor(c.p.birthDate, wageBaseA) + (joint ? aebFor(c.p.spouseBirth, wageBaseB) : 0);
-  const zvE = Math.max(0, gross + propNet - wk - vors - sa - inc.kistSA - agb - entl - aeb);
+  // Anlage SO: private sales § 23 (Freigrenze: full amount taxable at/above the limit) + received support
+  const soFG = year>=2024 ? 1000 : 600;
+  const soTaxable = (N(c.oth.soGain) >= soFG ? N(c.oth.soGain) : 0) + N(c.oth.soUnterhalt);
+  const zvE = Math.max(0, gross + propNet + soTaxable - wk - vors - sa - inc.kistSA - agb - entl - aeb
+                          - N(c.oth.lossCarry));          // § 10d Verlustvortrag
   const tariffT = z => joint ? 2*estBase(z/2, year) : estBase(z, year);
-  // Progressionsvorbehalt: tax-free wage replacement (line 15) raises the rate applied to zvE
-  let tax;
-  if(inc.ersatz>0 && zvE>0){
-    tax = Math.floor( tariffT(zvE + inc.ersatz) * (zvE / (zvE + inc.ersatz)) );
-  } else {
-    tax = tariffT(zvE);
+  // Progressionsvorbehalt § 32b: employer benefits (line 15) + further benefits (Elterngeld, Krankengeld, ALG I…)
+  const ersatzTotal = inc.ersatz + N(c.oth.ersatz);
+  const taxFor = z => (ersatzTotal>0 && z>0)
+      ? Math.floor( tariffT(z + ersatzTotal) * (z / (z + ersatzTotal)) )
+      : tariffT(z);
+  let tax = taxFor(zvE);
+  // Kinderfreibetrag-Günstigerprüfung § 31: allowance vs. Kindergeld — the better path wins
+  const KFB = {2023:8952, 2024:9312, 2025:9600, 2026:9756};
+  const kindergeldRecv = (c.fam.children||[]).reduce((a,k)=>a+N(k.kindergeld),0);
+  let kgHinzu = 0;
+  if(kidsN>0){
+    const taxKfb = taxFor(Math.max(0, zvE - (KFB[year]||9600)*kidsN));
+    if(tax - taxKfb > kindergeldRecv){ tax = taxKfb; kgHinzu = kindergeldRecv; }  // Kindergeld added back
   }
   // §35a credits
   const credit = Math.min(N(c.ex.household)*0.20, 4000) + Math.min(N(c.ex.handwerker)*0.20, 1200);
@@ -1063,7 +1117,7 @@ function computeEstimate(c){
   const sparer = joint ? 2000 : 1000;
   const kapTaxable = Math.max(0, kapGains - sparer);
   const kap = kapTaxable*0.25 * 1.055;   // 25% KapESt + 5.5% Soli thereon
-  const owed = taxAfter + soli + kist + kap;
+  const owed = taxAfter + kgHinzu + soli + kist + kap;
   const paid = inc.paid + kapPaid;
   return { zvE, wk, tax, credit, taxAfter, soli, kist, kap, propNet, owed, paid, refund: paid - owed };
 }
@@ -1574,6 +1628,8 @@ function stepIncome(c){
   <div class="section-label">${t('income')}</div>
   ${cards}
   <button class="btn btn-ghost btn-sm" onclick="addItem('emps',{person:'A',employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:''})">＋ ${t('add_emp')}</button>
+  <div class="section-label">${t('sec_ersatz')}</div>
+  ${F('oth','ersatz',t('ersatz_lbl'),{euro:true,ph:'0,00 €',hint:t('ersatz_hint')})}
   ${warnTax?`<div class="warn">⚠️ ${t('warn_taxhigh')}</div>`:''}
   ${navRow()}`;
 }
@@ -1669,6 +1725,11 @@ function stepKap(c){
   return `<h2>${t('step_kap')}</h2><p class="lead">${t('s_kap_lead')}</p>
   ${rows}
   <button class="btn btn-ghost btn-sm" onclick="addItem('kap',{person:'A',platform:'',k7:'',k8:'',k12:'',k13:'',sparerUsed:'',k18:'',k19:'',k20:'',k21:'',k22:'',k23:'',k43:'',k44:'',k45:''})">＋ ${t('add_kap')}</button>
+  <div class="section-label">${t('sec_so')}</div>
+  <div class="grid2">
+    ${F('oth','soGain',t('so_gain'),{euro:true,ph:'0,00 €',hint:t('so_hint')})}
+    ${F('oth','soUnterhalt',t('so_unterhalt'),{euro:true,ph:'0,00 €'})}
+  </div>
   ${docSection('kap')}
   ${navRow()}`;
 }
@@ -1704,6 +1765,10 @@ function stepInsurance(c){
     ${F('ins','pv',t('pv'),{euro:true,ph:'0,00 €'})}
     ${F('ins','av',t('av'),{euro:true,ph:'0,00 €'})}
     ${F('ins','other',t('other_ins'),{euro:true,ph:'0,00 €'})}
+  </div>
+  <div class="grid2">
+    ${F('oth','realsplitting',t('realsplit'),{euro:true,ph:'0,00 €',hint:t('realsplit_hint')})}
+    ${F('oth','lossCarry',t('loss_carry'),{euro:true,ph:'0,00 €',hint:t('loss_hint')})}
   </div>${navRow()}`;
 }
 
@@ -1832,6 +1897,10 @@ function stepSpecial(c){
     ${F('sa','donations',t('donations'),{euro:true,ph:'0,00 €'})}
     ${F('sa','other',t('other_sa'),{euro:true,ph:'0,00 €'})}
     ${F('ins','other',t('other_ins'),{euro:true,ph:'0,00 €'})}
+  </div>
+  <div class="grid2">
+    ${F('oth','realsplitting',t('realsplit'),{euro:true,ph:'0,00 €',hint:t('realsplit_hint')})}
+    ${F('oth','lossCarry',t('loss_carry'),{euro:true,ph:'0,00 €',hint:t('loss_hint')})}
   </div>${navRow()}`;
 }
 
@@ -1843,6 +1912,19 @@ function stepHousehold(c){
     ${F('ex','household',t('household'),{euro:true,ph:'0,00 €'})}
     ${F('ex','handwerker',t('handwerker'),{euro:true,ph:'0,00 €'})}
   </div>
+  <div class="section-label">${t('sec_disab')}</div>
+  <p style="font-size:12.5px;color:var(--ink-soft);margin:-4px 0 12px">${t('disab_hint')}</p>
+  <div class="grid3">
+    ${F('oth','gdbA',t('gdb')+' — '+(c.p.firstName||'A'),{select:[['',t('select')],['20','GdB 20'],['30','GdB 30'],['40','GdB 40'],['50','GdB 50'],['60','GdB 60'],['70','GdB 70'],['80','GdB 80'],['90','GdB 90'],['100','GdB 100'],['blind',t('gdb_blind')]]})}
+    ${F('oth','fahrtA',t('fahrt_p')+' — '+(c.p.firstName||'A'),{select:[['',t('select')],['900',t('fahrt_900')],['4500',t('fahrt_4500')]]})}
+    ${F('oth','pflegeA',t('pflege_p')+' — '+(c.p.firstName||'A'),{select:[['',t('select')],['600',t('pflege_2')],['1100',t('pflege_3')],['1800',t('pflege_45')]]})}
+  </div>
+  ${c.p.marital==='married'?`<div class="grid3">
+    ${F('oth','gdbB',t('gdb')+' — B',{select:[['',t('select')],['20','GdB 20'],['30','GdB 30'],['40','GdB 40'],['50','GdB 50'],['60','GdB 60'],['70','GdB 70'],['80','GdB 80'],['90','GdB 90'],['100','GdB 100'],['blind',t('gdb_blind')]]})}
+    ${F('oth','fahrtB',t('fahrt_p')+' — B',{select:[['',t('select')],['900',t('fahrt_900')],['4500',t('fahrt_4500')]]})}
+    ${F('oth','pflegeB',t('pflege_p')+' — B',{select:[['',t('select')],['600',t('pflege_2')],['1100',t('pflege_3')],['1800',t('pflege_45')]]})}
+  </div>`:''}
+  ${F('oth','kidTransfer',t('kid_transfer'),{euro:true,ph:'0,00 €'})}
   ${docSection('ex')}
   ${navRow()}`;
 }
@@ -2061,6 +2143,11 @@ function buildElsterDataset(c){
       zeile43_kapitalertragsteuer:N(k.k43)+N(k.taxPaid), zeile44_soli:N(k.k44)+N(k.soliPaid), zeile45_kirchensteuer:N(k.k45) })),
     anlageV:(c.props||[]).map(p=>({ objekt:p.address, mieteinnahmen:N(p.rent), werbungskosten:N(p.costs),
       ergebnis:N(p.rent)-N(p.costs) })),
+    weitereAngaben:{ ersatzleistungen:N(c.oth.ersatz), verlustvortrag:N(c.oth.lossCarry),
+      realsplittingAnlageU:Math.min(N(c.oth.realsplitting),13805),
+      behinderung:{ gdbA:c.oth.gdbA||'', gdbB:c.oth.gdbB||'', fahrtA:N(c.oth.fahrtA), fahrtB:N(c.oth.fahrtB),
+        pflegeA:N(c.oth.pflegeA), pflegeB:N(c.oth.pflegeB), uebertragKind:N(c.oth.kidTransfer) },
+      anlageSO:{ privateVeraeusserungsgeschaefte:N(c.oth.soGain), erhaltenerUnterhalt:N(c.oth.soUnterhalt) } },
     belege:(c.docs||[]).map(d=>({ id:d.id, name:d.name, bereich:d.section, datum:new Date(d.ts).toISOString() })),
     schaetzung:{ zvE:Math.round(e.zvE), einkommensteuer:Math.round(e.tax), par35aErmaessigung:Math.round(e.credit),
       soli:Math.round(e.soli), kirchensteuer:Math.round(e.kist), kapitalertragsteuer:Math.round(e.kap),
