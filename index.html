@@ -394,8 +394,11 @@ en: {
   sec_energ:"Energetic renovation of your own home (§ 35c)",
   energ_cost:"Eligible renovation costs (insulation, windows, heating…)",
   energ_stage:"Installment year", energ_s1:"1st year (7%)", energ_s2:"2nd year (7%)", energ_s3:"3rd year (6%)",
-  energ_hint:"20% of up to €200,000 credited directly against the tax over 3 years (7% + 7% + 6%). Requirements: self-used home older than 10 years and a Fachunternehmer certificate.",
+  energ_hint:"20% of up to €200,000 credited directly against the tax over 3 years (7% + 7% + 6%). Requirements: self-used home older than 10 years and a Fachunternehmer certificate. The SAME invoice must not additionally be claimed under § 35a (Handwerker).",
   loss_hint:"The amount from your last loss-assessment notice (Verlustfeststellungsbescheid).",
+  warn_dup_dhh:"Double household is entered BOTH in the structured fields AND as an itemized entry — the amounts would count twice. Please keep only one of the two.",
+  warn_dup_umzug:"Relocation costs are entered BOTH in the structured field AND as an itemized entry — please keep only one.",
+  warn_dup_basis:"A basic health/care policy is selected here although the employment statements already contain health contributions (lines 25/28). Check that the same contributions are not counted twice.",
   single_parent_hint:"Yes = at least one child lives in your household and no other adult lives with you. Relief: €4,260 + €240 per further child — applied automatically.",
   pay_title:"Unlock this tax return", pay_sub:"Preparation and calculation are free. Downloading the client PDF and submitting to ELSTER are enabled after payment for this return (one-time, per return).",
   pay_now:"Pay now", pay_locked:"Locked until payment", paid_on:"Paid on",
@@ -583,8 +586,11 @@ de: {
   sec_energ:"Energetische Sanierung der eigenen Wohnung (§ 35c)",
   energ_cost:"Begünstigte Sanierungskosten (Dämmung, Fenster, Heizung…)",
   energ_stage:"Förderjahr", energ_s1:"1. Jahr (7 %)", energ_s2:"2. Jahr (7 %)", energ_s3:"3. Jahr (6 %)",
-  energ_hint:"20 % von bis zu 200.000 € werden über 3 Jahre direkt von der Steuer abgezogen (7 % + 7 % + 6 %). Voraussetzung: selbst genutztes Wohneigentum älter als 10 Jahre und Bescheinigung des Fachunternehmens.",
+  energ_hint:"20 % von bis zu 200.000 € werden über 3 Jahre direkt von der Steuer abgezogen (7 % + 7 % + 6 %). Voraussetzung: selbst genutztes Wohneigentum älter als 10 Jahre und Bescheinigung des Fachunternehmens. Dieselbe Rechnung darf nicht zusätzlich bei § 35a (Handwerker) angesetzt werden.",
   loss_hint:"Der Betrag aus dem letzten Verlustfeststellungsbescheid.",
+  warn_dup_dhh:"Die doppelte Haushaltsführung ist SOWOHL in den strukturierten Feldern ALS AUCH als Einzelposten erfasst — die Beträge würden doppelt zählen. Bitte nur eine der beiden Eingaben behalten.",
+  warn_dup_umzug:"Umzugskosten sind SOWOHL im strukturierten Feld ALS AUCH als Einzelposten erfasst — bitte nur eine Eingabe behalten.",
+  warn_dup_basis:"Hier ist eine Basis-Kranken-/Pflegeversicherung gewählt, obwohl die Lohnsteuerbescheinigungen bereits Krankenversicherungsbeiträge enthalten (Zeilen 25/28). Bitte prüfen, dass dieselben Beiträge nicht doppelt gezählt werden.",
   single_parent_hint:"Ja = mindestens ein Kind lebt in Ihrem Haushalt und keine weitere volljährige Person wohnt bei Ihnen. Entlastung: 4.260 € + 240 € je weiteres Kind — wird automatisch angesetzt.",
   pay_title:"Diese Steuererklärung freischalten", pay_sub:"Erfassung und Berechnung sind kostenlos. PDF-Download und ELSTER-Übermittlung werden nach Zahlung für diese Erklärung freigeschaltet (einmalig, je Erklärung).",
   pay_now:"Jetzt bezahlen", pay_locked:"Bis zur Zahlung gesperrt", paid_on:"Bezahlt am",
@@ -1737,7 +1743,10 @@ function stepPrivIns(c){
     <div class="sum-row"><span class="l"><b>${t('tot_net')}</b></span><span class="r num"><b>${eur(tot.n)}</b></span></div>
     <div class="sum-row"><span class="l">${t('tot_deduct')}</span><span class="r num" style="color:var(--teal)">${eur(tot.d)}</span></div>
   </div><p style="font-size:12px;color:var(--ink-soft);margin-top:8px">${t('priv_note')}</p>` : '';
+  const dupBasis = (c.privIns||[]).some(x=>INS_CAT[x.type]==='basis')
+                && (c.emps||[]).some(e=>N(e.anKV)+N(e.pkv28)>0);
   return `<h2>${t('step_priv')}</h2><p class="lead">${t('s_priv_lead')}</p>
+  ${dupBasis?`<div class="auth-err">⚠️ ${t('warn_dup_basis')}</div>`:''}
   ${cards}
   <button class="btn btn-ghost btn-sm" onclick="addItem('privIns',{person:'A',type:'',beitrag:'',erstattung:''})">＋ ${t('add_ins')}</button>
   ${totBox}
@@ -1824,7 +1833,6 @@ function stepInsurance(c){
     ${F('ins','kv',t('kv'),{euro:true,ph:'0,00 €'})}
     ${F('ins','pv',t('pv'),{euro:true,ph:'0,00 €'})}
     ${F('ins','av',t('av'),{euro:true,ph:'0,00 €'})}
-    ${F('ins','other',t('other_ins'),{euro:true,ph:'0,00 €'})}
   </div>
   <div class="grid2">
     ${F('oth','realsplitting',t('realsplit'),{euro:true,ph:'0,00 €',hint:t('realsplit_hint')})}
@@ -1899,6 +1907,8 @@ function stepWork(c){
     ${F('wkB','dhhKm',t('dhh_km'),{euro:true,ph:'250'})}
   </div>
   ${F('wkB','relocation',t('relocation'),{euro:true,ph:'0,00 €'})}`:''}
+  ${(N(c.wk.dhhRent)>0 && (c.wkItems||[]).some(x=>x.type==='dhh'))?`<div class="auth-err">⚠️ ${t('warn_dup_dhh')}</div>`:''}
+  ${(N(c.wk.relocation)>0 && (c.wkItems||[]).some(x=>x.type==='umzug'))?`<div class="auth-err">⚠️ ${t('warn_dup_umzug')}</div>`:''}
   <div class="section-label">${t('step_wki')}</div>
   ${wkiCards}
   <button class="btn btn-ghost btn-sm" onclick="addItem('wkItems',{person:'A',type:'',desc:'',amount:''})">＋ ${t('add_wki')}</button>
@@ -1956,7 +1966,6 @@ function stepSpecial(c){
   <div class="grid2">
     ${F('sa','donations',t('donations'),{euro:true,ph:'0,00 €'})}
     ${F('sa','other',t('other_sa'),{euro:true,ph:'0,00 €'})}
-    ${F('ins','other',t('other_ins'),{euro:true,ph:'0,00 €'})}
   </div>
   <div class="grid2">
     ${F('oth','realsplitting',t('realsplit'),{euro:true,ph:'0,00 €',hint:t('realsplit_hint')})}
