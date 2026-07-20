@@ -433,7 +433,7 @@ en: {
   ins_type:"Insurance", beitrag:"Contributions paid (per year)", erstattung:"Reimbursements received (per year)",
   add_ins:"Add insurance", net_short:"Net",
   cat_basis:"Basic health & care — fully deductible", cat_alters:"Retirement provision — fully deductible",
-  cat_riester:"Riester — deductible up to €2,100", cat_vorsorge:"Other provision — shared €1,900 cap",
+  cat_riester:"Riester — deductible up to €2,100", cat_vorsorge:"Other provision — shares the €1,900/€2,800 cap WITH basic health/care (often already exhausted)",
   cat_none:"Not tax-deductible",
   totals:"Totals", tot_beitrag:"Total contributions", tot_erst:"Total reimbursements", tot_net:"Total net",
   tot_deduct:"Thereof tax-relevant (before caps)",
@@ -625,7 +625,7 @@ de: {
   ins_type:"Versicherung", beitrag:"Gezahlte Beiträge (pro Jahr)", erstattung:"Erhaltene Erstattungen (pro Jahr)",
   add_ins:"Versicherung hinzufügen", net_short:"Netto",
   cat_basis:"Basis Kranken & Pflege — voll absetzbar", cat_alters:"Altersvorsorge — voll absetzbar",
-  cat_riester:"Riester — absetzbar bis 2.100 €", cat_vorsorge:"Sonstige Vorsorge — gemeinsamer Höchstbetrag 1.900 €",
+  cat_riester:"Riester — absetzbar bis 2.100 €", cat_vorsorge:"Sonstige Vorsorge — teilt sich den Höchstbetrag 1.900 €/2.800 € MIT Basis-KV/PV (oft bereits ausgeschöpft)",
   cat_none:"Steuerlich nicht absetzbar",
   totals:"Summen", tot_beitrag:"Summe Beiträge", tot_erst:"Summe Erstattungen", tot_net:"Summe netto",
   tot_deduct:"Davon steuerlich relevant (vor Höchstbeträgen)",
@@ -1040,18 +1040,23 @@ function computeEstimate(c){
     const per=(joint && x.person==='B')?'B':'A';
     a[per][cat]+=net; a.total+=net; return a;
   },{total:0,A:{basis:0,alters:0,riester:0,vorsorge:0,none:0},B:{basis:0,alters:0,riester:0,vorsorge:0,none:0}});
-  // Vorsorge: RV/KV/PV/PKV; the €1,900 "sonstige Vorsorge" pot applies PER PERSON
-  // Health & care per § 10 (1) Nr. 3 EStG: employee contributions MINUS tax-free employer subsidies (lines 24a/b/c);
-  // GKV additionally reduced by flat 4% for the Krankengeld share (employees have sick-pay entitlement); PV uncut.
-  const kvBasis  = Math.max(0, inc.kv  - inc.agKV ) * 0.96;
-  const pvBasis  = Math.max(0, inc.pv  - inc.agPV );
-  const pkvBasis = Math.max(0, inc.pkv - inc.agPKV);
-  const avPotA = inc.avA + (joint?0:inc.avB) + N(c.ins.av) + N(c.ins.other) + pins.A.vorsorge;
-  const vors = inc.rv + kvBasis + pvBasis + pkvBasis
-             + pins.A.basis + pins.A.alters + pins.B.basis + pins.B.alters
-             + N(c.ins.rv)+N(c.ins.kv)+N(c.ins.pv)   /* legacy values, if any */
-             + Math.min(avPotA, 1900)
-             + (joint ? Math.min(inc.avB + pins.B.vorsorge, 1900) : 0);
+  // § 10 Abs. 1 Nr. 3/3a + Abs. 4 EStG, per person:
+  //   Basis (KV minus subsidy, ×0.96 Krankengeld cut; PV minus subsidy; PKV minus subsidy) is ALWAYS fully deductible.
+  //   The €1,900 cap (€2,800 without subsidized coverage) covers Basis + sonstige Vorsorge TOGETHER,
+  //   so sonstige (AV, Haftpflicht, BU…) only add anything while Basis < cap (§ 10 Abs. 4 S. 4).
+  const svBasisPerson = per => (c.emps||[]).filter(e=>(e.person==='B')===(per==='B')).reduce((a,e)=>
+      a + Math.max(0, N(e.anKV)-N(e.agKV))*0.96
+        + Math.max(0, N(e.anPV)-N(e.agPV))
+        + Math.max(0, N(e.pkv28)-N(e.agPKV)), 0);
+  const basisA = svBasisPerson('A') + (joint?0:svBasisPerson('B')) + N(c.ins.kv)+N(c.ins.pv) + pins.A.basis;
+  const basisB = joint ? (svBasisPerson('B') + pins.B.basis) : 0;
+  const sonstA = inc.avA + (joint?0:inc.avB) + N(c.ins.av) + N(c.ins.other) + pins.A.vorsorge;
+  const sonstB = joint ? (inc.avB + pins.B.vorsorge) : 0;
+  const nr3A = Math.max(basisA, Math.min(basisA + sonstA, employedA ? 1900 : 2800));
+  const nr3B = Math.max(basisB, Math.min(basisB + sonstB, employedB ? 1900 : 2800));
+  const vors = inc.rv + N(c.ins.rv)                     /* Altersvorsorge: employee RV fully */
+             + pins.A.alters + pins.B.alters
+             + nr3A + nr3B;
   // Sonderausgaben incl. per-child childcare (2025: 80% max €4,800/child; before: 2/3 max €4,000) and school fees (30% max €5,000/child)
   const ccRate = year>=2025 ? {r:0.80,cap:4800} : {r:2/3,cap:4000};
   let childcare=0, school=0;
@@ -1095,7 +1100,7 @@ function computeEstimate(c){
   // § 24a Altersentlastungsbetrag: cohort-frozen percentage on wages (excl. Versorgungsbezüge)
   const aebFor = (birth, base) => {
     if(!birth || base<=0) return 0;
-    const by=parseInt(String(birth).slice(0,4)); if(!by) return 0;
+    const by=parseInt(String(birth).slice(0,4)); if(!by || by<1900 || by>year-15) return 0;  // guard against invalid dates
     const first=by+65; if(first>year) return 0;             // 64th year completed before the tax year
     let p; if(first<=2005) p=40;
     else if(first<=2020) p=40-1.6*(first-2005);
