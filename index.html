@@ -1124,11 +1124,13 @@ function computeEstimate(c){
   let tax = taxFor(zvE);
   // Kinderfreibetrag-Günstigerprüfung § 31: allowance vs. Kindergeld — the better path wins
   const KFB = {2023:8952, 2024:9312, 2025:9600, 2026:9756};
-  const kindergeldRecv = (c.fam.children||[]).reduce((a,k)=>a+N(k.kindergeld),0);
+  // § 31 S. 4: the statutory Kindergeld ENTITLEMENT is added back — independent of what was entered/received
+  const KG_MONTH = {2023:250, 2024:250, 2025:255, 2026:259};
+  const kgAnspruch = (KG_MONTH[year]||255) * 12 * kidsN;
   let kgHinzu = 0;
   if(kidsN>0){
     const taxKfb = taxFor(Math.max(0, zvE - (KFB[year]||9600)*kidsN));
-    if(tax - taxKfb > kindergeldRecv){ tax = taxKfb; kgHinzu = kindergeldRecv; }  // Kindergeld added back
+    if(tax - taxKfb > kgAnspruch){ tax = taxKfb; kgHinzu = kgAnspruch; }   // allowance wins -> entitlement added back
   }
   // §35a credits
   // § 35c energetic renovation: 7% / 7% / 6% of max €200,000, capped 14k/14k/12k per installment year
