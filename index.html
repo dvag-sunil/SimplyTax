@@ -399,6 +399,7 @@ en: {
   warn_dup_dhh:"Double household is entered BOTH in the structured fields AND as an itemized entry — the amounts would count twice. Please keep only one of the two.",
   warn_dup_umzug:"Relocation costs are entered BOTH in the structured field AND as an itemized entry — please keep only one.",
   warn_dup_basis:"A basic health/care policy is selected here although the employment statements already contain health contributions (lines 25/28). Check that the same contributions are not counted twice.",
+  bad_date:"Please enter a valid date of birth between 1900 and today.",
   single_parent_hint:"Yes = at least one child lives in your household and no other adult lives with you. Relief: €4,260 + €240 per further child — applied automatically.",
   pay_title:"Unlock this tax return", pay_sub:"Preparation and calculation are free. Downloading the client PDF and submitting to ELSTER are enabled after payment for this return (one-time, per return).",
   pay_now:"Pay now", pay_locked:"Locked until payment", paid_on:"Paid on",
@@ -591,6 +592,7 @@ de: {
   warn_dup_dhh:"Die doppelte Haushaltsführung ist SOWOHL in den strukturierten Feldern ALS AUCH als Einzelposten erfasst — die Beträge würden doppelt zählen. Bitte nur eine der beiden Eingaben behalten.",
   warn_dup_umzug:"Umzugskosten sind SOWOHL im strukturierten Feld ALS AUCH als Einzelposten erfasst — bitte nur eine Eingabe behalten.",
   warn_dup_basis:"Hier ist eine Basis-Kranken-/Pflegeversicherung gewählt, obwohl die Lohnsteuerbescheinigungen bereits Krankenversicherungsbeiträge enthalten (Zeilen 25/28). Bitte prüfen, dass dieselben Beiträge nicht doppelt gezählt werden.",
+  bad_date:"Bitte ein gültiges Geburtsdatum zwischen 1900 und heute eingeben.",
   single_parent_hint:"Ja = mindestens ein Kind lebt in Ihrem Haushalt und keine weitere volljährige Person wohnt bei Ihnen. Entlastung: 4.260 € + 240 € je weiteres Kind — wird automatisch angesetzt.",
   pay_title:"Diese Steuererklärung freischalten", pay_sub:"Erfassung und Berechnung sind kostenlos. PDF-Download und ELSTER-Übermittlung werden nach Zahlung für diese Erklärung freigeschaltet (einmalig, je Erklärung).",
   pay_now:"Jetzt bezahlen", pay_locked:"Bis zur Zahlung gesperrt", paid_on:"Bezahlt am",
@@ -1418,6 +1420,11 @@ function meter(c){
 }
 
 /* --- field helper: binds to c[group][key] --- */
+const dateMax = () => new Date().toISOString().slice(0,10);
+const validDate = v => { if(!/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return v;
+  const y=parseInt(String(v).slice(0,4));
+  if(y<1900 || y>new Date().getFullYear()){ alert(t('bad_date')); return ''; }
+  return v; };
 function F(group,key,label,opts={}){
   const c=cur(); const v=c[group][key];
   const ai = S.aiFields[group+'.'+key] ? `<span class="ai-flag">AI</span>` : '';
@@ -1430,10 +1437,11 @@ function F(group,key,label,opts={}){
       </select>${hint}</div>`;
   }
   return `<div class="field"><label>${label}${ai}</label>
-    <input type="${type}" value="${esc(v)}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''}
+    <input type="${type}" value="${esc(v)}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''} ${type==='date'?`min="1900-01-01" max="${dateMax()}"`:''}
       onchange="upd('${group}','${key}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
 function upd(group,key,val,fmt){
+  val = validDate(val);
   const c=cur();
   if(fmt && String(val).trim()!=='') val = formatDE(N(val));   // display in German format: 1.234,56
   c[group][key]=val; c.updatedAt=Date.now();
@@ -1451,12 +1459,12 @@ function LF(list,item,field,label,opts={}){
       </select>${hint}</div>`;
   }
   return `<div class="field"><label>${label}${ai}</label>
-    <input type="${opts.type||'text'}" value="${esc(item[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''}
+    <input type="${opts.type||'text'}" value="${esc(item[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''} ${(opts.type||'text')==='date'?`min="1900-01-01" max="${dateMax()}"`:''}
       onchange="updItem('${list}','${item.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
 function addItem(list,tpl){ const c=cur(); (c[list]=c[list]||[]).push(Object.assign({id:uid()},tpl)); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function delItem(list,id){ const c=cur(); c[list]=(c[list]||[]).filter(x=>x.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
-function updItem(list,id,f,v,fmt){ const c=cur(); const it=(c[list]||[]).find(x=>x.id===id); if(!it) return;
+function updItem(list,id,f,v,fmt){ v = validDate(v); const c=cur(); const it=(c[list]||[]).find(x=>x.id===id); if(!it) return;
   if(fmt && String(v).trim()!=='') v=formatDE(N(v));
   it[f]=v; delete S.aiFields[list+'.'+id+'.'+f]; c.updatedAt=Date.now(); scheduleSave(); render(); }
 
