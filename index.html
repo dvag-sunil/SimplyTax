@@ -976,6 +976,7 @@ function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'
 function dateStr(ts){ return new Date(ts).toLocaleDateString(S.lang==='de'?'de-DE':'en-GB'); }
 
 /* ---------------- tax engine (§32a EStG, simplified estimate) ---------------- */
+/* § 32a parameters per year; 2026 falls back to 2025 until the 2026 tariff is enacted */
 const TARIFF = {
   2023:{gfb:10908, z1e:15999, a1:979.18,  z2e:62809, a2:192.59, c2:966.53,  z3e:277825, r3:.42, d3:9972.98,  r4:.45, d4:18307.73},
   2024:{gfb:11784, z1e:17005, a1:954.80,  z2e:66760, a2:181.19, c2:991.21,  z3e:277825, r3:.42, d3:10636.31, r4:.45, d4:18971.06},
@@ -1059,7 +1060,7 @@ function computeEstimate(c){
     childcare = N(c.fam.childcare)>0 ? Math.min(N(c.fam.childcare)*ccRate.r, ccRate.cap*kidsN) : 0;
     school = Math.min(N(c.fam.schoolFees)*0.30, 5000);
   }
-  const sa = Math.max(36, N(c.sa.donations)+N(c.sa.other)) + childcare + school
+  const sa = Math.max(joint?72:36, N(c.sa.donations)+N(c.sa.other)) + childcare + school   // § 10c Pauschbetrag 36/72
              + Math.min(pins.A.riester, 2100) + (joint ? Math.min(pins.B.riester, 2100) : 0)
              + Math.min(N(c.oth.realsplitting), 13805);   // Realsplitting § 10 (1a) Nr. 1 (Anlage U)
   // § 33a support to needy relatives: capped at Grundfreibetrag × country-group factor (no zumutbare Belastung)
