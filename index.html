@@ -1950,8 +1950,14 @@ function stepWork(c){
 function CF(kid,field,label,opts={}){
   const type=opts.type||'text';
   const hint=opts.hint?`<div class="hint">${opts.hint}</div>`:'';
+  if(opts.select){
+    return `<div class="field"><label>${label}</label>
+      <select onchange="updChild('${kid.id}','${field}',this.value)">
+        ${opts.select.map(o=>`<option value="${o[0]}" ${(kid[field]||'')===o[0]?'selected':''}>${o[1]}</option>`).join('')}
+      </select>${hint}</div>`;
+  }
   return `<div class="field"><label>${label}</label>
-    <input type="${type}" value="${esc(kid[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''}
+    <input type="${type}" value="${type==='date'?(esc(kid[field])||dateMax()):esc(kid[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
       onchange="updChild('${kid.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
 function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',kindergeld:'',childcare:'',schoolFees:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
