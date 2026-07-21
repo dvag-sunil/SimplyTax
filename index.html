@@ -64,6 +64,11 @@
   .infobox .ib-row{margin:4px 0}
   .info-btn{float:right;font-size:17px;color:var(--teal);padding:2px 8px;border-radius:8px}
   .info-btn:hover{background:var(--teal-soft)}
+  .info-btn-sm{font-size:13px;color:var(--teal);background:var(--teal-soft);border:none;border-radius:50%;
+    width:16px;height:16px;line-height:16px;display:inline-flex;align-items:center;justify-content:center;
+    cursor:pointer;margin-left:5px;vertical-align:middle;padding:0}
+  .info-btn-sm:hover{background:var(--teal)}
+  .info-btn-sm:hover{color:#fff}
 
   /* ---------- dashboard ---------- */
   .page-head{display:flex;align-items:flex-end;gap:16px;margin-bottom:22px;flex-wrap:wrap}
@@ -400,6 +405,7 @@ en: {
   warn_dup_umzug:"Relocation costs are entered BOTH in the structured field AND as an itemized entry — please keep only one.",
   warn_dup_basis:"A basic health/care policy is selected here although the employment statements already contain health contributions (lines 25/28). Check that the same contributions are not counted twice.",
   bad_date:"Please enter a valid date of birth between 1940 and today.",
+  bad_amount:"Please enter a positive amount (negative values are not allowed here).",
   married_sep:"Married — separate assessment (§ 26a)",
   kinship:"Relationship to child", kin_leib:"Biological (leiblich)", kin_adopt:"Adopted (adoptiert)",
   kin_pflege:"Foster child (Pflegekind)", kin_stief:"Step-/grandchild in household (Stiefkind/Enkelkind)",
@@ -600,6 +606,7 @@ de: {
   warn_dup_umzug:"Umzugskosten sind SOWOHL im strukturierten Feld ALS AUCH als Einzelposten erfasst — bitte nur eine Eingabe behalten.",
   warn_dup_basis:"Hier ist eine Basis-Kranken-/Pflegeversicherung gewählt, obwohl die Lohnsteuerbescheinigungen bereits Krankenversicherungsbeiträge enthalten (Zeilen 25/28). Bitte prüfen, dass dieselben Beiträge nicht doppelt gezählt werden.",
   bad_date:"Bitte ein gültiges Geburtsdatum zwischen 1940 und heute eingeben.",
+  bad_amount:"Bitte einen positiven Betrag eingeben (negative Werte sind hier nicht zulässig).",
   married_sep:"Verheiratet — Einzelveranlagung (§ 26a)",
   kinship:"Verwandtschaftsverhältnis zum Kind", kin_leib:"Leiblich", kin_adopt:"Adoptiert",
   kin_pflege:"Pflegekind", kin_stief:"Stiefkind/Enkelkind im Haushalt",
@@ -661,7 +668,7 @@ let S = {
   accounts:[], user:null, authMode:'login',
   clients:[], currentId:null, step:0,
   search:'', fStatus:'all', fYear:'all',
-  aiFields:{}, scanState:null, infoOpen:false, // scanState: null | 'scanning' | 'ok' | 'err'
+  aiFields:{}, scanState:null, infoOpen:false, fieldInfo:{}, // scanState: null | 'scanning' | 'ok' | 'err'
 };
 const t = k => (STR[S.lang][k] ?? k);
 const uid = () => 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -753,6 +760,7 @@ step7:{en:{what:"Final check of all data. The PDF summary is for the client; sub
 step_inq:{en:{what:"Log letters from the Finanzamt, record your answer and send it electronically (as 'Sonstige Nachricht'; receipts as Belegnachreichung).",docs:"The Finanzamt letter forwarded by the client.",anlage:"Sonstige Nachricht · Belegnachreichung"},
        de:{what:"Schreiben des Finanzamts erfassen, Antwort dokumentieren und elektronisch senden (als 'Sonstige Nachricht'; Belege als Belegnachreichung).",docs:"Das vom Mandanten weitergeleitete Finanzamtsschreiben.",anlage:"Sonstige Nachricht · Belegnachreichung"}}
 };
+function toggleFieldInfo(key){ S.fieldInfo=S.fieldInfo||{}; S.fieldInfo[key]=!S.fieldInfo[key]; render(); }
 function stepInfoBox(i){
   const keys=['step1','step2','step4','step_fam','step5','step_priv','step_kap','step_prop','step6','step7','step_inq'];
   const info=STEP_INFO[keys[i]]; if(!info) return '';
@@ -988,7 +996,7 @@ const N = v => {
     const p = s.split('.');
     if(!(p.length===2 && p[1].length<=2 && p[1].length>0)) s = s.replace(/\./g,''); // "1.234" → thousands, "45000.5" → decimal
   }
-  const n = parseFloat(s); return isNaN(n)?0:n;
+  const n = parseFloat(s); return Number.isFinite(n)?n:0;
 };
 function formatDE(n){
   const hasFrac = Math.abs(n - Math.round(n)) > 0.004;
@@ -1441,13 +1449,19 @@ const validDate = v => { if(!/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return v;
   const y=parseInt(String(v).slice(0,4));
   if(y<1940 || y>new Date().getFullYear()){ alert(t('bad_date')); return ''; }
   return v; };
+const validAmount = (v, fmt) => { if(!fmt || String(v).trim()==='') return v;
+  if(N(v) < 0){ alert(t('bad_amount')); return ''; }
+  return v; };
 function F(group,key,label,opts={}){
   const c=cur(); const v=c[group][key];
   const ai = S.aiFields[group+'.'+key] ? `<span class="ai-flag">AI</span>` : '';
   const type = opts.type||'text';
-  const hint = opts.hint?`<div class="hint">${opts.hint}</div>`:'';
+  const fkey = group+'.'+key;
+  const toggled = opts.hintMode==='toggle';
+  const infoBtn = toggled && opts.hint ? ` <button type="button" class="info-btn-sm" title="Info" onclick="toggleFieldInfo('${fkey}')">ⓘ</button>` : '';
+  const hint = opts.hint ? (toggled ? ((S.fieldInfo||{})[fkey] ? `<div class="hint">${opts.hint}</div>` : '') : `<div class="hint">${opts.hint}</div>`) : '';
   if(opts.select){
-    return `<div class="field"><label>${label}${ai}</label>
+    return `<div class="field"><label>${label}${ai}${infoBtn}</label>
       <select onchange="upd('${group}','${key}',this.value)">
         ${opts.select.map(o=>`<option value="${o[0]}" ${v===o[0]?'selected':''}>${o[1]}</option>`).join('')}
       </select>${hint}</div>`;
@@ -1457,7 +1471,7 @@ function F(group,key,label,opts={}){
       onchange="upd('${group}','${key}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
 function upd(group,key,val,fmt){
-  val = validDate(val);
+  val = validDate(val); val = validAmount(val, fmt);
   const c=cur();
   if(fmt && String(val).trim()!=='') val = formatDE(N(val));   // display in German format: 1.234,56
   c[group][key]=val; c.updatedAt=Date.now();
@@ -1480,7 +1494,7 @@ function LF(list,item,field,label,opts={}){
 }
 function addItem(list,tpl){ const c=cur(); (c[list]=c[list]||[]).push(Object.assign({id:uid()},tpl)); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function delItem(list,id){ const c=cur(); c[list]=(c[list]||[]).filter(x=>x.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
-function updItem(list,id,f,v,fmt){ v = validDate(v); const c=cur(); const it=(c[list]||[]).find(x=>x.id===id); if(!it) return;
+function updItem(list,id,f,v,fmt){ v = validDate(v); v = validAmount(v, fmt); const c=cur(); const it=(c[list]||[]).find(x=>x.id===id); if(!it) return;
   if(fmt && String(v).trim()!=='') v=formatDE(N(v));
   it[f]=v; delete S.aiFields[list+'.'+id+'.'+f]; c.updatedAt=Date.now(); scheduleSave(); render(); }
 
@@ -1604,7 +1618,7 @@ function stepPersonal(c){
   </div>
   <div class="grid2">
     ${F('p','city',t('city'))}
-    ${F('p','marital',t('marital'),{select:[['single',t('single')],['married',t('married')],['married_sep',t('married_sep')]],hint:t('marital_hint')})}
+    ${F('p','marital',t('marital'),{select:[['single',t('single')],['married',t('married')],['married_sep',t('married_sep')]],hint:t('marital_hint'),hintMode:'toggle'})}
     ${c.p.marital!=='married' ? F('p','singleParent',t('single_parent'),{select:[['no',t('opt_no')],['yes',t('opt_yes')]],hint:t('single_parent_hint')}) : ''}
     ${F('p','religion',t('religion'),{select:[['none',t('rel_none')],['ev',t('rel_ev')],['rk',t('rel_rk')],['other',t('rel_other')]]})}
     ${F('p','profession',t('profession'))}
@@ -1962,7 +1976,7 @@ function CF(kid,field,label,opts={}){
 }
 function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',kindergeld:'',childcare:'',schoolFees:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function delChild(id){ const c=cur(); c.fam.children=(c.fam.children||[]).filter(k=>k.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
-function updChild(id,f,v,fmt){ const c=cur(); const k=(c.fam.children||[]).find(x=>x.id===id); if(!k) return;
+function updChild(id,f,v,fmt){ v = validAmount(v, fmt); const c=cur(); const k=(c.fam.children||[]).find(x=>x.id===id); if(!k) return;
   if(fmt && String(v).trim()!=='') v=formatDE(N(v)); k[f]=v; c.updatedAt=Date.now(); scheduleSave(); render(); }
 
 function stepFamily(c){
