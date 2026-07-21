@@ -413,6 +413,10 @@ en: {
   kin_pflege_hint:"Counts as your child only if a genuine family-like bond exists (Obhuts- und Pflegeverhältnis) on a long-term basis, not for profit, and the bond to the birth parents is essentially severed.",
   kin_stief_hint:"Counts only for as long as the child actually lives in your household.",
   marital_hint:"Separated or in a divorce? Each spouse then files their OWN return — choose 'separate assessment' (§ 26a, individual tariff; spouse identity is still recorded). In the YEAR of separation, joint assessment is usually still allowed. After the separation year or divorce, choose 'Single'.",
+  widowed:"Widowed", separated_living:"Separated (living apart)",
+  death_year:"Year your spouse passed away",
+  death_year_hint:"In the tax year immediately following the year of death, you can still use the splitting tariff once more (Witwensplitting / Gnadensplitting, § 32a Abs. 6 EStG) — applied automatically below. From the second year after death onward, the individual tariff applies like for a single person.",
+  separated_hint:"Married but permanently living apart (dauernd getrennt lebend) — taxed individually like separate assessment; spouse identity is still recorded on the main form. In the YEAR the separation began, joint assessment may still be chosen — pick 'Married' instead for that specific filing year.",
   single_parent_hint:"Yes = at least one child lives in your household and no other adult lives with you. Relief: €4,260 + €240 per further child — applied automatically.",
   pay_title:"Unlock this tax return", pay_sub:"Preparation and calculation are free. Downloading the client PDF and submitting to ELSTER are enabled after payment for this return (one-time, per return).",
   pay_now:"Pay now", pay_locked:"Locked until payment", paid_on:"Paid on",
@@ -617,6 +621,10 @@ de: {
   kin_pflege_hint:"Zählt nur als Ihr Kind, wenn ein echtes familienähnliches Band besteht (Obhuts- und Pflegeverhältnis) auf Dauer angelegt, nicht zu Erwerbszwecken, und das Verhältnis zu den leiblichen Eltern im Wesentlichen aufgehoben ist.",
   kin_stief_hint:"Zählt nur, solange das Kind tatsächlich in Ihrem Haushalt lebt.",
   marital_hint:"Getrennt lebend oder in Scheidung? Dann gibt jeder Ehegatte eine EIGENE Erklärung ab — 'Einzelveranlagung' wählen (§ 26a, Grundtarif; die Daten des Ehegatten werden trotzdem erfasst). Im Trennungsjahr ist die Zusammenveranlagung meist noch möglich. Nach dem Trennungsjahr bzw. der Scheidung: 'Ledig'.",
+  widowed:"Verwitwet", separated_living:"Getrennt lebend",
+  death_year:"Todesjahr des Ehepartners",
+  death_year_hint:"Im Steuerjahr direkt nach dem Todesjahr können Sie noch einmal den Splittingtarif nutzen (Witwensplitting / Gnadensplitting, § 32a Abs. 6 EStG) — wird unten automatisch angewendet. Ab dem zweiten Jahr nach dem Tod gilt der Grundtarif wie bei Ledigen.",
+  separated_hint:"Verheiratet, aber dauernd getrennt lebend — Einzelveranlagung wie bei getrennter Veranlagung; die Daten des Ehegatten werden weiterhin auf dem Hauptvordruck erfasst. Im Jahr des Trennungsbeginns ist die Zusammenveranlagung meist noch möglich — für dieses Jahr stattdessen 'Verheiratet' wählen.",
   single_parent_hint:"Ja = mindestens ein Kind lebt in Ihrem Haushalt und keine weitere volljährige Person wohnt bei Ihnen. Entlastung: 4.260 € + 240 € je weiteres Kind — wird automatisch angesetzt.",
   pay_title:"Diese Steuererklärung freischalten", pay_sub:"Erfassung und Berechnung sind kostenlos. PDF-Download und ELSTER-Übermittlung werden nach Zahlung für diese Erklärung freigeschaltet (einmalig, je Erklärung).",
   pay_now:"Jetzt bezahlen", pay_locked:"Bis zur Zahlung gesperrt", paid_on:"Bezahlt am",
@@ -743,8 +751,8 @@ const wkiHint  = k => { const x=WKI_TYPES.find(i=>i.k===k); return x ? (S.lang==
 
 /* per-step client guidance shown via the (i) button: what to enter, documents, tax form */
 const STEP_INFO={
-step1:{en:{what:"The client's personal data (and spouse for joint assessment), the bank account for the refund, and the receiving tax office (Bundesland, name, 4-digit BUFA number). Single parents: answer the § 24b question — €4,260+ relief is applied automatically.",docs:"ID card, Steuer-ID letter (11-digit IdNr), IBAN.",anlage:"Hauptvordruck ESt 1 A"},
-       de:{what:"Persönliche Daten des Mandanten (und des Ehepartners bei Zusammenveranlagung), Bankverbindung für die Erstattung und das zuständige Finanzamt (Bundesland, Name, 4-stellige BUFA-Nummer). Alleinerziehende: die § 24b-Frage beantworten — Entlastungsbetrag ab 4.260 € wird automatisch angesetzt.",docs:"Ausweis, Schreiben mit der Steuer-ID (11-stellige IdNr), IBAN.",anlage:"Hauptvordruck ESt 1 A"}},
+step1:{en:{what:"The client's personal data (and spouse for joint/separate assessment), the bank account for the refund, and the receiving tax office (Bundesland, name, 4-digit BUFA number). Single parents: answer the § 24b question. Widowed: enter the year of death — the splitting tariff still applies once, automatically.",docs:"ID card, Steuer-ID letter (11-digit IdNr), IBAN.",anlage:"Hauptvordruck ESt 1 A"},
+       de:{what:"Persönliche Daten des Mandanten (und des Ehepartners bei Zusammen-/Einzelveranlagung), Bankverbindung für die Erstattung und das zuständige Finanzamt (Bundesland, Name, 4-stellige BUFA-Nummer). Alleinerziehende: die § 24b-Frage beantworten. Verwitwet: Todesjahr eingeben — der Splittingtarif gilt automatisch noch einmal.",docs:"Ausweis, Schreiben mit der Steuer-ID (11-stellige IdNr), IBAN.",anlage:"Hauptvordruck ESt 1 A"}},
 step2:{en:{what:"Wage data per employer, exactly as printed on the Lohnsteuerbescheinigung (lines 1–34) incl. social insurance — one statement per job; upload creates them automatically. Below: further wage replacement (Elterngeld, Krankengeld, ALG I — mandatory above €410, raises the tax rate) and pensions (Anlage R — taxable share derived from the start year).",docs:"Lohnsteuerbescheinigung(en) from every employer of the year.",anlage:"Anlage N · Vorsorgeaufwand · Anlage R"},
        de:{what:"Lohndaten je Arbeitgeber, genau wie auf der Lohnsteuerbescheinigung (Zeilen 1–34) inkl. Sozialversicherung — ein Nachweis pro Job; der Upload legt sie automatisch an. Darunter: weitere Lohnersatzleistungen (Elterngeld, Krankengeld, ALG I — ab 410 € pflichtig, erhöhen den Steuersatz) und Renten (Anlage R — Besteuerungsanteil automatisch aus dem Beginnjahr).",docs:"Lohnsteuerbescheinigung(en) aller Arbeitgeber des Jahres, Rentenbezugsmitteilung, Elterngeld-/Krankengeldbescheide.",anlage:"Anlage N · Vorsorgeaufwand · Anlage R"}},
 step4:{en:{what:"Job-related costs per person: commuting, home office, work equipment, training, double household, relocation — plus itemized categories (Arbeitszimmer, communication, tax advisory…). €1,230 lump sum applies automatically. Low incomes with commutes over 20 km additionally receive the Mobilitätsprämie — computed automatically from your entries.",docs:"Invoices, tickets, rental contract of the second home, course confirmations.",anlage:"Anlage N — Werbungskosten (§ 9 EStG)"},
@@ -869,7 +877,7 @@ async function loadState(){
     if(u){ S.user=u; await loadUserData(); S.loggedIn=true; S.view='dash'; } }
 }
 function migrateClient(c){
-  c.p = Object.assign({faNumber:'',bundesland:'',spouseReligion:'none',singleParent:'no'}, c.p||{});
+  c.p = Object.assign({faNumber:'',bundesland:'',spouseReligion:'none',singleParent:'no',deathYear:''}, c.p||{});
   c.wkB = Object.assign({commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wkB||{});
   (Array.isArray(c.privIns)?c.privIns:[]).forEach(x=>{ if(x.person!=='B') x.person='A'; });
   c.emps = Array.isArray(c.emps)?c.emps:[];
@@ -1060,7 +1068,13 @@ function computeEstimate(c){
   const year = c.taxYear || 2025;
   const inc = incTotals(c);
   const gross = inc.gross;
-  const joint = c.p.marital==='married';
+  const joint = c.p.marital==='married';   // true ONLY for actual Zusammenveranlagung (doubles GFB, SA-Pauschbetrag, Vorsorge caps, Soli-Freigrenze, etc.)
+  // § 32a Abs. 6 Nr. 1 EStG — Witwensplitting/Gnadensplitting: in the ASSESSMENT YEAR
+  // immediately following the spouse's death, the splitting TARIFF (rate schedule) still
+  // applies to the surviving spouse's own income — but NONE of the other "joint" doublings
+  // (no second income, no doubled allowances). Deliberately kept separate from `joint`.
+  const widowSplitYear = c.p.marital==='verwitwet' && parseInt(c.p.deathYear||0)===year-1;
+  const useSplitTariff = joint || widowSplitYear;
   // Werbungskosten per person: €1,230 lump sum each (if employed) OR actual costs, per person
   const calcWK = (w,fCredit)=>{ w=w||{};
     const days=Math.min(N(w.commuteDays),366), km=N(w.commuteKm);
@@ -1172,7 +1186,7 @@ function computeEstimate(c){
   const soTaxable = (N(c.oth.soGain) >= soFG ? N(c.oth.soGain) : 0) + N(c.oth.soUnterhalt);
   const zvE = Math.max(0, gross + propNet + soTaxable + renteNet - wk - vors - sa - inc.kistSA - agb - entl - aeb
                           - N(c.oth.lossCarry));          // § 10d Verlustvortrag
-  const tariffT = z => joint ? 2*estBase(z/2, year) : estBase(z, year);
+  const tariffT = z => useSplitTariff ? 2*estBase(z/2, year) : estBase(z, year);
   // Progressionsvorbehalt § 32b: employer benefits (line 15) + further benefits (Elterngeld, Krankengeld, ALG I…)
   const ersatzTotal = inc.ersatz + N(c.oth.ersatz);
   const taxFor = z => (ersatzTotal>0 && z>0)
@@ -1360,7 +1374,7 @@ function showNewClient(){
     </div>
     <div class="grid2">
       <div class="field"><label>${t('tax_year')}</label><select id="nc-y">${yrs.map(y=>`<option>${y}</option>`).join('')}</select></div>
-      <div class="field"><label>${t('marital')}</label><select id="nc-m"><option value="single">${t('single')}</option><option value="married">${t('married')}</option><option value="married_sep">${t('married_sep')}</option></select></div>
+      <div class="field"><label>${t('marital')}</label><select id="nc-m"><option value="single">${t('single')}</option><option value="married">${t('married')}</option><option value="married_sep">${t('married_sep')}</option><option value="verwitwet">${t('widowed')}</option><option value="getrennt_lebend">${t('separated_living')}</option></select></div>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
       <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
@@ -1470,7 +1484,8 @@ function meter(c){
 
 /* --- field helper: binds to c[group][key] --- */
 const dateMax = () => new Date().toISOString().slice(0,10);
-const marLbl = m => m==='married' ? t('married') : (m==='married_sep' ? t('married_sep') : t('single'));
+const marLbl = m => m==='married' ? t('married') : m==='married_sep' ? t('married_sep')
+  : m==='verwitwet' ? t('widowed') : m==='getrennt_lebend' ? t('separated_living') : t('single');
 const validDate = v => { if(!/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return v;
   const y=parseInt(String(v).slice(0,4));
   if(y<1940 || y>new Date().getFullYear()){ alert(t('bad_date')); return ''; }
@@ -1631,7 +1646,7 @@ function navRow(){
 
 /* --- step 1: personal --- */
 function stepPersonal(c){
-  const married = c.p.marital==='married' || c.p.marital==='married_sep';   // spouse identity incl. § 26a
+  const married = ['married','married_sep','getrennt_lebend'].includes(c.p.marital);   // spouse identity incl. § 26a / getrennt lebend
   return `<h2>${t('step1')}</h2><p class="lead">${t('s1_lead')}</p>
   <div class="section-label">${t('personal')}</div>
   <div class="grid2">
@@ -1644,7 +1659,9 @@ function stepPersonal(c){
   </div>
   <div class="grid2">
     ${F('p','city',t('city'))}
-    ${F('p','marital',t('marital'),{select:[['single',t('single')],['married',t('married')],['married_sep',t('married_sep')]],hint:t('marital_hint'),hintMode:'toggle'})}
+    ${F('p','marital',t('marital'),{select:[['single',t('single')],['married',t('married')],['married_sep',t('married_sep')],['verwitwet',t('widowed')],['getrennt_lebend',t('separated_living')]],hint:t('marital_hint'),hintMode:'toggle'})}
+    ${c.p.marital==='verwitwet'?F('p','deathYear',t('death_year'),{ph:String(new Date().getFullYear()-1),hint:t('death_year_hint')}):''}
+    ${c.p.marital==='getrennt_lebend'?`<div class="hint" style="margin-top:-8px;margin-bottom:14px">${t('separated_hint')}</div>`:''}
     ${c.p.marital!=='married' ? F('p','singleParent',t('single_parent'),{select:[['no',t('opt_no')],['yes',t('opt_yes')]],hint:t('single_parent_hint')}) : ''}
     ${F('p','religion',t('religion'),{select:[['none',t('rel_none')],['ev',t('rel_ev')],['rk',t('rel_rk')],['other',t('rel_other')]]})}
     ${F('p','profession',t('profession'))}
@@ -2241,7 +2258,9 @@ function buildElsterDataset(c){
       anschrift:S.user.settings.address||'', kontakt:S.user.settings.contact||'' }:{ name:S.user?.name||'' },
     hauptvordruck:{
       veranlagungsart: c.p.marital==='married' ? 'zusammenveranlagung'
-                     : c.p.marital==='married_sep' ? 'einzelveranlagung_ehegatten_par26a' : 'einzelveranlagung',
+                     : (c.p.marital==='married_sep'||c.p.marital==='getrennt_lebend') ? 'einzelveranlagung_ehegatten_par26a'
+                     : (c.p.marital==='verwitwet' && parseInt(c.p.deathYear||0)===(c.taxYear-1)) ? 'einzelveranlagung_verwitwete_gnadensplitting_par32a6'
+                     : 'einzelveranlagung',
       finanzamt:{ name:c.p.finanzamt||'', bufaNr:c.p.faNumber||'' },
       steuernummer:c.p.steuernummer||'', bundesland:c.p.bundesland||'',
       personA:{ idnr:(c.p.taxId||'').replace(/\s/g,''), name:c.p.lastName, vorname:c.p.firstName,
