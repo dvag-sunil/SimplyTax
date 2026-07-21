@@ -418,6 +418,8 @@ en: {
   pay_now:"Pay now", pay_locked:"Locked until payment", paid_on:"Paid on",
   pay_sim_note:"Prototype: the payment is simulated. In production, Stripe Checkout runs via the backend and a webhook unlocks the return.",
   paid_not_submitted:"Paid, not yet submitted",
+  reminder_lead:"these returns were paid but not yet submitted to the Finanzamt. Follow up with the client, or check for a technical blocker.",
+  days_since_payment:"days since payment", refund_window_over:"past the 14-day refund window",
   m_kap:"Capital gains tax (est.)",
   step_prop:"Rental property", s_prop_lead:"Rental income (Anlage V) — one entry per property. Costs (loan interest, maintenance, depreciation, service charges…) count as expenses; a loss reduces the taxable income.",
   prop_address:"Property (address)", prop_rent:"Rental income (per year)", prop_costs:"Costs / expenses (per year)", add_prop:"Add property", prop_net:"Net result",
@@ -620,6 +622,8 @@ de: {
   pay_now:"Jetzt bezahlen", pay_locked:"Bis zur Zahlung gesperrt", paid_on:"Bezahlt am",
   pay_sim_note:"Prototyp: Die Zahlung wird simuliert. In Produktion läuft Stripe Checkout über das Backend; ein Webhook schaltet die Erklärung frei.",
   paid_not_submitted:"Bezahlt, noch nicht abgegeben",
+  reminder_lead:"diese Erklärungen wurden bezahlt, aber noch nicht ans Finanzamt übermittelt. Beim Mandanten nachfragen oder auf ein technisches Problem prüfen.",
+  days_since_payment:"Tage seit Zahlung", refund_window_over:"außerhalb der 14-Tage-Rückerstattungsfrist",
   m_kap:"Kapitalertragsteuer (ca.)",
   step_prop:"Vermietung", s_prop_lead:"Einkünfte aus Vermietung (Anlage V) — ein Eintrag je Immobilie. Kosten (Darlehenszinsen, Instandhaltung, AfA, Nebenkosten…) zählen als Werbungskosten; ein Verlust mindert das zu versteuernde Einkommen.",
   prop_address:"Immobilie (Adresse)", prop_rent:"Mieteinnahmen (pro Jahr)", prop_costs:"Kosten / Aufwendungen (pro Jahr)", add_prop:"Immobilie hinzufügen", prop_net:"Ergebnis",
@@ -670,7 +674,7 @@ let S = {
   accounts:[], user:null, authMode:'login',
   clients:[], currentId:null, step:0,
   search:'', fStatus:'all', fYear:'all',
-  aiFields:{}, scanState:null, infoOpen:false, fieldInfo:{}, // scanState: null | 'scanning' | 'ok' | 'err'
+  aiFields:{}, scanState:null, infoOpen:false, fieldInfo:{}, showReminders:false, // scanState: null | 'scanning' | 'ok' | 'err'
 };
 const t = k => (STR[S.lang][k] ?? k);
 const uid = () => 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -763,6 +767,21 @@ step_inq:{en:{what:"Log letters from the Finanzamt, record your answer and send 
        de:{what:"Schreiben des Finanzamts erfassen, Antwort dokumentieren und elektronisch senden (als 'Sonstige Nachricht'; Belege als Belegnachreichung).",docs:"Das vom Mandanten weitergeleitete Finanzamtsschreiben.",anlage:"Sonstige Nachricht · Belegnachreichung"}}
 };
 function toggleFieldInfo(key){ S.fieldInfo=S.fieldInfo||{}; S.fieldInfo[key]=!S.fieldInfo[key]; render(); }
+function reminderPanel(cs){
+  const stale = cs.filter(c=>isPaid(c)&&c.status!=='submitted')
+    .map(c=>({c, days: Math.floor((Date.now()-(c.pay.paidAt||Date.now()))/86400000)}))
+    .sort((a,b)=>b.days-a.days);
+  if(!stale.length) return '';
+  return `<div class="infobox" style="margin-top:-6px;margin-bottom:20px;border-color:var(--amber);background:var(--amber-soft)">
+    <b>🔔 ${t('paid_not_submitted')}</b> — ${t('reminder_lead')}
+    <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
+      ${stale.map(({c,days})=>`<div style="display:flex;justify-content:space-between;align-items:center;background:#fff;border-radius:8px;padding:8px 12px;font-size:13.5px">
+        <span onclick="openClient('${c.id}')" style="cursor:pointer;font-weight:600;color:var(--ink)">${esc(c.p.firstName+' '+c.p.lastName)} · ${c.taxYear}</span>
+        <span class="chip ${days>=14?'':'review'}" style="${days>=14?'background:var(--red-soft);color:var(--red)':''}">${days} ${t('days_since_payment')}${days>=14?' — '+t('refund_window_over'):''}</span>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
 function stepInfoBox(i){
   const keys=['step1','step2','step4','step_fam','step5','step_priv','step_kap','step_prop','step6','step7','step_inq'];
   const info=STEP_INFO[keys[i]]; if(!info) return '';
@@ -1297,11 +1316,12 @@ function dashView(){
       <div class="stat"><div class="k">${t('drafts')}</div><div class="v num">${cs.filter(c=>c.status==='draft').length}</div></div>
       <div class="stat"><div class="k">${t('submitted')}</div><div class="v num">${cs.filter(c=>c.status==='submitted').length}</div></div>
       <div class="stat"><div class="k">${t('est_refunds')}</div><div class="v teal num">${eur(totRef)}</div></div>
-      ${PAYMENT.enabled?`<div class="stat" style="${cs.filter(c=>isPaid(c)&&c.status!=='submitted').length>0?'border-color:var(--amber)':''}">
-        <div class="k">${t('paid_not_submitted')}</div>
+      ${PAYMENT.enabled?`<div class="stat" style="${cs.filter(c=>isPaid(c)&&c.status!=='submitted').length>0?'border-color:var(--amber)':''}; cursor:pointer" onclick="S.showReminders=!S.showReminders;render()">
+        <div class="k">${t('paid_not_submitted')} ${cs.filter(c=>isPaid(c)&&c.status!=='submitted').length>0?'🔔':''}</div>
         <div class="v num" style="${cs.filter(c=>isPaid(c)&&c.status!=='submitted').length>0?'color:var(--amber)':''}">${cs.filter(c=>isPaid(c)&&c.status!=='submitted').length}</div>
       </div>`:''}
     </div>
+    ${(PAYMENT.enabled && S.showReminders) ? reminderPanel(cs) : ''}
     <div class="toolbar">
       <div class="search">🔎<input placeholder="${t('search_ph')}" value="${esc(S.search)}" oninput="S.search=this.value;renderKeepFocus(this)"></div>
       <select class="filter-sel" onchange="S.fStatus=this.value;render()">
