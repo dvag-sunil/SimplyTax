@@ -406,6 +406,7 @@ en: {
   warn_dup_basis:"A basic health/care policy is selected here although the employment statements already contain health contributions (lines 25/28). Check that the same contributions are not counted twice.",
   bad_date:"Please enter a valid date of birth between 1940 and today.",
   bad_amount:"Please enter a positive amount (negative values are not allowed here).",
+  loading:"Loading your workspace…", loading_slow:"Still connecting — the server is waking up, this can take up to 30 seconds on first load.",
   married_sep:"Married — separate assessment (§ 26a)",
   kinship:"Relationship to child", kin_leib:"Biological (leiblich)", kin_adopt:"Adopted (adoptiert)",
   kin_pflege:"Foster child (Pflegekind)", kin_stief:"Step-/grandchild in household (Stiefkind/Enkelkind)",
@@ -614,6 +615,7 @@ de: {
   warn_dup_basis:"Hier ist eine Basis-Kranken-/Pflegeversicherung gewählt, obwohl die Lohnsteuerbescheinigungen bereits Krankenversicherungsbeiträge enthalten (Zeilen 25/28). Bitte prüfen, dass dieselben Beiträge nicht doppelt gezählt werden.",
   bad_date:"Bitte ein gültiges Geburtsdatum zwischen 1940 und heute eingeben.",
   bad_amount:"Bitte einen positiven Betrag eingeben (negative Werte sind hier nicht zulässig).",
+  loading:"Arbeitsbereich wird geladen…", loading_slow:"Verbindung wird aufgebaut — der Server wacht gerade auf, das kann beim ersten Laden bis zu 30 Sekunden dauern.",
   married_sep:"Verheiratet — Einzelveranlagung (§ 26a)",
   kinship:"Verwandtschaftsverhältnis zum Kind", kin_leib:"Leiblich", kin_adopt:"Adoptiert",
   kin_pflege:"Pflegekind", kin_stief:"Stiefkind/Enkelkind im Haushalt",
@@ -2613,7 +2615,25 @@ Mapping (Zeile = numbered line on the form): employer = employer name (Anschrift
 }
 
 /* ---------------- boot ---------------- */
-(async()=>{ await loadState(); await handleStripeReturn(); render(); })();
+/* Paint an immediate loading screen before any network call — avoids the blank-page
+   gap during backend auth/data fetch, especially on a cold-started free-tier server. */
+(function(){
+  const langGuess = (()=>{ try{ return JSON.parse(localStorage.getItem('klarsteuer-prefs')||'{}').lang; }catch(e){ return null; } })() || 'en';
+  const msg = STR[langGuess]?.loading || STR.en.loading;
+  document.getElementById('app').innerHTML = `<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--ink-soft)">
+    <div style="width:34px;height:34px;border:3px solid var(--teal-soft);border-top-color:var(--teal);border-radius:50%;animation:spin .8s linear infinite"></div>
+    <div id="boot-msg" style="font-size:14px">${msg}</div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+  </div>`;
+  const slowTimer = setTimeout(()=>{
+    const el=document.getElementById('boot-msg');
+    if(el) el.textContent = STR[langGuess]?.loading_slow || STR.en.loading_slow;
+  }, 3000);
+  (async()=>{
+    try{ await loadState(); await handleStripeReturn(); }
+    finally{ clearTimeout(slowTimer); render(); }
+  })();
+})();
 </script>
 </body>
 </html>
