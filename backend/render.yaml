@@ -28,3 +28,11 @@ services:
         value: https://erctmlhbupumvtnixlnc.supabase.co
       - key: SUPABASE_SERVICE_KEY  # Supabase -> Settings -> API -> service_role (secret!)
         sync: false
+      - key: RESEND_API_KEY        # leave empty to keep reminder emails disabled
+        sync: false
+      - key: REMINDER_FROM
+        value: SimplyTax <reminders@your-domain.de>
+      - key: REMINDER_DAYS
+        value: "3"
+      - key: REMINDER_CRON_SECRET  # any random string; used by the daily cron caller
+        sync: false

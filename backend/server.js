@@ -19,6 +19,47 @@ app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({ origin: ALLOWED_ORIGIN.split(','), credentials: false }));
 
+/* ---------- Reminder emails: paid-but-not-submitted returns (Resend, EU-capable) ---------- */
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const REMINDER_FROM = process.env.REMINDER_FROM || 'SimplyTax <reminders@your-domain.de>';
+const REMINDER_DAYS = parseInt(process.env.REMINDER_DAYS || '3', 10);
+const REMINDER_CRON_SECRET = process.env.REMINDER_CRON_SECRET || '';
+async function sendReminderEmail(to, name, taxYear){
+  if(!RESEND_API_KEY || !to) return false;
+  const r = await fetch('https://api.resend.com/emails', {
+    method:'POST', headers:{ Authorization:'Bearer '+RESEND_API_KEY, 'Content-Type':'application/json' },
+    body: JSON.stringify({ from: REMINDER_FROM, to,
+      subject: `Your ${taxYear} tax return is paid but not yet submitted`,
+      html: `<p>Hi ${name},</p><p>Your ${taxYear} tax return with SimplyTax was paid but has not yet been submitted to the Finanzamt. Please log in to review and submit, or reply if you need help.</p><p>— SimplyTax</p>` })
+  });
+  return r.ok;
+}
+/* Cron entry point: call this daily from Render Cron Job / cron-job.org / GitHub Actions,
+   with header x-cron-secret matching REMINDER_CRON_SECRET. Finds clients paid >= REMINDER_DAYS
+   ago and still not submitted, emails them once (marks reminded_at to avoid repeat sends). */
+app.post('/api/reminders/run', async (req, res) => {
+  if(!REMINDER_CRON_SECRET || req.headers['x-cron-secret'] !== REMINDER_CRON_SECRET)
+    return res.status(401).json({ error: 'unauthorized' });
+  if(!RESEND_API_KEY) return res.status(501).json({ error: 'email_disabled', note: 'set RESEND_API_KEY to activate' });
+  const cutoff = Date.now() - REMINDER_DAYS*86400000;
+  const { rows } = await pool.query(
+    `SELECT id, user_id, data FROM clients
+     WHERE data->'pay'->>'status' = 'paid'
+       AND data->>'status' != 'submitted'
+       AND (data->'pay'->>'paidAt')::bigint <= $1
+       AND (data->>'reminded_at' IS NULL)`, [cutoff]);
+  let sent = 0;
+  for(const row of rows){
+    const c = row.data; const email = c.contactEmail || '';   // populate this field if/when collected
+    const ok = await sendReminderEmail(email, (c.p?.firstName||'')+' '+(c.p?.lastName||''), c.taxYear);
+    if(ok){ sent++;
+      await pool.query(`UPDATE clients SET data = jsonb_set(data,'{reminded_at}', to_jsonb(extract(epoch from now())*1000)) WHERE id=$1`, [row.id]);
+      audit(row.user_id, 'reminder_sent', { clientId: row.id });
+    }
+  }
+  res.json({ checked: rows.length, sent });
+});
+
 /* ---------- Stripe (Level B: Checkout + webhook, tamper-proof) ---------- */
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 const PRICE_CENTS = parseInt(process.env.PRICE_CENTS || '995', 10);
