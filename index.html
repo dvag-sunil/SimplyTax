@@ -401,6 +401,11 @@ en: {
   warn_dup_basis:"A basic health/care policy is selected here although the employment statements already contain health contributions (lines 25/28). Check that the same contributions are not counted twice.",
   bad_date:"Please enter a valid date of birth between 1940 and today.",
   married_sep:"Married — separate assessment (§ 26a)",
+  kinship:"Relationship to child", kin_leib:"Biological (leiblich)", kin_adopt:"Adopted (adoptiert)",
+  kin_pflege:"Foster child (Pflegekind)", kin_stief:"Step-/grandchild in household (Stiefkind/Enkelkind)",
+  kinship_hint:"Biological and adopted children receive the FULL child allowance / Kindergeld — no difference in amount. Foster and step-/grandchildren qualify only under conditions (see notes below).",
+  kin_pflege_hint:"Counts as your child only if a genuine family-like bond exists (Obhuts- und Pflegeverhältnis) on a long-term basis, not for profit, and the bond to the birth parents is essentially severed.",
+  kin_stief_hint:"Counts only for as long as the child actually lives in your household.",
   marital_hint:"Separated or in a divorce? Each spouse then files their OWN return — choose 'separate assessment' (§ 26a, individual tariff; spouse identity is still recorded). In the YEAR of separation, joint assessment is usually still allowed. After the separation year or divorce, choose 'Single'.",
   single_parent_hint:"Yes = at least one child lives in your household and no other adult lives with you. Relief: €4,260 + €240 per further child — applied automatically.",
   pay_title:"Unlock this tax return", pay_sub:"Preparation and calculation are free. Downloading the client PDF and submitting to ELSTER are enabled after payment for this return (one-time, per return).",
@@ -596,6 +601,11 @@ de: {
   warn_dup_basis:"Hier ist eine Basis-Kranken-/Pflegeversicherung gewählt, obwohl die Lohnsteuerbescheinigungen bereits Krankenversicherungsbeiträge enthalten (Zeilen 25/28). Bitte prüfen, dass dieselben Beiträge nicht doppelt gezählt werden.",
   bad_date:"Bitte ein gültiges Geburtsdatum zwischen 1940 und heute eingeben.",
   married_sep:"Verheiratet — Einzelveranlagung (§ 26a)",
+  kinship:"Verwandtschaftsverhältnis zum Kind", kin_leib:"Leiblich", kin_adopt:"Adoptiert",
+  kin_pflege:"Pflegekind", kin_stief:"Stiefkind/Enkelkind im Haushalt",
+  kinship_hint:"Leibliche und adoptierte Kinder erhalten den VOLLEN Kinderfreibetrag / das volle Kindergeld — kein Unterschied im Betrag. Pflege- und Stief-/Enkelkinder zählen nur unter Voraussetzungen (siehe Hinweise unten).",
+  kin_pflege_hint:"Zählt nur als Ihr Kind, wenn ein echtes familienähnliches Band besteht (Obhuts- und Pflegeverhältnis) auf Dauer angelegt, nicht zu Erwerbszwecken, und das Verhältnis zu den leiblichen Eltern im Wesentlichen aufgehoben ist.",
+  kin_stief_hint:"Zählt nur, solange das Kind tatsächlich in Ihrem Haushalt lebt.",
   marital_hint:"Getrennt lebend oder in Scheidung? Dann gibt jeder Ehegatte eine EIGENE Erklärung ab — 'Einzelveranlagung' wählen (§ 26a, Grundtarif; die Daten des Ehegatten werden trotzdem erfasst). Im Trennungsjahr ist die Zusammenveranlagung meist noch möglich. Nach dem Trennungsjahr bzw. der Scheidung: 'Ledig'.",
   single_parent_hint:"Ja = mindestens ein Kind lebt in Ihrem Haushalt und keine weitere volljährige Person wohnt bei Ihnen. Entlastung: 4.260 € + 240 € je weiteres Kind — wird automatisch angesetzt.",
   pay_title:"Diese Steuererklärung freischalten", pay_sub:"Erfassung und Berechnung sind kostenlos. PDF-Download und ELSTER-Übermittlung werden nach Zahlung für diese Erklärung freigeschaltet (einmalig, je Erklärung).",
@@ -726,8 +736,8 @@ step2:{en:{what:"Wage data per employer, exactly as printed on the Lohnsteuerbes
        de:{what:"Lohndaten je Arbeitgeber, genau wie auf der Lohnsteuerbescheinigung (Zeilen 1–34) inkl. Sozialversicherung — ein Nachweis pro Job; der Upload legt sie automatisch an. Darunter: weitere Lohnersatzleistungen (Elterngeld, Krankengeld, ALG I — ab 410 € pflichtig, erhöhen den Steuersatz) und Renten (Anlage R — Besteuerungsanteil automatisch aus dem Beginnjahr).",docs:"Lohnsteuerbescheinigung(en) aller Arbeitgeber des Jahres, Rentenbezugsmitteilung, Elterngeld-/Krankengeldbescheide.",anlage:"Anlage N · Vorsorgeaufwand · Anlage R"}},
 step4:{en:{what:"Job-related costs per person: commuting, home office, work equipment, training, double household, relocation — plus itemized categories (Arbeitszimmer, communication, tax advisory…). €1,230 lump sum applies automatically. Low incomes with commutes over 20 km additionally receive the Mobilitätsprämie — computed automatically from your entries.",docs:"Invoices, tickets, rental contract of the second home, course confirmations.",anlage:"Anlage N — Werbungskosten (§ 9 EStG)"},
        de:{what:"Berufliche Kosten je Person: Pendlerpauschale, Homeoffice, Arbeitsmittel, Fortbildung, doppelte Haushaltsführung, Umzug — plus Einzelposten (Arbeitszimmer, Kommunikation, Steuerberatung…). Der Pauschbetrag von 1.230 € gilt automatisch. Geringe Einkommen mit Arbeitswegen über 20 km erhalten zusätzlich die Mobilitätsprämie — automatisch aus Ihren Angaben berechnet.",docs:"Rechnungen, Tickets, Mietvertrag der Zweitwohnung, Kursbestätigungen.",anlage:"Anlage N — Werbungskosten (§ 9 EStG)"}},
-step_fam:{en:{what:"Each child with its own tax ID, Kindergeld received, childcare costs and school fees — plus support payments to needy relatives (e.g. parents abroad, reduced by country group).",docs:"Kindergeld notice, childcare invoices, school fee invoices, bank transfer proofs for support.",anlage:"Anlage Kind · Anlage Unterhalt (§ 33a EStG)"},
-       de:{what:"Jedes Kind mit eigener Steuer-ID, erhaltenem Kindergeld, Betreuungskosten und Schulgeld — plus Unterhaltszahlungen an bedürftige Angehörige (z. B. Eltern im Ausland, gekürzt nach Ländergruppe).",docs:"Kindergeldbescheid, Betreuungsrechnungen, Schulgeldrechnungen, Überweisungsbelege für Unterhalt.",anlage:"Anlage Kind · Anlage Unterhalt (§ 33a EStG)"}},
+step_fam:{en:{what:"Each child with its own tax ID, relationship (biological/adopted — same allowance; foster/step child — conditions apply), Kindergeld received, childcare costs and school fees — plus support payments to needy relatives.",docs:"Kindergeld notice, childcare invoices, school fee invoices, bank transfer proofs for support.",anlage:"Anlage Kind · Anlage Unterhalt (§ 33a EStG)"},
+       de:{what:"Jedes Kind mit eigener Steuer-ID, Verwandtschaftsverhältnis (leiblich/adoptiert — gleicher Freibetrag; Pflege-/Stiefkind — Voraussetzungen gelten), erhaltenem Kindergeld, Betreuungskosten und Schulgeld — plus Unterhaltszahlungen an bedürftige Angehörige.",docs:"Kindergeldbescheid, Betreuungsrechnungen, Schulgeldrechnungen, Überweisungsbelege für Unterhalt.",anlage:"Anlage Kind · Anlage Unterhalt (§ 33a EStG)"}},
 step5:{en:{what:"Donations with receipts, other special expenses, further private insurance — plus support paid to an ex-spouse (Realsplitting, max €13,805, needs consent) and the loss carryforward from your last Verlustfeststellungsbescheid (§ 10d).",docs:"Donation receipts, Anlage-U consent, loss-assessment notice.",anlage:"Sonderausgaben (§§ 10, 10b) · Anlage U"},
        de:{what:"Spenden mit Beleg, weitere Sonderausgaben, sonstige private Versicherungen — plus Unterhalt an den Ex-Ehegatten (Realsplitting, max. 13.805 €, mit Zustimmung) und der Verlustvortrag aus dem letzten Verlustfeststellungsbescheid (§ 10d).",docs:"Spendenbescheinigungen, Anlage-U-Zustimmung, Verlustfeststellungsbescheid.",anlage:"Sonderausgaben (§§ 10, 10b) · Anlage U"}},
 step_priv:{en:{what:"All insurance policies with contributions paid and reimbursements received per year — the tax categories (fully deductible, €1,900 pot, Riester €2,100, not deductible) are applied automatically per person.",docs:"Annual statements of each insurance (Beitragsbescheinigungen).",anlage:"Anlage Vorsorgeaufwand (§ 10 EStG)"},
@@ -868,9 +878,10 @@ function migrateClient(c){
   c.wk = Object.assign({dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wk||{});
   c.fam = Object.assign({kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',children:[]}, c.fam||{});
   if(!Array.isArray(c.fam.children)) c.fam.children=[];
+  c.fam.children.forEach(k=>{ if(!k.kinship) k.kinship='leiblich'; });
   /* legacy: convert old lump-sum childcare/school fees into a first child entry */
   if(c.fam.children.length===0 && (N(c.fam.childcare)>0 || N(c.fam.schoolFees)>0)){
-    c.fam.children.push({id:uid(),name:'',birth:'',taxId:'',kindergeld:'',childcare:c.fam.childcare,schoolFees:c.fam.schoolFees});
+    c.fam.children.push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',kindergeld:'',childcare:c.fam.childcare,schoolFees:c.fam.schoolFees});
     c.fam.childcare=''; c.fam.schoolFees='';
   }
   c.docs = c.docs||[]; c.inq = c.inq||[];
@@ -1943,7 +1954,7 @@ function CF(kid,field,label,opts={}){
     <input type="${type}" value="${esc(kid[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''}
       onchange="updChild('${kid.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
-function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kindergeld:'',childcare:'',schoolFees:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
+function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',kindergeld:'',childcare:'',schoolFees:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function delChild(id){ const c=cur(); c.fam.children=(c.fam.children||[]).filter(k=>k.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function updChild(id,f,v,fmt){ const c=cur(); const k=(c.fam.children||[]).find(x=>x.id===id); if(!k) return;
   if(fmt && String(v).trim()!=='') v=formatDE(N(v)); k[f]=v; c.updatedAt=Date.now(); scheduleSave(); render(); }
@@ -1959,6 +1970,11 @@ function stepFamily(c){
         ${CF(k,'birth',t('birth_date'),{type:'date'})}
         ${CF(k,'taxId',t('child_taxid'),{ph:'12 345 678 901'})}
       </div>
+      <div class="grid2">
+        ${CF(k,'kinship',t('kinship'),{select:[['leiblich',t('kin_leib')],['adoptiert',t('kin_adopt')],['pflegekind',t('kin_pflege')],['stiefkind',t('kin_stief')]],hint:i===0?t('kinship_hint'):''})}
+      </div>
+      ${k.kinship==='pflegekind'?`<div class="auth-err" style="background:var(--amber-soft);color:var(--amber);border:none">ℹ️ ${t('kin_pflege_hint')}</div>`:''}
+      ${k.kinship==='stiefkind'?`<div class="auth-err" style="background:var(--amber-soft);color:var(--amber);border:none">ℹ️ ${t('kin_stief_hint')}</div>`:''}
       <div class="grid3">
         ${CF(k,'kindergeld',t('kindergeld'),{euro:true,ph:'0,00 €',hint:t('kindergeld_hint')})}
         ${CF(k,'childcare',t('childcare'),{euro:true,ph:'0,00 €',hint:t('kids_hint')})}
