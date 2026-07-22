@@ -2563,7 +2563,7 @@ async function handleFile(file){
     const isPdf = file.type==='application/pdf';
     const prompt = `You are reading a German "Ausdruck der elektronischen Lohnsteuerbescheinigung". Extract the values and respond with ONLY a JSON object, no markdown, no explanation. Use numbers with a dot as decimal separator (e.g. 108623.32), or "" if a field is empty or not found:
 {"employer":"","period":"","taxClass":"","kfb":"","idnr":"","birthDate":"","gross":"","wageTax":"","soli":"","churchPaid":"","churchSpouse":"","vb8":"","vb9":"","ml10":"","lst11":"","soli12":"","kist13":"","kistSp14":"","ersatz15":"","kug15a":"","dba16":"","fahrt17":"","pausch18":"","entsch19":"","verpf20":"","dhh21":"","agRV":"","agRVb":"","anRV":"","anRVb":"","agKV":"","agPKV":"","agPV":"","anKV":"","anPV":"","anAV":"","pkv28":"","bmg29":"","vbJahr30":"","vbMon31":"","sterbe32":"","fb34":""}
-Mapping (Zeile = numbered line on the form): employer = employer name (Anschrift des Arbeitgebers block); period = Bescheinigungszeitraum (Zeile 1); taxClass = Steuerklasse (1-6, from "Steuerklasse/Faktor"); kfb = Zahl der Kinderfreibeträge; idnr = Identifikationsnummer (11 digits); birthDate = Geburtsdatum in YYYY-MM-DD format; gross = Zeile 3 Bruttoarbeitslohn; wageTax = Zeile 4 einbehaltene Lohnsteuer; soli = Zeile 5 Solidaritätszuschlag; churchPaid = Zeile 6 Kirchensteuer Arbeitnehmer; churchSpouse = Zeile 7 Kirchensteuer Ehegatte; vb8 = Zeile 8 Versorgungsbezüge; vb9 = Zeile 9; ml10 = Zeile 10; lst11 = Zeile 11; soli12 = Zeile 12; kist13 = Zeile 13; kistSp14 = Zeile 14; ersatz15 = Zeile 15 Kurzarbeitergeld/Lohnersatzleistungen; kug15a = Zeile 15a; dba16 = Zeile 16 (a+b combined); fahrt17 = Zeile 17; pausch18 = Zeile 18; entsch19 = Zeile 19; verpf20 = Zeile 20; dhh21 = Zeile 21; agRV = Zeile 22a; agRVb = Zeile 22b; anRV = Zeile 23a; anRVb = Zeile 23b; agKV = Zeile 24a; agPKV = Zeile 24b; agPV = Zeile 24c; anKV = Zeile 25; anPV = Zeile 26; anAV = Zeile 27; pkv28 = Zeile 28; bmg29 = Zeile 29; vbJahr30 = Zeile 30; vbMon31 = Zeile 31; sterbe32 = Zeile 32; fb34 = Zeile 34. Do NOT extract the Finanzamt at the bottom of the form (that is the employer's remittance office).`;
+Mapping (Zeile = numbered line on the form): employer = employer name (Anschrift des Arbeitgebers block); period = Bescheinigungszeitraum (Zeile 1); taxClass = Steuerklasse (1-6, from "Steuerklasse/Faktor"); kfb = Zahl der Kinderfreibeträge; idnr = the EMPLOYEE's personal Identifikationsnummer ONLY — exactly 11 digits, no slashes, usually printed near the employee's name/address block. NEVER extract any number associated with the employer/Arbeitgeber (their Betriebsnummer, Finanzamt reference, or Steuernummer such as "181/815/08155" with slashes) into this field — if you are not certain a number belongs to the EMPLOYEE specifically, leave idnr empty (""); birthDate = Geburtsdatum in YYYY-MM-DD format; gross = Zeile 3 Bruttoarbeitslohn; wageTax = Zeile 4 einbehaltene Lohnsteuer; soli = Zeile 5 Solidaritätszuschlag; churchPaid = Zeile 6 Kirchensteuer Arbeitnehmer; churchSpouse = Zeile 7 Kirchensteuer Ehegatte; vb8 = Zeile 8 Versorgungsbezüge; vb9 = Zeile 9; ml10 = Zeile 10; lst11 = Zeile 11; soli12 = Zeile 12; kist13 = Zeile 13; kistSp14 = Zeile 14; ersatz15 = Zeile 15 Kurzarbeitergeld/Lohnersatzleistungen; kug15a = Zeile 15a; dba16 = Zeile 16 (a+b combined); fahrt17 = Zeile 17; pausch18 = Zeile 18; entsch19 = Zeile 19; verpf20 = Zeile 20; dhh21 = Zeile 21; agRV = Zeile 22a; agRVb = Zeile 22b; anRV = Zeile 23a; anRVb = Zeile 23b; agKV = Zeile 24a; agPKV = Zeile 24b; agPV = Zeile 24c; anKV = Zeile 25; anPV = Zeile 26; anAV = Zeile 27; pkv28 = Zeile 28; bmg29 = Zeile 29; vbJahr30 = Zeile 30; vbMon31 = Zeile 31; sterbe32 = Zeile 32; fb34 = Zeile 34. Do NOT extract the Finanzamt at the bottom of the form (that is the employer's remittance office).`;
     if(!BACKEND.enabled) throw new Error('backend_disabled');
     const dataUrl = isPdf ? `data:application/pdf;base64,${b64}` : `data:${file.type||'image/jpeg'};base64,${b64}`;
     const resp = await fetch(BACKEND.baseUrl+'/api/extract-doc', {
@@ -2593,18 +2593,20 @@ Mapping (Zeile = numbered line on the form): employer = employer name (Anschrift
     (c.emps=c.emps||[]).push(emp);
     /* person A/B detection via Identifikationsnummer (married couples) */
     emp.person='A';
-    const idnrClean=j.idnr?String(j.idnr).replace(/\s/g,''):'';
+    const idnrRaw=j.idnr?String(j.idnr).replace(/\s/g,''):'';
+    const idnrClean=/^\d{11}$/.test(idnrRaw) ? idnrRaw : '';   // Identifikationsnummer is ALWAYS exactly 11 digits;
+                                                                  // anything else (e.g. a Steuernummer like 181/815/08155) is silently rejected here
     const aId=(c.p.taxId||'').replace(/\s/g,''), bId=(c.p.spouseTaxId||'').replace(/\s/g,'');
     if(c.p.marital==='married' && idnrClean){
       if(bId && idnrClean===bId){ emp.person='B'; }
       else if(aId && idnrClean!==aId){
         emp.person='B';
-        if(!bId){ c.p.spouseTaxId=String(j.idnr); S.aiFields['p.spouseTaxId']=true; }
+        if(!bId){ c.p.spouseTaxId=idnrClean; S.aiFields['p.spouseTaxId']=true; }
       }
     }
     /* personal data: fill ONLY if still empty and the document belongs to person A; employer's Finanzamt is ignored */
     if(emp.person==='A'){
-      if(j.idnr && !(c.p.taxId||'').trim()){ c.p.taxId=String(j.idnr); S.aiFields['p.taxId']=true; }
+      if(idnrClean && !(c.p.taxId||'').trim()){ c.p.taxId=idnrClean; S.aiFields['p.taxId']=true; }
       if(j.birthDate && !(c.p.birthDate||'').trim()){
         let b=String(j.birthDate).trim();
         const dmy=b.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); if(dmy) b=`${dmy[3]}-${dmy[2]}-${dmy[1]}`;
