@@ -19,35 +19,6 @@ app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({ origin: ALLOWED_ORIGIN.split(','), credentials: false }));
 
-/* ---------- AI document extraction (Lohnsteuerbescheinigung -> structured fields) ----------
-   The API key lives ONLY here, server-side. The frontend never talks to api.anthropic.com
-   directly — doing so from a static GitHub Pages site would require exposing the secret key
-   in public JS, which is why the earlier direct-fetch version silently failed once deployed */
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
-const EXTRACT_MODEL = process.env.EXTRACT_MODEL || 'claude-haiku-4-5-20251001';   // cheapest current tier, plenty for structured OCR-style extraction
-app.post('/api/extract-doc', auth, async (req, res) => {
-  if(!ANTHROPIC_API_KEY) return res.status(501).json({ error: 'extraction_disabled', note: 'set ANTHROPIC_API_KEY to activate' });
-  const { dataUrl, prompt } = req.body || {};
-  const m = /^data:([^;]+);base64,(.+)$/.exec(dataUrl || '');
-  if(!m || !prompt) return res.status(400).json({ error: 'invalid_input' });
-  const mime = m[1].toLowerCase(), b64 = m[2];
-  const block = mime==='application/pdf'
-    ? { type:'document', source:{ type:'base64', media_type:'application/pdf', data:b64 } }
-    : { type:'image', source:{ type:'base64', media_type:mime, data:b64 } };
-  try{
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json', 'x-api-key':ANTHROPIC_API_KEY, 'anthropic-version':'2023-06-01' },
-      body: JSON.stringify({ model:EXTRACT_MODEL, max_tokens:1000,
-        messages:[{ role:'user', content:[block, {type:'text', text:prompt}] }] })
-    });
-    if(!r.ok){ const t=await r.text(); console.error('extract-doc:', r.status, t); return res.status(502).json({ error:'ai_provider_error' }); }
-    const data = await r.json();
-    audit(req.user.sub, 'doc_extracted', { mime });
-    res.json(data);   // frontend parses .content the same way it always did
-  }catch(e){ console.error('extract-doc failed:', e.message); res.status(502).json({ error:'ai_provider_error' }); }
-});
-
 /* ---------- Reminder emails: paid-but-not-submitted returns (Resend, EU-capable) ---------- */
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const REMINDER_FROM = process.env.REMINDER_FROM || 'SimplyTax <reminders@your-domain.de>';
@@ -144,6 +115,36 @@ app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), asy
 });
 
 app.use(express.json({ limit: '10mb' }));
+
+/* ---------- AI document extraction (Lohnsteuerbescheinigung -> structured fields) ----------
+   The API key lives ONLY here, server-side. The frontend never talks to api.anthropic.com
+   directly — doing so from a static GitHub Pages site would require exposing the secret key
+   in public JS, which is why the earlier direct-fetch version silently failed once deployed. */
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
+const EXTRACT_MODEL = process.env.EXTRACT_MODEL || 'claude-haiku-4-5-20251001';   // cheapest current tier, plenty for structured OCR-style extraction
+app.post('/api/extract-doc', auth, async (req, res) => {
+  if(!ANTHROPIC_API_KEY) return res.status(501).json({ error: 'extraction_disabled', note: 'set ANTHROPIC_API_KEY to activate' });
+  const { dataUrl, prompt } = req.body || {};
+  const m = /^data:([^;]+);base64,(.+)$/.exec(dataUrl || '');
+  if(!m || !prompt) return res.status(400).json({ error: 'invalid_input' });
+  const mime = m[1].toLowerCase(), b64 = m[2];
+  const block = mime==='application/pdf'
+    ? { type:'document', source:{ type:'base64', media_type:'application/pdf', data:b64 } }
+    : { type:'image', source:{ type:'base64', media_type:mime, data:b64 } };
+  try{
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'x-api-key':ANTHROPIC_API_KEY, 'anthropic-version':'2023-06-01' },
+      body: JSON.stringify({ model:EXTRACT_MODEL, max_tokens:1000,
+        messages:[{ role:'user', content:[block, {type:'text', text:prompt}] }] })
+    });
+    if(!r.ok){ const t=await r.text(); console.error('extract-doc:', r.status, t); return res.status(502).json({ error:'ai_provider_error' }); }
+    const data = await r.json();
+    audit(req.user.sub, 'doc_extracted', { mime });
+    res.json(data);   // frontend parses .content the same way it always did
+  }catch(e){ console.error('extract-doc failed:', e.message); res.status(502).json({ error:'ai_provider_error' }); }
+});
+
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 30 }));   // brute-force protection
 app.use('/api', rateLimit({ windowMs: 60 * 1000, max: 120 }));
 
