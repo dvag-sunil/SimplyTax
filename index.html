@@ -263,7 +263,6 @@ en: {
   appName:"SimplyTax", tagline:"Your tax filing workspace",
   login_title:"Welcome back", login_sub:"Sign in to prepare your own tax return, or manage your clients' if you're a consultant.",
   email:"Email", password:"Password", sign_in:"Sign in",
-  demo_note:"Prototype: any email and password will work. Real authentication is added in the production phase.",
   logout:"Log out", dashboard:"Dashboard",
   clients:"Clients", drafts:"Drafts", in_review:"In review", submitted:"Submitted", est_refunds:"Est. total refunds",
   search_ph:"Search clients by name…", all_statuses:"All statuses", all_years:"All years",
@@ -342,7 +341,6 @@ en: {
   practice_name:"Your name / practice (Kanzlei)", confirm_pass:"Confirm password", register_btn:"Create account",
   err_exists:"An account with this email already exists.", err_creds:"Email or password is incorrect.",
   err_match:"The passwords do not match.", err_short:"The password needs at least 8 characters.", err_fields:"Please fill in all fields.",
-  auth_note:"Prototype: accounts and data are stored in this workspace only, strictly separated per account. The production version adds server-side authentication with encrypted passwords and two-factor login (2FA).",
   bundesland:"Federal state (Bundesland)", fa_name:"Tax office name", fa_number:"Tax office number (BUFA, 4 digits)",
   fa_hint:"The 4-digit federal tax office number identifies the receiving Finanzamt in the ELSTER transmission.",
   err_fa:"Please enter the 4-digit Finanzamt number (BUFA) in Personal data before submitting.",
@@ -408,6 +406,14 @@ en: {
   bad_amount:"Please enter a positive amount (negative values are not allowed here).",
   loading:"Loading your workspace…", loading_slow:"Still connecting — the server is waking up, this can take up to 30 seconds on first load.",
   back_to_home:"Back to SimplyTax homepage",
+  forgot_link:"Forgot password?", forgot_title:"Reset your password",
+  forgot_sub:"Enter your account email — if it exists, we'll send a reset link valid for 1 hour.",
+  send_reset:"Send reset link", forgot_sent:"If an account exists for this email, a reset link is on its way. Check your inbox (and spam folder).",
+  forgot_noemail:"Email sending is not configured on this server yet — please contact the administrator to reset your password.",
+  reset_title:"Set a new password", reset_sub:"Choose a new password for your account (at least 8 characters).",
+  new_password:"New password", set_password:"Set new password",
+  reset_ok:"Password changed — you can sign in now.", reset_bad:"This reset link is invalid or has expired. Request a new one.",
+  back_to_login:"← Back to sign-in",
   married_sep:"Married — separate assessment (§ 26a)",
   kinship:"Relationship to child", kin_leib:"Biological (leiblich)", kin_adopt:"Adopted (adoptiert)",
   kin_pflege:"Foster child (Pflegekind)", kin_stief:"Step-/grandchild in household (Stiefkind/Enkelkind)",
@@ -467,13 +473,12 @@ en: {
   add_wki:"Add expense item", wki_tot_a:"Total Person A", wki_tot_b:"Total Person B",
   export_elster:"Export ELSTER dataset (JSON)",
   person:"Belongs to (person)", person_b_detect:"Assigned to Person B (spouse) — Identifikationsnummer did not match Person A.",
-  privacy_foot:"Prototype · Data is stored only in this workspace · GDPR-compliant hosting planned for production"
+  privacy_foot:"Encrypted sign-in · Data stored in an EU database (GDPR) · Payments via certified provider"
 },
 de: {
   appName:"SimplyTax", tagline:"Ihr Arbeitsbereich für Steuererklärungen",
   login_title:"Willkommen zurück", login_sub:"Melden Sie sich an, um Ihre eigene Steuererklärung zu erstellen — oder die Ihrer Mandanten, wenn Sie Steuerberater:in sind.",
   email:"E-Mail", password:"Passwort", sign_in:"Anmelden",
-  demo_note:"Prototyp: Beliebige E-Mail und Passwort funktionieren. Echte Authentifizierung folgt in der Produktionsphase.",
   logout:"Abmelden", dashboard:"Übersicht",
   clients:"Mandanten", drafts:"Entwürfe", in_review:"In Prüfung", submitted:"Übermittelt", est_refunds:"Gesch. Erstattungen ges.",
   search_ph:"Mandanten nach Name suchen…", all_statuses:"Alle Status", all_years:"Alle Jahre",
@@ -552,7 +557,6 @@ de: {
   practice_name:"Ihr Name / Kanzlei", confirm_pass:"Passwort bestätigen", register_btn:"Konto erstellen",
   err_exists:"Ein Konto mit dieser E-Mail existiert bereits.", err_creds:"E-Mail oder Passwort ist falsch.",
   err_match:"Die Passwörter stimmen nicht überein.", err_short:"Das Passwort braucht mindestens 8 Zeichen.", err_fields:"Bitte alle Felder ausfüllen.",
-  auth_note:"Prototyp: Konten und Daten werden nur in diesem Arbeitsbereich gespeichert, strikt getrennt je Konto. Die Produktionsversion ergänzt serverseitige Authentifizierung mit verschlüsselten Passwörtern und Zwei-Faktor-Login (2FA).",
   bundesland:"Bundesland", fa_name:"Name des Finanzamts", fa_number:"Finanzamtsnummer (BUFA, 4-stellig)",
   fa_hint:"Die 4-stellige Bundesfinanzamtsnummer identifiziert das empfangende Finanzamt bei der ELSTER-Übermittlung.",
   err_fa:"Bitte vor der Übermittlung die 4-stellige Finanzamtsnummer (BUFA) in den persönlichen Daten eintragen.",
@@ -618,6 +622,14 @@ de: {
   bad_amount:"Bitte einen positiven Betrag eingeben (negative Werte sind hier nicht zulässig).",
   loading:"Arbeitsbereich wird geladen…", loading_slow:"Verbindung wird aufgebaut — der Server wacht gerade auf, das kann beim ersten Laden bis zu 30 Sekunden dauern.",
   back_to_home:"Zurück zur SimplyTax-Startseite",
+  forgot_link:"Passwort vergessen?", forgot_title:"Passwort zurücksetzen",
+  forgot_sub:"E-Mail-Adresse des Kontos eingeben — falls es existiert, senden wir einen Link (1 Stunde gültig).",
+  send_reset:"Link senden", forgot_sent:"Falls ein Konto mit dieser E-Mail existiert, ist der Link unterwegs. Bitte Posteingang (und Spam) prüfen.",
+  forgot_noemail:"Der E-Mail-Versand ist auf diesem Server noch nicht eingerichtet — bitte den Administrator kontaktieren.",
+  reset_title:"Neues Passwort festlegen", reset_sub:"Neues Passwort für das Konto wählen (mindestens 8 Zeichen).",
+  new_password:"Neues Passwort", set_password:"Passwort speichern",
+  reset_ok:"Passwort geändert — Sie können sich jetzt anmelden.", reset_bad:"Dieser Link ist ungültig oder abgelaufen. Bitte neuen Link anfordern.",
+  back_to_login:"← Zurück zur Anmeldung",
   married_sep:"Verheiratet — Einzelveranlagung (§ 26a)",
   kinship:"Verwandtschaftsverhältnis zum Kind", kin_leib:"Leiblich", kin_adopt:"Adoptiert",
   kin_pflege:"Pflegekind", kin_stief:"Stiefkind/Enkelkind im Haushalt",
@@ -677,7 +689,7 @@ de: {
   add_wki:"Posten hinzufügen", wki_tot_a:"Summe Person A", wki_tot_b:"Summe Person B",
   export_elster:"ELSTER-Datensatz exportieren (JSON)",
   person:"Gehört zu (Person)", person_b_detect:"Person B (Ehepartner) zugeordnet — Identifikationsnummer stimmte nicht mit Person A überein.",
-  privacy_foot:"Prototyp · Daten werden nur in diesem Arbeitsbereich gespeichert · DSGVO-konformes Hosting für die Produktion geplant"
+  privacy_foot:"Verschlüsselte Anmeldung · Daten in EU-Datenbank gespeichert (DSGVO) · Zahlung über zertifizierten Dienstleister"
 }};
 
 /* ---------------- state ---------------- */
@@ -940,7 +952,25 @@ async function hashPass(email,pass){
     return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
   }catch(e){ return 'b64:'+btoa(unescape(encodeURIComponent(email.toLowerCase()+'::'+pass))); }
 }
-function authErr(msg){ const el=document.getElementById('auth-err'); if(el){ el.textContent=msg; el.classList.remove('hidden'); } }
+function authErr(msg){ const el=document.getElementById('auth-err'); if(el){ el.textContent=msg; el.classList.remove('hidden'); el.style.background=''; el.style.color=''; el.style.borderColor=''; } }
+function authOk(msg){ const el=document.getElementById('auth-err'); if(el){ el.textContent=msg; el.classList.remove('hidden'); el.style.background='var(--teal-soft)'; el.style.color='var(--teal-dark)'; el.style.borderColor='var(--teal)'; } }
+async function doForgot(){
+  const email=(document.getElementById('fg-email')?.value||'').trim().toLowerCase();
+  if(!email){ authErr(t('err_fields')); return; }
+  try{ const r=await api('/api/auth/forgot','POST',{email});
+    if(r.emailEnabled===false){ authErr(t('forgot_noemail')); return; }
+    authOk(t('forgot_sent'));
+  }catch(e){ authOk(t('forgot_sent')); }   // same message on any outcome — no account enumeration
+}
+async function doReset(){
+  const p1=document.getElementById('rs-pass')?.value||'', p2=document.getElementById('rs-pass2')?.value||'';
+  if(p1.length<8){ authErr(t('err_short')); return; }
+  if(p1!==p2){ authErr(t('err_match')); return; }
+  try{ await api('/api/auth/reset','POST',{email:S.resetEmail, token:S.resetToken, password:p1});
+    S.resetToken=null; S.resetEmail=null; S.authMode='login'; render();
+    setTimeout(()=>authOk(t('reset_ok')),0);
+  }catch(e){ authErr(t('reset_bad')); }
+}
 function setAuthMode(m){ S.authMode=m; render(); }
 async function doLogin(){
   const email=(document.getElementById('lg-email')?.value||'').trim().toLowerCase();
@@ -1302,6 +1332,23 @@ function topbar(){
 /* ---------------- login ---------------- */
 function loginView(){
   const reg = S.authMode==='register';
+  if(S.authMode==='forgot' || S.authMode==='reset'){
+    const isReset = S.authMode==='reset';
+    return `<div class="login-wrap"><div class="login-card">
+    <a href="home.html" class="logo" style="text-decoration:none;color:inherit;display:inline-flex" title="${t('back_to_home')}"><div class="logo-mark">S</div>${t('appName')}</a>
+    <h1>${isReset?t('reset_title'):t('forgot_title')}</h1>
+    <p class="sub">${isReset?t('reset_sub'):t('forgot_sub')}</p>
+    <div id="auth-err" class="auth-err hidden"></div>
+    ${isReset?`
+    <div class="field"><label>${t('new_password')}</label><input id="rs-pass" type="password" placeholder="••••••••"></div>
+    <div class="field"><label>${t('confirm_pass')}</label><input id="rs-pass2" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doReset()"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doReset()">${t('set_password')}</button>`
+    :`
+    <div class="field"><label>${t('email')}</label><input id="fg-email" type="email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')doForgot()"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doForgot()">${t('send_reset')}</button>`}
+    <p style="text-align:center;margin-top:14px;font-size:13px"><a onclick="S.authMode='login';S.resetToken=null;render()" style="color:var(--ink-soft);cursor:pointer">${t('back_to_login')}</a></p>
+  </div></div>`;
+  }
   return `<div class="login-wrap"><div class="login-card">
     <a href="home.html" class="logo" style="text-decoration:none;color:inherit;display:inline-flex" title="${t('back_to_home')}"><div class="logo-mark">S</div>${t('appName')}</a>
     <div class="auth-tabs">
@@ -1320,8 +1367,8 @@ function loginView(){
     :`
     <div class="field"><label>${t('email')}</label><input id="lg-email" type="email" placeholder="you@example.com"></div>
     <div class="field"><label>${t('password')}</label><input id="lg-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
-    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doLogin()">${t('sign_in')}</button>`}
-    <div class="demo-note">🔐 ${t('auth_note')}</div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doLogin()">${t('sign_in')}</button>
+    <p style="text-align:center;margin-top:12px;font-size:13px"><a onclick="setAuthMode('forgot')" style="color:var(--teal);cursor:pointer">${t('forgot_link')}</a></p>`}
     <p style="text-align:center;margin-top:14px;font-size:13px"><a href="home.html" style="color:var(--ink-soft);text-decoration:none">← ${S.lang==='de'?'Über SimplyTax':'About SimplyTax'}</a></p>
   </div></div>`;
 }
@@ -2661,6 +2708,16 @@ Mapping (Zeile = numbered line on the form): employer = employer name (Anschrift
 /* Paint an immediate loading screen before any network call — avoids the blank-page
    gap during backend auth/data fetch, especially on a cold-started free-tier server. */
 (function(){
+  /* password-reset deep link from the email */
+  try{
+    if(typeof location!=='undefined' && location.search){
+      const q=new URLSearchParams(location.search);
+      if(q.get('reset') && q.get('email')){
+        S.resetToken=q.get('reset'); S.resetEmail=q.get('email'); S.authMode='reset';
+        if(typeof history!=='undefined') history.replaceState({},'',location.pathname);
+      }
+    }
+  }catch(e){}
   const langGuess = (()=>{ try{ return JSON.parse(localStorage.getItem('klarsteuer-prefs')||'{}').lang; }catch(e){ return null; } })() || 'en';
   const msg = STR[langGuess]?.loading || STR.en.loading;
   document.getElementById('app').innerHTML = `<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--ink-soft)">
