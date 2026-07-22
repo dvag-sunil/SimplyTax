@@ -261,7 +261,7 @@ async function api(path, method='GET', body){
 const STR = {
 en: {
   appName:"SimplyTax", tagline:"Your tax filing workspace",
-  login_title:"Welcome back", login_sub:"Sign in to manage your clients' tax returns.",
+  login_title:"Welcome back", login_sub:"Sign in to prepare your own tax return, or manage your clients' if you're a consultant.",
   email:"Email", password:"Password", sign_in:"Sign in",
   demo_note:"Prototype: any email and password will work. Real authentication is added in the production phase.",
   logout:"Log out", dashboard:"Dashboard",
@@ -338,7 +338,7 @@ en: {
   pdf_est:"Estimated result", pdf_generated:"Generated on", pdf_docs:"Attached documents (Belege)",
   pdf_page:"Page", pdf_fail:"The PDF library could not be loaded. Please check the internet connection and try again.",
   tab_signin:"Sign in", tab_register:"Create account",
-  register_title:"Create your account", register_sub:"Each tax consultant gets their own workspace — your clients are visible only to you.",
+  register_title:"Create your account", register_sub:"For filing your own return or managing clients as a consultant — each account gets its own private workspace.",
   practice_name:"Your name / practice (Kanzlei)", confirm_pass:"Confirm password", register_btn:"Create account",
   err_exists:"An account with this email already exists.", err_creds:"Email or password is incorrect.",
   err_match:"The passwords do not match.", err_short:"The password needs at least 8 characters.", err_fields:"Please fill in all fields.",
@@ -407,6 +407,7 @@ en: {
   bad_date:"Please enter a valid date of birth between 1940 and today.",
   bad_amount:"Please enter a positive amount (negative values are not allowed here).",
   loading:"Loading your workspace…", loading_slow:"Still connecting — the server is waking up, this can take up to 30 seconds on first load.",
+  back_to_home:"Back to SimplyTax homepage",
   married_sep:"Married — separate assessment (§ 26a)",
   kinship:"Relationship to child", kin_leib:"Biological (leiblich)", kin_adopt:"Adopted (adoptiert)",
   kin_pflege:"Foster child (Pflegekind)", kin_stief:"Step-/grandchild in household (Stiefkind/Enkelkind)",
@@ -470,7 +471,7 @@ en: {
 },
 de: {
   appName:"SimplyTax", tagline:"Ihr Arbeitsbereich für Steuererklärungen",
-  login_title:"Willkommen zurück", login_sub:"Melden Sie sich an, um die Steuererklärungen Ihrer Mandanten zu verwalten.",
+  login_title:"Willkommen zurück", login_sub:"Melden Sie sich an, um Ihre eigene Steuererklärung zu erstellen — oder die Ihrer Mandanten, wenn Sie Steuerberater:in sind.",
   email:"E-Mail", password:"Passwort", sign_in:"Anmelden",
   demo_note:"Prototyp: Beliebige E-Mail und Passwort funktionieren. Echte Authentifizierung folgt in der Produktionsphase.",
   logout:"Abmelden", dashboard:"Übersicht",
@@ -547,7 +548,7 @@ de: {
   pdf_est:"Voraussichtliches Ergebnis", pdf_generated:"Erstellt am", pdf_docs:"Angehängte Belege",
   pdf_page:"Seite", pdf_fail:"Die PDF-Bibliothek konnte nicht geladen werden. Bitte Internetverbindung prüfen und erneut versuchen.",
   tab_signin:"Anmelden", tab_register:"Konto erstellen",
-  register_title:"Konto erstellen", register_sub:"Jede Steuerberaterin und jeder Berater erhält einen eigenen Arbeitsbereich — Ihre Mandanten sind nur für Sie sichtbar.",
+  register_title:"Konto erstellen", register_sub:"Für die eigene Steuererklärung oder als Steuerberater:in mit Mandanten — jedes Konto erhält einen eigenen, privaten Arbeitsbereich.",
   practice_name:"Ihr Name / Kanzlei", confirm_pass:"Passwort bestätigen", register_btn:"Konto erstellen",
   err_exists:"Ein Konto mit dieser E-Mail existiert bereits.", err_creds:"E-Mail oder Passwort ist falsch.",
   err_match:"Die Passwörter stimmen nicht überein.", err_short:"Das Passwort braucht mindestens 8 Zeichen.", err_fields:"Bitte alle Felder ausfüllen.",
@@ -616,6 +617,7 @@ de: {
   bad_date:"Bitte ein gültiges Geburtsdatum zwischen 1940 und heute eingeben.",
   bad_amount:"Bitte einen positiven Betrag eingeben (negative Werte sind hier nicht zulässig).",
   loading:"Arbeitsbereich wird geladen…", loading_slow:"Verbindung wird aufgebaut — der Server wacht gerade auf, das kann beim ersten Laden bis zu 30 Sekunden dauern.",
+  back_to_home:"Zurück zur SimplyTax-Startseite",
   married_sep:"Verheiratet — Einzelveranlagung (§ 26a)",
   kinship:"Verwandtschaftsverhältnis zum Kind", kin_leib:"Leiblich", kin_adopt:"Adoptiert",
   kin_pflege:"Pflegekind", kin_stief:"Stiefkind/Enkelkind im Haushalt",
@@ -1251,7 +1253,7 @@ function render(){
 
 function topbar(){
   return `<div class="topbar">
-    <div class="logo"><div class="logo-mark">S</div>${t('appName')}</div>
+    <a href="home.html" class="logo" style="text-decoration:none;color:inherit" title="${t('back_to_home')}"><div class="logo-mark">S</div>${t('appName')}</a>
     <div class="spacer"></div>
     <div class="lang-toggle">
       <button class="${S.lang==='en'?'on':''}" onclick="setLang('en')">${t('lang_en')}</button>
@@ -1265,7 +1267,7 @@ function topbar(){
 function loginView(){
   const reg = S.authMode==='register';
   return `<div class="login-wrap"><div class="login-card">
-    <div class="logo"><div class="logo-mark">S</div>${t('appName')}</div>
+    <a href="home.html" class="logo" style="text-decoration:none;color:inherit;display:inline-flex" title="${t('back_to_home')}"><div class="logo-mark">S</div>${t('appName')}</a>
     <div class="auth-tabs">
       <button class="${!reg?'on':''}" onclick="setAuthMode('login')">${t('tab_signin')}</button>
       <button class="${reg?'on':''}" onclick="setAuthMode('register')">${t('tab_register')}</button>
