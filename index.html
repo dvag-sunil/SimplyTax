@@ -2561,16 +2561,17 @@ async function handleFile(file){
     const b64 = await new Promise((res,rej)=>{ const r=new FileReader();
       r.onload=()=>res(r.result.split(',')[1]); r.onerror=()=>rej(new Error('read')); r.readAsDataURL(file); });
     const isPdf = file.type==='application/pdf';
-    const block = isPdf
-      ? {type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}}
-      : {type:'image',source:{type:'base64',media_type:file.type||'image/jpeg',data:b64}};
     const prompt = `You are reading a German "Ausdruck der elektronischen Lohnsteuerbescheinigung". Extract the values and respond with ONLY a JSON object, no markdown, no explanation. Use numbers with a dot as decimal separator (e.g. 108623.32), or "" if a field is empty or not found:
 {"employer":"","period":"","taxClass":"","kfb":"","idnr":"","birthDate":"","gross":"","wageTax":"","soli":"","churchPaid":"","churchSpouse":"","vb8":"","vb9":"","ml10":"","lst11":"","soli12":"","kist13":"","kistSp14":"","ersatz15":"","kug15a":"","dba16":"","fahrt17":"","pausch18":"","entsch19":"","verpf20":"","dhh21":"","agRV":"","agRVb":"","anRV":"","anRVb":"","agKV":"","agPKV":"","agPV":"","anKV":"","anPV":"","anAV":"","pkv28":"","bmg29":"","vbJahr30":"","vbMon31":"","sterbe32":"","fb34":""}
 Mapping (Zeile = numbered line on the form): employer = employer name (Anschrift des Arbeitgebers block); period = Bescheinigungszeitraum (Zeile 1); taxClass = Steuerklasse (1-6, from "Steuerklasse/Faktor"); kfb = Zahl der Kinderfreibeträge; idnr = Identifikationsnummer (11 digits); birthDate = Geburtsdatum in YYYY-MM-DD format; gross = Zeile 3 Bruttoarbeitslohn; wageTax = Zeile 4 einbehaltene Lohnsteuer; soli = Zeile 5 Solidaritätszuschlag; churchPaid = Zeile 6 Kirchensteuer Arbeitnehmer; churchSpouse = Zeile 7 Kirchensteuer Ehegatte; vb8 = Zeile 8 Versorgungsbezüge; vb9 = Zeile 9; ml10 = Zeile 10; lst11 = Zeile 11; soli12 = Zeile 12; kist13 = Zeile 13; kistSp14 = Zeile 14; ersatz15 = Zeile 15 Kurzarbeitergeld/Lohnersatzleistungen; kug15a = Zeile 15a; dba16 = Zeile 16 (a+b combined); fahrt17 = Zeile 17; pausch18 = Zeile 18; entsch19 = Zeile 19; verpf20 = Zeile 20; dhh21 = Zeile 21; agRV = Zeile 22a; agRVb = Zeile 22b; anRV = Zeile 23a; anRVb = Zeile 23b; agKV = Zeile 24a; agPKV = Zeile 24b; agPV = Zeile 24c; anKV = Zeile 25; anPV = Zeile 26; anAV = Zeile 27; pkv28 = Zeile 28; bmg29 = Zeile 29; vbJahr30 = Zeile 30; vbMon31 = Zeile 31; sterbe32 = Zeile 32; fb34 = Zeile 34. Do NOT extract the Finanzamt at the bottom of the form (that is the employer's remittance office).`;
-    const resp = await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,
-        messages:[{role:'user',content:[block,{type:'text',text:prompt}]}]})});
+    if(!BACKEND.enabled) throw new Error('backend_disabled');
+    const dataUrl = isPdf ? `data:application/pdf;base64,${b64}` : `data:${file.type||'image/jpeg'};base64,${b64}`;
+    const resp = await fetch(BACKEND.baseUrl+'/api/extract-doc', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', ...(authToken?{'Authorization':'Bearer '+authToken}:{}) },
+      body: JSON.stringify({ dataUrl, prompt })
+    });
+    if(!resp.ok) throw new Error('extract_failed');
     const data = await resp.json();
     const text = (data.content||[]).filter(i=>i.type==='text').map(i=>i.text).join('\n');
     const clean = text.replace(/```json|```/g,'').trim();
