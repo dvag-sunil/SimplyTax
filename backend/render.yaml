@@ -36,7 +36,7 @@ services:
         value: "3"
       - key: REMINDER_CRON_SECRET  # any random string; used by the daily cron caller
         sync: false
-      - key: ANTHROPIC_API_KEY     # console.anthropic.com -> API Keys; leave empty to keep extraction disabled
+      - key: ANTHROPIC_API_KEY     # console.anthropic.com --> API Keys; leave empty to keep extraction disabled 
         sync: false
       - key: EXTRACT_MODEL
         value: claude-haiku-4-5-20251001

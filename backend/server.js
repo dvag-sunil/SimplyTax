@@ -22,7 +22,7 @@ app.use(cors({ origin: ALLOWED_ORIGIN.split(','), credentials: false }));
 /* ---------- AI document extraction (Lohnsteuerbescheinigung -> structured fields) ----------
    The API key lives ONLY here, server-side. The frontend never talks to api.anthropic.com
    directly — doing so from a static GitHub Pages site would require exposing the secret key
-   in public JS, which is why the earlier direct-fetch version silently failed once deployed. */
+   in public JS, which is why the earlier direct-fetch version silently failed once deployed */
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 const EXTRACT_MODEL = process.env.EXTRACT_MODEL || 'claude-haiku-4-5-20251001';   // cheapest current tier, plenty for structured OCR-style extraction
 app.post('/api/extract-doc', auth, async (req, res) => {
