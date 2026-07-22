@@ -200,6 +200,42 @@ app.post('/api/auth/login', async (req, res) => {
   res.json({ token: sign(u), user: pubUser(u) });
 });
 
+/* ---------- Password reset via emailed link (Resend; dormant until RESEND_API_KEY is set) ----------
+   Security model: response never reveals whether an account exists; token is random 256-bit,
+   stored only as a SHA-256 hash inside users.settings (no schema change), 1-hour expiry, single-use. */
+const cryptoNode = require('crypto');
+const sha256 = s => cryptoNode.createHash('sha256').update(s).digest('hex');
+app.post('/api/auth/forgot', async (req, res) => {
+  const { email } = req.body || {};
+  res.json({ ok: true, emailEnabled: !!RESEND_API_KEY });   // identical shape whether or not the account exists
+  if(!email || !RESEND_API_KEY) return;
+  try{
+    const { rows } = await pool.query('SELECT id, name FROM users WHERE email=$1', [String(email).toLowerCase()]);
+    if(!rows.length) return;
+    const token = cryptoNode.randomBytes(32).toString('hex');
+    const pwreset = { th: sha256(token), exp: Date.now() + 60*60*1000 };
+    await pool.query(`UPDATE users SET settings = jsonb_set(settings,'{pwreset}',$1::jsonb) WHERE id=$2`,
+      [JSON.stringify(pwreset), rows[0].id]);
+    const link = FRONTEND_URL + '?reset=' + token + '&email=' + encodeURIComponent(String(email).toLowerCase());
+    await fetch('https://api.resend.com/emails', { method:'POST',
+      headers:{ Authorization:'Bearer '+RESEND_API_KEY, 'Content-Type':'application/json' },
+      body: JSON.stringify({ from: REMINDER_FROM, to: email, subject: 'Reset your SimplyTax password',
+        html: `<p>Hi ${rows[0].name},</p><p>Use the link below to set a new password (valid for 1 hour, one use only):</p><p><a href="${link}">${link}</a></p><p>If you did not request this, simply ignore this email — your password stays unchanged.</p><p>— SimplyTax</p>` }) });
+    audit(rows[0].id, 'pw_reset_requested', {});
+  }catch(e){ console.error('forgot failed:', e.message); }
+});
+app.post('/api/auth/reset', async (req, res) => {
+  const { email, token, password } = req.body || {};
+  if(!email || !token || !password || String(password).length < 8) return res.status(400).json({ error: 'invalid_input' });
+  const { rows } = await pool.query('SELECT id, settings FROM users WHERE email=$1', [String(email).toLowerCase()]);
+  const pr = rows[0]?.settings?.pwreset;
+  if(!pr || pr.th !== sha256(String(token)) || pr.exp < Date.now()) return res.status(400).json({ error: 'invalid_or_expired' });
+  const hash = await bcrypt.hash(String(password), 12);
+  await pool.query(`UPDATE users SET password_hash=$1, settings = settings - 'pwreset' WHERE id=$2`, [hash, rows[0].id]);
+  audit(rows[0].id, 'pw_reset_done', {});
+  res.json({ ok: true });
+});
+
 app.get('/api/auth/me', auth, async (req, res) => {
   const q = await pool.query('SELECT * FROM users WHERE id=$1', [req.user.sub]);
   if (!q.rows[0]) return res.status(404).json({ error: 'not_found' });
