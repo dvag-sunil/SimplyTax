@@ -1249,7 +1249,43 @@ function render(){
   else if(S.view==='client') html += clientView();
   app.innerHTML = html;
   bindGlobal();
+  /* Tab-navigation fix: every field commit triggers a full re-render (this app has no
+     virtual-DOM diffing), which destroys the DOM node the browser was about to focus
+     natively on Tab. Restore focus to whichever field was queued by the Tab handler. */
+  if(pendingFocusKey){
+    const target = app.querySelector(`[data-tabkey="${CSS.escape(pendingFocusKey)}"]`);
+    if(target){ target.focus(); if(target.select) try{ target.select(); }catch(e){} }
+    pendingFocusKey = null;
+  }
 }
+/* Tab key across fields: intercept Tab/Shift+Tab on any tracked field, commit its value
+   (via blur, same as clicking away), and queue the next/previous field to be focused
+   once render() finishes rebuilding the DOM. */
+let pendingFocusKey = null;
+document.addEventListener('keydown', function(e){
+  if(e.key !== 'Tab') return;
+  const el = e.target;
+  if(!el || !el.hasAttribute || !el.hasAttribute('data-tabkey')) return;
+  const all = Array.from(document.querySelectorAll('[data-tabkey]')).filter(x=>!x.disabled && x.offsetParent!==null);
+  const idx = all.indexOf(el);
+  if(idx===-1) return;
+  const nextIdx = e.shiftKey ? idx-1 : idx+1;
+  if(nextIdx<0 || nextIdx>=all.length) return;   // let the browser handle tabbing out of the form normally
+  e.preventDefault();
+  pendingFocusKey = all[nextIdx].getAttribute('data-tabkey');
+  el.blur();   // commits the current value exactly as clicking away would; if it actually
+               // changed, onchange fires synchronously -> render() consumes pendingFocusKey immediately
+  /* Fallback for when the value did NOT change: onchange never fires, so render() never
+     runs to consume pendingFocusKey. Without this, it would sit stale and steal focus on
+     some later, unrelated render. By the time this runs, the synchronous path above (if it
+     fired) has already cleared pendingFocusKey, so this is a safe no-op in the common case. */
+  setTimeout(()=>{
+    if(!pendingFocusKey) return;
+    const target = document.querySelector(`[data-tabkey="${CSS.escape(pendingFocusKey)}"]`);
+    if(target){ target.focus(); if(target.select) try{ target.select(); }catch(e){} }
+    pendingFocusKey = null;
+  }, 0);
+}, true);
 
 function topbar(){
   return `<div class="topbar">
@@ -1507,12 +1543,12 @@ function F(group,key,label,opts={}){
   const hint = opts.hint ? (toggled ? ((S.fieldInfo||{})[fkey] ? `<div class="hint">${opts.hint}</div>` : '') : `<div class="hint">${opts.hint}</div>`) : '';
   if(opts.select){
     return `<div class="field"><label>${label}${ai}${infoBtn}</label>
-      <select onchange="upd('${group}','${key}',this.value)">
+      <select data-tabkey="${fkey}" onchange="upd('${group}','${key}',this.value)">
         ${opts.select.map(o=>`<option value="${o[0]}" ${v===o[0]?'selected':''}>${o[1]}</option>`).join('')}
       </select>${hint}</div>`;
   }
   return `<div class="field"><label>${label}${ai}</label>
-    <input type="${type}" value="${type==='date'?(esc(v)||dateMax()):esc(v)}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
+    <input data-tabkey="${fkey}" type="${type}" value="${type==='date'?(esc(v)||dateMax()):esc(v)}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
       onchange="upd('${group}','${key}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
 function upd(group,key,val,fmt){
@@ -1527,14 +1563,15 @@ function upd(group,key,val,fmt){
 function LF(list,item,field,label,opts={}){
   const hint=opts.hint?`<div class="hint">${opts.hint}</div>`:'';
   const ai=S.aiFields[list+'.'+item.id+'.'+field]?`<span class="ai-flag">AI</span>`:'';
+  const tk=`${list}.${item.id}.${field}`;
   if(opts.select){
     return `<div class="field"><label>${label}${ai}</label>
-      <select onchange="updItem('${list}','${item.id}','${field}',this.value,0)">
+      <select data-tabkey="${tk}" onchange="updItem('${list}','${item.id}','${field}',this.value,0)">
         ${opts.select.map(o=>`<option value="${o[0]}" ${item[field]===o[0]?'selected':''}>${o[1]}</option>`).join('')}
       </select>${hint}</div>`;
   }
   return `<div class="field"><label>${label}${ai}</label>
-    <input type="${opts.type||'text'}" value="${(opts.type||'text')==='date'?(esc(item[field]||'')||dateMax()):esc(item[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''} ${(opts.type||'text')==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
+    <input data-tabkey="${tk}" type="${opts.type||'text'}" value="${(opts.type||'text')==='date'?(esc(item[field]||'')||dateMax()):esc(item[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''} ${(opts.type||'text')==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
       onchange="updItem('${list}','${item.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
 function addItem(list,tpl){ const c=cur(); (c[list]=c[list]||[]).push(Object.assign({id:uid()},tpl)); c.updatedAt=Date.now(); scheduleSave(); render(); }
@@ -2011,14 +2048,15 @@ function stepWork(c){
 function CF(kid,field,label,opts={}){
   const type=opts.type||'text';
   const hint=opts.hint?`<div class="hint">${opts.hint}</div>`:'';
+  const tk=`child.${kid.id}.${field}`;
   if(opts.select){
     return `<div class="field"><label>${label}</label>
-      <select onchange="updChild('${kid.id}','${field}',this.value)">
+      <select data-tabkey="${tk}" onchange="updChild('${kid.id}','${field}',this.value)">
         ${opts.select.map(o=>`<option value="${o[0]}" ${(kid[field]||'')===o[0]?'selected':''}>${o[1]}</option>`).join('')}
       </select>${hint}</div>`;
   }
   return `<div class="field"><label>${label}</label>
-    <input type="${type}" value="${type==='date'?(esc(kid[field])||dateMax()):esc(kid[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
+    <input data-tabkey="${tk}" type="${type}" value="${type==='date'?(esc(kid[field])||dateMax()):esc(kid[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
       onchange="updChild('${kid.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
 function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',kindergeld:'',childcare:'',schoolFees:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
