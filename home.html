@@ -64,6 +64,19 @@
   </div>
 </div>
 
+<!-- ======= SOCIAL PROOF ======= -->
+<div style="background:#fff;border-block:1px solid var(--line);padding:28px 0">
+  <div class="wrap" style="display:flex;gap:32px;flex-wrap:wrap;align-items:center;justify-content:center;text-align:center">
+    <div><b style="font-family:Georgia,serif;font-size:28px;color:var(--teal)">€1,437</b><br><span style="font-size:13px;color:var(--ink-soft)" data-i18n="sp1"></span></div>
+    <div style="width:1px;height:44px;background:var(--line)"></div>
+    <div><b style="font-family:Georgia,serif;font-size:28px;color:var(--teal)">€9.95</b><br><span style="font-size:13px;color:var(--ink-soft)" data-i18n="sp2"></span></div>
+    <div style="width:1px;height:44px;background:var(--line)"></div>
+    <div><b style="font-family:Georgia,serif;font-size:28px;color:var(--teal)">🇬🇧 EN</b><br><span style="font-size:13px;color:var(--ink-soft)" data-i18n="sp3"></span></div>
+    <div style="width:1px;height:44px;background:var(--line)"></div>
+    <div><b style="font-family:Georgia,serif;font-size:28px;color:var(--teal)">4 yrs</b><br><span style="font-size:13px;color:var(--ink-soft)" data-i18n="sp4"></span></div>
+  </div>
+</div>
+
 <!-- ======= HOW IT WORKS ======= -->
 <section id="ablauf">
   <div class="wrap">
@@ -93,6 +106,7 @@
       <div class="feature"><div class="ic">🧾</div><h3 data-i18n="f4t"></h3><p data-i18n="f4p"></p></div>
       <div class="feature"><div class="ic">🛡️</div><h3 data-i18n="f5t"></h3><p data-i18n="f5p"></p></div>
       <div class="feature"><div class="ic">📬</div><h3 data-i18n="f6t"></h3><p data-i18n="f6p"></p></div>
+      <div class="feature" style="border-color:var(--teal);background:var(--teal-soft)"><div class="ic" style="background:#fff">🌍</div><h3 data-i18n="f7t"></h3><p data-i18n="f7p"></p></div>
     </div>
   </div>
 </section>
@@ -141,7 +155,6 @@
       <details><summary data-i18n="q4"></summary><p data-i18n="a4"></p></details>
       <details><summary data-i18n="q5"></summary><p data-i18n="a5"></p></details>
       <details><summary data-i18n="q6"></summary><p data-i18n="a6"></p></details>
-      <details><summary data-i18n="q7"></summary><p data-i18n="a7"></p></details>
     </div>
   </div>
 </section>
@@ -189,17 +202,17 @@
 </footer>
 
 <script>
-/* ---- bilingual content: EN default, DE toggle  (same pattern as the app) ---- */
+/* ---- bilingual content: EN default, DE toggle (same pattern as the app) ---- */
 const I18N = {
 en: {
   title:"SimplyTax — Your German tax return online. Simple, transparent, with a live refund calculator.",
   meta:"Prepare your German tax return online: try it for free, see your refund live, pay only on submission. Photograph your Lohnsteuerbescheinigung — SimplyTax reads it automatically.",
   nav_features:"Features", nav_how:"How it works", nav_price:"Pricing", nav_cta:"Start now",
-  h_eyebrow:"German tax return, online",
-  h_title:"Your tax return.<br><em>Without the tax jargon.</em>",
-  h_sub:"Photograph your Lohnsteuerbescheinigung — SimplyTax reads it automatically, guides you step by step through every entry and shows you <b>live</b> how big your expected refund is. According to the Federal Statistical Office, taxpayers get back over <b>€1,000</b> on average.",
+  h_eyebrow:"German tax return · Full English interface · €9.95 per return",
+  h_title:"Your German tax return.<br><em>In English. Without the jargon.</em>",
+  h_sub:"Built for <b>expats and everyone in Germany</b> — fully in English or German. Photograph your Lohnsteuerbescheinigung and SimplyTax reads it automatically, guides you step by step, and shows you <b>live</b> how big your expected refund is. Taxpayers get back over <b>€1,000</b> on average — €9.95 to submit, free to try.",
   h_cta1:"Try it for free", h_cta2:"How it works",
-  h_note:"No risk: entering data and calculating is free — you only pay when you actually submit.",
+  h_note:"🆓 Free to enter & calculate · 💶 €9.95 per return when you submit · No subscription · Works in English",
   m_label:"Expected refund",
   m_r1:"Taxable income", m_r2:"Income tax (§ 32a EStG)", m_r3:"Already paid (wage tax)", m_r4:"Difference in your favor",
   m_foot:"Example calculation. Your own number appears live while you enter your data.",
@@ -207,6 +220,7 @@ en: {
   t2:"refund calculated with the official formula (§ 32a EStG)",
   t3b:"All forms", t3:"Anlage N, Vorsorgeaufwand, Kind, KAP, V and more",
   t4:"encrypted, hosted in Europe",
+  sp1:"average refund shown in the example above", sp2:"to submit — free to calculate first", sp3:"full English interface available", sp4:"submit returns retroactively",
   s_h:"Three steps to submission",
   s_p:"No form chaos, no ELSTER studies. You answer plain-language questions — SimplyTax turns them into the official tax return.",
   s1t:"Start for free",
@@ -228,6 +242,8 @@ en: {
   f5t:"Insurance handled correctly, automatically",
   f5p:"From liability to Rürup: you pick the policy from the list, SimplyTax applies the correct legal deduction caps automatically.",
   f6t:"Mail from the tax office? No stress.",
+  f7t:"Designed for expats in Germany",
+  f7p:"New in Germany or moved mid-year? SimplyTax is fully in English, handles partial-year residency, all Steuerklassen (1–6), and the five marital-status situations that affect your tax rate. No ELSTER account needed — no German tax knowledge required.",
   f6p:"Inquiries from the Finanzamt are documented and answered directly in SimplyTax — including submitting requested receipts, entirely paper-free.",
   p_h:"One price. No surprises.",
   p_p:"Look first, decide later: preparing the complete return including the refund calculation is free. You only pay if you actually submit.",
@@ -241,7 +257,7 @@ en: {
   c_r1:"Tax advisor (average case)", c_r1v:"from €300",
   c_r2:"Typical tax apps",
   c_r4:"No submission? Then:",
-  c_note:"Introductory price of the beta phase. Average refund according to the Federal Statistical Office: over €1,000 per return — submitting almost always pays off.",
+  c_note:"Average refund according to the Federal Statistical Office: over €1,000 per return — submitting almost always pays off at €9.95.",
   q_h:"Frequently asked questions",
   q0:"Do I need to file a tax return in Germany?",
   a0:"Not everyone does. You must file if: you received wage-replacement benefits (Kurzarbeitergeld, Elterngeld, ALG I) over €410, you had multiple employers, you earned additional income (rental, freelance, investments) over €410, or you are in Steuerklasse 3 while your spouse is in Steuerklasse 5. If none apply, filing is still worth doing voluntarily — most people get money back. Average refund in Germany: over €1,000.",
@@ -256,11 +272,9 @@ en: {
   q4:"How safe is my data?",
   a4:"Your data is transmitted encrypted and stored in a European database (GDPR-compliant). Receipts live in private, access-protected storage; downloads run via short-lived signed links. We never see payment data — payments are handled by a certified payment provider.",
   q5:"Who is SimplyTax suitable for?",
-  a5:"For employees, married couples with joint assessment, families with children, investors with capital income (including foreign brokers) and landlords. Short-time work benefits, double household and support payments to relatives abroad are covered too.",
+  a5:"For <b>expats and international residents</b> (full English interface, partial-year residency supported), employees, married couples with any of the five marital-status situations, families with children (all four kinship types), investors with capital income — including foreign brokers — and landlords. Kurzarbeitergeld, double household (doppelte Haushaltsführung), and support payments to relatives abroad are covered too. If you are new to Germany, you do not need an ELSTER account or German tax knowledge to get started.",
   q6:"What happens if the tax office has questions?",
   a6:"If mail arrives from the Finanzamt, you log the inquiry in SimplyTax, write your answer and send it back electronically — requested receipts can be submitted digitally right away. Everything stays documented in one place.",
-  q7:"What does “Beta” mean?",
-  a7:"SimplyTax is under construction: data entry, calculation and receipt management are fully usable; direct transmission to the tax office via the ELSTER interface is currently in certification and will be activated before the official launch. Until then, usage is free.",
   b_h:"Find out in minutes what you are owed.",
   b_p:"Enter your data for free, see your refund live — decide afterwards.",
   b_cta:"Start now for free",
@@ -276,9 +290,9 @@ de: {
   title:"SimplyTax — Steuererklärung online. Einfach, transparent, mit Live-Erstattungsrechner.",
   meta:"Steuererklärung online erstellen: kostenlos ausprobieren, Erstattung live berechnen, bezahlen erst bei Abgabe. Lohnsteuerbescheinigung fotografieren — SimplyTax liest sie automatisch aus.",
   nav_features:"Funktionen", nav_how:"So geht's", nav_price:"Preis", nav_cta:"Jetzt starten",
-  h_eyebrow:"Steuererklärung online",
-  h_title:"Deine Steuererklärung.<br><em>Ohne Steuerdeutsch.</em>",
-  h_sub:"Fotografiere deine Lohnsteuerbescheinigung — SimplyTax liest sie automatisch aus, führt dich Schritt für Schritt durch alle Angaben und zeigt dir <b>live</b>, wie hoch deine Erstattung voraussichtlich ausfällt. Im Schnitt holen sich Steuerzahler laut Statistischem Bundesamt über <b>1.000&nbsp;€</b> zurück.",
+  h_eyebrow:"Steuererklärung online · Volle englische Benutzeroberfläche · 9,95 € pro Erklärung",
+  h_title:"Deine Steuererklärung.<br><em>Auf Deutsch oder Englisch. Ohne Amtsdeutsch.</em>",
+  h_sub:"Für <b>Expats und alle in Deutschland</b> — komplett auf Deutsch oder Englisch nutzbar. Fotografiere deine Lohnsteuerbescheinigung — SimplyTax liest sie aus, führt dich durch alle Angaben und zeigt dir <b>live</b> deine voraussichtliche Erstattung. Im Schnitt über <b>1.000&nbsp;€</b> zurück — 9,95 € bei Abgabe, kostenlos ausprobieren.",
   h_cta1:"Kostenlos ausprobieren", h_cta2:"So funktioniert's",
   h_note:"Kein Risiko: Erfassen & Berechnen ist kostenlos — bezahlt wird erst bei Abgabe.",
   m_label:"Voraussichtliche Erstattung",
@@ -288,6 +302,7 @@ de: {
   t2:"Erstattung nach amtlicher Formel (§ 32a EStG)",
   t3b:"Alle Anlagen", t3:"N, Vorsorgeaufwand, Kind, KAP, V u. v. m.",
   t4:"verschlüsselt, Hosting in Europa",
+  sp1:"durchschnittliche Erstattung im Beispiel oben", sp2:"bei Abgabe — kostenlos vorher berechnen", sp3:"vollständige englische Oberfläche verfügbar", sp4:"Jahre rückwirkende Abgabe möglich",
   s_h:"In drei Schritten zur Abgabe",
   s_p:"Kein Formular-Wirrwarr, kein ELSTER-Studium. Du beantwortest verständliche Fragen — SimplyTax macht daraus die amtliche Steuererklärung.",
   s1t:"Kostenlos starten",
@@ -309,6 +324,8 @@ de: {
   f5t:"Versicherungen automatisch richtig",
   f5p:"Von Haftpflicht bis Rürup: Du wählst die Versicherung aus der Liste, SimplyTax wendet die richtigen Höchstbeträge automatisch an.",
   f6t:"Post vom Finanzamt? Kein Stress.",
+  f7t:"Auch für Expats in Deutschland",
+  f7p:"Neu in Deutschland oder Mitte des Jahres zugezogen? SimplyTax ist komplett auf Englisch oder Deutsch nutzbar, unterstützt teiljährigen Aufenthalt, alle Steuerklassen (1–6) und alle fünf Familienstand-Situationen. Kein ELSTER-Konto nötig — keine Steuervorkenntnisse erforderlich.",
   f6p:"Rückfragen des Finanzamts werden direkt in SimplyTax dokumentiert und beantwortet — inklusive Nachreichen von Belegen, ganz ohne Papier.",
   p_h:"Ein Preis. Keine Überraschungen.",
   p_p:"Erst ansehen, dann entscheiden: Die komplette Erklärung inklusive Erstattungsberechnung ist kostenlos. Bezahlt wird nur, wenn du tatsächlich abgibst.",
@@ -322,7 +339,7 @@ de: {
   c_r1:"Steuerberater (Durchschnittsfall)", c_r1v:"ab 300 €",
   c_r2:"Gängige Steuer-Apps",
   c_r4:"Keine Abgabe? Dann:",
-  c_note:"Einführungspreis der Beta-Phase. Durchschnittliche Erstattung laut Statistischem Bundesamt: über 1.000 € pro Erklärung — die Abgabe lohnt sich fast immer.",
+  c_note:"Durchschnittliche Erstattung laut Statistischem Bundesamt: über 1.000 € pro Erklärung — die Abgabe lohnt sich bei 9,95 € fast immer.",
   q_h:"Häufige Fragen",
   q0:"Muss ich in Deutschland eine Steuererklärung abgeben?",
   a0:"Nicht jeder. Pflicht besteht bei: Lohnersatzleistungen (Kurzarbeitergeld, Elterngeld, ALG I) über 410 €, mehreren Arbeitgebern, zusätzlichen Einkünften (Miete, Freelance, Kapitalerträge) über 410 €, oder Steuerklassenkombination III/V. Wer keine Pflicht hat, kann trotzdem freiwillig abgeben — die meisten bekommen Geld zurück. Durchschnittliche Erstattung in Deutschland: über 1.000 €.",
@@ -337,11 +354,9 @@ de: {
   q4:"Wie sicher sind meine Daten?",
   a4:"Deine Daten werden verschlüsselt übertragen und in einer europäischen Datenbank gespeichert (DSGVO-konform). Belege liegen in einem privaten, zugriffsgeschützten Speicher; Downloads laufen über kurzlebige signierte Links. Zahlungsdaten sehen wir nie — die Zahlung wickelt ein zertifizierter Zahlungsdienstleister ab.",
   q5:"Für wen ist SimplyTax geeignet?",
-  a5:"Für Arbeitnehmerinnen und Arbeitnehmer, Ehepaare mit Zusammenveranlagung, Familien mit Kindern, Anleger mit Kapitalerträgen (auch Auslandsdepots) und Vermieter. Auch Kurzarbeitergeld, doppelte Haushaltsführung und Unterhalt an Angehörige im Ausland sind abgedeckt.",
+  a5:"Für <b>Expats und internationale Fachkräfte</b> (vollständige englische Oberfläche, Teiljahraufenthalt unterstützt), Arbeitnehmerinnen und Arbeitnehmer, Ehepaare in allen fünf Familienstand-Situationen, Familien mit Kindern, Anleger mit Kapitalerträgen (auch Auslandsdepots) und Vermieter. Kurzarbeitergeld, doppelte Haushaltsführung und Unterhalt an Angehörige im Ausland sind abgedeckt. Wer neu in Deutschland ist, braucht weder ein ELSTER-Konto noch Steuervorkenntnisse.",
   q6:"Was passiert, wenn das Finanzamt Rückfragen hat?",
   a6:"Kommt Post vom Finanzamt, erfasst du die Rückfrage in SimplyTax, formulierst die Antwort und sendest sie elektronisch zurück — angeforderte Belege kannst du direkt digital nachreichen. Alles bleibt dokumentiert an einem Ort.",
-  q7:"Was bedeutet „Beta“?",
-  a7:"SimplyTax befindet sich im Aufbau: Erfassung, Berechnung und Belegverwaltung sind voll nutzbar; die Direktübermittlung an das Finanzamt über die ELSTER-Schnittstelle befindet sich derzeit in der Zertifizierung und wird vor dem offiziellen Start freigeschaltet. Bis dahin ist die Nutzung kostenlos.",
   b_h:"Finde in wenigen Minuten heraus, was dir zusteht.",
   b_p:"Kostenlos erfassen, Erstattung live sehen — entscheiden kannst du danach.",
   b_cta:"Jetzt kostenlos starten",
