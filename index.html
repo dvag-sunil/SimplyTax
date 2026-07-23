@@ -1844,24 +1844,7 @@ function stepIncome(c){
         ${LF('emps',emp,'churchPaid',t('church_paid'),{euro:true,ph:'0,00 €'})}
         ${LF('emps',emp,'churchSpouse',t('z7'),{euro:true,ph:'0,00 €'})}
       </div>
-      <details class="more" open><summary>${t('sec_sv')}</summary>
-        <div class="grid3">
-          ${LF('emps',emp,'anRV',t('z23a'),{euro:true,ph:'0,00 €'})}
-          ${LF('emps',emp,'anRVb',t('z23b'),{euro:true,ph:'0,00 €'})}
-          ${LF('emps',emp,'anKV',t('z25'),{euro:true,ph:'0,00 €'})}
-          ${LF('emps',emp,'anPV',t('z26'),{euro:true,ph:'0,00 €'})}
-          ${LF('emps',emp,'anAV',t('z27'),{euro:true,ph:'0,00 €'})}
-          ${LF('emps',emp,'pkv28',t('z28'),{euro:true,ph:'0,00 €'})}
-        </div>
-        <div class="grid3">
-          ${LF('emps',emp,'agRV',t('z22a'),{euro:true,ph:'0,00 €'})}
-          ${LF('emps',emp,'agRVb',t('z22b'),{euro:true,ph:'0,00 €'})}
-          ${LF('emps',emp,'agKV',t('z24a'),{euro:true,ph:'0,00 €'})}
-          ${LF('emps',emp,'agPKV',t('z24b'),{euro:true,ph:'0,00 €'})}
-          ${LF('emps',emp,'agPV',t('z24c'),{euro:true,ph:'0,00 €'})}
-        </div>
-      </details>
-      <details class="more"><summary>${t('sec_more')}</summary>
+      <details class="more" open><summary>${t('sec_more')}</summary>
         <div class="grid3">
           ${LF('emps',emp,'vb8',t('z8'),{euro:true,ph:'0,00 €'})}
           ${LF('emps',emp,'vb9',t('z9'),{euro:true,ph:'0,00 €'})}
@@ -1878,6 +1861,17 @@ function stepIncome(c){
           ${LF('emps',emp,'entsch19',t('z19'),{euro:true,ph:'0,00 €'})}
           ${LF('emps',emp,'verpf20',t('z20'),{euro:true,ph:'0,00 €'})}
           ${LF('emps',emp,'dhh21',t('z21'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'agRV',t('z22a'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'agRVb',t('z22b'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'anRV',t('z23a'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'anRVb',t('z23b'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'agKV',t('z24a'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'agPKV',t('z24b'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'agPV',t('z24c'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'anKV',t('z25'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'anPV',t('z26'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'anAV',t('z27'),{euro:true,ph:'0,00 €'})}
+          ${LF('emps',emp,'pkv28',t('z28'),{euro:true,ph:'0,00 €'})}
           ${LF('emps',emp,'bmg29',t('z29'),{euro:true,ph:'0,00 €'})}
           ${LF('emps',emp,'vbJahr30',t('z30'),{ph:'2020'})}
           ${LF('emps',emp,'vbMon31',t('z31'),{ph:'01 / 12'})}
@@ -2709,6 +2703,23 @@ Mapping (Zeile = numbered line on the form): employer = employer name (Anschrift
     const c=cur();
     /* every upload creates a NEW income statement — existing entries are never overwritten */
     const emp={id:uid()};
+    /* Parse a dot-decimal number from the AI (e.g. "50220.00") directly to German display format.
+       N() is intentionally NOT used here: N("50220.00") treats the .00 as a decimal and returns
+       50220 (whole number), then formatDE drops the ",00" — showing "50.220" instead of "50.220,00".
+       We parse integer + decimal parts directly instead. */
+    const aiNum = v => {
+      const str = String(v).trim().replace(/[€\s]/g,'');
+      if(!str || str==='0' || str==='0.00' || str==='0,00') return null;
+      const m = str.match(/^(-?\d+)(?:\.(\d{1,2}))?$/);   // dot-decimal from AI: 50220.00 or 50220
+      if(m){
+        const cents = (m[2]||'00').padEnd(2,'0');
+        const intPart = m[1].replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+        return intPart + ',' + cents;
+      }
+      // fallback: AI returned German format already ("50.220,00") — re-format explicitly with 2dp
+      const num = N(str); if(num === 0) return null;
+      return new Intl.NumberFormat('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}).format(num);
+    };
     const TEXTF={employer:1,period:1,taxClass:1,kfb:1,vbJahr30:1,vbMon31:1};
     const EMPKEYS=['employer','period','taxClass','kfb','gross','wageTax','soli','churchPaid','churchSpouse',
       'vb8','vb9','ml10','lst11','soli12','kist13','kistSp14','ersatz15','kug15a','dba16','fahrt17','pausch18',
@@ -2717,7 +2728,7 @@ Mapping (Zeile = numbered line on the form): employer = employer name (Anschrift
     EMPKEYS.forEach(k=>{
       const val=j[k]; if(val==null || String(val).trim()==='') return;
       if(TEXTF[k]){ emp[k]=String(val); }
-      else { if(N(val)===0) return; emp[k]=formatDE(N(val)); }   // skip 0,00 values to keep the card clean
+      else { const cv=aiNum(val); if(!cv) return; emp[k]=cv; }   // skip empty/zero values to keep the card clean
       S.aiFields['emps.'+emp.id+'.'+k]=true;
     });
     (c.emps=c.emps||[]).push(emp);
@@ -2750,7 +2761,7 @@ Mapping (Zeile = numbered line on the form): employer = employer name (Anschrift
 }
 
 /* ---------------- boot ---------------- */
-/* Paint an immediate  loading screen before any network call — avoids the blank-page
+/* Paint an immediate loading screen before any network call — avoids the blank-page
    gap during backend auth/data fetch, especially on a cold-started free-tier server. */
 (function(){
   /* password-reset deep link from the email */
