@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Datenschutz — SimplyTax</title>
+<link rel="stylesheet" href="assets/site.css">
+<style>
+.legal-wrap{max-width:760px;margin:0 auto;padding:52px 22px 80px}
+.legal-wrap h1{font-size:32px;margin-bottom:6px}
+.legal-wrap .updated{font-size:13px;color:var(--ink-soft);margin-bottom:36px}
+.legal-wrap h2{font-size:19px;margin:34px 0 10px;color:var(--teal-dark)}
+.legal-wrap h3{font-size:16px;margin:20px 0 8px;color:var(--ink)}
+.legal-wrap p, .legal-wrap li{font-size:14.5px;line-height:1.7;color:var(--ink)}
+.legal-wrap ul{margin:8px 0 8px 22px}
+.legal-wrap a{color:var(--teal)}
+.lang-btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;
+  font-weight:700;cursor:pointer;font-size:13px}
+.lang-note{background:var(--paper);border:1px dashed var(--line);border-radius:10px;
+  padding:12px 14px;font-size:12.5px;color:var(--ink-soft);margin-bottom:28px}
+</style>
+</head>
+<body>
+<nav class="nav"><div class="wrap nav-in">
+  <a href="home.html" class="logo" style="text-decoration:none">Simply<b>Tax</b></a>
+  <div class="nav-links">
+    <button class="lang-btn" id="langBtn" onclick="toggleLang()">EN</button>
+    <a href="agb.html" id="agbLink">AGB</a>
+    <a href="impressum.html" id="impLink">Impressum</a>
+    <a href="index.html" class="btn btn-primary" id="appBtn">Zur Anwendung</a>
+  </div>
+</div></nav>
+
+<!-- ===== GERMAN ===== -->
+<div class="legal-wrap" id="ds-de">
+  <h1>Datenschutzerklärung</h1>
+  <p class="updated">Stand: Juli 2026 · Gemäß DSGVO und BDSG</p>
+
+  <h2>1. Verantwortlicher</h2>
+  <p>Verantwortlich für die Verarbeitung personenbezogener Daten auf dieser Plattform ist:</p>
+  <p><strong>SimplyTax</strong> — [vollständige Adresse gemäß Impressum]<br>
+    E-Mail: <a href="mailto:datenschutz@simplytax.de">datenschutz@simplytax.de</a></p>
+
+  <h2>2. Welche Daten wir verarbeiten</h2>
+
+  <h3>2.1 Kontodaten</h3>
+  <p>Bei der Registrierung erheben wir: Name, E-Mail-Adresse und ein Passwort (gespeichert
+    ausschließlich als bcrypt-Hash — wir sehen Ihr Passwort nie im Klartext).</p>
+
+  <h3>2.2 Steuerdaten</h3>
+  <p>Alle von Ihnen eingegebenen Steuerdaten (Einkommensdaten, Abzüge, persönliche Angaben)
+    werden verschlüsselt als JSONB-Datensatz in unserer Datenbank gespeichert. Diese Daten
+    sind ausschließlich für Ihr Konto sichtbar; kein anderer Nutzer und kein Mitarbeiter
+    ohne Notwendigkeit hat Zugriff.</p>
+
+  <h3>2.3 Hochgeladene Belege</h3>
+  <p>Dokumente, die Sie über die Belegfunktion hochladen (z. B. Lohnsteuerbescheinigungen),
+    werden in einem privaten, zugriffsgeschützten Speicher (Supabase Storage, EU-Region
+    London/Irland) abgelegt. Zugriffe erfolgen nur über kurzlebige, signierte Links.</p>
+
+  <h3>2.4 Zahlungsdaten</h3>
+  <p>Zahlungen werden vollständig durch Stripe Inc. abgewickelt. SimplyTax erhält dabei
+    keine vollständigen Zahlungsdaten (Kartennummer etc.) — wir speichern lediglich die
+    Stripe-Session-ID, den Betrag, die Währung und den Zahlungsstatus zur Buchführung.</p>
+
+  <h3>2.5 Protokolldaten</h3>
+  <p>Unsere Server erfassen automatisch: IP-Adresse, Zeitstempel, aufgerufene Endpunkte und
+    HTTP-Statuscodes. Diese Daten dienen der Sicherheit, Fehlerdiagnose und Missbrauchsprävention
+    und werden nach 30 Tagen gelöscht.</p>
+
+  <h3>2.6 Dokument-Erkennung</h3>
+  <p>Wenn Sie die automatische Dokumentenerkennung nutzen, wird Ihr hochgeladenes Dokument
+    zur Texterkennung an einen Verarbeitungsdienstleister übermittelt. Die Verarbeitung
+    erfolgt ausschließlich zur Feldvorausfüllung; das Dokument wird nicht dauerhaft dort
+    gespeichert. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung).</p>
+
+  <h2>3. Rechtsgrundlagen der Verarbeitung</h2>
+  <ul>
+    <li><strong>Art. 6 Abs. 1 lit. b DSGVO</strong> (Vertragserfüllung): Kontoverwaltung,
+      Steuerdatenverarbeitung, Zahlungsabwicklung, Dokumentenerkennung.</li>
+    <li><strong>Art. 6 Abs. 1 lit. c DSGVO</strong> (rechtliche Verpflichtung):
+      Aufbewahrung von Zahlungsbelegen gemäß §§ 238, 257 HGB.</li>
+    <li><strong>Art. 6 Abs. 1 lit. f DSGVO</strong> (berechtigte Interessen):
+      Sicherheitsprotokolle, Missbrauchserkennung.</li>
+  </ul>
+
+  <h2>4. Speicherort und Übermittlungen</h2>
+  <p>Alle Kerndaten werden in der EU (London / eu-west-2, AWS-Region) verarbeitet und
+    gespeichert. Für die Verarbeitung nutzen wir folgende Dienstleister:</p>
+  <ul>
+    <li><strong>Supabase</strong> (Datenbank &amp; Speicher) — EU-Region, DSGVO-konform</li>
+    <li><strong>Render</strong> (API-Hosting) — US-Unternehmen mit EU-Serverstandorten;
+      Standardvertragsklauseln (SCC) vorhanden</li>
+    <li><strong>Stripe</strong> (Zahlung) — SCC-Vereinbarung, PCI-DSS zertifiziert</li>
+    <li><strong>Anthropic / Resend</strong> (Dokumentenerkennung / E-Mail) — US-Unternehmen;
+      SCC-Vereinbarung bzw. Sub-Processor-Vertrag vorhanden</li>
+  </ul>
+
+  <h2>5. Speicherdauer</h2>
+  <ul>
+    <li>Kontodaten und Steuerdaten: bis zur Löschung des Kontos durch den Nutzer oder
+      auf Anfrage.</li>
+    <li>Zahlungsbelege: 10 Jahre gemäß § 257 HGB / § 147 AO.</li>
+    <li>Protokolldaten: 30 Tage.</li>
+    <li>Passwort-Reset-Token: 1 Stunde (automatische Löschung nach Nutzung).</li>
+  </ul>
+
+  <h2>6. Ihre Rechte</h2>
+  <p>Sie haben nach der DSGVO folgende Rechte, die Sie unter
+    <a href="mailto:datenschutz@simplytax.de">datenschutz@simplytax.de</a> geltend machen können:</p>
+  <ul>
+    <li><strong>Auskunft</strong> (Art. 15): Welche Daten wir über Sie verarbeiten.</li>
+    <li><strong>Berichtigung</strong> (Art. 16): Korrektur unrichtiger Daten.</li>
+    <li><strong>Löschung</strong> (Art. 17): Löschung Ihrer Daten ("Recht auf Vergessenwerden").</li>
+    <li><strong>Einschränkung</strong> (Art. 18): Einschränkung der Verarbeitung.</li>
+    <li><strong>Datenübertragbarkeit</strong> (Art. 20): Export Ihrer Daten in maschinenlesbarem Format.</li>
+    <li><strong>Widerspruch</strong> (Art. 21): Widerspruch gegen die Verarbeitung auf Basis
+      berechtigter Interessen.</li>
+    <li><strong>Beschwerde</strong>: Bei der zuständigen Datenschutzbehörde, z. B. dem Hessischen
+      Beauftragten für Datenschutz und Informationsfreiheit (da SimplyTax in Offenbach/Frankfurt
+      ansässig ist).</li>
+  </ul>
+
+  <h2>7. Cookies und lokale Speicherung</h2>
+  <p>SimplyTax verwendet keine Tracking-Cookies und keine Werbe-Cookies. Wir nutzen
+    ausschließlich technisch notwendige Speicherung (localStorage) für: Sprachpräferenz
+    und Sitzungstoken (JWT). Es werden keine Daten an Werbenetzwerke übermittelt.
+    SimplyTax-Produkte sind werbefrei.</p>
+
+  <h2>8. Änderungen dieser Datenschutzerklärung</h2>
+  <p>Wir behalten uns vor, diese Erklärung bei Änderungen unserer Dienste oder der
+    Rechtslage anzupassen. Die aktuelle Fassung ist stets unter dieser URL abrufbar.
+    Bei wesentlichen Änderungen werden registrierte Nutzer per E-Mail informiert.</p>
+</div>
+
+<!-- ===== ENGLISH ===== -->
+<div class="legal-wrap" id="ds-en" style="display:none">
+  <h1>Privacy Policy</h1>
+  <p class="updated">As of July 2026 · Pursuant to GDPR and BDSG</p>
+  <div class="lang-note">This is a convenience translation. The German version is legally authoritative.</div>
+
+  <h2>1. Controller</h2>
+  <p>The controller for the processing of personal data on this platform is:</p>
+  <p><strong>SimplyTax</strong> — [full address per legal notice]<br>
+    Email: <a href="mailto:datenschutz@simplytax.de">datenschutz@simplytax.de</a></p>
+
+  <h2>2. What data we process</h2>
+
+  <h3>2.1 Account data</h3>
+  <p>At registration we collect: name, email address, and a password (stored exclusively as
+    a bcrypt hash — we never see your password in plaintext).</p>
+
+  <h3>2.2 Tax data</h3>
+  <p>All tax data you enter (income, deductions, personal details) is stored encrypted as a
+    JSONB record in our database. This data is visible only to your account; no other user
+    and no employee without necessity has access.</p>
+
+  <h3>2.3 Uploaded documents</h3>
+  <p>Documents you upload via the receipt function (e.g. Lohnsteuerbescheinigungen) are
+    stored in a private, access-protected storage system (Supabase Storage, EU region
+    London/Ireland). Access is only via short-lived, signed links.</p>
+
+  <h3>2.4 Payment data</h3>
+  <p>Payments are processed entirely by Stripe Inc. SimplyTax does not receive complete
+    payment data (card numbers etc.) — we store only the Stripe session ID, amount,
+    currency, and payment status for accounting purposes.</p>
+
+  <h3>2.5 Log data</h3>
+  <p>Our servers automatically record: IP address, timestamp, endpoints accessed, and HTTP
+    status codes. This data is used for security, error diagnosis, and abuse prevention
+    and is deleted after 30 days.</p>
+
+  <h3>2.6 Document recognition</h3>
+  <p>When you use the automatic document recognition feature, your uploaded document is
+    transmitted to a processing service provider for text recognition. Processing is
+    exclusively for field pre-filling; the document is not permanently stored there.
+    Legal basis: Art. 6(1)(b) GDPR (performance of contract).</p>
+
+  <h2>3. Legal bases for processing</h2>
+  <ul>
+    <li><strong>Art. 6(1)(b) GDPR</strong> (performance of contract): account management,
+      tax data processing, payment processing, document recognition.</li>
+    <li><strong>Art. 6(1)(c) GDPR</strong> (legal obligation): retention of payment records
+      pursuant to §§ 238, 257 HGB.</li>
+    <li><strong>Art. 6(1)(f) GDPR</strong> (legitimate interests): security logs,
+      abuse detection.</li>
+  </ul>
+
+  <h2>4. Storage location and transfers</h2>
+  <p>All core data is processed and stored in the EU (London / eu-west-2, AWS region).
+    We use the following service providers:</p>
+  <ul>
+    <li><strong>Supabase</strong> (database & storage) — EU region, GDPR-compliant</li>
+    <li><strong>Render</strong> (API hosting) — US company with EU server locations;
+      Standard Contractual Clauses (SCC) in place</li>
+    <li><strong>Stripe</strong> (payments) — SCC agreement, PCI-DSS certified</li>
+    <li><strong>Anthropic / Resend</strong> (document recognition / email) — US companies;
+      SCC agreement and/or sub-processor agreement in place</li>
+  </ul>
+
+  <h2>5. Retention periods</h2>
+  <ul>
+    <li>Account and tax data: until deletion of account by the user or on request.</li>
+    <li>Payment records: 10 years pursuant to § 257 HGB / § 147 AO.</li>
+    <li>Log data: 30 days.</li>
+    <li>Password reset tokens: 1 hour (automatic deletion after use).</li>
+  </ul>
+
+  <h2>6. Your rights</h2>
+  <p>Under the GDPR you have the following rights, which you can exercise at
+    <a href="mailto:datenschutz@simplytax.de">datenschutz@simplytax.de</a>:</p>
+  <ul>
+    <li><strong>Access</strong> (Art. 15): what data we process about you.</li>
+    <li><strong>Rectification</strong> (Art. 16): correction of inaccurate data.</li>
+    <li><strong>Erasure</strong> (Art. 17): deletion of your data ("right to be forgotten").</li>
+    <li><strong>Restriction</strong> (Art. 18): restriction of processing.</li>
+    <li><strong>Data portability</strong> (Art. 20): export of your data in machine-readable format.</li>
+    <li><strong>Objection</strong> (Art. 21): objection to processing based on legitimate interests.</li>
+    <li><strong>Complaint</strong>: with the competent supervisory authority, e.g. the Hessian
+      Commissioner for Data Protection and Freedom of Information (as SimplyTax is based
+      in Offenbach/Frankfurt).</li>
+  </ul>
+
+  <h2>7. Cookies and local storage</h2>
+  <p>SimplyTax uses no tracking cookies and no advertising cookies. We use only technically
+    necessary local storage (localStorage) for: language preference and session token (JWT).
+    No data is transmitted to advertising networks. SimplyTax products are ad-free.</p>
+
+  <h2>8. Changes to this privacy policy</h2>
+  <p>We reserve the right to update this policy when our services or the legal situation
+    change. The current version is always available at this URL. For material changes,
+    registered users will be notified by email.</p>
+</div>
+
+<footer><div class="wrap">
+  <div class="foot-grid">
+    <span>© 2026 SimplyTax</span>
+    <div class="foot-links">
+      <a href="impressum.html" id="f-imp">Impressum</a>
+      <a href="datenschutz.html" id="f-ds">Datenschutz</a>
+      <a href="agb.html">AGB</a>
+    </div>
+  </div>
+</div></footer>
+
+<script>
+let LANG='de';
+try{ LANG=localStorage.getItem('simplytax-home-lang')||'de'; }catch(e){}
+function applyLang(){
+  const de=LANG!=='en';
+  document.getElementById('ds-de').style.display=de?'':'none';
+  document.getElementById('ds-en').style.display=de?'none':'';
+  document.getElementById('langBtn').textContent=de?'EN':'DE';
+  document.getElementById('appBtn').textContent=de?'Zur Anwendung':'Open the app';
+  document.getElementById('agbLink').textContent=de?'AGB':'Terms';
+  document.getElementById('impLink').textContent=de?'Impressum':'Legal Notice';
+  document.getElementById('f-imp').textContent=de?'Impressum':'Legal Notice';
+  document.getElementById('f-ds').textContent=de?'Datenschutz':'Privacy';
+  document.documentElement.lang=de?'de':'en';
+}
+function toggleLang(){
+  LANG=(LANG==='en')?'de':'en';
+  try{ localStorage.setItem('simplytax-home-lang',LANG); }catch(e){}
+  applyLang();
+}
+applyLang();
+</script>
+</body>
+</html>
