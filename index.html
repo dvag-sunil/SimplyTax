@@ -282,7 +282,7 @@ en: {
   iban:"IBAN (for the refund)", spouse:"Spouse (Person B)",
   s2_lead:"Upload the Lohnsteuerbescheinigung — the app reads the values automatically. Please review every field before continuing.",
   upload_title:"Upload Lohnsteuerbescheinigung", upload_sub:"Drop a photo or PDF here, or click to choose a file",
-  scanning:"Reading the document with AI…", scan_ok:"Values extracted. Please check each field carefully — AI-filled fields are marked.",
+  scanning:"Reading the document…", scan_ok:"Values captured automatically. Please check each field carefully — automatically filled fields are marked.",
   scan_err:"The document could not be read automatically. You can enter the values manually below.",
   employer:"Employer", period:"Employment period", tax_class:"Tax class (Steuerklasse)",
   gross:"Gross salary (line 3)", wage_tax:"Wage tax withheld (line 4)", soli:"Solidarity surcharge (line 5)", church_paid:"Church tax withheld (lines 6/7)",
@@ -498,7 +498,7 @@ de: {
   iban:"IBAN (für die Erstattung)", spouse:"Ehepartner/in (Person B)",
   s2_lead:"Lohnsteuerbescheinigung hochladen — die App liest die Werte automatisch aus. Bitte prüfen Sie jedes Feld, bevor Sie fortfahren.",
   upload_title:"Lohnsteuerbescheinigung hochladen", upload_sub:"Foto oder PDF hier ablegen oder klicken, um eine Datei zu wählen",
-  scanning:"Dokument wird mit KI ausgelesen…", scan_ok:"Werte übernommen. Bitte prüfen Sie jedes Feld sorgfältig — KI-Felder sind markiert.",
+  scanning:"Dokument wird ausgelesen…", scan_ok:"Werte automatisch übernommen. Bitte prüfen Sie jedes Feld sorgfältig — automatisch ausgefüllte Felder sind markiert.",
   scan_err:"Das Dokument konnte nicht automatisch gelesen werden. Sie können die Werte unten manuell eintragen.",
   employer:"Arbeitgeber", period:"Beschäftigungszeitraum", tax_class:"Steuerklasse",
   gross:"Bruttoarbeitslohn (Zeile 3)", wage_tax:"Einbehaltene Lohnsteuer (Zeile 4)", soli:"Solidaritätszuschlag (Zeile 5)", church_paid:"Einbehaltene Kirchensteuer (Zeile 6/7)",
@@ -1582,7 +1582,7 @@ const validAmount = (v, fmt) => { if(!fmt || String(v).trim()==='') return v;
   return v; };
 function F(group,key,label,opts={}){
   const c=cur(); const v=c[group][key];
-  const ai = S.aiFields[group+'.'+key] ? `<span class="ai-flag">AI</span>` : '';
+  const ai = S.aiFields[group+'.'+key] ? `<span class="ai-flag">AUTO</span>` : '';
   const type = opts.type||'text';
   const fkey = group+'.'+key;
   const toggled = opts.hintMode==='toggle';
@@ -1609,7 +1609,7 @@ function upd(group,key,val,fmt){
 /* --- generic list items (employments, capital gains, properties) --- */
 function LF(list,item,field,label,opts={}){
   const hint=opts.hint?`<div class="hint">${opts.hint}</div>`:'';
-  const ai=S.aiFields[list+'.'+item.id+'.'+field]?`<span class="ai-flag">AI</span>`:'';
+  const ai=S.aiFields[list+'.'+item.id+'.'+field]?`<span class="ai-flag">AUTO</span>`:'';
   const tk=`${list}.${item.id}.${field}`;
   if(opts.select){
     return `<div class="field"><label>${label}${ai}</label>
