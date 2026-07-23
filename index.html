@@ -2685,9 +2685,69 @@ async function handleFile(file){
     const b64 = await new Promise((res,rej)=>{ const r=new FileReader();
       r.onload=()=>res(r.result.split(',')[1]); r.onerror=()=>rej(new Error('read')); r.readAsDataURL(file); });
     const isPdf = file.type==='application/pdf';
-    const prompt = `You are reading a German "Ausdruck der elektronischen Lohnsteuerbescheinigung". Extract the values and respond with ONLY a JSON object, no markdown, no explanation. Use numbers with a dot as decimal separator (e.g. 108623.32), or "" if a field is empty or not found:
-{"employer":"","period":"","taxClass":"","kfb":"","idnr":"","birthDate":"","gross":"","wageTax":"","soli":"","churchPaid":"","churchSpouse":"","vb8":"","vb9":"","ml10":"","lst11":"","soli12":"","kist13":"","kistSp14":"","ersatz15":"","kug15a":"","dba16":"","fahrt17":"","pausch18":"","entsch19":"","verpf20":"","dhh21":"","agRV":"","agRVb":"","anRV":"","anRVb":"","agKV":"","agPKV":"","agPV":"","anKV":"","anPV":"","anAV":"","pkv28":"","bmg29":"","vbJahr30":"","vbMon31":"","sterbe32":"","fb34":""}
-Mapping (Zeile = numbered line on the form): employer = employer name (Anschrift des Arbeitgebers block); period = Bescheinigungszeitraum (Zeile 1); taxClass = Steuerklasse (1-6, from "Steuerklasse/Faktor"); kfb = Zahl der Kinderfreibeträge; idnr = the EMPLOYEE's personal Identifikationsnummer ONLY — exactly 11 digits, no slashes, usually printed near the employee's name/address block. NEVER extract any number associated with the employer/Arbeitgeber (their Betriebsnummer, Finanzamt reference, or Steuernummer such as "181/815/08155" with slashes) into this field — if you are not certain a number belongs to the EMPLOYEE specifically, leave idnr empty (""); birthDate = Geburtsdatum in YYYY-MM-DD format; gross = Zeile 3 Bruttoarbeitslohn; wageTax = Zeile 4 einbehaltene Lohnsteuer; soli = Zeile 5 Solidaritätszuschlag; churchPaid = Zeile 6 Kirchensteuer Arbeitnehmer; churchSpouse = Zeile 7 Kirchensteuer Ehegatte; vb8 = Zeile 8 Versorgungsbezüge; vb9 = Zeile 9; ml10 = Zeile 10; lst11 = Zeile 11; soli12 = Zeile 12; kist13 = Zeile 13; kistSp14 = Zeile 14; ersatz15 = Zeile 15 Kurzarbeitergeld/Lohnersatzleistungen; kug15a = Zeile 15a; dba16 = Zeile 16 (a+b combined); fahrt17 = Zeile 17; pausch18 = Zeile 18; entsch19 = Zeile 19; verpf20 = Zeile 20; dhh21 = Zeile 21; agRV = Zeile 22a; agRVb = Zeile 22b; anRV = Zeile 23a; anRVb = Zeile 23b; agKV = Zeile 24a; agPKV = Zeile 24b; agPV = Zeile 24c; anKV = Zeile 25; anPV = Zeile 26; anAV = Zeile 27; pkv28 = Zeile 28; bmg29 = Zeile 29; vbJahr30 = Zeile 30; vbMon31 = Zeile 31; sterbe32 = Zeile 32; fb34 = Zeile 34. Do NOT extract the Finanzamt at the bottom of the form (that is the employer's remittance office).`;
+    const prompt = `You are reading a German "Ausdruck der elektronischen Lohnsteuerbescheinigung" (annual wage tax certificate). Your task is to extract specific field values and return ONLY a valid JSON object — no markdown, no explanation, nothing else.
+
+CRITICAL — EUR/Ct COLUMN LAYOUT (the most common parsing error):
+The form has TWO narrow columns on the right: "EUR" and "Ct" (cents), separated by a vertical line.
+The EUR column contains the euros (e.g. 48.750) and the Ct column contains the cents (e.g. 03).
+You MUST read these as a SINGLE decimal number: EUR,Ct — so 48.750 | 03 = 48750.03 NOT 4875003.
+Return all monetary values as a number with a dot as decimal separator, e.g. 48750.03, 8136.00, 4533.75.
+NEVER concatenate the EUR and Ct digits without a decimal point.
+If the Ct column shows "00", still include it: 48750.00 not 48750.
+
+CRITICAL — FIELD IDENTITY RULES:
+- taxClass: a SINGLE digit 1–6 from the "Steuerklasse/Faktor" box. This is NEVER a decimal, NEVER more than one digit. If you see "4" in that box, taxClass = "4".
+- kfb (Kinderfreibeträge): a separate field, usually printed as "0,0" or "2,0" or similar. It is physically BELOW or BESIDE the Steuerklasse box. It is NEVER the same value as taxClass. If the Steuerklasse is 4, kfb might be "0,0" — do NOT copy the "4" into kfb.
+- idnr: the EMPLOYEE's personal 11-digit Identifikationsnummer (printed near the employee's name/address). NEVER the employer's Steuernummer (which has slashes like "181/815/08155") or Betriebsnummer. Leave empty "" if uncertain.
+- agRV (Zeile 22a) vs anRV (Zeile 23a): these are DIFFERENT fields on adjacent rows. Zeile 22a says "Arbeitgeber-Anteil/-Zuschuss ... a) zur gesetzlichen Rentenversicherung". Zeile 23a says "Arbeitnehmer-Anteil ... a) zur gesetzlichen Rentenversicherung". Read the LINE NUMBER carefully — do not swap them.
+- Similarly: agKV (Zeile 24a) ≠ anKV (Zeile 25). agPV (Zeile 24c) ≠ anPV (Zeile 26).
+
+FIELD MAPPING — match each JSON key to the exact Zeile number printed on the form:
+employer = employer name from "Anschrift des Arbeitgebers" block (text, not a number)
+period = Zeile 1 Bescheinigungszeitraum (text, e.g. "01.04.-31.12.")
+taxClass = Steuerklasse/Faktor box (single digit 1–6 only)
+kfb = Zahl der Kinderfreibeträge (decimal like 0.0 or 2.0, separate from taxClass)
+idnr = employee's 11-digit Identifikationsnummer only (no slashes)
+birthDate = Geburtsdatum in YYYY-MM-DD format
+gross = Zeile 3 Bruttoarbeitslohn einschl. Sachbezüge
+wageTax = Zeile 4 Einbehaltene Lohnsteuer
+soli = Zeile 5 Einbehaltener Solidaritätszuschlag
+churchPaid = Zeile 6 Einbehaltene Kirchensteuer des Arbeitnehmers
+churchSpouse = Zeile 7 Einbehaltene Kirchensteuer des Ehegatten
+vb8 = Zeile 8 In 3. enthaltene Versorgungsbezüge
+vb9 = Zeile 9 Versorgungsbezüge für mehrere Kalenderjahre
+ml10 = Zeile 10 Arbeitslohn für mehrere Kalenderjahre / Abfindungen
+lst11 = Zeile 11 (unbesetzt on most recent forms — leave "")
+soli12 = Zeile 12 (unbesetzt on most recent forms — leave "")
+kist13 = Zeile 13 (unbesetzt on most recent forms — leave "")
+kistSp14 = Zeile 14 (unbesetzt on most recent forms — leave "")
+ersatz15 = Zeile 15 Leistungen die dem Progressionsvorbehalt unterliegen (Kurzarbeitergeld etc.)
+kug15a = Zeile 15a (Saison-)Kurzarbeitergeld in 15. enthalten
+dba16 = Zeile 16 Steuerfreier Arbeitslohn nach DBA/Auslandstätigkeitserlass (a+b combined)
+fahrt17 = Zeile 17 Steuerfreie AG-Leistungen auf Entfernungspauschale anzurechnen
+pausch18 = Zeile 18 Pauschal mit 15% besteuerte AG-Leistungen Fahrten
+entsch19 = Zeile 19 (unbesetzt on most recent forms — leave "")
+verpf20 = Zeile 20 Steuerfreie Verpflegungszuschüsse bei Auswärtstätigkeit
+dhh21 = Zeile 21 Steuerfreie AG-Leistungen bei doppelter Haushaltsführung
+agRV = Zeile 22a Arbeitgeber-Anteil/-Zuschuss zur gesetzlichen Rentenversicherung
+agRVb = Zeile 22b Arbeitgeber-Anteil/-Zuschuss an berufsständische Versorgungseinrichtung
+anRV = Zeile 23a Arbeitnehmer-Anteil zur gesetzlichen Rentenversicherung
+anRVb = Zeile 23b Arbeitnehmer-Anteil an berufsständische Versorgungseinrichtung
+agKV = Zeile 24a Arbeitgeber-Zuschuss zur gesetzlichen Krankenversicherung
+agPKV = Zeile 24b Arbeitgeber-Zuschuss zur privaten Kranken-/Pflegeversicherung
+agPV = Zeile 24c Arbeitgeber-Zuschuss zur gesetzlichen Pflegeversicherung
+anKV = Zeile 25 Arbeitnehmer-Beiträge zur gesetzlichen Krankenversicherung
+anPV = Zeile 26 Arbeitnehmer-Beiträge zur gesetzlichen Pflegeversicherung
+anAV = Zeile 27 Arbeitnehmer-Beiträge zur Arbeitslosenversicherung
+pkv28 = Zeile 28 Private Kranken-/Pflege-Pflichtversicherung oder Mindestvorsorgepauschale
+bmg29 = Zeile 29 Bemessungsgrundlage für den Versorgungsfreibetrag
+vbJahr30 = Zeile 30 Jahr des Versorgungsbeginns (4-digit year)
+vbMon31 = Zeile 31 Erster/letzter Monat der Versorgungsbezüge
+sterbe32 = Zeile 32 Sterbegeld / Abfindung Versorgungsbezüge
+fb34 = Zeile 34 Versorgungsfreibetrag
+
+Return this exact JSON structure (use "" for any field not found or empty on the form):
+{"employer":"","period":"","taxClass":"","kfb":"","idnr":"","birthDate":"","gross":"","wageTax":"","soli":"","churchPaid":"","churchSpouse":"","vb8":"","vb9":"","ml10":"","lst11":"","soli12":"","kist13":"","kistSp14":"","ersatz15":"","kug15a":"","dba16":"","fahrt17":"","pausch18":"","entsch19":"","verpf20":"","dhh21":"","agRV":"","agRVb":"","anRV":"","anRVb":"","agKV":"","agPKV":"","agPV":"","anKV":"","anPV":"","anAV":"","pkv28":"","bmg29":"","vbJahr30":"","vbMon31":"","sterbe32":"","fb34":""}`;
     if(!BACKEND.enabled) throw new Error('backend_disabled');
     const dataUrl = isPdf ? `data:application/pdf;base64,${b64}` : `data:${file.type||'image/jpeg'};base64,${b64}`;
     const resp = await fetch(BACKEND.baseUrl+'/api/extract-doc', {
