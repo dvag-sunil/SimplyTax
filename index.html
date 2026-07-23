@@ -2679,6 +2679,70 @@ function bindGlobal(){
 document.getElementById('fileInput').addEventListener('change',e=>{
   const f=e.target.files[0]; if(f) handleFile(f); e.target.value='';
 });
+/* =====================================================================
+   Deterministic extraction sanitizer — does NOT trust the AI output.
+   The Bescheinigung prints EUR and Ct in two columns split by a vertical
+   line; vision models sometimes concatenate them (4.533|75 -> "453375",
+   i.e. exactly 100x the real value). German social-insurance lines have
+   LEGAL contribution ceilings, so a 100x value is mathematically
+   detectable and repairable in code — independent of the model.
+===================================================================== */
+function sanitizeExtraction(j){
+  /* --- 1. kfb (Kinderfreibeträge) must never be a copy of taxClass --- */
+  const tc = String(j.taxClass??'').trim();
+  if(j.kfb!=null && String(j.kfb).trim()!==''){
+    const kfRaw = String(j.kfb).trim();
+    if(tc && kfRaw===tc){ j.kfb=''; }                          // the known misread: Steuerklasse copied into kfb
+    else{
+      const kn = parseFloat(kfRaw.replace(',','.'));
+      // valid Kinderfreibeträge: 0–9.5 in steps of 0.5
+      if(!Number.isFinite(kn) || kn<0 || kn>9.5 || Math.round(kn*2)!==kn*2) j.kfb='';
+    }
+  }
+  if(tc && !/^[1-6]$/.test(tc)) j.taxClass='';                 // taxClass must be a single digit 1-6
+
+  /* --- 2. EUR|Ct concatenation repair via legal contribution ceilings --- */
+  /* caps: generous upper bounds (2025 Beitragsbemessungsgrenzen + margin).
+     Trigger only when the integer-only value exceeds cap*3 (order-of-magnitude
+     error) AND value/100 fits under the cap — so a legitimately high value
+     slightly above the cap is never touched. */
+  const CAP = { agRV:12000, agRVb:26000, anRV:12000, anRVb:26000,
+                agKV:8000,  agPKV:8000,  agPV:3000,
+                anKV:8000,  anPV:3000,   anAV:2200,  pkv28:16000,
+                soli:6000,  churchPaid:12000, churchSpouse:12000 };
+  const intOnly = v => /^\d+$/.test(String(v??'').trim());
+  Object.keys(CAP).forEach(k=>{
+    const v = String(j[k]??'').trim(); if(!v || !intOnly(v)) return;
+    const n = parseInt(v,10), cap = CAP[k];
+    if(n > cap*3 && n/100 <= cap) j[k] = (n/100).toFixed(2);
+  });
+
+  /* --- 3. cross-field repairs for the uncapped big numbers --- */
+  const parsed = v => { const m=String(v??'').trim().match(/^(\d+)(?:\.(\d{1,2}))?$/); return m?parseFloat(m[0]):NaN; };
+  let g = parsed(j.gross), w = parsed(j.wageTax);
+  // wage tax can never exceed gross — if it does and it's integer-only, it's concatenated
+  if(Number.isFinite(g) && Number.isFinite(w) && w>g && intOnly(j.wageTax) && w/100<=g){ j.wageTax=(w/100).toFixed(2); w=w/100; }
+  // gross plausibility vs pension contribution: anRV is ~9.3% of gross (ceiling-capped);
+  // gross > anRV*30 implies an RV rate under 0.33% — impossible unless gross is concatenated
+  const rv = parsed(j.anRV);
+  if(Number.isFinite(g) && Number.isFinite(rv) && rv>100 && intOnly(j.gross) && g>rv*30 && g/100>=rv*5){ j.gross=(g/100).toFixed(2); }
+
+  /* --- 3b. legal-equality restore: Zeile 22a = Zeile 23a for statutory pension --- */
+  /* Employer and employee pay equal halves of gesetzliche Rentenversicherung (§ 168 SGB VI),
+     so 22a and 23a always print the same amount for standard employees. Vision models sometimes
+     drop one of the two identical values as a "duplicate" — restore it from the other side. */
+  if(!String(j.agRV??'').trim() && String(j.anRV??'').trim())  j.agRV  = j.anRV;
+  if(!String(j.agRVb??'').trim() && String(j.anRVb??'').trim()) j.agRVb = j.anRVb;
+
+  /* --- 4. smear guard: employer subsidies (24a/24b/24c) duplicated from employee lines --- */
+  /* On employee forms lines 24a-c are almost always empty; the model sometimes copies the
+     adjacent employee value (25/26/28) into them. An exact-to-the-cent duplicate is the signature. */
+  if(j.agKV  && j.anKV  && String(j.agKV).trim()===String(j.anKV).trim())  j.agKV='';
+  if(j.agPV  && j.anPV  && String(j.agPV).trim()===String(j.anPV).trim())  j.agPV='';
+  if(j.agPKV && j.pkv28 && String(j.agPKV).trim()===String(j.pkv28).trim()) j.agPKV='';
+  return j;
+}
+
 async function handleFile(file){
   S.scanState='scanning'; render();
   try{
@@ -2699,7 +2763,7 @@ CRITICAL — FIELD IDENTITY RULES:
 - taxClass: a SINGLE digit 1–6 from the "Steuerklasse/Faktor" box. This is NEVER a decimal, NEVER more than one digit. If you see "4" in that box, taxClass = "4".
 - kfb (Kinderfreibeträge): a separate field, usually printed as "0,0" or "2,0" or similar. It is physically BELOW or BESIDE the Steuerklasse box. It is NEVER the same value as taxClass. If the Steuerklasse is 4, kfb might be "0,0" — do NOT copy the "4" into kfb.
 - idnr: the EMPLOYEE's personal 11-digit Identifikationsnummer (printed near the employee's name/address). NEVER the employer's Steuernummer (which has slashes like "181/815/08155") or Betriebsnummer. Leave empty "" if uncertain.
-- agRV (Zeile 22a) vs anRV (Zeile 23a): these are DIFFERENT fields on adjacent rows. Zeile 22a says "Arbeitgeber-Anteil/-Zuschuss ... a) zur gesetzlichen Rentenversicherung". Zeile 23a says "Arbeitnehmer-Anteil ... a) zur gesetzlichen Rentenversicherung". Read the LINE NUMBER carefully — do not swap them.
+- agRV (Zeile 22a) vs anRV (Zeile 23a): these are DIFFERENT fields on adjacent rows. Zeile 22a says "Arbeitgeber-Anteil/-Zuschuss ... a) zur gesetzlichen Rentenversicherung". Zeile 23a says "Arbeitnehmer-Anteil ... a) zur gesetzlichen Rentenversicherung". Read the LINE NUMBER carefully — do not swap them. IMPORTANT: Zeile 22a and Zeile 23a usually contain the IDENTICAL amount (employer and employee pay equal halves by German law). This is NOT a reading error and NOT a duplicate — you MUST extract BOTH values even when they are exactly the same. Never leave one of them empty because the other already has the same number.
 - Similarly: agKV (Zeile 24a) ≠ anKV (Zeile 25). agPV (Zeile 24c) ≠ anPV (Zeile 26).
 
 FIELD MAPPING — match each JSON key to the exact Zeile number printed on the form:
@@ -2760,6 +2824,7 @@ Return this exact JSON structure (use "" for any field not found or empty on the
     const text = (data.content||[]).filter(i=>i.type==='text').map(i=>i.text).join('\n');
     const clean = text.replace(/```json|```/g,'').trim();
     const j = JSON.parse(clean);
+    sanitizeExtraction(j);   // deterministic repair of known model errors — never trusts raw AI output
     const c=cur();
     /* every upload creates a NEW income statement — existing entries are never overwritten */
     const emp={id:uid()};
