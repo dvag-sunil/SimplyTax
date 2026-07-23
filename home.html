@@ -17,7 +17,7 @@
 <!-- ======= NAV ======= -->
 <nav class="nav">
   <div class="wrap nav-in">
-    <div class="logo">Simply<b>Tax</b><span class="beta">BETA</span></div>
+    <div class="logo">Simply<b>Tax</b></div>
     <div class="nav-links">
       <a href="#funktionen" data-i18n="nav_features"></a>
       <a href="#ablauf" data-i18n="nav_how"></a>
@@ -133,7 +133,9 @@
   <div class="wrap">
     <div class="sec-head"><h2 data-i18n="q_h"></h2></div>
     <div class="faq">
-      <details><summary data-i18n="q1"></summary><p data-i18n="a1"></p></details>
+      <details><summary data-i18n="q0"></summary><p data-i18n="a0"></p></details>
+        <details><summary data-i18n="qd"></summary><p data-i18n="ad"></p></details>
+        <details><summary data-i18n="q1"></summary><p data-i18n="a1"></p></details>
       <details><summary data-i18n="q2"></summary><p data-i18n="a2"></p></details>
       <details><summary data-i18n="q3"></summary><p data-i18n="a3"></p></details>
       <details><summary data-i18n="q4"></summary><p data-i18n="a4"></p></details>
@@ -178,7 +180,8 @@
         <a href="#preis" data-i18n="nav_price"></a>
         <a href="#faq">FAQ</a>
         <a href="agb.html">AGB</a>
-        <span style="opacity:.6" data-i18n="ft_legal"></span>
+        <a href="impressum.html" id="f-imp">Impressum</a>
+        <a href="datenschutz.html" id="f-ds">Datenschutz</a>
       </div>
     </div>
     <p class="foot-note" data-i18n="ft_note"></p>
@@ -240,6 +243,10 @@ en: {
   c_r4:"No submission? Then:",
   c_note:"Introductory price of the beta phase. Average refund according to the Federal Statistical Office: over €1,000 per return — submitting almost always pays off.",
   q_h:"Frequently asked questions",
+  q0:"Do I need to file a tax return in Germany?",
+  a0:"Not everyone does. You must file if: you received wage-replacement benefits (Kurzarbeitergeld, Elterngeld, ALG I) over €410, you had multiple employers, you earned additional income (rental, freelance, investments) over €410, or you are in Steuerklasse 3 while your spouse is in Steuerklasse 5. If none apply, filing is still worth doing voluntarily — most people get money back. Average refund in Germany: over €1,000.",
+  qd:"What is the filing deadline?",
+  ad:"For the 2025 tax year: self-filers must submit by 31 July 2026. With a Steuerberater or Lohnsteuerhilfeverein the deadline extends to 1 March 2027. Voluntary filers have 4 years — until 31 December 2029 for 2025.",
   q1:"What does SimplyTax really cost?",
   a1:"Entering your data and calculating your expected refund is completely free — with no time limit. Only when you actually submit your return do you pay a one-time €9.95 for exactly that return. No subscription, no hidden costs.",
   q2:"Do I need ELSTER knowledge or an ELSTER account?",
@@ -262,7 +269,7 @@ en: {
   eu_sub:"SimplyTax transmits via the official ELSTER interface of the German tax administration. For announcements, deadlines, and changes straight from the source, visit the official pages:",
   eu_link_news:"ELSTER news (Aktuelles) ↗", eu_link_portal:"elster.de portal ↗",
   eu_note:"External links to the official website of the tax administration — content there is maintained by ELSTER, always up to date, and independent of SimplyTax.",
-  ft_legal:"Imprint · Privacy · Terms (coming at launch)",
+  ft_legal:"",
   ft_note:"SimplyTax does not replace professional tax advice. The displayed refund is a non-binding calculation based on your entries; only the assessment notice of your tax office is authoritative. Electronic transmission runs via the official ELSTER interface of the German tax administration (activated after certification). © 2026 SimplyTax."
 },
 de: {
@@ -317,6 +324,10 @@ de: {
   c_r4:"Keine Abgabe? Dann:",
   c_note:"Einführungspreis der Beta-Phase. Durchschnittliche Erstattung laut Statistischem Bundesamt: über 1.000 € pro Erklärung — die Abgabe lohnt sich fast immer.",
   q_h:"Häufige Fragen",
+  q0:"Muss ich in Deutschland eine Steuererklärung abgeben?",
+  a0:"Nicht jeder. Pflicht besteht bei: Lohnersatzleistungen (Kurzarbeitergeld, Elterngeld, ALG I) über 410 €, mehreren Arbeitgebern, zusätzlichen Einkünften (Miete, Freelance, Kapitalerträge) über 410 €, oder Steuerklassenkombination III/V. Wer keine Pflicht hat, kann trotzdem freiwillig abgeben — die meisten bekommen Geld zurück. Durchschnittliche Erstattung in Deutschland: über 1.000 €.",
+  qd:"Was ist die Abgabefrist?",
+  ad:"Für das Steuerjahr 2025: Selbsteinreicher geben bis 31. Juli 2026 ab. Mit Steuerberater oder Lohnsteuerhilfeverein verlängert sich die Frist auf den 1. März 2027. Freiwillige Abgabe ist 4 Jahre rückwirkend möglich — für 2025 also bis 31. Dezember 2029.",
   q1:"Was kostet SimplyTax wirklich?",
   a1:"Das Erfassen deiner Daten und die Berechnung deiner voraussichtlichen Erstattung sind komplett kostenlos — ohne Zeitlimit. Erst wenn du deine Erklärung tatsächlich abgibst, zahlst du einmalig 9,95 € für genau diese Erklärung. Kein Abo, keine versteckten Kosten.",
   q2:"Brauche ich ELSTER-Kenntnisse oder ein ELSTER-Konto?",
@@ -339,7 +350,7 @@ de: {
   eu_sub:"SimplyTax übermittelt über die offizielle ELSTER-Schnittstelle der Finanzverwaltung. Ankündigungen, Fristen und Änderungen direkt von der Quelle findest du auf den offiziellen Seiten:",
   eu_link_news:"ELSTER-Neuigkeiten (Aktuelles) ↗", eu_link_portal:"elster.de Portal ↗",
   eu_note:"Externe Links zur offiziellen Website der Finanzverwaltung — die Inhalte dort pflegt ELSTER selbst, immer aktuell und unabhängig von SimplyTax.",
-  ft_legal:"Impressum · Datenschutz (folgen zum Start)",
+  ft_legal:"",
   ft_note:"SimplyTax ersetzt keine Steuerberatung. Die angezeigte Erstattung ist eine unverbindliche Berechnung auf Basis deiner Angaben; verbindlich ist ausschließlich der Bescheid deines Finanzamts. Die elektronische Übermittlung erfolgt über die offizielle ELSTER-Schnittstelle der Finanzverwaltung (Freischaltung nach Abschluss der Zertifizierung). © 2026 SimplyTax."
 }
 };
