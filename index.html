@@ -412,6 +412,11 @@ en: {
   bad_amount:"Please enter a positive amount (negative values are not allowed here).",
   loading:"Loading your workspace…", loading_slow:"Still connecting — the server is waking up, this can take up to 30 seconds on first load.",
   back_to_home:"Back to SimplyTax homepage",
+  acct_section:"Account", s_email_cur:"Current sign-in email", s_email_new:"New email address",
+  s_email_pass:"Current password (required to confirm)", change_email_btn:"Change email",
+  email_changed:"Email changed. Use the new address at your next sign-in.",
+  err_email_taken:"An account with this email already exists.",
+  err_wrong_pass:"The password is incorrect.", err_email_invalid:"Please enter a valid email address.",
   step_counter_lbl:"Step",
   deadline_banner:"Filing deadline — Tax year 2025: self-filers 31 July 2026 · with Steuerberater/Lohnsteuerhilfeverein 1 March 2027 · voluntary filers have 4 years (until 31 Dec 2029).",
   elster_link:"Official ELSTER",
@@ -638,6 +643,11 @@ de: {
   bad_amount:"Bitte einen positiven Betrag eingeben (negative Werte sind hier nicht zulässig).",
   loading:"Arbeitsbereich wird geladen…", loading_slow:"Verbindung wird aufgebaut — der Server wacht gerade auf, das kann beim ersten Laden bis zu 30 Sekunden dauern.",
   back_to_home:"Zurück zur SimplyTax-Startseite",
+  acct_section:"Konto", s_email_cur:"Aktuelle Anmelde-E-Mail", s_email_new:"Neue E-Mail-Adresse",
+  s_email_pass:"Aktuelles Passwort (zur Bestätigung erforderlich)", change_email_btn:"E-Mail ändern",
+  email_changed:"E-Mail geändert. Bitte bei der nächsten Anmeldung die neue Adresse verwenden.",
+  err_email_taken:"Ein Konto mit dieser E-Mail existiert bereits.",
+  err_wrong_pass:"Das Passwort ist nicht korrekt.", err_email_invalid:"Bitte eine gültige E-Mail-Adresse eingeben.",
   step_counter_lbl:"Schritt",
   deadline_banner:"Abgabefrist — Steuerjahr 2025: Selbsteinreicher 31. Juli 2026 · mit Steuerberater/Lohnsteuerhilfeverein 1. März 2027 · freiwillige Abgabe bis 31. Dez. 2029 möglich.",
   elster_link:"Offizielles ELSTER",
@@ -1059,7 +1069,13 @@ function showSettings(){
     <div class="field"><label>${t('s_practice')}</label><input id="st-name" value="${esc(s.practiceName||S.user.name||'')}"></div>
     <div class="field"><label>${t('s_address')}</label><input id="st-addr" value="${esc(s.address||'')}" placeholder="Musterstraße 1, 63065 Offenbach am Main"></div>
     <div class="field"><label>${t('s_contact')}</label><input id="st-contact" value="${esc(s.contact||'')}" placeholder="+49 69 000000 · info@kanzlei.de"></div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+    <div class="section-label" style="margin-top:20px">${t('acct_section')}</div>
+    <div class="field"><label>${t('s_email_cur')}</label><input value="${esc(S.user.email||'')}" disabled style="background:var(--paper);color:var(--ink-soft)"></div>
+    <div class="field"><label>${t('s_email_new')}</label><input id="st-email-new" type="email" placeholder="new@example.com"></div>
+    <div class="field"><label>${t('s_email_pass')}</label><input id="st-email-pass" type="password" placeholder="••••••••"></div>
+    <div id="st-msg" class="hidden" style="border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:10px"></div>
+    <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="doChangeEmail()">${t('change_email_btn')}</button>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
       <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
       <button class="btn btn-primary" onclick="saveSettings()">${t('save')}</button>
     </div></div></div>`;
@@ -1068,7 +1084,30 @@ async function saveSettings(){
   const v=id=>(document.getElementById(id)?.value||'').trim();
   S.user.settings={ practiceName:v('st-name'), address:v('st-addr'), contact:v('st-contact') };
   await kvSet('klarsteuer-accounts', JSON.stringify(S.accounts));
+  try{ await api('/api/auth/settings','PUT',{settings:S.user.settings}); }catch(e){}   // persist server-side too
   const m=document.querySelector('.modal-bg'); if(m) m.remove();
+}
+function stMsg(msg, ok){
+  const el=document.getElementById('st-msg'); if(!el) return;
+  el.textContent=msg; el.classList.remove('hidden');
+  el.style.background = ok ? 'var(--teal-soft)' : 'var(--red-soft)';
+  el.style.color = ok ? 'var(--teal-dark)' : 'var(--red)';
+}
+async function doChangeEmail(){
+  const email=(document.getElementById('st-email-new')?.value||'').trim().toLowerCase();
+  const pass=document.getElementById('st-email-pass')?.value||'';
+  if(!email || !pass){ stMsg(t('err_fields'), false); return; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){ stMsg(t('err_email_invalid'), false); return; }
+  try{
+    const r=await api('/api/auth/email','PUT',{newEmail:email, password:pass});
+    S.user.email=r.email;
+    stMsg(t('email_changed'), true);
+    const f1=document.getElementById('st-email-new'), f2=document.getElementById('st-email-pass');
+    if(f1) f1.value=''; if(f2) f2.value='';
+  }catch(e){
+    const code=e&&e.message;
+    stMsg(code==='email_taken'?t('err_email_taken'):code==='wrong_password'?t('err_wrong_pass'):code==='invalid_email'?t('err_email_invalid'):t('err_creds'), false);
+  }
 }
 
 /* ---------------- number & format helpers ---------------- */
