@@ -62,7 +62,7 @@ app.post('/api/reminders/run', async (req, res) => {
 
 /* ---------- Stripe (Level B: Checkout + webhook, tamper-proof) ---------- */
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
-const PRICE_CENTS = parseInt(process.env.PRICE_CENTS || '995', 10);
+const PRICE_CENTS = parseInt(process.env.PRICE_CENTS || '1799', 10);
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dvag-sunil.github.io/SimplyTax/';
 
 /* ---------- Supabase Storage for Belege (private bucket, service key server-side only) ---------- */
@@ -302,16 +302,31 @@ app.delete('/api/clients/:id', auth, async (req, res) => {
 });
 
 /* create a Checkout session for one return */
+/* Discount codes - server-side source of truth. Must be kept in sync with the DISCOUNTS
+   table in index.html if you also run the 'simulated' payment mode; for real Stripe
+   payments THIS table is the only one that actually determines the amount charged. */
+const DISCOUNTS = {
+  WELCOME10: { type: 'percent', value: 10 },
+  SAVE5: { type: 'fixed', value: 5 },
+};
+function discountedCents(code) {
+  const d = DISCOUNTS[String(code || '').trim().toUpperCase()];
+  if (!d) return { cents: PRICE_CENTS, code: null };
+  const off = d.type === 'percent' ? Math.round(PRICE_CENTS * d.value / 100) : Math.round(d.value * 100);
+  return { cents: Math.max(50, PRICE_CENTS - off), code: String(code).trim().toUpperCase() };  // never below 0.50 EUR
+}
+
 app.post('/api/payments/checkout', auth, async (req, res) => {
   if (!stripe) return res.status(501).json({ error: 'stripe_disabled' });
-  const { clientId } = req.body || {};
+  const { clientId, discountCode } = req.body || {};
   if (!clientId) return res.status(400).json({ error: 'invalid_input' });
+  const { cents, code } = discountedCents(discountCode);
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
-    line_items: [{ quantity: 1, price_data: { currency: 'eur', unit_amount: PRICE_CENTS,
-      product_data: { name: 'SimplyTax — Freischaltung Steuererklärung' } } }],
+    line_items: [{ quantity: 1, price_data: { currency: 'eur', unit_amount: cents,
+      product_data: { name: 'SimplyTax — Freischaltung Steuererklärung' + (code ? ` (${code})` : '') } } }],
     client_reference_id: clientId,
-    metadata: { userId: req.user.sub, clientId },
+    metadata: { userId: req.user.sub, clientId, discountCode: code || '' },
     success_url: FRONTEND_URL + '?session_id={CHECKOUT_SESSION_ID}',
     cancel_url: FRONTEND_URL,
   });

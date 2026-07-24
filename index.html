@@ -215,6 +215,21 @@
  backend (see /backend). false = local/browser storage only (current mode).
 ===================================================================== */
 const BACKEND = { enabled:true, baseUrl:'https://simplytax-api.onrender.com' }; // ← if your Render URL has a suffix (e.g. -xk2p), adjust it here
+/* DISCOUNT CODES - edit this list to add/remove promo codes. type:'percent' (0-100) or 'fixed' (EUR off).
+ Client-side table is used for the 'simulated' payment mode; for real Stripe payments the SAME codes
+ must also exist in backend/server.js (DISCOUNTS) since the server is the source of truth for the
+ actual amount charged - never trust a client-computed discount for a real payment. */
+const DISCOUNTS = {
+ WELCOME10:{ type:'percent', value:10 },
+ SAVE5:{ type:'fixed', value:5 }
+};
+function computeDiscount(code, price){
+ const d = DISCOUNTS[String(code||'').trim().toUpperCase()];
+ if(!d) return null;
+ const off = d.type==='percent' ? price*d.value/100 : d.value;
+ const final = Math.max(0, Math.round((price-off)*100)/100);
+ return { code:String(code).trim().toUpperCase(), off:Math.round((price-final)*100)/100, final };
+}
 /* PAYMENT TOGGLE - Steuerfuchs model: preparation & calculation free, payment unlocks
  PDF download + ELSTER submission PER RETURN. Prototype simulates the payment;
  production connects Stripe Checkout via the backend (see production checklist). */
@@ -227,12 +242,21 @@ const PAYMENT = {
 const isPaid = c => !PAYMENT.enabled || (c && c.pay && c.pay.status==='paid');
 function showPayModal(){
  const c=cur(); const slot=document.getElementById('modal-slot'); if(!c||!slot) return;
+ const applied = c.pay && c.pay.discountCode;
  slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal" style="text-align:center">
  <div class="success-mark" style="background:var(--amber-soft);color:var(--amber)">🔒</div>
  <h2>${t('pay_title')}</h2>
  <p style="color:var(--ink-soft);font-size:14px;margin:8px 0 14px">${t('pay_sub')}</p>
- <div class="ticket" style="font-family:Georgia,serif;font-size:24px;letter-spacing:0">${eur(PAYMENT.pricePerReturn)}</div>
- <p style="font-size:12px;color:var(--ink-soft);margin:10px 0 12px">${t('pay_sim_note')}</p>
+ <div id="pay-amount-box">${payAmountHtml(applied ? computeDiscount(applied, PAYMENT.pricePerReturn) : null)}</div>
+ <div class="field" style="max-width:260px;margin:14px auto 0;text-align:left">
+ <label>${t('discount_label')}</label>
+ <div style="display:flex;gap:8px">
+ <input id="disc-code" placeholder="${t('discount_ph')}" style="flex:1" value="${applied?esc(applied):''}" onkeydown="if(event.key==='Enter')applyDiscount()">
+ <button class="btn btn-ghost" onclick="applyDiscount()">${t('discount_apply')}</button>
+ </div>
+ <div id="disc-msg" class="hidden" style="font-size:12.5px;margin-top:6px"></div>
+ </div>
+ <p style="font-size:12px;color:var(--ink-soft);margin:14px 0 12px">${t('pay_sim_note')}</p>
  <div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink-soft);margin-bottom:14px">
  <span>🔒 ${t('trust_enc')}</span><span>🇪🇺 ${t('trust_eu')}</span><span>✓ ${t('trust_gdpr')}</span>
  </div>
@@ -241,23 +265,49 @@ function showPayModal(){
  <button class="btn btn-primary" onclick="payNow()">💳 ${t('pay_now')}</button>
  </div></div></div>`;
 }
+function payAmountHtml(d){
+ if(d) return `<div class="ticket" style="font-family:Georgia,serif;font-size:24px;letter-spacing:0">
+ <span style="text-decoration:line-through;color:var(--ink-soft);font-size:16px;margin-right:8px">${eur(PAYMENT.pricePerReturn)}</span>${eur(d.final)}</div>
+ <div style="font-size:12.5px;color:var(--teal-dark);margin-top:2px">${t('discount_saved').replace('{amount}',eur(d.off))}</div>`;
+ return `<div class="ticket" style="font-family:Georgia,serif;font-size:24px;letter-spacing:0">${eur(PAYMENT.pricePerReturn)}</div>`;
+}
+function applyDiscount(){
+ const c=cur(); if(!c) return;
+ const code=(document.getElementById('disc-code')?.value||'').trim();
+ const msgEl=document.getElementById('disc-msg');
+ if(!code){ c.pay={...(c.pay||{}), discountCode:null}; document.getElementById('pay-amount-box').innerHTML=payAmountHtml(null); if(msgEl) msgEl.classList.add('hidden'); return; }
+ const d=computeDiscount(code, PAYMENT.pricePerReturn);
+ if(!d){
+ if(msgEl){ msgEl.textContent=t('discount_invalid'); msgEl.style.color='var(--red)'; msgEl.classList.remove('hidden'); }
+ return;
+ }
+ c.pay={ ...(c.pay||{}), discountCode:d.code };
+ document.getElementById('pay-amount-box').innerHTML=payAmountHtml(d);
+ if(msgEl){ msgEl.textContent=t('discount_ok').replace('{code}',d.code); msgEl.style.color='var(--teal-dark)'; msgEl.classList.remove('hidden'); }
+}
 async function payNow(){
  const c=cur(); if(!c) return;
+ const discountCode = c.pay && c.pay.discountCode;
  /* Level B: full Checkout via backend + webhook (tamper-proof) */
  if(PAYMENT.provider==='stripe_backend' && BACKEND.enabled){
- try{ const r=await api('/api/payments/checkout','POST',{clientId:c.id}); location.href=r.url; }
+ try{ const r=await api('/api/payments/checkout','POST',{clientId:c.id, discountCode}); location.href=r.url; }
  catch(e){ alert('Stripe: '+e.message); }
  return;
  }
  /* Level A: Stripe Payment Link - works without a backend (beta-grade unlock) */
  if(PAYMENT.provider==='stripe_link' && PAYMENT.paymentLink && !PAYMENT.paymentLink.includes('REPLACE_ME')){
+ /* Payment Links have a fixed price; discount codes for this mode must be configured as
+ Stripe "Promotion codes" in the Dashboard (Payment Link settings -> Allow promotion codes)
+ so Stripe applies them at its own checkout screen - this app cannot change a Link's price. */
  await kvSet('klarsteuer-pending-pay', c.id);
  location.href = PAYMENT.paymentLink + (PAYMENT.paymentLink.includes('?')?'&':'?')
  + 'client_reference_id=' + encodeURIComponent(c.id);
  return;
  }
- /* simulated (prototype) */
- c.pay={ status:'paid', paidAt:Date.now(), amount:PAYMENT.pricePerReturn,
+ /* simulated (prototype) - apply the client-side discount table */
+ const d = discountCode ? computeDiscount(discountCode, PAYMENT.pricePerReturn) : null;
+ c.pay={ status:'paid', paidAt:Date.now(), amount:d?d.final:PAYMENT.pricePerReturn,
+ discountCode:d?d.code:null, discountOff:d?d.off:0,
  txId:'PAY-'+Math.random().toString(36).slice(2,8).toUpperCase() };
  c.updatedAt=Date.now(); scheduleSave();
  const m=document.querySelector('.modal-bg'); if(m) m.remove();
@@ -479,6 +529,9 @@ en: {
  pay_title:"Unlock this tax return", pay_sub:"Preparation and calculation are free. Downloading the client PDF and submitting to ELSTER are enabled after payment for this return (one-time, per return).",
  pay_now:"Pay now", pay_locked:"Locked until payment", paid_on:"Paid on",
  pay_sim_note:"Prototype: the payment is simulated. In production, Stripe Checkout runs via the backend and a webhook unlocks the return.",
+ discount_label:"Discount code (optional)", discount_ph:"e.g. WELCOME10", discount_apply:"Apply",
+ discount_ok:"Code {code} applied.", discount_invalid:"This code is not valid.",
+ discount_saved:"You saved {amount}",
  paid_not_submitted:"Paid, not yet submitted",
  reminder_lead:"these returns were paid but not yet submitted to the Finanzamt. Follow up with the client, or check for a technical blocker.",
  days_since_payment:"days since payment", refund_window_over:"past the 14-day refund window",
@@ -710,6 +763,9 @@ de: {
  pay_title:"Diese Steuererklärung freischalten", pay_sub:"Erfassung und Berechnung sind kostenlos. PDF-Download und ELSTER-Übermittlung werden nach Zahlung für diese Erklärung freigeschaltet (einmalig, je Erklärung).",
  pay_now:"Jetzt bezahlen", pay_locked:"Bis zur Zahlung gesperrt", paid_on:"Bezahlt am",
  pay_sim_note:"Prototyp: Die Zahlung wird simuliert. In Produktion läuft Stripe Checkout über das Backend; ein Webhook schaltet die Erklärung frei.",
+ discount_label:"Rabattcode (optional)", discount_ph:"z. B. WELCOME10", discount_apply:"Anwenden",
+ discount_ok:"Code {code} angewendet.", discount_invalid:"Dieser Code ist nicht gültig.",
+ discount_saved:"Du sparst {amount}",
  paid_not_submitted:"Bezahlt, noch nicht abgegeben",
  reminder_lead:"diese Erklärungen wurden bezahlt, aber noch nicht ans Finanzamt übermittelt. Beim Mandanten nachfragen oder auf ein technisches Problem prüfen.",
  days_since_payment:"Tage seit Zahlung", refund_window_over:"außerhalb der 14-Tage-Rückerstattungsfrist",
