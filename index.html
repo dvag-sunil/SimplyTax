@@ -203,7 +203,7 @@ const PAYMENT = {
  enabled:false,
  provider:'simulated', // 'simulated' | 'stripe_link' (no backend needed) | 'stripe_backend' (with Supabase/API)
  paymentLink:'https://buy.stripe.com/REPLACE_ME', // for 'stripe_link': create in Stripe Dashboard -> Payment Links
- pricePerReturn:9.95, currency:'EUR'
+ pricePerReturn:17.99, currency:'EUR'
 };
 const isPaid = c => !PAYMENT.enabled || (c && c.pay && c.pay.status==='paid');
 function showPayModal(){
