@@ -242,6 +242,25 @@ app.get('/api/auth/me', auth, async (req, res) => {
   res.json({ user: pubUser(q.rows[0]) });
 });
 
+/* ---------- change account email (requires current password re-authentication) ---------- */
+app.put('/api/auth/email', auth, async (req, res) => {
+  const { newEmail, password } = req.body || {};
+  const email = String(newEmail||'').trim().toLowerCase();
+  if(!email || !password) return res.status(400).json({ error: 'invalid_input' });
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return res.status(400).json({ error: 'invalid_email' });
+  const { rows } = await pool.query('SELECT password_hash FROM users WHERE id=$1', [req.user.sub]);
+  if(!rows.length || !(await bcrypt.compare(String(password), rows[0].password_hash)))
+    return res.status(401).json({ error: 'wrong_password' });
+  try{
+    await pool.query('UPDATE users SET email=$1 WHERE id=$2', [email, req.user.sub]);
+  }catch(e){
+    if(e.code==='23505') return res.status(409).json({ error: 'email_taken' });   // unique violation
+    throw e;
+  }
+  audit(req.user.sub, 'email_changed', { to: email });
+  res.json({ ok: true, email });
+});
+
 app.put('/api/auth/settings', auth, async (req, res) => {
   await pool.query('UPDATE users SET settings=$1 WHERE id=$2', [req.body?.settings || {}, req.user.sub]);
   res.json({ ok: true });
