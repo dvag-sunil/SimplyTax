@@ -112,6 +112,16 @@
  .step-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;font-size:13.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;transition:.12s}
  .step-item:hover{background:var(--paper)}
  .step-item.on{background:var(--ink);color:#fff}
+ #busy-overlay{position:fixed;inset:0;background:rgba(255,255,255,.55);z-index:99999;
+ display:flex;align-items:center;justify-content:center;cursor:wait}
+ #busy-overlay .spinner{width:40px;height:40px;border:4px solid var(--line);
+ border-top-color:var(--teal);border-radius:50%;animation:busy-spin .7s linear infinite}
+ @keyframes busy-spin{to{transform:rotate(360deg)}}
+ .btn.is-loading{opacity:.75;pointer-events:none;position:relative;color:transparent!important}
+ .btn.is-loading::after{content:'';position:absolute;left:50%;top:50%;width:16px;height:16px;
+ margin:-8px 0 0 -8px;border:2.5px solid rgba(255,255,255,.5);border-top-color:#fff;
+ border-radius:50%;animation:busy-spin .6s linear infinite}
+ .btn-ghost.is-loading::after{border:2.5px solid rgba(0,0,0,.2);border-top-color:var(--ink)}
  .progress-bar-wrap{height:4px;background:var(--line);border-radius:2px;margin:0 0 18px;overflow:hidden}
  .progress-bar-fill{height:4px;background:var(--teal);border-radius:2px;transition:width .3s}
  .step-counter{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px}
@@ -990,28 +1000,34 @@ async function hashPass(email,pass){
 }
 function authErr(msg){ const el=document.getElementById('auth-err'); if(el){ el.textContent=msg; el.classList.remove('hidden'); el.style.background=''; el.style.color=''; el.style.borderColor=''; } }
 function authOk(msg){ const el=document.getElementById('auth-err'); if(el){ el.textContent=msg; el.classList.remove('hidden'); el.style.background='var(--teal-soft)'; el.style.color='var(--teal-dark)'; el.style.borderColor='var(--teal)'; } }
-async function doForgot(){
+async function doForgot(btn){
  const email=(document.getElementById('fg-email')?.value||'').trim().toLowerCase();
  if(!email){ authErr(t('err_fields')); return; }
+ setBusy(true); setBtnBusy(btn,true);
  try{ const r=await api('/api/auth/forgot','POST',{email});
  if(r.emailEnabled===false){ authErr(t('forgot_noemail')); return; }
  authOk(t('forgot_sent'));
  }catch(e){ authOk(t('forgot_sent')); } // same message on any outcome - no account enumeration
+ finally { setBusy(false); setBtnBusy(btn,false); }
 }
-async function doReset(){
+async function doReset(btn){
  const p1=document.getElementById('rs-pass')?.value||'', p2=document.getElementById('rs-pass2')?.value||'';
  if(p1.length<8){ authErr(t('err_short')); return; }
  if(p1!==p2){ authErr(t('err_match')); return; }
+ setBusy(true); setBtnBusy(btn,true);
  try{ await api('/api/auth/reset','POST',{email:S.resetEmail, token:S.resetToken, password:p1});
  S.resetToken=null; S.resetEmail=null; S.authMode='login'; render();
  setTimeout(()=>authOk(t('reset_ok')),0);
  }catch(e){ authErr(t('reset_bad')); }
+ finally { setBusy(false); setBtnBusy(btn,false); }
 }
 function setAuthMode(m){ S.authMode=m; render(); }
-async function doLogin(){
+async function doLogin(btn){
  const email=(document.getElementById('lg-email')?.value||'').trim().toLowerCase();
  const pass=document.getElementById('lg-pass')?.value||'';
  if(!email||!pass){ authErr(t('err_fields')); return; }
+ setBusy(true); setBtnBusy(btn,true);
+ try{
  if(BACKEND.enabled){
  try{ const r=await api('/api/auth/login','POST',{email,password:pass});
  authToken=r.token; S.user=r.user; await kvSet('klarsteuer-token',r.token);
@@ -1024,14 +1040,17 @@ async function doLogin(){
  if(!u){ authErr(t('err_creds')); return; }
  S.user=u; await kvSet('klarsteuer-session',u.id);
  await loadUserData(); S.loggedIn=true; S.view='dash'; render();
+ } finally { setBusy(false); setBtnBusy(btn,false); }
 }
-async function doRegister(){
+async function doRegister(btn){
  const name=(document.getElementById('rg-name')?.value||'').trim();
  const email=(document.getElementById('rg-email')?.value||'').trim().toLowerCase();
  const p1=document.getElementById('rg-pass')?.value||'', p2=document.getElementById('rg-pass2')?.value||'';
  if(!name||!email||!p1||!p2){ authErr(t('err_fields')); return; }
  if(p1.length<8){ authErr(t('err_short')); return; }
  if(p1!==p2){ authErr(t('err_match')); return; }
+ setBusy(true); setBtnBusy(btn,true);
+ try{
  if(BACKEND.enabled){
  try{ const r=await api('/api/auth/register','POST',{name,email,password:p1});
  authToken=r.token; S.user=r.user; await kvSet('klarsteuer-token',r.token);
@@ -1052,6 +1071,7 @@ async function doRegister(){
  }
  await saveState();
  S.loggedIn=true; S.view='dash'; render();
+ } finally { setBusy(false); setBtnBusy(btn,false); }
 }
 async function logout(){
  await kvDel('klarsteuer-session'); await kvDel('klarsteuer-token'); authToken=null;
@@ -1406,10 +1426,10 @@ function loginView(){
  ${isReset?`
  <div class="field"><label>${t('new_password')}</label><input id="rs-pass" type="password" placeholder="••••••••"></div>
  <div class="field"><label>${t('confirm_pass')}</label><input id="rs-pass2" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doReset()"></div>
- <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doReset()">${t('set_password')}</button>`
+ <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doReset(this)">${t('set_password')}</button>`
  :`
  <div class="field"><label>${t('email')}</label><input id="fg-email" type="email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')doForgot()"></div>
- <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doForgot()">${t('send_reset')}</button>`}
+ <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doForgot(this)">${t('send_reset')}</button>`}
  <p style="text-align:center;margin-top:14px;font-size:13px"><a onclick="S.authMode='login';S.resetToken=null;render()" style="color:var(--ink-soft);cursor:pointer">${t('back_to_login')}</a></p>
  </div></div>`;
  }
@@ -1427,11 +1447,11 @@ function loginView(){
  <div class="field"><label>${t('email')}</label><input id="rg-email" type="email" placeholder="you@example.com"></div>
  <div class="field"><label>${t('password')}</label><input id="rg-pass" type="password" placeholder="••••••••"></div>
  <div class="field"><label>${t('confirm_pass')}</label><input id="rg-pass2" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doRegister()"></div>
- <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doRegister()">${t('register_btn')}</button>`
+ <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doRegister(this)">${t('register_btn')}</button>`
  :`
  <div class="field"><label>${t('email')}</label><input id="lg-email" type="email" placeholder="you@example.com"></div>
  <div class="field"><label>${t('password')}</label><input id="lg-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
- <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doLogin()">${t('sign_in')}</button>
+ <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doLogin(this)">${t('sign_in')}</button>
  <p style="text-align:center;margin-top:12px;font-size:13px"><a onclick="setAuthMode('forgot')" style="color:var(--teal);cursor:pointer">${t('forgot_link')}</a></p>`}
  <p style="text-align:center;margin-top:14px;font-size:13px"><a href="home.html" style="color:var(--ink-soft);text-decoration:none">← ${S.lang==='de'?'Über SimplyTax':'About SimplyTax'}</a></p>
  </div></div>`;
@@ -1645,6 +1665,20 @@ function meter(c){
 const dateMax = () => new Date().toISOString().slice(0,10);
 const marLbl = m => m==='married' ? t('married') : m==='married_sep' ? t('married_sep')
  : m==='verwitwet' ? t('widowed') : m==='getrennt_lebend' ? t('separated_living') : t('single');
+/* Full-screen blocking overlay: freezes all clicks while an auth request is in flight,
+   so the user gets clear "please wait" feedback and can't double-submit. */
+function setBusy(on){
+ let el = document.getElementById('busy-overlay');
+ if(on){
+ if(!el){ el=document.createElement('div'); el.id='busy-overlay';
+ el.innerHTML='<div class="spinner"></div>'; document.body.appendChild(el); }
+ } else if(el){ el.remove(); }
+}
+function setBtnBusy(btn, on){
+ if(!btn) return;
+ if(on){ btn.classList.add('is-loading'); btn.disabled=true; }
+ else { btn.classList.remove('is-loading'); btn.disabled=false; }
+}
 function showFieldErr(msg){ let el=document.getElementById('field-err-toast');
  if(!el){ el=document.createElement('div'); el.id='field-err-toast';
  el.style.cssText='position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 4px 18px rgba(0,0,0,.18);pointer-events:none;transition:opacity .3s';
