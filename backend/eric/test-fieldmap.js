@@ -37,7 +37,7 @@ for (const [section, obj] of [['ESt1A', fm.ESt1A], ['N', fm.N], ['VOR', fm.VOR],
 // section field counts as of this session - if these change, the mapping
 // doc (v1/v2/v3) should have changed first
 check('ESt1A has 11 fields', Object.keys(fm.ESt1A).length === 11);
-check('N has 15 fields', Object.keys(fm.N).length === 15);
+check('N has 20 fields', Object.keys(fm.N).length === 20);
 check('VOR has 7 fields', Object.keys(fm.VOR).length === 7);
 check('SA has 3 fields', Object.keys(fm.SA).length === 3);
 check('Kind has 3 fields', Object.keys(fm.Kind).length === 3);
@@ -65,6 +65,22 @@ const summed = fm.sumEmployerField(fakeEmps, 'gross');
 check('sumEmployerField counts employers correctly', summed.count === 2);
 check('sumEmployerField totals correctly', Math.abs(summed.total - 67554.76) < 0.01);
 check('sumEmployerField returns null for unknown field', fm.sumEmployerField(fakeEmps, 'doesNotExist') === null);
+
+// newly confirmed N fields this session
+check('taxClass corrected to Steuerklasse (E0200002)', fm.N.taxClass.kennzahlen[0] === 'E0200002');
+check('bmg29 confirmed', fm.N.bmg29.kennzahlen[0] === 'E0200902');
+check('pausch18 confirmed', fm.N.pausch18.kennzahlen[0] === 'E0203901');
+check('dba16 confirmed', fm.N.dba16.kennzahlen[0] === 'E0201502');
+check('ml10 confirmed', fm.N.ml10.kennzahlen[0] === 'E0201806');
+
+// routeToVOR: encodes the VOR-overlap discovery
+check('agRV routes to VOR.rv', fm.routeToVOR('agRV') === 'rv');
+check('anKV routes to VOR.kv', fm.routeToVOR('anKV') === 'kv');
+check('anAV routes to VOR.av', fm.routeToVOR('anAV') === 'av');
+check('unknown field routes to null', fm.routeToVOR('doesNotExist') === null);
+check('every VOR routing target actually exists in fm.VOR', 
+  ['agRV','agRVb','anRV','anRVb','agKV','agPKV','anKV','agPV','anPV','anAV','pkv28']
+    .every(f => fm.VOR[fm.routeToVOR(f)] !== undefined));
 
 console.log(`\n===== eric-fieldmap.js: ${pass} passed, ${fail} failed =====`);
 process.exit(fail ? 1 : 0);

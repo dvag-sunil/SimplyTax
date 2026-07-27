@@ -72,6 +72,11 @@ const N = {
   vbJahr30:     { line: 30, kennzahlen: ['E0201307'], slotResolved: true },
   vbMon31First: { line: 31, kennzahlen: ['E0201003'], slotResolved: true },   // "Erster Monat"
   vbMon31Last:  { line: 31, kennzahlen: ['E0201203'], slotResolved: true },   // "Letzter Monat"
+  taxClass:     { line: null, kennzahlen: ['E0200002'], slotResolved: true, note: 'CORRECTED: earlier assumed employerCount based on XML context alone (value happened to be "1" in the example); official Felder sheet confirms E0200002 = Steuerklasse' },
+  bmg29:        { line: 29, kennzahlen: ['E0200902'], slotResolved: true, note: 'Bemessungsgrundlage für den Versorgungsfreibetrag laut Nr. 29' },
+  pausch18:     { line: 18, kennzahlen: ['E0203901'], slotResolved: true, note: 'Arbeitgeberleistungen laut Nr. 18 (pauschal besteuert)' },
+  dba16:        { line: 16, kennzahlen: ['E0201502'], slotResolved: true, note: 'Steuerfreier Arbeitslohn nach DBA/sonstigen zwischenstaatlichen Übereinkommen' },
+  ml10:         { line: 10, kennzahlen: ['E0201806'], slotResolved: true, note: 'Arbeitslohn für mehrere Jahre, Entschädigungen (z.B. Abfindungen) laut Nr. 10' },
 
   /* sterbe32: very likely the SAME einz/sum pattern as gross/wageTax/soli
      above (identical description on both numbers, sits in the Versorgungs-
@@ -83,9 +88,36 @@ const N = {
   sterbe32:     { line: 32, kennzahlen: ['E0201205', 'E0201210'], slotResolved: false,
                   note: 'likely einz/sum pair by pattern, not yet XML-confirmed' },
 
-  // TODO (open): dba16, pausch18, entsch19, dhh21 (partly covered under
-  // N_DHH separately - not yet merged), agRV/agRVb/anRV/anRVb (22a/22b/23a/23b),
-  // agKV/agPKV/agPV (24a-c), anKV/anPV/anAV (25-27), pkv28, bmg29, fb34.
+  /* MAJOR DISCOVERY this session: agRV, agRVb, anRV, anRVb (Bescheinigung
+     Zeilen 22a/22b/23a/23b), agKV, agPKV, agPV (24a-c), anKV, anPV, anAV
+     (25-27), pkv28 - searched exhaustively in the N - Felder sheet for
+     "Rentenversicherung", "Krankenversicherung", "Pflegeversicherung",
+     "Arbeitslosenversicherung" - ZERO matches. These values, even though
+     the user enters them on the Employment Income wizard step (because
+     that's where they appear on the printed Lohnsteuerbescheinigung), are
+     NOT separately represented in Anlage N's XML schema. They are reported
+     ONLY through the Vorsorgeaufwand context (see VOR above: rv/kv/pv/av).
+     Phase 5 implication: the XML builder must route these 11 app fields
+     into the VOR Kennzahlen, not look for N-context equivalents that do
+     not exist. */
+
+  // CONFIRMED (not a gap): entsch19, kist13, kistSp14, lst11, soli12
+  // correspond to Bescheinigung lines 19, 13, 14, 11, 12 - zero matches for
+  // "Zeile 11/12/13/14/19" anywhere in the entire N - Felder sheet, which
+  // matches the app's own earlier documented understanding that these
+  // specific lines are currently unused/blank on the printed Lohnsteuer-
+  // bescheinigung. There is correctly nothing to map here - not an open
+  // gap, a confirmed non-field. (ml10, Zeile 10, is a real used line and
+  // is mapped separately above - not part of this unused group.)
+
+  // still genuinely open despite exhaustive search this session: kfb
+  // (Kinderfreibeträge - checked both N and ESt1A contexts, zero matches),
+  // fb34 (Versorgungsfreibetrag Zeile 34), dhh21 (steuerfreie AG-Leistungen
+  // bei doppelter Haushaltsführung), kug15a ((Saison-)Kurzarbeitergeld
+  // sub-line of 15) - none of these appear under any search term tried.
+  // Possible explanations: different official wording not yet guessed, or
+  // (for kfb specifically) these values may be computed by ERiC/the tax
+  // office from other submitted data rather than transmitted directly.
 };
 
 /* ---------- 3. Insurance / Vorsorgeaufwand (VOR context) ---------- */
@@ -210,4 +242,20 @@ function sumEmployerField(emps, field) {
   return { count: values.length, total: values.reduce((a, b) => a + b, 0) };
 }
 
-module.exports = { ESt1A, N, VOR, SA, Kind, N_DHH, HA_35a, KAP, isSlotResolved, unresolvedFields, sumEmployerField };
+/* ---------- helper: which VOR field does this Bescheinigung-line app field route to? ---------- */
+/* Encodes the VOR-overlap discovery directly: agRV/anRV -> VOR.rv,
+   agKV/agPKV/anKV -> VOR.kv, agPV/anPV -> VOR.pv, anAV -> VOR.av.
+   Returns null for fields that don't have a VOR routing (i.e. genuinely
+   belong in N or are still unmapped). */
+function routeToVOR(empField) {
+  const routing = {
+    agRV: 'rv', agRVb: 'rvBerufsstaendisch', anRV: 'rv', anRVb: 'rvBerufsstaendisch',
+    agKV: 'kv', agPKV: 'kvOther', anKV: 'kv',
+    agPV: 'pv', anPV: 'pv',
+    anAV: 'av',
+    pkv28: 'kvOther',
+  };
+  return routing[empField] || null;
+}
+
+module.exports = { ESt1A, N, VOR, SA, Kind, N_DHH, HA_35a, KAP, isSlotResolved, unresolvedFields, sumEmployerField, routeToVOR };
