@@ -240,6 +240,11 @@ const PAYMENT = {
  pricePerReturn:17.99, currency:'EUR'
 };
 const isPaid = c => !PAYMENT.enabled || (c && c.pay && c.pay.status==='paid');
+/* ERiC real transmission toggle - false until the backend has ERIC_HOME +
+   a real Hersteller-ID configured (currently pending). While false, the
+   Summary step keeps using the existing simulated submit flow unchanged -
+   nothing breaks for current users during this transition. */
+const ERIC = { enabled:false };
 function showAusCalc(empId){
  const c=cur(); const slot=document.getElementById('modal-slot'); if(!c||!slot) return;
  const emp = (c.emps||[]).find(e=>e.id===empId); if(!emp) return;
@@ -480,6 +485,13 @@ en: {
  err_fa:"Please enter the 4-digit Finanzamt number (BUFA) in Personal data before submitting.",
  err_taxid:"Please enter the 11-digit tax ID (IdNr) in Personal data before submitting.",
  submitting_to:"Receiving tax office",
+ freigabe_title:"Release for transmission", freigabe_sub:"Please review the figures below carefully. Once you release this return, it is transmitted to the Finanzamt via the official ELSTER interface.",
+ freigabe_validate_failed:"ERiC could not confirm this return is ready to send yet.",
+ freigabe_checkbox:"I have reviewed this data and release it for transmission to the tax office.",
+ freigabe_submit:"Release & submit", freigabe_not_sent:"Not transmitted",
+ freigabe_not_sent_hint:"The tax office did not confirm receipt. This is expected while ERiC setup is still in progress; nothing was lost, your data is saved and you can try again later.",
+ eric_unavailable:"Submission service unavailable", eric_error:"Submission error", eric_code:"ERiC code",
+ zve:"Taxable income (zvE)", refund:"Expected refund", back_pay:"Expected back payment",
  settings:"Settings", settings_title:"Practice settings", settings_sub:"Shown as letterhead on the PDF summary for your clients.",
  s_practice:"Practice / consultant name", s_address:"Address line", s_contact:"Phone / email", save:"Save",
  child:"Child", add_child:"Add child", child_name:"First name", child_taxid:"Child's tax ID (IdNr, 11 digits)",
@@ -721,6 +733,13 @@ de: {
  err_fa:"Bitte vor der Übermittlung die 4-stellige Finanzamtsnummer (BUFA) in den persönlichen Daten eintragen.",
  err_taxid:"Bitte vor der Übermittlung die 11-stellige Steuer-ID (IdNr) in den persönlichen Daten eintragen.",
  submitting_to:"Empfangendes Finanzamt",
+ freigabe_title:"Zur Übermittlung freigeben", freigabe_sub:"Bitte prüfen Sie die folgenden Angaben sorgfältig. Mit der Freigabe wird diese Erklärung über die offizielle ELSTER-Schnittstelle an das Finanzamt übermittelt.",
+ freigabe_validate_failed:"ERiC konnte noch nicht bestätigen, dass diese Erklärung versandbereit ist.",
+ freigabe_checkbox:"Ich habe diese Daten geprüft und gebe sie zur Übermittlung an das Finanzamt frei.",
+ freigabe_submit:"Freigeben & übermitteln", freigabe_not_sent:"Nicht übermittelt",
+ freigabe_not_sent_hint:"Das Finanzamt hat den Eingang nicht bestätigt. Das ist erwartbar, solange die ERiC-Einrichtung noch läuft; es geht nichts verloren, Ihre Daten sind gespeichert und Sie können es später erneut versuchen.",
+ eric_unavailable:"Übermittlungsdienst nicht verfügbar", eric_error:"Übermittlungsfehler", eric_code:"ERiC-Code",
+ zve:"Zu versteuerndes Einkommen (zvE)", refund:"Voraussichtliche Erstattung", back_pay:"Voraussichtliche Nachzahlung",
  settings:"Einstellungen", settings_title:"Kanzlei-Einstellungen", settings_sub:"Wird als Briefkopf auf der PDF-Zusammenfassung für Ihre Mandanten verwendet.",
  s_practice:"Kanzlei / Name", s_address:"Adresszeile", s_contact:"Telefon / E-Mail", save:"Speichern",
  child:"Kind", add_child:"Kind hinzufügen", child_name:"Vorname", child_taxid:"Steuer-ID des Kindes (IdNr, 11 Ziffern)",
@@ -2529,9 +2548,10 @@ function stepSummary(c){
 }
 function submitElster(){
  const c0=cur();
- if(!isPaid(c0)){ showPayModal(); return; } // payment gate (Steuerfuchs model)
+ if(!isPaid(c0)){ showPayModal(); return; }
  if(!/^\d{4}$/.test((c0.p.faNumber||'').trim())){ alert(t('err_fa')); S.step=0; render(); return; }
  if(!/^\d{11}$/.test((c0.p.taxId||'').replace(/\s/g,''))){ alert(t('err_taxid')); S.step=0; render(); return; }
+ if(ERIC.enabled){ submitElsterReal(c0); return; }
  const faLine = `${t('submitting_to')}: <b>${esc(c0.p.faNumber)}</b> ${esc(c0.p.finanzamt||'')}`;
  const slot=document.getElementById('modal-slot');
  slot.innerHTML=`<div class="modal-bg"><div class="modal" style="text-align:center">
@@ -2550,6 +2570,92 @@ function submitElster(){
  <button class="btn btn-primary" onclick="this.closest('.modal-bg').remove();render()">${t('close')}</button>
  </div></div>`;
  }, 1800);
+}
+
+/* ---------------- real ERiC submission flow (§ 87d Freigabe + backend routes) ---------------- */
+/* Simple non-cryptographic checksum of the released data, for the § 87d
+   5-year record ("keep a record of the identification/Freigabe") - proves
+   WHAT was released without needing a full crypto library client-side. */
+function simpleHash(str){
+ let h=0; for(let i=0;i<str.length;i++){ h=((h<<5)-h+str.charCodeAt(i))|0; }
+ return (h>>>0).toString(16);
+}
+async function submitElsterReal(c){
+ setBusy(true);
+ try{
+ const data = buildElsterDataset(c);
+ let vr;
+ try{ vr = await api('/api/eric/validate','POST',{clientId:c.id, interchangeData:data}); }
+ catch(e){ setBusy(false); alert(t('eric_unavailable')+': '+e.message); return; }
+ setBusy(false);
+ showFreigabeModal(c, data, vr);
+ } catch(e){ setBusy(false); alert(t('eric_error')+': '+e.message); }
+}
+function showFreigabeModal(c, data, validateResult){
+ const e=computeEstimate(c);
+ const slot=document.getElementById('modal-slot'); if(!slot) return;
+ const valid = validateResult && validateResult.ok;
+ slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal">
+ <h2>🔏 ${t('freigabe_title')}</h2>
+ <p style="color:var(--ink-soft);font-size:13.5px;margin:6px 0 16px">${t('freigabe_sub')}</p>
+ ${!valid?`<div class="infobox" style="background:var(--red-soft);border-color:var(--red);margin-bottom:14px">
+ ⚠ ${t('freigabe_validate_failed')} (${t('eric_code')}: ${validateResult?validateResult.rc:'?'})
+ </div>`:''}
+ <div class="sum-group" style="margin-bottom:14px">
+ <div class="row"><span>${t('client')}</span><b>${esc(c.p.firstName)} ${esc(c.p.lastName)}</b></div>
+ <div class="row"><span>${t('tax_id')}</span><b>${esc(c.p.taxId)}</b></div>
+ <div class="row"><span>${t('zve')}</span><b class="num">${eur(Math.round(e.zvE))}</b></div>
+ <div class="row"><span>${e.refund>=0?t('refund'):t('back_pay')}</span><b class="num">${eur(Math.abs(Math.round(e.refund)))}</b></div>
+ <div class="row"><span>${t('finanzamt')}</span><b>${esc(c.p.faNumber)} ${esc(c.p.finanzamt||'')}</b></div>
+ </div>
+ <label style="display:flex;gap:10px;align-items:flex-start;font-size:13.5px;line-height:1.5;cursor:pointer;margin-bottom:16px">
+ <input type="checkbox" id="freigabe-check" style="margin-top:3px" ${valid?'':'disabled'}>
+ <span>${t('freigabe_checkbox')}</span>
+ </label>
+ <div style="display:flex;gap:10px;justify-content:flex-end">
+ <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
+ <button class="btn btn-amber" id="freigabe-submit-btn" ${valid?'':'disabled'} onclick="confirmFreigabeAndSubmit('${c.id}')">📤 ${t('freigabe_submit')}</button>
+ </div>
+ </div></div>`;
+ const chk=document.getElementById('freigabe-check'), btn=document.getElementById('freigabe-submit-btn');
+ if(chk && btn){ chk.addEventListener('change', ()=>{ btn.disabled = !chk.checked || !valid; }); if(valid) btn.disabled=true; }
+ /* stash for the confirm handler without re-serializing large data into onclick attributes */
+ S._freigabePending = { clientId:c.id, data };
+}
+async function confirmFreigabeAndSubmit(clientId){
+ const c=cur(); if(!c || c.id!==clientId) return;
+ const pending = S._freigabePending; if(!pending) return;
+ const chk=document.getElementById('freigabe-check');
+ if(!chk || !chk.checked) return;
+ setBusy(true);
+ try{
+ /* § 87d record: timestamp + a checksum of exactly what was released - kept
+ on the client record for the required 5 years, not just in this session */
+ c.freigabe = { at: Date.now(), dataHash: simpleHash(JSON.stringify(pending.data)) };
+ const sr = await api('/api/eric/submit','POST',{ clientId, interchangeData:pending.data, freigabeConfirmed:true });
+ setBusy(false);
+ const m=document.querySelector('.modal-bg'); if(m) m.remove();
+ const slot=document.getElementById('modal-slot');
+ if(sr.ok){
+ c.status='submitted'; c.submittedAt=Date.now(); c.updatedAt=Date.now();
+ scheduleSave();
+ slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this){this.remove();render()}"><div class="modal" style="text-align:center">
+ <div class="success-mark">✓</div><h2>${t('success_title')}</h2>
+ <p style="color:var(--ink-soft);font-size:14px">${t('success_sub')}</p>
+ <button class="btn btn-primary" onclick="this.closest('.modal-bg').remove();render()">${t('close')}</button>
+ </div></div>`;
+ } else {
+ /* honest failure state - most likely the known Hersteller-ID gate until
+ that arrives. Never claim success when ERiC did not confirm it. */
+ scheduleSave();
+ slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this){this.remove();render()}"><div class="modal" style="text-align:center">
+ <div style="font-size:40px;margin-bottom:8px">⚠</div><h2>${t('freigabe_not_sent')}</h2>
+ <p style="color:var(--ink-soft);font-size:13.5px">${t('eric_code')}: <b>${sr.rc}</b></p>
+ <p style="color:var(--ink-soft);font-size:12.5px;margin-top:8px">${t('freigabe_not_sent_hint')}</p>
+ <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove();render()">${t('close')}</button>
+ </div></div>`;
+ }
+ } catch(e){ setBusy(false); alert(t('eric_error')+': '+e.message); }
 }
 
 /* --- step 9: Finanzamt inquiries (Rückfragen) --- */
