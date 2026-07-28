@@ -26,7 +26,7 @@ function allKennzahlen(val) {
 }
 
 // every Kennzahl in every section must be well-formed
-for (const [section, obj] of [['ESt1A', fm.ESt1A], ['N', fm.N], ['VOR', fm.VOR], ['SA', fm.SA], ['Kind', fm.Kind], ['N_DHH', fm.N_DHH], ['KAP', fm.KAP], ['HA_35a', fm.HA_35a]]) {
+for (const [section, obj] of [['ESt1A', fm.ESt1A], ['N', fm.N], ['VOR', fm.VOR], ['SA', fm.SA], ['Kind', fm.Kind], ['N_DHH', fm.N_DHH], ['KAP', fm.KAP], ['HA_35a', fm.HA_35a], ['Sonst', fm.Sonst], ['ESt1A_U', fm.ESt1A_U], ['N_AUS', fm.N_AUS], ['AgB', fm.AgB], ['EM_35c', fm.EM_35c], ['ESt1A_Ersatz', fm.ESt1A_Ersatz]]) {
   for (const [field, val] of Object.entries(obj)) {
     for (const kz of allKennzahlen(val)) {
       check(`${section}.${field} "${kz}" looks like a real Kennzahl`, KZ.test(kz));
@@ -44,6 +44,13 @@ check('Kind has 4 fields', Object.keys(fm.Kind).length === 4);
 check('Sonst has 1 field', Object.keys(fm.Sonst).length === 1);
 check('ESt1A_U has 2 fields', Object.keys(fm.ESt1A_U).length === 2);
 check('N_AUS has 13 fields', Object.keys(fm.N_AUS).length === 13);
+check('AgB has 3 fields', Object.keys(fm.AgB).length === 3);
+check('medical confirmed via Kontexte hierarchy', fm.AgB.medical.kennzahlen[0] === 'E0161301');
+check('EM_35c has 2 fields', Object.keys(fm.EM_35c).length === 2);
+check('ESt1A_Ersatz has 1 field', Object.keys(fm.ESt1A_Ersatz).length === 1);
+check('gdbA confirmed', fm.AgB.gdbA.kennzahlen[0] === 'E0109708');
+check('ersatz confirmed', fm.ESt1A_Ersatz.ersatz.kennzahlen[0] === 'E0104801');
+check('energCost confirmed', fm.EM_35c.energCost.kennzahlen[0] === 'E0241901');
 check('computeAusTaxFree matches formula', fm.computeAusTaxFree(60000, 90, 220) === 24545.45);
 check('computeAusTaxFree handles zero days', fm.computeAusTaxFree(60000, 0, 0) === 0);
 check('N_DHH has 2 fields (dhhKm, dhhTrips)', Object.keys(fm.N_DHH).length === 2);
@@ -86,6 +93,13 @@ check('unknown field routes to null', fm.routeToVOR('doesNotExist') === null);
 check('every VOR routing target actually exists in fm.VOR', 
   ['agRV','agRVb','anRV','anRVb','agKV','agPKV','anKV','agPV','anPV','anAV','pkv28']
     .every(f => fm.VOR[fm.routeToVOR(f)] !== undefined));
+
+// amountToPflegegrad: reverse-lookup from the app's stored amount to ERiC's enum code
+check('600 EUR -> Pflegegrad 2', fm.amountToPflegegrad('600') === '2');
+check('1100 EUR -> Pflegegrad 3', fm.amountToPflegegrad('1100') === '3');
+check('1800 EUR -> Pflegegrad 4 (covers 4 or 5, matches ERiC own enum)', fm.amountToPflegegrad('1800') === '4');
+check('unknown amount -> null', fm.amountToPflegegrad('9999') === null);
+check('empty -> null', fm.amountToPflegegrad('') === null);
 
 console.log(`\n===== eric-fieldmap.js: ${pass} passed, ${fail} failed =====`);
 process.exit(fail ? 1 : 0);

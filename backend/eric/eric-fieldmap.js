@@ -299,6 +299,56 @@ function computeAusTaxFree(totalWage, workDaysForeign, workDaysTotal) {
 }
 
 
+/* ---------- 12. Disability/care allowance - außergewöhnliche Belastungen (AgB context) ---------- */
+const AgB = {
+  gdbA: { kennzahlen: ['E0109708'], note: 'Grad der Behinderung, Format = string matching 20|25|30|.../100 (steps of 5). App UI currently offers steps of 10 only (20,30...100) - in practice Versorgungsämter issue GdB almost always in steps of 10, so this is a minor completeness gap, not likely to affect real users. ALSO: "blind" is a SEPARATE field (E0109706, simple yes/no) in the real schema, not part of the GdB number itself - the app currently merges "blind" into the same dropdown as the numeric GdB values, meaning a user who selects "blind" has no numeric GdB stored at all. Worth revisiting in Phase 5 but not urgent - same code reused per Person block, as with the rest of Anlage N/AgB.' },
+  /* pflegeA/pflegeB: CORRECTED. Earlier note here wrongly assumed the app
+     needed UI restructuring - it does not. Checked the real UI
+     (index.html ~line 2432): pflegeA/pflegeB are ALREADY select dropdowns
+     tied to Pflegegrad tiers (600=Grad 2, 1100=Grad 3, 1800=Grad 4-or-5),
+     not free-amount entry fields. Even better: ERiC's own official schema
+     for E0161606 is an ENUMERATION with exactly three values - "2", "3",
+     and "4" where "4" is explicitly documented as "Pflegegrad 4 oder 5" -
+     meaning the app's design of merging Grad 4 and 5 into one option
+     EXACTLY matches ERiC's own schema. No ambiguity, no UI change needed. */
+  pflegeGrad: { kennzahlen: ['E0161606'], note: 'Enumeration: "2"=Pflegegrad 2, "3"=Pflegegrad 3, "4"=Pflegegrad 4 oder 5 (combined by ERiC itself). Also relevant: E0110601 (name/address/relationship of the cared-for person), E0106507 (who provided the unpaid care)' },
+  // medical (general Krankheitskosten): CONFIRMED via AgB - Kontexte sheet.
+  // The hierarchy /AgB/And_Aufw/Krankh -> /Pflege -> /Beh_Aufw -> /Bestatt
+  // -> /Sonst matches the field order of the five generic Art/Höhe pairs
+  // exactly, resolving which pair is which category.
+  medical: { kennzahlen: ['E0161301', 'E0161302', 'E0161303', 'E0161304', 'E0161305'],
+    note: 'Krankheitskosten: E0161301=Art der Aufwendungen, E0161302=Höhe, E0161303=Versicherungsleistungen/Erstattungen zu subtrahieren, E0161304=Summe der Aufwendungen, E0161305=Summe der Erstattungen (Einz repeatable up to 99, /Sum written once)' },
+};
+/* Same Kontexte-hierarchy pattern also resolves the OTHER four generic
+   Art/Höhe pairs, in case future sections need them (not currently mapped
+   to an app field, but the codes are real and confirmed by position):
+   Pflege (itemized care costs, different from the flat Pflegepauschbetrag)
+     = E0161401/402/403/404/405
+   Beh_Aufw (other disability-related expenses)
+     = E0161501/502/503/504/505
+   Bestatt (funeral costs, incl. Nachlass/estate value to offset)
+     = E0161701/702/703/704/705 + E0163201/202/E0163401
+   Sonst (miscellaneous außergewöhnliche Belastungen)
+     = E0161801/802/803/804/805 */
+/* helper: app's stored Pflegepauschbetrag amount (600/1100/1800) -> the
+   Pflegegrad enum code E0161606 actually expects ("2"/"3"/"4") */
+function amountToPflegegrad(amount) {
+  const map = { '600': '2', '1100': '3', '1800': '4' };
+  return map[String(amount).trim()] || null;
+}
+
+/* ---------- 13. Energetic renovation - § 35c (EM_35c context) ---------- */
+const EM_35c = {
+  energCost:  { kennzahlen: ['E0241901'], note: 'Summe der Aufwendungen für energetische Maßnahmen (total cost)' },
+  energStage: { kennzahlen: ['E0242501', 'E0243401'], note: 'the § 35c credit spans 3 years (7%/7%/6% of cost); E0242501 = prior year (VZ-1) recognized costs, E0243401 = two years prior (VZ-2) - which one applies depends on which year of the 3-year claim the user is in' },
+};
+
+/* ---------- 14. Wage-replacement benefits under Progressionsvorbehalt (ESt1A context) ---------- */
+const ESt1A_Ersatz = {
+  ersatz: { kennzahlen: ['E0104801'], note: 'Einkommensersatzleistungen, die dem Progressionsvorbehalt unterliegen (Elterngeld, Krankengeld, ALG I, Insolvenzgeld, Mutterschaftsgeld, Verdienstausfallentschädigung) - exact match to the app field description' },
+};
+
+
 /* Encodes the VOR-overlap discovery directly: agRV/anRV -> VOR.rv,
    agKV/agPKV/anKV -> VOR.kv, agPV/anPV -> VOR.pv, anAV -> VOR.av.
    Returns null for fields that don't have a VOR routing (i.e. genuinely
@@ -314,4 +364,4 @@ function routeToVOR(empField) {
   return routing[empField] || null;
 }
 
-module.exports = { ESt1A, N, VOR, SA, Kind, N_DHH, HA_35a, KAP, Sonst, ESt1A_U, N_AUS, isSlotResolved, unresolvedFields, sumEmployerField, routeToVOR, computeAusTaxFree };
+module.exports = { ESt1A, N, VOR, SA, Kind, N_DHH, HA_35a, KAP, Sonst, ESt1A_U, N_AUS, AgB, EM_35c, ESt1A_Ersatz, isSlotResolved, unresolvedFields, sumEmployerField, routeToVOR, computeAusTaxFree, amountToPflegegrad };
