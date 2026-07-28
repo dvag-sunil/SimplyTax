@@ -153,6 +153,7 @@ const Kind = {
   kinshipType: { kennzahlen: ['E0500807', 'E0500808'], note: 'Art des Kindschaftsverhältnisses - maps to our leiblich/adoptiert/pflegekind/stiefkind select. Two numbers likely a multi-child repeat pattern, not different kinship types - confirm against Kind - Kennzahlen sheet or a real multi-child example next.' },
   kindergeld:   { kennzahlen: ['E0500702', 'E0503802'], note: 'Anspruch auf Kindergeld / Kindergeld ausgezahlt im Zeitraum' },
   schoolFees:   { kennzahlen: ['E0504505'], note: 'Das von mir übernommene Schulgeld beträgt' },
+  kidTransfer:  { kennzahlen: ['E0504301'], note: 'Übertragung des Kinderfreibetrags (Stief-/Großelternteil beantragt); the counterpart consent field on the other parent side is E0503904' },
   // still open (exhausted search, see v3 doc): childcare expense amount -
   // not found anywhere in the workbook, likely a structured block not a
   // simple amount field
@@ -242,7 +243,62 @@ function sumEmployerField(emps, field) {
   return { count: values.length, total: values.reduce((a, b) => a + b, 0) };
 }
 
-/* ---------- helper: which VOR field does this Bescheinigung-line app field route to? ---------- */
+/* ---------- 9. Loss carryforward (Sonst context) + Kinderfreibetrag transfer (Kind) ---------- */
+const Sonst = {
+  lossCarry: { kennzahlen: ['E0190701'], note: 'Verlustvortrag nach § 10d EStG zum 31.12. Vorjahr - the confirmation/declaration field. A related checkbox (E0100003, "Erklärung zur Feststellung des verbleibenden Verlustvortrags") also exists in ESt1A and may need to be set alongside this.' },
+};
+
+/* ---------- 10. Support payments to relatives - Unterhalt (ESt1A_U context) ---------- */
+const ESt1A_U = {
+  support:      { kennzahlen: ['E0125007'], note: 'Betrag (the support amount) - Bezeichnung (E0125006) is a paired label field' },
+  supportGroup: { kennzahlen: ['E0120101', 'E0120102', 'E0120108', 'E0120109'], note: 'household/recipient details: Anschrift, Wohnsitzstaat (if abroad), household size, Unterstützungszeitraum (support period)' },
+};
+
+
+/* ---------- 11. Foreign employment income - Anlage N-AUS (N_AUS context) ---------- */
+/* SCOPE DECISION: the full Anlage N-AUS form has 82 fields covering the
+   complete DBA/ATE (Doppelbesteuerungsabkommen / Auslandstätigkeitserlass)
+   treaty computation - foreign employer address, treaty-basis selection,
+   day-by-day multi-country apportionment, deferred compensation handling,
+   etc. This is genuinely complex tax law and mostly covers rare edge cases
+   even for expats. Consistent with SimplyTax's "keep it simple" product
+   principle, this implementation covers the common real case: someone
+   worked partly abroad for a foreign or domestic employer, with income tax-
+   exempt in Germany under DBA, computed via the standard work-day
+   apportionment formula (Zeile 42/44/43 -> Zeile 45/46 -> Zeile 47 = the
+   Kennzahl that actually flows into Anlage N Zeile 21).
+   NOT implemented (available for future expansion, ~69 remaining fields):
+   ATE-specific fields (E2601501/1601 - Wirtschaftszweig/Vorhaben), the
+   "engere persönliche/wirtschaftliche Beziehungen" residency-tiebreaker
+   questionnaire, deferred/multi-year compensation (Zeile 60/81),
+   zwischenstaatliche Übereinkommen (non-DBA treaty) variant, and the
+   second-country apportionment block (fields E2606xxx) for people who
+   worked in more than one foreign country in the same year. */
+const N_AUS = {
+  ausCountry:      { kennzahlen: ['E2601001'], note: 'Staat (the foreign country)' },
+  ausEmployerName: { kennzahlen: ['E2603101'], note: 'Name (Bezeichnung) - foreign employer' },
+  ausEmployerStreet:{ kennzahlen: ['E2603201'], note: 'Straße und Hausnummer' },
+  ausEmployerPlz:  { kennzahlen: ['E2603301'], note: 'Postleitzahl' },
+  ausEmployerCity: { kennzahlen: ['E2603302'], note: 'Ort' },
+  ausEmployerCountry:{ kennzahlen: ['E2603401'], note: 'Staat (employer address country, may differ from work country)' },
+  ausGross:        { kennzahlen: ['E2603501'], note: 'Bruttoarbeitslohn laut Nr. 3 der Lohnsteuerbescheinigung(en) - the gross wage this concerns' },
+  ausGrossNoWithholding: { kennzahlen: ['E2603601'], note: 'Bruttoarbeitslohn ohne inländischen Steuerabzug (foreign employer/Betriebsstätte)' },
+  ausTaxFreeAlready: { kennzahlen: ['E2603701'], note: 'bereits steuerfreier Bruttoarbeitslohn laut Nr. 16a/b der Lohnsteuerbescheinigung' },
+  ausTotalWage:    { kennzahlen: ['E2604101'], note: 'Summe in- und ausländischer Arbeitslohn (app should compute this as a sum, matching the Einz/Sum pattern discovered for Anlage N)' },
+  ausWorkDaysTotal:{ kennzahlen: ['E2604501'], note: 'Tatsächliche Arbeitstage im Kalenderjahr im In- und Ausland' },
+  ausWorkDaysForeign:{ kennzahlen: ['E2604601'], note: 'davon Arbeitstage, für die der ausländische Staat das Besteuerungsrecht hat' },
+  ausTaxFreeResult:{ kennzahlen: ['E2604901'], note: 'Summe steuerfrei zu stellender ausländischer Arbeitslohn - the FINAL computed result that flows into Anlage N Zeile 21 (our dba16 field). App must compute: ausTotalWage x ausWorkDaysForeign / ausWorkDaysTotal, per the official formula (Zeile 42 x 44 / 43).' },
+};
+/* helper: the official day-apportionment formula (Zeile 42 x 44 / 43 = 45) */
+function computeAusTaxFree(totalWage, workDaysForeign, workDaysTotal) {
+  const w = parseFloat(String(totalWage||'0').replace(',','.')) || 0;
+  const foreign = parseFloat(String(workDaysForeign||'0')) || 0;
+  const total = parseFloat(String(workDaysTotal||'0')) || 0;
+  if (total <= 0) return 0;
+  return Math.round(w * foreign / total * 100) / 100;
+}
+
+
 /* Encodes the VOR-overlap discovery directly: agRV/anRV -> VOR.rv,
    agKV/agPKV/anKV -> VOR.kv, agPV/anPV -> VOR.pv, anAV -> VOR.av.
    Returns null for fields that don't have a VOR routing (i.e. genuinely
@@ -258,4 +314,4 @@ function routeToVOR(empField) {
   return routing[empField] || null;
 }
 
-module.exports = { ESt1A, N, VOR, SA, Kind, N_DHH, HA_35a, KAP, isSlotResolved, unresolvedFields, sumEmployerField, routeToVOR };
+module.exports = { ESt1A, N, VOR, SA, Kind, N_DHH, HA_35a, KAP, Sonst, ESt1A_U, N_AUS, isSlotResolved, unresolvedFields, sumEmployerField, routeToVOR, computeAusTaxFree };
