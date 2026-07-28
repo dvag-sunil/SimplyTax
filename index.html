@@ -240,6 +240,55 @@ const PAYMENT = {
  pricePerReturn:17.99, currency:'EUR'
 };
 const isPaid = c => !PAYMENT.enabled || (c && c.pay && c.pay.status==='paid');
+function showAusCalc(empId){
+ const c=cur(); const slot=document.getElementById('modal-slot'); if(!c||!slot) return;
+ const emp = (c.emps||[]).find(e=>e.id===empId); if(!emp) return;
+ c.aus = c.aus || {}; c.aus[empId] = c.aus[empId] || {country:'', totalWage:emp.gross||'', workDaysTotal:'220', workDaysForeign:''};
+ const a = c.aus[empId];
+ slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal">
+ <h2>🌍 ${t('aus_calc_title')}</h2>
+ <p style="color:var(--ink-soft);font-size:13.5px;margin:6px 0 16px">${t('aus_calc_sub')}</p>
+ <div class="field"><label>${t('aus_country')}</label><input id="aus-country" value="${esc(a.country)}" placeholder="${t('aus_country_ph')}"></div>
+ <div class="grid2">
+ <div class="field"><label>${t('aus_total_wage')}</label><input id="aus-wage" value="${esc(a.totalWage)}" placeholder="0,00 €" onblur="this.value=formatDE(N(this.value))"></div>
+ <div class="field"><label>${t('aus_days_total')}</label><input id="aus-days-total" type="number" value="${esc(a.workDaysTotal)}" placeholder="220"></div>
+ </div>
+ <div class="field"><label>${t('aus_days_foreign')}</label><input id="aus-days-foreign" type="number" value="${esc(a.workDaysForeign)}" placeholder="0"></div>
+ <div class="hint" style="margin:10px 0">${t('aus_formula_hint')}</div>
+ <div id="aus-result" class="infobox" style="background:var(--teal-soft);border-color:var(--teal);text-align:center;font-size:15px;font-weight:700"></div>
+ <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+ <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
+ <button class="btn btn-primary" onclick="applyAusCalc('${empId}')">✓ ${t('aus_apply')}</button>
+ </div></div></div>`;
+ ['aus-country','aus-wage','aus-days-total','aus-days-foreign'].forEach(id=>{
+ document.getElementById(id).addEventListener('input', ()=>updateAusResult(empId));
+ });
+ updateAusResult(empId);
+}
+function updateAusResult(empId){
+ const c=cur(); if(!c) return;
+ const wage=N(document.getElementById('aus-wage')?.value);
+ const daysTotal=parseInt(document.getElementById('aus-days-total')?.value)||0;
+ const daysForeign=parseInt(document.getElementById('aus-days-foreign')?.value)||0;
+ const result = daysTotal>0 ? Math.round(wage*daysForeign/daysTotal*100)/100 : 0;
+ const el=document.getElementById('aus-result');
+ if(el) el.textContent = t('aus_result_label')+' '+eur(result);
+ c.aus = c.aus||{}; c.aus[empId] = { country: document.getElementById('aus-country')?.value||'',
+ totalWage: document.getElementById('aus-wage')?.value||'', workDaysTotal: String(daysTotal), workDaysForeign: String(daysForeign) };
+}
+function applyAusCalc(empId){
+ const c=cur(); const emp=(c.emps||[]).find(e=>e.id===empId); if(!emp) return;
+ const wage=N(document.getElementById('aus-wage')?.value);
+ const daysTotal=parseInt(document.getElementById('aus-days-total')?.value)||0;
+ const daysForeign=parseInt(document.getElementById('aus-days-foreign')?.value)||0;
+ const result = daysTotal>0 ? Math.round(wage*daysForeign/daysTotal*100)/100 : 0;
+ emp.dba16 = formatDE(result);
+ c.updatedAt=Date.now(); scheduleSave();
+ const m=document.querySelector('.modal-bg'); if(m) m.remove();
+ render();
+}
+
+
 function showPayModal(){
  const c=cur(); const slot=document.getElementById('modal-slot'); if(!c||!slot) return;
  const applied = c.pay && c.pay.discountCode;
@@ -546,6 +595,13 @@ en: {
  z15:"Wage replacement benefits: Kurzarbeitergeld, maternity subsidy... (line 15)", z15a:"Of which (Saison-)Kurzarbeitergeld (line 15a, from 2025)",
  z15_hint:"Tax-free, but raises the tax rate on the rest (Progressionsvorbehalt) - included in the estimate.",
  z16:"Tax-free wages under DBA / foreign service decree (line 16)",
+ aus_calc_link:"Worked abroad this year? Calculate this amount",
+ aus_calc_title:"Foreign employment - tax-free amount calculator",
+ aus_calc_sub:"If you worked partly abroad, part of your wage may be tax-exempt in Germany under a double taxation agreement (DBA). This calculates that amount using the official work-day apportionment method and fills in line 16 for you. For complex cases (multiple countries, foreign employer, treaty-basis questions), a tax advisor can help with the full Anlage N-AUS.",
+ aus_country:"Country you worked in", aus_country_ph:"e.g. Switzerland",
+ aus_total_wage:"Total wage for the year (domestic + foreign)", aus_days_total:"Actual working days in the year",
+ aus_days_foreign:"Of those, days worked abroad", aus_formula_hint:"Formula: total wage x foreign days / total working days",
+ aus_result_label:"Tax-free amount:", aus_apply:"Use this amount",
  z17:"Employer benefits credited against the commuting allowance (line 17)",
  z18:"15% flat-taxed employer commuting benefits (line 18)",
  z17_hint:"Lines 17/18 reduce the deductible commuting allowance - applied automatically.",
@@ -780,6 +836,13 @@ de: {
  z15:"Lohnersatzleistungen: Kurzarbeitergeld, Zuschuss Mutterschaftsgeld... (Zeile 15)", z15a:"Darin enthaltenes (Saison-)Kurzarbeitergeld (Zeile 15a, ab 2025)",
  z15_hint:"Steuerfrei, erhöht aber den Steuersatz auf das übrige Einkommen (Progressionsvorbehalt) - in der Schätzung berücksichtigt.",
  z16:"Steuerfreier Arbeitslohn nach DBA / Auslandstätigkeitserlass (Zeile 16)",
+ aus_calc_link:"Dieses Jahr im Ausland gearbeitet? Betrag berechnen",
+ aus_calc_title:"Auslandstätigkeit - Rechner für den steuerfreien Betrag",
+ aus_calc_sub:"Wer teilweise im Ausland gearbeitet hat, dessen Lohn kann teilweise nach einem Doppelbesteuerungsabkommen (DBA) in Deutschland steuerfrei sein. Dieser Rechner ermittelt den Betrag nach der offiziellen Arbeitstage-Aufteilungsmethode und trägt ihn in Zeile 16 ein. Bei komplexeren Fällen (mehrere Länder, ausländischer Arbeitgeber, Fragen zur Abkommensgrundlage) hilft ein Steuerberater mit der vollständigen Anlage N-AUS.",
+ aus_country:"Land, in dem gearbeitet wurde", aus_country_ph:"z. B. Schweiz",
+ aus_total_wage:"Gesamtlohn im Jahr (Inland + Ausland)", aus_days_total:"Tatsächliche Arbeitstage im Jahr",
+ aus_days_foreign:"Davon Arbeitstage im Ausland", aus_formula_hint:"Formel: Gesamtlohn x Auslandstage / Gesamtarbeitstage",
+ aus_result_label:"Steuerfreier Betrag:", aus_apply:"Betrag übernehmen",
  z17:"Steuerfreie Arbeitgeberleistungen, auf Entfernungspauschale anzurechnen (Zeile 17)",
  z18:"Pauschal mit 15 % besteuerte Fahrtkosten-Arbeitgeberleistungen (Zeile 18)",
  z17_hint:"Zeilen 17/18 mindern die absetzbare Entfernungspauschale - wird automatisch angerechnet.",
@@ -2003,6 +2066,9 @@ function stepIncome(c){
  ${LF('emps',emp,'ersatz15',t('z15'),{euro:true,ph:'0,00 €',hint:t('z15_hint')})}
  ${LF('emps',emp,'kug15a',t('z15a'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'dba16',t('z16'),{euro:true,ph:'0,00 €'})}
+ <div style="grid-column:1/-1;margin-top:-10px;margin-bottom:6px">
+ <button class="link-btn" style="padding:4px 0;font-size:12.5px" onclick="showAusCalc('${emp.id}')">🌍 ${t('aus_calc_link')}</button>
+ </div>
  ${LF('emps',emp,'fahrt17',t('z17'),{euro:true,ph:'0,00 €',hint:t('z17_hint')})}
  ${LF('emps',emp,'pausch18',t('z18'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'entsch19',t('z19'),{euro:true,ph:'0,00 €'})}
