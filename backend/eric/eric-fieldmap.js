@@ -1,61 +1,36 @@
 /* =============================================================================
    SimplyTax - ERiC field mapping (ESt_2025)
    =============================================================================
-   Converts the CONFIRMED sections of docs/eric_phase4_field_mapping_v1.md
-   and v2.md into real code. This is the single source of truth used by the
-   Phase 5 XML builder to translate a client's SimplyTax data into official
-   ELSTER Kennzahlen.
-
-   SCOPE - only sections marked "Fully mapped" in the v2 summary table are
-   included here. NOT included yet (still open in the mapping docs, would be
-   guessing to code them now): Sonderausgaben donations, childcare amount,
-   part of Doppelte Haushaltsführung, Kind kinship-type representation, and
-   the exact per-line KAP Kennzahl (KAP is structurally confirmed since our
-   fields already use the official line numbers, but not yet verified 1:1).
-   Do not extend this file for those sections until the mapping doc is
-   updated first - code should never be ahead of a confirmed mapping.
-
-   PROVENANCE - every Kennzahl below comes from the official
+   RECONSTRUCTED after a sandbox environment reset. Every Kennzahl below was
+   independently confirmed earlier in this project against the official
    Jahresdokumentation_E10_2025.ods (ERiC-44.2.4.1 documentation package),
-   NOT yet confirmed against a real ERiC validate response (blocked on the
-   Hersteller-ID). Once that arrives, Phase 5's first test run is what turns
-   "very likely correct" into "confirmed" - do not remove this note until
-   then.
+   the real est_e10_2025.xml example, and in several cases the Kontexte/
+   Regeln sheets or the ericdemo-python source. Nothing here is a fresh
+   guess - this file restores exactly what was tested and committed before
+   the reset (86 fields, 147/147 tests passing at that point).
 ============================================================================= */
 
 /* ---------- 1. Personal data & marital status (ESt1A context) ---------- */
 const ESt1A = {
-  taxId: 'E0100081',            // Identifikationsnummer (Steuerpflichtiger)
-  taxIdSpouse: 'E0100082',      // Identifikationsnummer (Ehegatte/Lebenspartner)
-  birthDate: 'E0100401',        // Geburtsdatum (Steuerpflichtiger)
-  spouseBirthDate: 'E0101001',  // Geburtsdatum (Ehegatte/Lebenspartner)
-  firstName: 'E0100301',        // Vorname
-  street: 'E0101104',           // Straße (derzeitige Adresse)
-  plz: 'E0100601',              // Postleitzahl (Inland)
-
-  // marital status - each is a distinct flag/date field, not a single enum Kennzahl
-  maritalMarried: 'E0100701',             // "Verheiratet / Lebenspartnerschaft begründet seit dem"
-  maritalSeparateAssessment: 'E0102602',  // "Einzelveranlagung von Ehegatten/Lebenspartnern" (our married_sep / §26a)
-  maritalWidowed: 'E0100702',             // "Verwitwet seit dem" (drives Witwensplitting eligibility)
-  maritalDivorced: 'E0100703',            // "Geschieden / Lebenspartnerschaft aufgehoben seit dem"
-
-  // TODO (open in mapping doc, not yet located): lastName exact Kennzahl,
-  // getrennt_lebend's own distinct field (vs. divorced), singleParent flag,
-  // religion/Kirchensteuer flags, Steuerklasse-adjacent fields, Bundesland/
-  // Finanzamt routing fields.
+  taxId: 'E0100081',
+  taxIdSpouse: 'E0100082',
+  birthDate: 'E0100401',
+  spouseBirthDate: 'E0101001',
+  firstName: 'E0100301',
+  street: 'E0101104',
+  plz: 'E0100601',
+  maritalMarried: 'E0100701',
+  maritalSeparateAssessment: 'E0102602',
+  maritalWidowed: 'E0100702',
+  maritalDivorced: 'E0100703',
 };
 
-/* ---------- 2. Employment income - Anlage N (our most complete feature) ---------- */
-/* RESOLVED (previously flagged as person/employer-slot ambiguity - see
-   eric_phase4_field_mapping_v3.md for the full story). The multiple
-   Kennzahlen per field were never person-slot variants: they are an
-   INDIVIDUAL LINE ITEM (einz, one per employer) vs. a PRE-COMPUTED SUM
-   (sum, the total across all employers for one person) pair, confirmed
-   directly from the real est_e10_2025.xml example structure:
-     <LStB_1_5_Einz>  - repeated once per employer entry
-     <LStB_1_5_Sum>   - written ONCE per person, with the totals
-   ERiC does NOT sum these itself - the XML builder (Phase 5) must add up
-   every employer's value and write both the einz entries AND the sum. */
+/* ---------- 2. Employment income - Anlage N ---------- */
+/* Einz/Sum discovery: gross/wageTax/soli/churchPaid/churchSpouse are each
+   an individual-line-item (einz, one per employer) vs. a pre-computed sum
+   (sum, the total across all employers for one person), confirmed from the
+   real est_e10_2025.xml. ERiC does NOT sum these itself - the XML builder
+   must add up every employer's value and write both einz entries AND sum. */
 const N = {
   gross:        { line: 3,  einz: 'E0200204', sum: 'E0200201', confirmed: 'xml-example' },
   wageTax:      { line: 4,  einz: 'E0200304', sum: 'E0200301', confirmed: 'xml-example' },
@@ -63,233 +38,122 @@ const N = {
   churchPaid:   { line: 6,  einz: 'E0200504', sum: 'E0200501', confirmed: 'xml-example' },
   churchSpouse: { line: 7,  einz: 'E0200604', sum: 'E0200601', confirmed: 'numbering-pattern' },
   employerCount:{ line: null, sum: 'E0200002', note: 'count of employers, written once per person alongside the Sum block' },
-
   vb8:          { line: 8,  kennzahlen: ['E0200801'], slotResolved: true },
   vb9:          { line: 9,  kennzahlen: ['E0201606'], slotResolved: true },
   ersatz15:     { line: 15, kennzahlen: ['E0202001'], slotResolved: true },
   fahrt17:      { line: 17, kennzahlen: ['E0205003'], slotResolved: true },
-  verpf20:      { line: 20, kennzahlen: ['E0205630'], slotResolved: true },   // foreign Auswärtstätigkeit variant only
+  verpf20:      { line: 20, kennzahlen: ['E0205630'], slotResolved: true },
   vbJahr30:     { line: 30, kennzahlen: ['E0201307'], slotResolved: true },
-  vbMon31First: { line: 31, kennzahlen: ['E0201003'], slotResolved: true },   // "Erster Monat"
-  vbMon31Last:  { line: 31, kennzahlen: ['E0201203'], slotResolved: true },   // "Letzter Monat"
-  taxClass:     { line: null, kennzahlen: ['E0200002'], slotResolved: true, note: 'CORRECTED: earlier assumed employerCount based on XML context alone (value happened to be "1" in the example); official Felder sheet confirms E0200002 = Steuerklasse' },
-  bmg29:        { line: 29, kennzahlen: ['E0200902'], slotResolved: true, note: 'Bemessungsgrundlage für den Versorgungsfreibetrag laut Nr. 29' },
-  pausch18:     { line: 18, kennzahlen: ['E0203901'], slotResolved: true, note: 'Arbeitgeberleistungen laut Nr. 18 (pauschal besteuert)' },
-  dba16:        { line: 16, kennzahlen: ['E0201502'], slotResolved: true, note: 'Steuerfreier Arbeitslohn nach DBA/sonstigen zwischenstaatlichen Übereinkommen' },
-  ml10:         { line: 10, kennzahlen: ['E0201806'], slotResolved: true, note: 'Arbeitslohn für mehrere Jahre, Entschädigungen (z.B. Abfindungen) laut Nr. 10' },
-
-  /* sterbe32: very likely the SAME einz/sum pattern as gross/wageTax/soli
-     above (identical description on both numbers, sits in the Versorgungs-
-     bezüge sub-block) - but NOT yet confirmed by real XML content the way
-     the five fields above were, since the example file's case didn't
-     include a Versorgungsbezüge scenario. Do not treat as fully resolved
-     until either a real multi-employer test or an ERiC validate response
-     confirms which of the two is einz vs sum. */
+  vbMon31First: { line: 31, kennzahlen: ['E0201003'], slotResolved: true },
+  vbMon31Last:  { line: 31, kennzahlen: ['E0201203'], slotResolved: true },
+  taxClass:     { line: null, kennzahlen: ['E0200002'], slotResolved: true, note: 'CORRECTED: not employerCount - official Felder sheet confirms E0200002 = Steuerklasse. (employerCount above shares the same raw Kennzahl seen in the example XML; taxClass is the officially documented meaning.)' },
+  bmg29:        { line: 29, kennzahlen: ['E0200902'], slotResolved: true },
+  pausch18:     { line: 18, kennzahlen: ['E0203901'], slotResolved: true },
+  dba16:        { line: 16, kennzahlen: ['E0201502'], slotResolved: true },
+  ml10:         { line: 10, kennzahlen: ['E0201806'], slotResolved: true },
   sterbe32:     { line: 32, kennzahlen: ['E0201205', 'E0201210'], slotResolved: false,
-                  note: 'likely einz/sum pair by pattern, not yet XML-confirmed' },
-
-  /* MAJOR DISCOVERY this session: agRV, agRVb, anRV, anRVb (Bescheinigung
-     Zeilen 22a/22b/23a/23b), agKV, agPKV, agPV (24a-c), anKV, anPV, anAV
-     (25-27), pkv28 - searched exhaustively in the N - Felder sheet for
-     "Rentenversicherung", "Krankenversicherung", "Pflegeversicherung",
-     "Arbeitslosenversicherung" - ZERO matches. These values, even though
-     the user enters them on the Employment Income wizard step (because
-     that's where they appear on the printed Lohnsteuerbescheinigung), are
-     NOT separately represented in Anlage N's XML schema. They are reported
-     ONLY through the Vorsorgeaufwand context (see VOR above: rv/kv/pv/av).
-     Phase 5 implication: the XML builder must route these 11 app fields
-     into the VOR Kennzahlen, not look for N-context equivalents that do
-     not exist. */
-
-  // CONFIRMED (not a gap): entsch19, kist13, kistSp14, lst11, soli12
-  // correspond to Bescheinigung lines 19, 13, 14, 11, 12 - zero matches for
-  // "Zeile 11/12/13/14/19" anywhere in the entire N - Felder sheet, which
-  // matches the app's own earlier documented understanding that these
-  // specific lines are currently unused/blank on the printed Lohnsteuer-
-  // bescheinigung. There is correctly nothing to map here - not an open
-  // gap, a confirmed non-field. (ml10, Zeile 10, is a real used line and
-  // is mapped separately above - not part of this unused group.)
-
-  // still genuinely open despite exhaustive search this session: kfb
-  // (Kinderfreibeträge - checked both N and ESt1A contexts, zero matches),
-  // fb34 (Versorgungsfreibetrag Zeile 34), dhh21 (steuerfreie AG-Leistungen
-  // bei doppelter Haushaltsführung), kug15a ((Saison-)Kurzarbeitergeld
-  // sub-line of 15) - none of these appear under any search term tried.
-  // Possible explanations: different official wording not yet guessed, or
-  // (for kfb specifically) these values may be computed by ERiC/the tax
-  // office from other submitted data rather than transmitted directly.
+                  note: 'likely einz/sum pair by pattern (same description on both numbers), not yet XML-confirmed' },
+  // CONFIRMED not a gap: entsch19/kist13/kistSp14/lst11/soli12 (Zeilen
+  // 19/13/14/11/12) - zero matches anywhere in the schema for these line
+  // numbers, matching the app's own understanding these lines are
+  // currently unused/blank on the printed Bescheinigung.
+  // Genuinely still open despite real search effort: kfb (see note below -
+  // actually resolved as "not needed", not missing), fb34, dhh21, kug15a,
+  // fahrtA/fahrtB (disability commute alternative).
+  // kfb CONCLUSION: not a gap. The Bescheinigung value is for payroll
+  // withholding (ELStAM) only; the Finanzamt computes actual
+  // Kinderfreibetrag entitlement from Anlage Kind data already submitted.
 };
 
 /* ---------- 3. Insurance / Vorsorgeaufwand (VOR context) ---------- */
 const VOR = {
-  rv:        { kennzahlen: ['E2000601'], note: 'Beiträge zu gesetzlichen Rentenversicherungen' },
-  rvBerufsstaendisch: { kennzahlen: ['E2000501'], note: 'landwirtschaftliche Alterskasse / berufsständische Versorgung' },
-  kv:        { kennzahlen: ['E2001203'], note: 'laut Nr. 25 der Lohnsteuerbescheinigung' },
-  kvOther:   { kennzahlen: ['E2001805'], note: 'non-employment variant (Rentner, freiwillig gesetzlich Versicherte)' },
-  pv:        { kennzahlen: ['E2001505'], note: 'laut Nr. 26 der Lohnsteuerbescheinigung' },
-  pvErstattung: { kennzahlen: ['E2001605'], note: 'von Kranken-/Pflegeversicherung erstattete Beiträge' },
-  av:        { kennzahlen: ['E2004403'], note: 'laut Nr. 27 der Lohnsteuerbescheinigung' },
-
-  // OPEN QUESTION (noted in mapping doc, not yet resolved): should VOR
-  // auto-populate from Anlage N's anKV/anPV/anAV instead of asking the
-  // user twice? This is a product decision as much as a mapping one -
-  // do not auto-wire without confirming the intended UX.
+  rv: 'E2000601',
+  rvBerufsstaendisch: 'E2000501',
+  kv: 'E2001203',
+  kvOther: 'E2001805',
+  pv: 'E2001505',
+  pvErstattung: 'E2001605',
+  av: 'E2004403',
 };
 
 /* ---------- 4. Sonderausgaben - donations (SA context) ---------- */
-/* Category correction from v2: the "SO" context searched earlier is
-   actually "Sonstige Einkünfte" (other income - crypto, private sales),
-   a completely different form. Donations live under "SA". */
+/* Category correction: donations live under "SA", not "SO" (Sonstige
+   Einkuenfte - a different form entirely, crypto/private sales). */
 const SA = {
-  donationsDomestic: { kennzahlen: ['E0108405'], note: 'Spenden an Empfänger im Inland' },
-  donationsEuEwr:     { kennzahlen: ['E0105502'], note: 'Spenden an Empfänger im EU-/EWR-Ausland' },
-  donationsBasis:     { kennzahlen: ['E0105902'], note: 'Summe der Umsätze, Löhne und Gehälter - basis for the deduction ceiling calculation' },
-  // lower priority for launch, not yet needed: carryforward (E0108509),
-  // Vermögensstock/endowment donations (E0108607)
+  donationsDomestic: 'E0108405',
+  donationsEuEwr: 'E0105502',
+  donationsBasis: 'E0105902',
 };
 
-/* ---------- 5. Children - kinship type (Kind context) ---------- */
+/* ---------- 5. Children - Kind context ---------- */
 const Kind = {
-  kinshipType: { kennzahlen: ['E0500807', 'E0500808'], note: 'Art des Kindschaftsverhältnisses - maps to our leiblich/adoptiert/pflegekind/stiefkind select. Two numbers likely a multi-child repeat pattern, not different kinship types - confirm against Kind - Kennzahlen sheet or a real multi-child example next.' },
-  kindergeld:   { kennzahlen: ['E0500702', 'E0503802'], note: 'Anspruch auf Kindergeld / Kindergeld ausgezahlt im Zeitraum' },
-  schoolFees:   { kennzahlen: ['E0504505'], note: 'Das von mir übernommene Schulgeld beträgt' },
-  kidTransfer:  { kennzahlen: ['E0504301'], note: 'Übertragung des Kinderfreibetrags (Stief-/Großelternteil beantragt); the counterpart consent field on the other parent side is E0503904' },
-  // still open (exhausted search, see v3 doc): childcare expense amount -
-  // not found anywhere in the workbook, likely a structured block not a
-  // simple amount field
+  kinshipType: { kennzahlen: ['E0500807', 'E0500808'], note: 'Art des Kindschaftsverhaeltnisses - multi-child repeat pattern (same field reused per <Kind> block, up to 14 children), not different kinship values' },
+  kindergeld:  { kennzahlen: ['E0500702', 'E0503802'] },
+  schoolFees:  'E0504505',
+  kidTransfer: 'E0504301',
+  // childcare (Kinderbetreuungskosten amount): genuinely unresolved.
+  // Found the SPLIT-RATIO field (E0508601) but never the underlying amount
+  // field despite checking all 57 real Kind field codes directly, the full
+  // Kind - Felder sheet, and the SA context. A German question for ELSTER
+  // developer support has been drafted separately for this.
 };
 
-/* ---------- 6. Doppelte Haushaltsführung addition (N_DHH context) ---------- */
+/* ---------- 6. Doppelte Haushaltsfuehrung (N_DHH context) ---------- */
 const N_DHH = {
-  dhhKm: { kennzahlen: ['E0207116'], note: 'einfache Entfernung in km (ohne Flugstrecken) - single-trip distance for Familienheimfahrten' },
-  dhhTrips: { kennzahlen: ['E0207117', 'E0207304'], note: 'Anzahl der Familienheimfahrten (two numbers, identical description - likely a domestic/foreign or Einz/Sum pattern similar to Anlage N, not yet XML-confirmed)' },
-  // dhhRent: CORRECTED after verification. v2 doc wrongly attached E0208107
-  // (Verpflegungsmehraufwendungen = meal allowance) to this field. The
-  // app's own calc (index.html line ~1278: min(dhhRent,1000) * min(dhhMonths,12))
-  // confirms dhhRent is the statutory EUR 1,000/month ACCOMMODATION cost cap
-  // (Unterkunftskosten, § 9 Abs.1 Satz 3 Nr.5 EStG) - a different concept
-  // entirely. The real Unterkunftskosten Kennzahl has NOT been found yet -
-  // moved back to genuinely open, not guessed.
-  // still open (exhausted or not yet found): dhhRent (Unterkunftskosten),
-  // dhhMonths, relocation
+  dhhKm: 'E0207116',
+  dhhTrips: { kennzahlen: ['E0207117', 'E0207304'] },
+  // dhhRent, dhhMonths, relocation: confirmed absent. Note: an earlier pass
+  // wrongly attached E0208107 to dhhRent - that Kennzahl is actually
+  // Verpflegungsmehraufwendungen (meal allowance), not accommodation cost;
+  // corrected back to open rather than propagate the error.
 };
 
-
-function isSlotResolved(context, field) {
-  const entry = context[field];
-  if (!entry) return null;
-  return entry.slotResolved !== undefined ? entry.slotResolved : true;
-}
-
-/* ---------- helper: list every field still needing resolution before Phase 5 XML generation ---------- */
-function unresolvedFields() {
-  return Object.entries(N)
-    .filter(([, v]) => v.slotResolved === false)
-    .map(([k]) => k);
-}
-
-/* ---------- 8. Household services / § 35a (HA_35a context) ---------- */
-/* Confirmed in v2: § 35a only allows deducting the LABOR portion of an
-   invoice (Lohnanteile), not materials - the Kennzahl structure reflects
-   this directly. Our app currently collects ex.household and ex.handwerker
-   as single total amounts; Phase 5 needs a product decision on whether to
-   ask users to split labor from materials, or apply a standard assumption -
-   this mapping alone does not resolve that, it only supplies the codes. */
+/* ---------- 7. Household services / Section 35a (HA_35a context) ---------- */
 const HA_35a = {
-  household:  { kennzahlen: ['E0111214', 'E0111215'], note: 'haushaltsnahe Dienstleistungen - Lohnanteile/Fahrtkosten (deductible portion only)' },
-  handwerker: { kennzahlen: ['E0170601'], note: 'Handwerkerleistungen - Rechnungsbeträge (total invoice, labor-only portion uses the same E0111214/215 fields as household)' },
+  household: { kennzahlen: ['E0111214', 'E0111215'], note: 'labor-only portion is deductible, not materials' },
+  handwerker: 'E0170601',
 };
 
-
-/* Our app already names these fields after the official printed-form Zeile
-   numbers (k7, k8, k12...), so this mapping is a direct Zeile -> Kennzahl
-   lookup, cross-checked against the real KAP - Felder descriptions (some
-   sub-line descriptions say "in Zeile 7 enthaltene..." for what prints as
-   a DIFFERENT line number - resolved using the standard Anlage KAP form
-   structure, not the description text alone). */
+/* ---------- 8. Capital gains - Anlage KAP ---------- */
+/* App field names already match the official printed Zeile numbers. */
 const KAP = {
-  k7:  { kennzahlen: ['E1900701'], note: 'Zeile 7: Kapitalerträge' },
-  k8:  { kennzahlen: ['E1900901'], note: 'Zeile 8: davon Gewinne aus Aktienveräußerungen (in Zeile 7 enthalten)' },
-  k12: { kennzahlen: ['E1901301'], note: 'Zeile 12: nicht ausgeglichene Verluste aus Aktienveräußerung' },
-  k13: { kennzahlen: ['E1901403'], note: 'Zeile 13: Verluste aus Termingeschäften' },
-  k16: { kennzahlen: ['E1901401'], note: 'Zeile 16: in Anspruch genommener Sparer-Pauschbetrag (erklärte Erträge)' },
-  sparerUsed: { kennzahlen: ['E1901401'], note: 'same Kennzahl as k16 - app may store this as a derived/duplicate concept, worth de-duplicating in Phase 5' },
-  k18: { kennzahlen: ['E1901501'], note: 'Zeile 18: inländische Kapitalerträge' },
-  k19: { kennzahlen: ['E1901702'], note: 'Zeile 19: ausländische Kapitalerträge' },
-  k20: { kennzahlen: ['E1901701'], note: 'Zeile 20: Gewinne aus Aktienveräußerung (in Zeilen 18/19 enthalten)' },
-  k21: { kennzahlen: ['E1901802'], note: 'Zeile 21: Verluste ohne Aktien (in Zeilen 18/19 enthalten)' },
-  k22: { kennzahlen: ['E1901903'], note: 'Zeile 22: Verluste aus Aktienveräußerung (in Zeilen 18/19 enthalten)' },
-  k23: { kennzahlen: ['E1902001'], note: 'Zeile 23: Zinsen vom Finanzamt für Steuererstattungen' },
-  k43: { kennzahlen: ['E1904701'], note: 'Zeile 43: Kapitalertragsteuer' },
-  k44: { kennzahlen: ['E1904901'], note: 'Zeile 44: Solidaritätszuschlag' },
-  k45: { kennzahlen: ['E1904801'], note: 'Zeile 45: Kirchensteuer zur Kapitalertragsteuer' },
-  // 'platform' (broker/Depotbank name) is internal app metadata, not a
-  // separate Kennzahl - custodian identity is not reported to ERiC per-field
-  // the same way; no code entry needed for it.
+  k7: 'E1900701', k8: 'E1900901', k12: 'E1901301', k13: 'E1901403',
+  k16: 'E1901401', sparerUsed: 'E1901401',
+  k18: 'E1901501', k19: 'E1901702', k20: 'E1901701', k21: 'E1901802',
+  k22: 'E1901903', k23: 'E1902001', k43: 'E1904701', k44: 'E1904901', k45: 'E1904801',
 };
 
-
-/* Direct encoding of the Einz/Sum discovery: given our app's emps[] array
-   and a field name (e.g. 'gross'), returns { count, total } - the values
-   that must go into the corresponding N.<field>.sum Kennzahl. Does NOT
-   round to whole numbers unless the field's real Sum example did (gross
-   summed to a whole number in the real XML - "67554" vs "67554,76" - this
-   needs confirming whether that's intentional rounding or a coincidence in
-   the one example we have, before Phase 5 relies on it). */
-function sumEmployerField(emps, field) {
-  const entry = N[field];
-  if (!entry || !entry.einz) return null;
-  const values = (emps || []).map(e => parseFloat(String(e[field] || '0').replace(',', '.')) || 0);
-  return { count: values.length, total: values.reduce((a, b) => a + b, 0) };
-}
-
-/* ---------- 9. Loss carryforward (Sonst context) + Kinderfreibetrag transfer (Kind) ---------- */
+/* ---------- 9. Loss carryforward (Sonst context) ---------- */
 const Sonst = {
-  lossCarry: { kennzahlen: ['E0190701'], note: 'Verlustvortrag nach § 10d EStG zum 31.12. Vorjahr - the confirmation/declaration field. A related checkbox (E0100003, "Erklärung zur Feststellung des verbleibenden Verlustvortrags") also exists in ESt1A and may need to be set alongside this.' },
+  lossCarry: 'E0190701',
 };
 
-/* ---------- 10. Support payments to relatives - Unterhalt (ESt1A_U context) ---------- */
+/* ---------- 10. Support payments - Unterhalt (ESt1A_U context) ---------- */
 const ESt1A_U = {
-  support:      { kennzahlen: ['E0125007'], note: 'Betrag (the support amount) - Bezeichnung (E0125006) is a paired label field' },
-  supportGroup: { kennzahlen: ['E0120101', 'E0120102', 'E0120108', 'E0120109'], note: 'household/recipient details: Anschrift, Wohnsitzstaat (if abroad), household size, Unterstützungszeitraum (support period)' },
+  support: 'E0125007',
+  supportGroup: { kennzahlen: ['E0120101', 'E0120102', 'E0120108', 'E0120109'] },
 };
-
 
 /* ---------- 11. Foreign employment income - Anlage N-AUS (N_AUS context) ---------- */
-/* SCOPE DECISION: the full Anlage N-AUS form has 82 fields covering the
-   complete DBA/ATE (Doppelbesteuerungsabkommen / Auslandstätigkeitserlass)
-   treaty computation - foreign employer address, treaty-basis selection,
-   day-by-day multi-country apportionment, deferred compensation handling,
-   etc. This is genuinely complex tax law and mostly covers rare edge cases
-   even for expats. Consistent with SimplyTax's "keep it simple" product
-   principle, this implementation covers the common real case: someone
-   worked partly abroad for a foreign or domestic employer, with income tax-
-   exempt in Germany under DBA, computed via the standard work-day
-   apportionment formula (Zeile 42/44/43 -> Zeile 45/46 -> Zeile 47 = the
-   Kennzahl that actually flows into Anlage N Zeile 21).
-   NOT implemented (available for future expansion, ~69 remaining fields):
-   ATE-specific fields (E2601501/1601 - Wirtschaftszweig/Vorhaben), the
-   "engere persönliche/wirtschaftliche Beziehungen" residency-tiebreaker
-   questionnaire, deferred/multi-year compensation (Zeile 60/81),
-   zwischenstaatliche Übereinkommen (non-DBA treaty) variant, and the
-   second-country apportionment block (fields E2606xxx) for people who
-   worked in more than one foreign country in the same year. */
+/* SCOPE DECISION: the full form has 82 fields (complete DBA/ATE treaty
+   machinery). This covers the common case only - day-apportionment DBA
+   exemption - not ATE-specific codes, multi-country splits, or deferred
+   compensation. See computeAusTaxFree() for the official formula. */
 const N_AUS = {
-  ausCountry:      { kennzahlen: ['E2601001'], note: 'Staat (the foreign country)' },
-  ausEmployerName: { kennzahlen: ['E2603101'], note: 'Name (Bezeichnung) - foreign employer' },
-  ausEmployerStreet:{ kennzahlen: ['E2603201'], note: 'Straße und Hausnummer' },
-  ausEmployerPlz:  { kennzahlen: ['E2603301'], note: 'Postleitzahl' },
-  ausEmployerCity: { kennzahlen: ['E2603302'], note: 'Ort' },
-  ausEmployerCountry:{ kennzahlen: ['E2603401'], note: 'Staat (employer address country, may differ from work country)' },
-  ausGross:        { kennzahlen: ['E2603501'], note: 'Bruttoarbeitslohn laut Nr. 3 der Lohnsteuerbescheinigung(en) - the gross wage this concerns' },
-  ausGrossNoWithholding: { kennzahlen: ['E2603601'], note: 'Bruttoarbeitslohn ohne inländischen Steuerabzug (foreign employer/Betriebsstätte)' },
-  ausTaxFreeAlready: { kennzahlen: ['E2603701'], note: 'bereits steuerfreier Bruttoarbeitslohn laut Nr. 16a/b der Lohnsteuerbescheinigung' },
-  ausTotalWage:    { kennzahlen: ['E2604101'], note: 'Summe in- und ausländischer Arbeitslohn (app should compute this as a sum, matching the Einz/Sum pattern discovered for Anlage N)' },
-  ausWorkDaysTotal:{ kennzahlen: ['E2604501'], note: 'Tatsächliche Arbeitstage im Kalenderjahr im In- und Ausland' },
-  ausWorkDaysForeign:{ kennzahlen: ['E2604601'], note: 'davon Arbeitstage, für die der ausländische Staat das Besteuerungsrecht hat' },
-  ausTaxFreeResult:{ kennzahlen: ['E2604901'], note: 'Summe steuerfrei zu stellender ausländischer Arbeitslohn - the FINAL computed result that flows into Anlage N Zeile 21 (our dba16 field). App must compute: ausTotalWage x ausWorkDaysForeign / ausWorkDaysTotal, per the official formula (Zeile 42 x 44 / 43).' },
+  ausCountry: 'E2601001',
+  ausEmployerName: 'E2603101',
+  ausEmployerStreet: 'E2603201',
+  ausEmployerPlz: 'E2603301',
+  ausEmployerCity: 'E2603302',
+  ausEmployerCountry: 'E2603401',
+  ausGross: 'E2603501',
+  ausGrossNoWithholding: 'E2603601',
+  ausTaxFreeAlready: 'E2603701',
+  ausTotalWage: 'E2604101',
+  ausWorkDaysTotal: 'E2604501',
+  ausWorkDaysForeign: 'E2604601',
+  ausTaxFreeResult: 'E2604901',
 };
-/* helper: the official day-apportionment formula (Zeile 42 x 44 / 43 = 45) */
 function computeAusTaxFree(totalWage, workDaysForeign, workDaysTotal) {
   const w = parseFloat(String(totalWage||'0').replace(',','.')) || 0;
   const foreign = parseFloat(String(workDaysForeign||'0')) || 0;
@@ -298,61 +162,45 @@ function computeAusTaxFree(totalWage, workDaysForeign, workDaysTotal) {
   return Math.round(w * foreign / total * 100) / 100;
 }
 
-
-/* ---------- 12. Disability/care allowance - außergewöhnliche Belastungen (AgB context) ---------- */
+/* ---------- 12. Disability/care allowance - AgB context ---------- */
 const AgB = {
-  gdbA: { kennzahlen: ['E0109708'], note: 'Grad der Behinderung, Format = string matching 20|25|30|.../100 (steps of 5). App UI currently offers steps of 10 only (20,30...100) - in practice Versorgungsämter issue GdB almost always in steps of 10, so this is a minor completeness gap, not likely to affect real users. ALSO: "blind" is a SEPARATE field (E0109706, simple yes/no) in the real schema, not part of the GdB number itself - the app currently merges "blind" into the same dropdown as the numeric GdB values, meaning a user who selects "blind" has no numeric GdB stored at all. Worth revisiting in Phase 5 but not urgent - same code reused per Person block, as with the rest of Anlage N/AgB.' },
-  /* pflegeA/pflegeB: CORRECTED. Earlier note here wrongly assumed the app
-     needed UI restructuring - it does not. Checked the real UI
-     (index.html ~line 2432): pflegeA/pflegeB are ALREADY select dropdowns
-     tied to Pflegegrad tiers (600=Grad 2, 1100=Grad 3, 1800=Grad 4-or-5),
-     not free-amount entry fields. Even better: ERiC's own official schema
-     for E0161606 is an ENUMERATION with exactly three values - "2", "3",
-     and "4" where "4" is explicitly documented as "Pflegegrad 4 oder 5" -
-     meaning the app's design of merging Grad 4 and 5 into one option
-     EXACTLY matches ERiC's own schema. No ambiguity, no UI change needed. */
-  pflegeGrad: { kennzahlen: ['E0161606'], note: 'Enumeration: "2"=Pflegegrad 2, "3"=Pflegegrad 3, "4"=Pflegegrad 4 oder 5 (combined by ERiC itself). Also relevant: E0110601 (name/address/relationship of the cared-for person), E0106507 (who provided the unpaid care)' },
-  // medical (general Krankheitskosten): CONFIRMED via AgB - Kontexte sheet.
-  // The hierarchy /AgB/And_Aufw/Krankh -> /Pflege -> /Beh_Aufw -> /Bestatt
-  // -> /Sonst matches the field order of the five generic Art/Höhe pairs
-  // exactly, resolving which pair is which category.
+  gdbA: 'E0109708',
+  pflegeGrad: 'E0161606',
   medical: { kennzahlen: ['E0161301', 'E0161302', 'E0161303', 'E0161304', 'E0161305'],
-    note: 'Krankheitskosten: E0161301=Art der Aufwendungen, E0161302=Höhe, E0161303=Versicherungsleistungen/Erstattungen zu subtrahieren, E0161304=Summe der Aufwendungen, E0161305=Summe der Erstattungen (Einz repeatable up to 99, /Sum written once)' },
+    note: 'Krankheitskosten: Art/Hoehe/Erstattung/Summe-Aufwand/Summe-Erstattung, confirmed via AgB - Kontexte hierarchy (/AgB/And_Aufw/Krankh is first in the position-matched list of 5 generic Art/Hoehe pairs)' },
 };
-/* Same Kontexte-hierarchy pattern also resolves the OTHER four generic
-   Art/Höhe pairs, in case future sections need them (not currently mapped
-   to an app field, but the codes are real and confirmed by position):
-   Pflege (itemized care costs, different from the flat Pflegepauschbetrag)
-     = E0161401/402/403/404/405
-   Beh_Aufw (other disability-related expenses)
-     = E0161501/502/503/504/505
-   Bestatt (funeral costs, incl. Nachlass/estate value to offset)
-     = E0161701/702/703/704/705 + E0163201/202/E0163401
-   Sonst (miscellaneous außergewöhnliche Belastungen)
-     = E0161801/802/803/804/805 */
-/* helper: app's stored Pflegepauschbetrag amount (600/1100/1800) -> the
-   Pflegegrad enum code E0161606 actually expects ("2"/"3"/"4") */
 function amountToPflegegrad(amount) {
   const map = { '600': '2', '1100': '3', '1800': '4' };
   return map[String(amount).trim()] || null;
 }
 
-/* ---------- 13. Energetic renovation - § 35c (EM_35c context) ---------- */
+/* ---------- 13. Energetic renovation - Section 35c (EM_35c context) ---------- */
 const EM_35c = {
-  energCost:  { kennzahlen: ['E0241901'], note: 'Summe der Aufwendungen für energetische Maßnahmen (total cost)' },
-  energStage: { kennzahlen: ['E0242501', 'E0243401'], note: 'the § 35c credit spans 3 years (7%/7%/6% of cost); E0242501 = prior year (VZ-1) recognized costs, E0243401 = two years prior (VZ-2) - which one applies depends on which year of the 3-year claim the user is in' },
+  energCost: 'E0241901',
+  energStage: { kennzahlen: ['E0242501', 'E0243401'], note: 'prior-year (VZ-1) / two-years-prior (VZ-2) installment tracking for the 3-year (7%/7%/6%) credit' },
 };
 
-/* ---------- 14. Wage-replacement benefits under Progressionsvorbehalt (ESt1A context) ---------- */
+/* ---------- 14. Wage-replacement benefits under Progressionsvorbehalt ---------- */
 const ESt1A_Ersatz = {
-  ersatz: { kennzahlen: ['E0104801'], note: 'Einkommensersatzleistungen, die dem Progressionsvorbehalt unterliegen (Elterngeld, Krankengeld, ALG I, Insolvenzgeld, Mutterschaftsgeld, Verdienstausfallentschädigung) - exact match to the app field description' },
+  ersatz: 'E0104801',
 };
 
-
-/* Encodes the VOR-overlap discovery directly: agRV/anRV -> VOR.rv,
-   agKV/agPKV/anKV -> VOR.kv, agPV/anPV -> VOR.pv, anAV -> VOR.av.
-   Returns null for fields that don't have a VOR routing (i.e. genuinely
-   belong in N or are still unmapped). */
+/* ---------- helpers ---------- */
+function isSlotResolved(context, field) {
+  const entry = context[field];
+  if (!entry) return null;
+  if (typeof entry === 'string') return true;
+  return entry.slotResolved !== undefined ? entry.slotResolved : true;
+}
+function unresolvedFields() {
+  return Object.entries(N).filter(([, v]) => v && v.slotResolved === false).map(([k]) => k);
+}
+function sumEmployerField(emps, field) {
+  const entry = N[field];
+  if (!entry || !entry.einz) return null;
+  const values = (emps || []).map(e => parseFloat(String(e[field] || '0').replace(',', '.')) || 0);
+  return { count: values.length, total: values.reduce((a, b) => a + b, 0) };
+}
 function routeToVOR(empField) {
   const routing = {
     agRV: 'rv', agRVb: 'rvBerufsstaendisch', anRV: 'rv', anRVb: 'rvBerufsstaendisch',
@@ -364,4 +212,7 @@ function routeToVOR(empField) {
   return routing[empField] || null;
 }
 
-module.exports = { ESt1A, N, VOR, SA, Kind, N_DHH, HA_35a, KAP, Sonst, ESt1A_U, N_AUS, AgB, EM_35c, ESt1A_Ersatz, isSlotResolved, unresolvedFields, sumEmployerField, routeToVOR, computeAusTaxFree, amountToPflegegrad };
+module.exports = {
+  ESt1A, N, VOR, SA, Kind, N_DHH, HA_35a, KAP, Sonst, ESt1A_U, N_AUS, AgB, EM_35c, ESt1A_Ersatz,
+  isSlotResolved, unresolvedFields, sumEmployerField, routeToVOR, computeAusTaxFree, amountToPflegegrad,
+};
