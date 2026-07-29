@@ -11,18 +11,22 @@
            ready to hand to EricMtBearbeiteVorgang as datenpuffer.
 
    SCOPE - only sections with a confirmed Kennzahl in eric-fieldmap.js are
-   written. Sections present in the interchange JSON but NOT YET MAPPED are
-   explicitly skipped with a console.warn, never silently guessed:
-     - anlageR (pensions) - was never mapped, discovered as a gap while
-       building this file. No Kennzahlen researched yet for this context.
-     - anlageV (rental) - same, not yet mapped.
+   written. As of this update:
+     - anlageR (pensions) - NOW MAPPED. Both statutory and private
+       Leibrenten, using the CORRECTED gesetzlich/privat percentage logic
+       (see eric-fieldmap.js R section - the earlier assumption that only
+       private pensions carry a percentage was backwards).
+     - anlageV (rental) - PARTIALLY mapped. Property address and rental
+       income are written; Werbungskosten (deductible costs) are
+       deliberately NOT written - the real schema wants an itemized
+       category breakdown (189 fields total) our app's simple lump-sum
+       cost model cannot honestly represent. Still skipped, now for a
+       documented reason rather than "not yet researched".
      - anlageKind.betreuungskosten (childcare amount) - confirmed absent
        from the entire ERiC documentation after exhaustive search; a
        German question for ELSTER developer support is drafted separately.
-   This means: run this against the demo dataset, and Anlage R / Anlage V
-   data will NOT appear in the output XML, by design, not by bug. Extending
-   this file to cover them requires mapping those contexts first (same
-   research process as everything else in eric-fieldmap.js).
+   This means: rental Werbungskosten and childcare amounts will NOT appear
+   in the output XML, by design, not by bug or oversight.
 ============================================================================= */
 
 const fm = require('./eric-fieldmap.js');
@@ -209,6 +213,66 @@ function buildKAP(data) {
 }
 
 /* =============================================================================
+   Anlage R - pensions. IMPORTANT: uses the CORRECTED gesetzlich/privat
+   logic (see eric-fieldmap.js R section comment) - the percentage field
+   belongs to gesetzlich (statutory), not privat, confirmed via the real
+   Kontexte hierarchy. If the frontend's buildElsterDataset() still sends
+   pct only for 'privat', that value will simply not be used here for
+   'privat' entries (correctly, per the real schema) - but it also means
+   'gesetzlich' entries won't have a percentage to send until the
+   frontend logic is corrected. Flagged clearly, not silently patched.
+============================================================================= */
+function buildR(data) {
+  const entries = data.anlageR || [];
+  if (!entries.length) return '';
+  let xml = '';
+  for (const r of entries) {
+    xml += '<R>\n';
+    if (r.art === 'gesetzlich' || !r.art) {
+      xml += euroTag(fm.R.gesetzlichAmount, r.jahresbetrag);
+      if (r.rentenbeginn) xml += tag(fm.R.gesetzlichStart, r.rentenbeginn);
+      if (r.ertragsanteilProzent != null) xml += tag(fm.R.gesetzlichPercent, r.ertragsanteilProzent);
+    } else if (r.art === 'privat') {
+      xml += euroTag(fm.R.privatAmount, r.jahresbetrag);
+      if (r.rentenbeginn) xml += tag(fm.R.privatStart, r.rentenbeginn);
+      /* no percentage field written for privat - confirmed correct, the
+         real schema has none here (age-based table applied automatically) */
+    }
+    xml += '</R>\n';
+  }
+  return xml;
+}
+
+/* =============================================================================
+   Anlage V - rental income. PARTIAL by design (see eric-fieldmap.js V
+   section comment): address and rental income are simple, safe single-
+   value fields and are mapped. Werbungskosten (deductible costs) are
+   NOT written - the real schema wants an itemized breakdown across many
+   categories (AfA, Schuldzinsen, Erhaltungsaufwand, etc.), not the one
+   lump-sum total our app currently collects. Writing costs into any
+   single category would misrepresent the deduction type, so this
+   deliberately omits it rather than guess - see skippedSections in the
+   main builder below, which surfaces this to the caller explicitly.
+============================================================================= */
+function buildV(data) {
+  const entries = data.anlageV || [];
+  if (!entries.length) return '';
+  let xml = '';
+  for (const p of entries) {
+    xml += '<V>\n';
+    if (p.objekt) {
+      const parts = String(p.objekt).split(',');
+      if (parts[0]) xml += tag(fm.V.street, parts[0].trim());
+    }
+    xml += euroTag(fm.V.mieteinnahmen, p.mieteinnahmen);
+    xml += euroTag(fm.V.mieteinnahmenSum, p.mieteinnahmen);
+    /* p.werbungskosten and p.ergebnis intentionally NOT written - see note above */
+    xml += '</V>\n';
+  }
+  return xml;
+}
+
+/* =============================================================================
    Sonderausgaben - donations
 ============================================================================= */
 function buildSA(data) {
@@ -283,12 +347,12 @@ function buildEStXML(data, opts = {}) {
   const bundesland = bundeslandCode(data.hauptvordruck?.bundesland);
 
   const skippedSections = [];
-  if ((data.anlageR || []).length) skippedSections.push('anlageR (pensions - not yet mapped)');
-  if ((data.anlageV || []).length) skippedSections.push('anlageV (rental - not yet mapped)');
+  if ((data.anlageV || []).some(p => p.werbungskosten > 0))
+    skippedSections.push('anlageV Werbungskosten (rental deduction costs - real schema needs itemized categories, our simple total cannot be honestly mapped)');
   if ((data.anlageKind || []).some(k => k.betreuungskosten > 0))
     skippedSections.push('anlageKind childcare amounts (confirmed absent from ERiC docs - see prepared support question)');
   if (skippedSections.length) {
-    console.warn('[eric xml-builder] Sections present in data but not yet mapped, SKIPPED (not silently guessed):');
+    console.warn('[eric xml-builder] Sections present in data but not mapped, SKIPPED (not silently guessed):');
     skippedSections.forEach(s => console.warn('  - ' + s));
   }
 
@@ -297,6 +361,8 @@ function buildEStXML(data, opts = {}) {
   nutzdaten += buildAnlageN(data);
   nutzdaten += buildVOR(data);
   nutzdaten += buildKAP(data);
+  nutzdaten += buildR(data);
+  nutzdaten += buildV(data);
   nutzdaten += buildSA(data);
   nutzdaten += buildAgB(data);
   nutzdaten += buildHA35a(data);

@@ -29,6 +29,11 @@ const sample = {
   anlageVorsorgeaufwand: { ausLohnsteuerbescheinigungen: { rv: 4650, gkv: 3900, pv: 950 } },
   anlageKAP: [], sonderausgaben: {}, weitereAngaben: {}, aussergewoehnlicheBelastungen: {},
   haushaltsnaheLeistungen: {}, par35cEnergetisch: {},
+  anlageR: [
+    { person: 'A', art: 'gesetzlich', jahresbetrag: 18000, rentenbeginn: '2022', ertragsanteilProzent: 82 },
+    { person: 'A', art: 'privat', jahresbetrag: 6000, rentenbeginn: '2020', ertragsanteilProzent: null },
+  ],
+  anlageV: [{ objekt: 'Musterstr. 5, 60000 Frankfurt', mieteinnahmen: 12000, werbungskosten: 4000, ergebnis: 8000 }],
 };
 
 const { xml, skippedSections } = buildEStXML(sample, { herstellerID: '99999' });
@@ -61,6 +66,19 @@ check('no duplicate E0200002 (the known ambiguous field)', (xml.match(/<E0200002
 check('date formatted DD.MM.YYYY not ISO', xml.includes('15.03.1985') && !xml.includes('1985-03-15'));
 check('zero-value fields omitted (sparse output, matches real ERiC example style)', !xml.includes('<E0200504>0,00</E0200504>'));
 check('single person (no B) produces no B block content', !xml.includes('<B>\n<E01'));
+
+// Anlage R - the corrected gesetzlich/privat percentage logic
+check('gesetzlich pension amount written', xml.includes('<E1800301>18000,00</E1800301>'));
+check('gesetzlich pension gets the percentage field', xml.includes('<E1800701>82</E1800701>'));
+check('privat pension amount written (different Kennzahl)', xml.includes('<E1801601>6000,00</E1801601>'));
+check('privat pension does NOT get a percentage field (correct - none exists in the real schema)',
+  !xml.includes('<E1801701>') || !xml.slice(xml.indexOf('<E1801601>'), xml.indexOf('<E1801601>') + 200).includes('E1800701'));
+
+// Anlage V - address/income mapped, Werbungskosten honestly skipped
+check('rental street address written', xml.includes('<E0700407>Musterstr. 5</E0700407>'));
+check('rental income written (Einz and Sum)', xml.includes('<E0700201>12000,00</E0700201>') && xml.includes('<E0700206>12000,00</E0700206>'));
+check('rental Werbungskosten NOT written (documented scope gap, not a bug)', !xml.includes('4000,00'));
+check('skippedSections reports the rental costs gap', skippedSections.some(s => s.includes('Werbungskosten')));
 
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);

@@ -201,6 +201,64 @@ function sumEmployerField(emps, field) {
   const values = (emps || []).map(e => parseFloat(String(e[field] || '0').replace(',', '.')) || 0);
   return { count: values.length, total: values.reduce((a, b) => a + b, 0) };
 }
+/* ---------- 15. Pensions - Anlage R (R context) ---------- */
+/* MAJOR CORRECTION found while researching this: the app's interchange
+   logic (index.html buildElsterDataset) currently sends the taxable
+   percentage ONLY for type==='privat'. The real ERiC Kontexte hierarchy
+   (/R/Leibr_gesetzl vs /R/Leibr_priv) proves this is BACKWARDS:
+   - /R/Leibr_gesetzl (statutory pension): Rentenbetrag, Beginn der Rente,
+     AND a Prozentsatz field (E1800701 - Besteuerungsanteil disclosed on
+     the annual Rentenbezugsmitteilung from Deutsche Rentenversicherung -
+     this IS required and IS user-visible/disclosed for gesetzliche Rente)
+   - /R/Leibr_priv (private Leibrente): Rentenbetrag, Beginn der Rente,
+     joint-life birthdate - NO percentage field in this group at all.
+     This matches real German tax law: private Leibrenten use a FIXED
+     age-based Ertragsanteil table (§22 EStG) that ERiC/Finanzamt applies
+     automatically from age at pension start - the taxpayer does not
+     disclose or enter a percentage for this type.
+   ACTION NEEDED (flagged, not silently fixed): the frontend's
+   buildElsterDataset() condition `type==='privat'?N(r.pct):null` should
+   very likely be inverted to `type==='gesetzlich'?N(r.pct):null` - this
+   is a real product/calculation-logic question, not just an XML mapping
+   detail, since it affects what the app asks the user to enter. */
+const R = {
+  gesetzlichAmount: 'E1800301',   // Rentenbetrag (statutory)
+  gesetzlichStart: 'E1800501',    // Beginn der Rente (statutory)
+  gesetzlichPercent: 'E1800701',  // Prozentsatz laut Bescheinigung - CONFIRMED for gesetzlich, not privat
+  privatAmount: 'E1801601',       // Rentenbetrag (private Leibrente)
+  privatStart: 'E1801701',        // Beginn der Rente (private Leibrente)
+  // no percentage field for privat - confirmed absent from this Kontext,
+  // not a search failure (age-based table applied automatically)
+};
+
+/* ---------- 16. Rental income - Anlage V (V context, PARTIAL - see note) ---------- */
+/* SCOPE GAP, not a mapping guess: Anlage V has 189 real fields covering a
+   fully itemized rental-deduction schedule (separate categories for
+   building depreciation/AfA, loan interest, maintenance costs sometimes
+   spread over 2-5 years, administration costs, etc. - each with its own
+   Kennzahl). The official "Summe der Werbungskosten" field (E0705701) is
+   explicitly documented as a computed SUM of many specific line numbers,
+   not a field that accepts one manually-entered total. Our app currently
+   collects rental deductions as ONE lump-sum "costs" number per property
+   - that data model does not have a clean, honest landing spot in the
+   real schema. Mapping it to any single category (e.g. "Sonstige
+   Werbungskosten") would misrepresent the deduction type and is NOT done
+   here. Property address and rental income (both genuinely single-value
+   fields) ARE mapped and safe to use; costs/ergebnis are NOT mapped -
+   xml-builder.js must keep skipping anlageV's Werbungskosten data with a
+   visible warning rather than guessing, same as it already does for
+   childcare. RESOLUTION PATH: either (a) expand the app's rental step to
+   collect the real itemized categories (a real UI project), or (b)
+   accept that SimplyTax does not yet support transmitting rental Werbungs-
+   kosten and scope rental income to informational/calculation use only
+   until (a) is done - a product decision, not something to guess around. */
+const V = {
+  street: 'E0700407', plz: 'E0700503', ort: 'E0700504',
+  mieteinnahmen: 'E0700201',       // Zeile 15 Mieteinnahmen
+  mieteinnahmenSum: 'E0700206',    // Summe (Einz/Sum pattern, same as Anlage N)
+  // werbungskosten / ergebnis: DELIBERATELY NOT MAPPED - see note above
+};
+
 function routeToVOR(empField) {
   const routing = {
     agRV: 'rv', agRVb: 'rvBerufsstaendisch', anRV: 'rv', anRVb: 'rvBerufsstaendisch',
@@ -213,6 +271,6 @@ function routeToVOR(empField) {
 }
 
 module.exports = {
-  ESt1A, N, VOR, SA, Kind, N_DHH, HA_35a, KAP, Sonst, ESt1A_U, N_AUS, AgB, EM_35c, ESt1A_Ersatz,
+  ESt1A, N, VOR, SA, Kind, N_DHH, HA_35a, KAP, Sonst, ESt1A_U, N_AUS, AgB, EM_35c, ESt1A_Ersatz, R, V,
   isSlotResolved, unresolvedFields, sumEmployerField, routeToVOR, computeAusTaxFree, amountToPflegegrad,
 };
