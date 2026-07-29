@@ -1879,16 +1879,9 @@ async function loadFinanzamtDirectory(){
  return _faDirectoryLoading;
 }
 function finanzamtField(c){
- const fkey='p.finanzamt';
  const hasDirectory = !!_faDirectory;
  const land = c.p.bundesland;
- const searching = S.faSearch != null;
  const currentLabel = c.p.finanzamt ? `${esc(c.p.finanzamt)}${c.p.faNumber?' · '+esc(c.p.faNumber):''}` : '';
- let matches = [];
- if(searching && hasDirectory && land && _faDirectory[land]){
- const q = S.faSearch.toLowerCase();
- matches = _faDirectory[land].filter(f=>!q || f.name.toLowerCase().includes(q)).slice(0,25);
- }
  return `<div class="field" style="position:relative">
  <label>${t('fa_name')}</label>
  ${!hasDirectory ? `
@@ -1898,23 +1891,49 @@ function finanzamtField(c){
  ` : !land ? `
  <input disabled placeholder="${t('fa_select_land_first')}" style="background:var(--paper);color:var(--ink-soft)">
  ` : `
- <input id="fa-search-input" value="${searching?esc(S.faSearch):currentLabel}" placeholder="${t('fa_search_ph')}"
- oninput="onFaSearch(this.value)" onfocus="onFaSearch(this.value)"
+ <input id="fa-search-input" value="${currentLabel}" placeholder="${t('fa_search_ph')}" autocomplete="off"
+ oninput="renderFaDropdown(this.value)" onfocus="renderFaDropdown(this.value)"
  onblur="setTimeout(closeFaDropdown,150)">
- ${searching && matches.length ? `<div class="fa-dropdown">
- ${matches.map(f=>`<div class="fa-option" onmousedown="selectFinanzamt('${esc(f.bufaNr)}','${esc(f.name).replace(/'/g,"\\'")}')">
- <b>${esc(f.name)}</b><span>${esc(f.bufaNr)}</span></div>`).join('')}
- </div>` : ''}
- ${searching && matches.length===0 ? `<div class="fa-dropdown"><div class="fa-option" style="color:var(--ink-soft);cursor:default">${t('fa_no_match')}</div></div>` : ''}
+ <div id="fa-dropdown-slot"></div>
  ${c.p.faNumber ? `<div class="hint">${t('fa_number')}: <b>${esc(c.p.faNumber)}</b></div>` : ''}
  `}
  </div>`;
 }
-function onFaSearch(val){ S.faSearch = val; if(_faDirectory===null) loadFinanzamtDirectory().then(render); render(); }
-function closeFaDropdown(){ S.faSearch = null; render(); }
+/* CRITICAL: this updates ONLY the dropdown container directly via the DOM,
+   never calling the app's global render() while the user is typing. The
+   global render() replaces the whole screen's innerHTML, which would
+   destroy and recreate the <input> element itself on every keystroke -
+   the new element never has focus, so typing a second character becomes
+   impossible (this was the exact bug reported: dropdown flashes once on
+   the initial click/focus, then immediately closes because the input
+   that had focus no longer exists after the rebuild). Keeping the input
+   untouched while only swapping the dropdown's own innerHTML preserves
+   focus and cursor position correctly. */
+function renderFaDropdown(query){
+ const c=cur(); const land=c.p.bundesland;
+ const slot=document.getElementById('fa-dropdown-slot'); if(!slot) return;
+ if(_faDirectory===null){ loadFinanzamtDirectory().then(()=>renderFaDropdown(query)); return; }
+ if(!_faDirectory || !land || !_faDirectory[land]){ slot.innerHTML=''; return; }
+ const q=(query||'').toLowerCase();
+ const matches=_faDirectory[land].filter(f=>!q || f.name.toLowerCase().includes(q)).slice(0,25);
+ if(matches.length){
+ slot.innerHTML = `<div class="fa-dropdown">${matches.map(f=>
+ `<div class="fa-option" onmousedown="selectFinanzamt('${esc(f.bufaNr)}','${esc(f.name).replace(/'/g,"\\'")}')">
+ <b>${esc(f.name)}</b><span>${esc(f.bufaNr)}</span></div>`).join('')}</div>`;
+ } else {
+ slot.innerHTML = `<div class="fa-dropdown"><div class="fa-option" style="color:var(--ink-soft);cursor:default">${t('fa_no_match')}</div></div>`;
+ }
+}
+function closeFaDropdown(){
+ const slot=document.getElementById('fa-dropdown-slot');
+ if(slot) slot.innerHTML='';
+}
 function selectFinanzamt(bufaNr, name){
+ /* selection IS a "leaving the field" action (like onchange elsewhere in
+ the app) - a full render() here is correct and expected, since we need
+ the input's displayed value and the faNumber hint to update. */
  const c=cur(); c.p.finanzamt = name; c.p.faNumber = bufaNr; c.updatedAt=Date.now();
- S.faSearch = null; scheduleSave(); render();
+ scheduleSave(); render();
 }
 
 function F(group,key,label,opts={}){
