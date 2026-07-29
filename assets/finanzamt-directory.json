@@ -1,0 +1,2283 @@
+{
+ "generatedAt": "2026-07-29T09:50:53.451Z",
+ "directory": {
+  "Baden-Württemberg": [
+   {
+    "bufaNr": "2801",
+    "name": "Finanzamt Offenburg -01- (vormals ASt Achern)"
+   },
+   {
+    "bufaNr": "2804",
+    "name": "Finanzamt Villingen-Schwenningen Außenstelle Donaueschingen"
+   },
+   {
+    "bufaNr": "2805",
+    "name": "Finanzamt Emmendingen"
+   },
+   {
+    "bufaNr": "2806",
+    "name": "Finanzamt Freiburg-Stadt"
+   },
+   {
+    "bufaNr": "2807",
+    "name": "Finanzamt Freiburg-Land"
+   },
+   {
+    "bufaNr": "2808",
+    "name": "Finanzamt Offenburg Außenstelle Kehl"
+   },
+   {
+    "bufaNr": "2809",
+    "name": "Finanzamt Konstanz"
+   },
+   {
+    "bufaNr": "2810",
+    "name": "Finanzamt Lahr"
+   },
+   {
+    "bufaNr": "2811",
+    "name": "Finanzamt Lörrach"
+   },
+   {
+    "bufaNr": "2812",
+    "name": "Finanzamt Müllheim"
+   },
+   {
+    "bufaNr": "2813",
+    "name": "Finanzamt Freiburg-Land Außenstelle Titisee-Neustadt"
+   },
+   {
+    "bufaNr": "2814",
+    "name": "Finanzamt Offenburg -14-"
+   },
+   {
+    "bufaNr": "2815",
+    "name": "Finanzamt Rottweil Außenstelle Oberndorf"
+   },
+   {
+    "bufaNr": "2816",
+    "name": "Finanzamt Waldshut-Tiengen Außenstelle Bad Säckingen"
+   },
+   {
+    "bufaNr": "2818",
+    "name": "Finanzamt Singen"
+   },
+   {
+    "bufaNr": "2819",
+    "name": "Finanzamt Rottweil"
+   },
+   {
+    "bufaNr": "2820",
+    "name": "Finanzamt Waldshut-Tiengen"
+   },
+   {
+    "bufaNr": "2821",
+    "name": "Finanzamt Tuttlingen"
+   },
+   {
+    "bufaNr": "2822",
+    "name": "Finanzamt Villingen-Schwenningen"
+   },
+   {
+    "bufaNr": "2823",
+    "name": "Finanzamt Offenburg Außenstelle Wolfach"
+   },
+   {
+    "bufaNr": "2830",
+    "name": "Finanzamt Bruchsal"
+   },
+   {
+    "bufaNr": "2831",
+    "name": "Finanzamt Ettlingen"
+   },
+   {
+    "bufaNr": "2832",
+    "name": "Finanzamt Heidelberg"
+   },
+   {
+    "bufaNr": "2833",
+    "name": "Finanzamt Baden-Baden"
+   },
+   {
+    "bufaNr": "2834",
+    "name": "Finanzamt Karlsruhe-Durlach"
+   },
+   {
+    "bufaNr": "2835",
+    "name": "Finanzamt Karlsruhe-Stadt"
+   },
+   {
+    "bufaNr": "2836",
+    "name": "Finanzamt Baden-Baden Außenstelle Bühl"
+   },
+   {
+    "bufaNr": "2837",
+    "name": "Finanzamt Mannheim-Neckarstadt"
+   },
+   {
+    "bufaNr": "2838",
+    "name": "Finanzamt Mannheim-Stadt"
+   },
+   {
+    "bufaNr": "2839",
+    "name": "Finanzamt Rastatt"
+   },
+   {
+    "bufaNr": "2840",
+    "name": "Finanzamt Mosbach"
+   },
+   {
+    "bufaNr": "2841",
+    "name": "Finanzamt Pforzheim"
+   },
+   {
+    "bufaNr": "2842",
+    "name": "Finanzamt Freudenstadt"
+   },
+   {
+    "bufaNr": "2843",
+    "name": "Finanzamt Schwetzingen"
+   },
+   {
+    "bufaNr": "2844",
+    "name": "Finanzamt Sinsheim"
+   },
+   {
+    "bufaNr": "2845",
+    "name": "Finanzamt Calw"
+   },
+   {
+    "bufaNr": "2846",
+    "name": "Finanzamt Mosbach Außenstelle Walldürn"
+   },
+   {
+    "bufaNr": "2847",
+    "name": "Finanzamt Weinheim"
+   },
+   {
+    "bufaNr": "2848",
+    "name": "Finanzamt Mühlacker"
+   },
+   {
+    "bufaNr": "2849",
+    "name": "Finanzamt Pforzheim Außenstelle Neuenbürg"
+   },
+   {
+    "bufaNr": "2850",
+    "name": "Finanzamt Aalen"
+   },
+   {
+    "bufaNr": "2851",
+    "name": "Finanzamt Backnang"
+   },
+   {
+    "bufaNr": "2852",
+    "name": "Finanzamt Tauberbischofsheim Außenstelle Bad Mergentheim"
+   },
+   {
+    "bufaNr": "2853",
+    "name": "Finanzamt Balingen"
+   },
+   {
+    "bufaNr": "2854",
+    "name": "Finanzamt Biberach"
+   },
+   {
+    "bufaNr": "2855",
+    "name": "Finanzamt Bietigheim-Bissingen"
+   },
+   {
+    "bufaNr": "2856",
+    "name": "Finanzamt Böblingen"
+   },
+   {
+    "bufaNr": "2857",
+    "name": "Finanzamt Schwäbisch Hall Außenstelle Crailsheim"
+   },
+   {
+    "bufaNr": "2858",
+    "name": "Finanzamt Ehingen"
+   },
+   {
+    "bufaNr": "2859",
+    "name": "Finanzamt Esslingen"
+   },
+   {
+    "bufaNr": "2861",
+    "name": "Finanzamt Friedrichshafen"
+   },
+   {
+    "bufaNr": "2862",
+    "name": "Finanzamt Göppingen Außenstelle Geislingen"
+   },
+   {
+    "bufaNr": "2863",
+    "name": "Finanzamt Göppingen"
+   },
+   {
+    "bufaNr": "2864",
+    "name": "Finanzamt Heidenheim"
+   },
+   {
+    "bufaNr": "2865",
+    "name": "Finanzamt Heilbronn"
+   },
+   {
+    "bufaNr": "2869",
+    "name": "Finanzamt Nürtingen Außenstelle Kirchheim"
+   },
+   {
+    "bufaNr": "2870",
+    "name": "Finanzamt Leonberg"
+   },
+   {
+    "bufaNr": "2871",
+    "name": "Finanzamt Ludwigsburg"
+   },
+   {
+    "bufaNr": "2874",
+    "name": "Finanzamt Nürtingen"
+   },
+   {
+    "bufaNr": "2876",
+    "name": "Finanzamt Öhringen"
+   },
+   {
+    "bufaNr": "2877",
+    "name": "Finanzamt Ravensburg"
+   },
+   {
+    "bufaNr": "2878",
+    "name": "Finanzamt Reutlingen"
+   },
+   {
+    "bufaNr": "2879",
+    "name": "Finanzamt Biberach Außenstelle Riedlingen"
+   },
+   {
+    "bufaNr": "2880",
+    "name": "Finanzamt Tauberbischofsheim"
+   },
+   {
+    "bufaNr": "2881",
+    "name": "Finanzamt Sigmaringen Außenstelle Bad Saulgau"
+   },
+   {
+    "bufaNr": "2882",
+    "name": "Finanzamt Schorndorf"
+   },
+   {
+    "bufaNr": "2883",
+    "name": "Finanzamt Schwäbisch Gmünd"
+   },
+   {
+    "bufaNr": "2884",
+    "name": "Finanzamt Schwäbisch Hall"
+   },
+   {
+    "bufaNr": "2885",
+    "name": "Finanzamt Sigmaringen"
+   },
+   {
+    "bufaNr": "2886",
+    "name": "Finanzamt Tübingen"
+   },
+   {
+    "bufaNr": "2887",
+    "name": "Finanzamt Überlingen (Bodensee)"
+   },
+   {
+    "bufaNr": "2888",
+    "name": "Finanzamt Ulm"
+   },
+   {
+    "bufaNr": "2889",
+    "name": "Finanzamt Bad Urach"
+   },
+   {
+    "bufaNr": "2890",
+    "name": "Finanzamt Waiblingen"
+   },
+   {
+    "bufaNr": "2891",
+    "name": "Finanzamt Wangen"
+   },
+   {
+    "bufaNr": "2892",
+    "name": "Finanzamt Stuttgart IV"
+   },
+   {
+    "bufaNr": "2893",
+    "name": "Finanzamt Stuttgart I"
+   },
+   {
+    "bufaNr": "2895",
+    "name": "Finanzamt Stuttgart II"
+   },
+   {
+    "bufaNr": "2896",
+    "name": "Finanzamt Stuttgart Zentrales Konzernprüfungsamt"
+   },
+   {
+    "bufaNr": "2897",
+    "name": "Finanzamt Stuttgart III"
+   },
+   {
+    "bufaNr": "2899",
+    "name": "Finanzamt Stuttgart-Körpersch."
+   }
+  ],
+  "Bayern (Zuständigkeit LfSt - München)": [
+   {
+    "bufaNr": "9101",
+    "name": "Finanzamt Augsburg-Stadt Arbeitnehmerbereich (101)"
+   },
+   {
+    "bufaNr": "9102",
+    "name": "Finanzamt Augsburg-Land"
+   },
+   {
+    "bufaNr": "9103",
+    "name": "Finanzamt Augsburg-Stadt (103)"
+   },
+   {
+    "bufaNr": "9104",
+    "name": "Finanzamt Wolfratshausen - Bad Tölz (104)"
+   },
+   {
+    "bufaNr": "9105",
+    "name": "Finanzamt Berchtesgaden-Laufen"
+   },
+   {
+    "bufaNr": "9106",
+    "name": "Finanzamt Burghausen"
+   },
+   {
+    "bufaNr": "9107",
+    "name": "Finanzamt Dachau"
+   },
+   {
+    "bufaNr": "9108",
+    "name": "Finanzamt Deggendorf"
+   },
+   {
+    "bufaNr": "9109",
+    "name": "Finanzamt Dillingen"
+   },
+   {
+    "bufaNr": "9110",
+    "name": "Finanzamt Dingolfing"
+   },
+   {
+    "bufaNr": "9111",
+    "name": "Finanzamt Nördlingen mit ASt Donauwörth (111)"
+   },
+   {
+    "bufaNr": "9112",
+    "name": "Finanzamt Ebersberg"
+   },
+   {
+    "bufaNr": "9113",
+    "name": "Finanzamt Eggenfelden"
+   },
+   {
+    "bufaNr": "9114",
+    "name": "Finanzamt Erding"
+   },
+   {
+    "bufaNr": "9115",
+    "name": "Finanzamt Freising"
+   },
+   {
+    "bufaNr": "9117",
+    "name": "Finanzamt Fürstenfeldbruck"
+   },
+   {
+    "bufaNr": "9119",
+    "name": "Finanzamt Garmisch-Partenkirchen"
+   },
+   {
+    "bufaNr": "9121",
+    "name": "Finanzamt Günzburg"
+   },
+   {
+    "bufaNr": "9123",
+    "name": "Finanzamt Kempten-Immenstadt (123)"
+   },
+   {
+    "bufaNr": "9124",
+    "name": "Finanzamt Ingolstadt"
+   },
+   {
+    "bufaNr": "9125",
+    "name": "Finanzamt Kaufbeuren m. ASt Füssen"
+   },
+   {
+    "bufaNr": "9126",
+    "name": "Finanzamt Kelheim"
+   },
+   {
+    "bufaNr": "9127",
+    "name": "Finanzamt Kempten-Immenstadt (127)"
+   },
+   {
+    "bufaNr": "9131",
+    "name": "Finanzamt Landsberg am Lech"
+   },
+   {
+    "bufaNr": "9132",
+    "name": "Finanzamt Landshut"
+   },
+   {
+    "bufaNr": "9134",
+    "name": "Finanzamt Lindau"
+   },
+   {
+    "bufaNr": "9138",
+    "name": "Finanzamt Memmingen-Mindelheim (138)"
+   },
+   {
+    "bufaNr": "9139",
+    "name": "Finanzamt Miesbach"
+   },
+   {
+    "bufaNr": "9140",
+    "name": "Finanzamt Memmingen-Mindelheim (140)"
+   },
+   {
+    "bufaNr": "9141",
+    "name": "Finanzamt Mühldorf"
+   },
+   {
+    "bufaNr": "9142",
+    "name": "Finanzamt München Bewertung des Grundbesitzes"
+   },
+   {
+    "bufaNr": "9143",
+    "name": "Finanzamt München (143) Körperschaften/PersonenGesellschaften"
+   },
+   {
+    "bufaNr": "9144",
+    "name": "Finanzamt München (144) Gewinneinkünfte"
+   },
+   {
+    "bufaNr": "9145",
+    "name": "Finanzamt München (145) Gewinneinkünfte"
+   },
+   {
+    "bufaNr": "9146",
+    "name": "Finanzamt München (146) Gewinneinkünfte"
+   },
+   {
+    "bufaNr": "9147",
+    "name": "Finanzamt München (147) Gewinneinkünfte"
+   },
+   {
+    "bufaNr": "9148",
+    "name": "Finanzamt München (148) Gewinneinkünfte"
+   },
+   {
+    "bufaNr": "9151",
+    "name": "Finanzamt Neu-Ulm"
+   },
+   {
+    "bufaNr": "9152",
+    "name": "Finanzamt Nördlingen mit ASt Donauwörth (152)"
+   },
+   {
+    "bufaNr": "9153",
+    "name": "Finanzamt Passau mit Außenstellen"
+   },
+   {
+    "bufaNr": "9154",
+    "name": "Finanzamt Pfaffenhofen"
+   },
+   {
+    "bufaNr": "9156",
+    "name": "Finanzamt Rosenheim m. ASt Wasserburg"
+   },
+   {
+    "bufaNr": "9157",
+    "name": "Finanzamt Grafenau"
+   },
+   {
+    "bufaNr": "9159",
+    "name": "Finanzamt Schrobenhausen m. ASt Neuburg"
+   },
+   {
+    "bufaNr": "9161",
+    "name": "Finanzamt Starnberg"
+   },
+   {
+    "bufaNr": "9162",
+    "name": "Finanzamt Straubing"
+   },
+   {
+    "bufaNr": "9163",
+    "name": "Finanzamt Traunstein"
+   },
+   {
+    "bufaNr": "9168",
+    "name": "Finanzamt Weilheim-Schongau"
+   },
+   {
+    "bufaNr": "9169",
+    "name": "Finanzamt Wolfratshausen - Bad Tölz (169)"
+   },
+   {
+    "bufaNr": "9170",
+    "name": "Finanzamt Zwiesel m. ASt Viechtach"
+   },
+   {
+    "bufaNr": "9171",
+    "name": "Finanzamt Eichstätt"
+   },
+   {
+    "bufaNr": "9181",
+    "name": "Finanzamt München (181) Überschusseinkünfte"
+   },
+   {
+    "bufaNr": "9182",
+    "name": "Finanzamt München (182) Überschusseinkünfte u. Beschränkt Steuerpfl."
+   },
+   {
+    "bufaNr": "9183",
+    "name": "Finanzamt München (183) Überschusseinkünfte"
+   },
+   {
+    "bufaNr": "9184",
+    "name": "Finanzamt München (184) Überschusseinkünfte"
+   },
+   {
+    "bufaNr": "9185",
+    "name": "Finanzamt München (185) Überschusseinkünfte"
+   }
+  ],
+  "Bayern (Zuständigkeit LfSt - Nürnberg)": [
+   {
+    "bufaNr": "9201",
+    "name": "Finanzamt Amberg"
+   },
+   {
+    "bufaNr": "9202",
+    "name": "Finanzamt Obernburg am Main mit Außenstelle Amorbach"
+   },
+   {
+    "bufaNr": "9203",
+    "name": "Finanzamt Mittelfranken-West (203) (bis 31.12.2025 FA Ansbach mit Außenstellen)"
+   },
+   {
+    "bufaNr": "9204",
+    "name": "Finanzamt Aschaffenburg"
+   },
+   {
+    "bufaNr": "9205",
+    "name": "Finanzamt Bad Kissingen"
+   },
+   {
+    "bufaNr": "9206",
+    "name": "Finanzamt Bad Neustadt a.d.S."
+   },
+   {
+    "bufaNr": "9207",
+    "name": "Finanzamt Bamberg"
+   },
+   {
+    "bufaNr": "9208",
+    "name": "Finanzamt Bayreuth"
+   },
+   {
+    "bufaNr": "9211",
+    "name": "Finanzamt Cham mit Außenstelle Bad Kötzting"
+   },
+   {
+    "bufaNr": "9212",
+    "name": "Finanzamt Coburg"
+   },
+   {
+    "bufaNr": "9216",
+    "name": "Finanzamt Mittelfranken-Ost (216) (bis 31.12.2025 FA Erlangen)"
+   },
+   {
+    "bufaNr": "9217",
+    "name": "Finanzamt Forchheim"
+   },
+   {
+    "bufaNr": "9218",
+    "name": "Finanzamt Mittelfranken-West (218) (bis 31.12.2025 FA Fürth)"
+   },
+   {
+    "bufaNr": "9220",
+    "name": "Finanzamt Mittelfranken-West (220) (bis 31.12.2025 FA Gunzenhausen)"
+   },
+   {
+    "bufaNr": "9221",
+    "name": "Finanzamt Mittelfranken-Ost (221) (bis 31.12.2025 FA Hersbruck)"
+   },
+   {
+    "bufaNr": "9222",
+    "name": "Finanzamt Mittelfranken-Ost (222) (bis 31.12.2025 FA Hilpoltstein)"
+   },
+   {
+    "bufaNr": "9223",
+    "name": "Finanzamt Hof mit Außenstellen"
+   },
+   {
+    "bufaNr": "9227",
+    "name": "Finanzamt Kitzingen"
+   },
+   {
+    "bufaNr": "9228",
+    "name": "Finanzamt Kronach"
+   },
+   {
+    "bufaNr": "9229",
+    "name": "Finanzamt Kulmbach"
+   },
+   {
+    "bufaNr": "9230",
+    "name": "Finanzamt Lichtenfels"
+   },
+   {
+    "bufaNr": "9231",
+    "name": "Finanzamt Lohr a. Main mit Außenstellen"
+   },
+   {
+    "bufaNr": "9232",
+    "name": "Finanzamt Lohr a. Main mit Außenstellen - Grunderwerbsteuer"
+   },
+   {
+    "bufaNr": "9235",
+    "name": "Finanzamt Neumarkt i.d.Opf."
+   },
+   {
+    "bufaNr": "9238",
+    "name": "Finanzamt Nürnberg (238) (bis 31.12.2025 FA Nürnberg-Nord)"
+   },
+   {
+    "bufaNr": "9240",
+    "name": "Finanzamt Nürnberg (240) (bis 31.12.2025 FA Nürnberg-Süd)"
+   },
+   {
+    "bufaNr": "9241",
+    "name": "Finanzamt Nürnberg (241) (bis 31.12.2025 FA Nürnberg-Zentral)"
+   },
+   {
+    "bufaNr": "9244",
+    "name": "Finanzamt Regensburg"
+   },
+   {
+    "bufaNr": "9247",
+    "name": "Finanzamt Mittelfranken-Ost (247) (bis 31.12.2025 FA Schwabach)"
+   },
+   {
+    "bufaNr": "9248",
+    "name": "Finanzamt Schwandorf mit Außenstelle Neunburg v. W."
+   },
+   {
+    "bufaNr": "9249",
+    "name": "Finanzamt Schweinfurt"
+   },
+   {
+    "bufaNr": "9252",
+    "name": "Finanzamt Mittelfranken-West (252) (bis 31.12.2025 FA Uffenheim)"
+   },
+   {
+    "bufaNr": "9254",
+    "name": "Finanzamt Waldsassen"
+   },
+   {
+    "bufaNr": "9255",
+    "name": "Finanzamt Weiden i.d.Opf."
+   },
+   {
+    "bufaNr": "9257",
+    "name": "Finanzamt Würzburg mit Außenstelle Ochsenfurt"
+   },
+   {
+    "bufaNr": "9258",
+    "name": "Finanzamt Wunsiedel mit Außenstelle Selb"
+   },
+   {
+    "bufaNr": "9259",
+    "name": "Finanzamt Zeil am Main mit Außenstelle Ebern"
+   }
+  ],
+  "Berlin": [
+   {
+    "bufaNr": "1113",
+    "name": "Finanzamt Charlottenburg"
+   },
+   {
+    "bufaNr": "1114",
+    "name": "Finanzamt Friedrichshain-Kreuzberg"
+   },
+   {
+    "bufaNr": "1115",
+    "name": "Finanzamt Berlin International"
+   },
+   {
+    "bufaNr": "1116",
+    "name": "Finanzamt Neukölln"
+   },
+   {
+    "bufaNr": "1117",
+    "name": "Finanzamt Reinickendorf"
+   },
+   {
+    "bufaNr": "1118",
+    "name": "Finanzamt Schöneberg"
+   },
+   {
+    "bufaNr": "1119",
+    "name": "Finanzamt Spandau"
+   },
+   {
+    "bufaNr": "1120",
+    "name": "Finanzamt Steglitz"
+   },
+   {
+    "bufaNr": "1121",
+    "name": "Finanzamt Tempelhof"
+   },
+   {
+    "bufaNr": "1123",
+    "name": "Finanzamt Wedding"
+   },
+   {
+    "bufaNr": "1124",
+    "name": "Finanzamt Wilmersdorf"
+   },
+   {
+    "bufaNr": "1125",
+    "name": "Finanzamt Zehlendorf"
+   },
+   {
+    "bufaNr": "1127",
+    "name": "Finanzamt für Körperschaften I"
+   },
+   {
+    "bufaNr": "1129",
+    "name": "Finanzamt für Körperschaften III"
+   },
+   {
+    "bufaNr": "1130",
+    "name": "Finanzamt für Körperschaften IV"
+   },
+   {
+    "bufaNr": "1131",
+    "name": "Finanzamt Prenzlauer Berg"
+   },
+   {
+    "bufaNr": "1132",
+    "name": "Finanzamt Lichtenberg"
+   },
+   {
+    "bufaNr": "1133",
+    "name": "Finanzamt Marzahn-Hellersdorf"
+   },
+   {
+    "bufaNr": "1134",
+    "name": "Finanzamt Mitte/Tiergarten"
+   },
+   {
+    "bufaNr": "1135",
+    "name": "Finanzamt Pankow/Weißensee"
+   },
+   {
+    "bufaNr": "1136",
+    "name": "Finanzamt Treptow-Köpenick"
+   },
+   {
+    "bufaNr": "1137",
+    "name": "Finanzamt für Körperschaften II"
+   },
+   {
+    "bufaNr": "1138",
+    "name": "Finanzamt für Fahndung und Strafsachen Berlin"
+   }
+  ],
+  "Brandenburg": [
+   {
+    "bufaNr": "3046",
+    "name": "Finanzamt Potsdam"
+   },
+   {
+    "bufaNr": "3048",
+    "name": "Finanzamt Brandenburg"
+   },
+   {
+    "bufaNr": "3049",
+    "name": "Finanzamt Königs Wusterhausen"
+   },
+   {
+    "bufaNr": "3050",
+    "name": "Finanzamt Luckenwalde"
+   },
+   {
+    "bufaNr": "3051",
+    "name": "Finanzamt Nauen"
+   },
+   {
+    "bufaNr": "3052",
+    "name": "Finanzamt Kyritz"
+   },
+   {
+    "bufaNr": "3053",
+    "name": "Finanzamt Oranienburg"
+   },
+   {
+    "bufaNr": "3056",
+    "name": "Finanzamt Cottbus"
+   },
+   {
+    "bufaNr": "3057",
+    "name": "Finanzamt Calau"
+   },
+   {
+    "bufaNr": "3061",
+    "name": "Finanzamt Frankfurt (Oder)"
+   },
+   {
+    "bufaNr": "3062",
+    "name": "Finanzamt Angermünde"
+   },
+   {
+    "bufaNr": "3064",
+    "name": "Finanzamt Strausberg"
+   },
+   {
+    "bufaNr": "3065",
+    "name": "Finanzamt Eberswalde"
+   }
+  ],
+  "Bremen": [
+   {
+    "bufaNr": "2457",
+    "name": "Finanzamt Bremerhaven Bewertung Bremen"
+   },
+   {
+    "bufaNr": "2460",
+    "name": "Finanzamt Bremen"
+   },
+   {
+    "bufaNr": "2475",
+    "name": "Finanzamt Bremerhaven"
+   },
+   {
+    "bufaNr": "2477",
+    "name": "Finanzamt Bremerhaven Bewertung"
+   }
+  ],
+  "Hamburg": [
+   {
+    "bufaNr": "2210",
+    "name": "Finanzamt Hamburg für Verkehrst. und Grundbesitz (10)"
+   },
+   {
+    "bufaNr": "2216",
+    "name": "Finanzamt Hamburg für Verkehrst. und Grundbesitz (16)"
+   },
+   {
+    "bufaNr": "2217",
+    "name": "Finanzamt Hamburg-Nord (17)"
+   },
+   {
+    "bufaNr": "2220",
+    "name": "Finanzamt Hamburg für Verkehrst. und Grundbesitz (20)"
+   },
+   {
+    "bufaNr": "2227",
+    "name": "Finanzamt Hamburg für Großunternehmen in Hamburg"
+   },
+   {
+    "bufaNr": "2228",
+    "name": "Finanzamt Hamburg für Prüfungsd. und Strafsachen"
+   },
+   {
+    "bufaNr": "2235",
+    "name": "Finanzamt Hamburg für Verkehrst. und Grundbesitz (35)"
+   },
+   {
+    "bufaNr": "2241",
+    "name": "Finanzamt Hamburg-Altona"
+   },
+   {
+    "bufaNr": "2242",
+    "name": "Finanzamt Hamburg-Am Tierpark"
+   },
+   {
+    "bufaNr": "2243",
+    "name": "Finanzamt Hamburg-Barmbek-Uhlenhorst"
+   },
+   {
+    "bufaNr": "2244",
+    "name": "Finanzamt Hamburg-Ost (44)"
+   },
+   {
+    "bufaNr": "2245",
+    "name": "Finanzamt Hamburg-Eimsbüttel"
+   },
+   {
+    "bufaNr": "2246",
+    "name": "Finanzamt Hamburg-Hansa"
+   },
+   {
+    "bufaNr": "2247",
+    "name": "Finanzamt Hamburg-Harburg"
+   },
+   {
+    "bufaNr": "2248",
+    "name": "Finanzamt Hamburg-Mitte"
+   },
+   {
+    "bufaNr": "2249",
+    "name": "Finanzamt Hamburg-Nord (49)"
+   },
+   {
+    "bufaNr": "2250",
+    "name": "Finanzamt Hamburg-Oberalster"
+   },
+   {
+    "bufaNr": "2251",
+    "name": "Finanzamt Hamburg-Ost (51)"
+   }
+  ],
+  "Hessen": [
+   {
+    "bufaNr": "2601",
+    "name": "Finanzamt Alsfeld-Lauterbach Verwaltungsstelle Alsfeld"
+   },
+   {
+    "bufaNr": "2602",
+    "name": "Finanzamt Hersfeld-Rotenburg"
+   },
+   {
+    "bufaNr": "2603",
+    "name": "Finanzamt Bad Homburg vor der Höhe"
+   },
+   {
+    "bufaNr": "2604",
+    "name": "Finanzamt Rheingau-Taunus"
+   },
+   {
+    "bufaNr": "2605",
+    "name": "Finanzamt Bensheim"
+   },
+   {
+    "bufaNr": "2606",
+    "name": "Finanzamt Marburg-Biedenkopf Verwaltungsstelle Biedenkopf"
+   },
+   {
+    "bufaNr": "2607",
+    "name": "Finanzamt Darmstadt"
+   },
+   {
+    "bufaNr": "2608",
+    "name": "Finanzamt Dieburg"
+   },
+   {
+    "bufaNr": "2609",
+    "name": "Finanzamt Dillenburg"
+   },
+   {
+    "bufaNr": "2610",
+    "name": "Finanzamt Werra-Meißner Verwaltungsstelle Eschwege"
+   },
+   {
+    "bufaNr": "2611",
+    "name": "Finanzamt Korbach-Frankenberg Verwaltungsstelle Frankenberg"
+   },
+   {
+    "bufaNr": "2614",
+    "name": "Finanzamt Frankfurt am Main (014)"
+   },
+   {
+    "bufaNr": "2616",
+    "name": "Finanzamt Friedberg (Hessen)"
+   },
+   {
+    "bufaNr": "2618",
+    "name": "Finanzamt Fulda"
+   },
+   {
+    "bufaNr": "2619",
+    "name": "Finanzamt Gelnhausen"
+   },
+   {
+    "bufaNr": "2620",
+    "name": "Finanzamt Gießen"
+   },
+   {
+    "bufaNr": "2621",
+    "name": "Finanzamt Groß-Gerau"
+   },
+   {
+    "bufaNr": "2622",
+    "name": "Finanzamt Hanau"
+   },
+   {
+    "bufaNr": "2623",
+    "name": "Finanzamt Kassel (023)"
+   },
+   {
+    "bufaNr": "2624",
+    "name": "Finanzamt Schwalm-Eder Verwaltungsstelle Fritzlar"
+   },
+   {
+    "bufaNr": "2625",
+    "name": "Finanzamt Kassel (025)"
+   },
+   {
+    "bufaNr": "2626",
+    "name": "Finanzamt Kassel (026)"
+   },
+   {
+    "bufaNr": "2627",
+    "name": "Finanzamt Korbach-Frankenberg Verwaltungsstelle Korbach"
+   },
+   {
+    "bufaNr": "2628",
+    "name": "Finanzamt Langen"
+   },
+   {
+    "bufaNr": "2629",
+    "name": "Finanzamt Alsfeld-Lauterbach Verwaltungsstelle Lauterbach"
+   },
+   {
+    "bufaNr": "2630",
+    "name": "Finanzamt Limburg-Weilburg"
+   },
+   {
+    "bufaNr": "2631",
+    "name": "Finanzamt Marburg-Biedenkopf Verwaltungsstelle Marburg"
+   },
+   {
+    "bufaNr": "2632",
+    "name": "Finanzamt Schwalm-Eder Verwaltungsstelle Melsungen"
+   },
+   {
+    "bufaNr": "2633",
+    "name": "Finanzamt Michelstadt"
+   },
+   {
+    "bufaNr": "2634",
+    "name": "Finanzamt Nidda"
+   },
+   {
+    "bufaNr": "2636",
+    "name": "Finanzamt Hersfeld-Rotenburg (Grundstücksbewertung)"
+   },
+   {
+    "bufaNr": "2637",
+    "name": "Finanzamt Rheingau-Taunus (Grundstücksbewertung)"
+   },
+   {
+    "bufaNr": "2638",
+    "name": "Finanzamt Limburg-Weilburg (Grundstücksbewertung)"
+   },
+   {
+    "bufaNr": "2639",
+    "name": "Finanzamt Wetzlar"
+   },
+   {
+    "bufaNr": "2640",
+    "name": "Finanzamt Wiesbaden (040)"
+   },
+   {
+    "bufaNr": "2641",
+    "name": "Finanzamt Werra-Meißner Verwaltungsstelle Witzenhausen"
+   },
+   {
+    "bufaNr": "2642",
+    "name": "Finanzamt Schwalm-Eder Verwaltungsstelle Schwalmstadt"
+   },
+   {
+    "bufaNr": "2644",
+    "name": "Finanzamt Offenbach am Main (044)"
+   },
+   {
+    "bufaNr": "2645",
+    "name": "Finanzamt Frankfurt am Main (045)"
+   },
+   {
+    "bufaNr": "2646",
+    "name": "Finanzamt Hofheim am Taunus"
+   }
+  ],
+  "Mecklenburg-Vorpommern": [
+   {
+    "bufaNr": "4070",
+    "name": "Finanzamt Neubrandenburg - RIA (Rentenempfänger im Ausland)"
+   },
+   {
+    "bufaNr": "4072",
+    "name": "Finanzamt Neubrandenburg"
+   },
+   {
+    "bufaNr": "4075",
+    "name": "Finanzamt Waren"
+   },
+   {
+    "bufaNr": "4079",
+    "name": "Finanzamt Rostock"
+   },
+   {
+    "bufaNr": "4080",
+    "name": "Finanzamt Wismar"
+   },
+   {
+    "bufaNr": "4081",
+    "name": "Finanzamt Ribnitz-Damgarten"
+   },
+   {
+    "bufaNr": "4082",
+    "name": "Finanzamt Stralsund"
+   },
+   {
+    "bufaNr": "4084",
+    "name": "Finanzamt Greifswald"
+   },
+   {
+    "bufaNr": "4086",
+    "name": "Finanzamt Güstrow"
+   },
+   {
+    "bufaNr": "4087",
+    "name": "Finanzamt Hagenow"
+   },
+   {
+    "bufaNr": "4090",
+    "name": "Finanzamt Schwerin"
+   }
+  ],
+  "Niedersachsen": [
+   {
+    "bufaNr": "2313",
+    "name": "Finanzamt Braunschweig-Helmstedt"
+   },
+   {
+    "bufaNr": "2314",
+    "name": "Finanzamt Braunschweig-Wilhelmstraße"
+   },
+   {
+    "bufaNr": "2315",
+    "name": "Finanzamt Buchholz in der Nordheide"
+   },
+   {
+    "bufaNr": "2316",
+    "name": "Finanzamt Burgdorf"
+   },
+   {
+    "bufaNr": "2317",
+    "name": "Finanzamt Celle"
+   },
+   {
+    "bufaNr": "2318",
+    "name": "Finanzamt Cuxhaven"
+   },
+   {
+    "bufaNr": "2319",
+    "name": "Finanzamt Gifhorn"
+   },
+   {
+    "bufaNr": "2320",
+    "name": "Finanzamt Göttingen"
+   },
+   {
+    "bufaNr": "2321",
+    "name": "Finanzamt Goslar-Bad Gandersheim"
+   },
+   {
+    "bufaNr": "2322",
+    "name": "Finanzamt Hameln-Holzminden"
+   },
+   {
+    "bufaNr": "2323",
+    "name": "Finanzamt Hannover-Land I"
+   },
+   {
+    "bufaNr": "2324",
+    "name": "Finanzamt Hannover-Mitte"
+   },
+   {
+    "bufaNr": "2325",
+    "name": "Finanzamt Hannover-Nord"
+   },
+   {
+    "bufaNr": "2326",
+    "name": "Finanzamt Hannover-Süd"
+   },
+   {
+    "bufaNr": "2327",
+    "name": "Finanzamt Hannover-Land II"
+   },
+   {
+    "bufaNr": "2328",
+    "name": "Finanzamt Helmstedt"
+   },
+   {
+    "bufaNr": "2330",
+    "name": "Finanzamt Hildesheim-Alfeld"
+   },
+   {
+    "bufaNr": "2333",
+    "name": "Finanzamt Lüneburg"
+   },
+   {
+    "bufaNr": "2334",
+    "name": "Finanzamt Nienburg/Weser"
+   },
+   {
+    "bufaNr": "2335",
+    "name": "Finanzamt Northeim-Herzberg am Harz"
+   },
+   {
+    "bufaNr": "2336",
+    "name": "Finanzamt Osterholz-Scharmbeck"
+   },
+   {
+    "bufaNr": "2338",
+    "name": "Finanzamt Peine"
+   },
+   {
+    "bufaNr": "2340",
+    "name": "Finanzamt Rotenburg (Wümme)"
+   },
+   {
+    "bufaNr": "2341",
+    "name": "Finanzamt Soltau"
+   },
+   {
+    "bufaNr": "2343",
+    "name": "Finanzamt Stade"
+   },
+   {
+    "bufaNr": "2344",
+    "name": "Finanzamt Stadthagen"
+   },
+   {
+    "bufaNr": "2345",
+    "name": "Finanzamt Sulingen"
+   },
+   {
+    "bufaNr": "2346",
+    "name": "Finanzamt Syke"
+   },
+   {
+    "bufaNr": "2347",
+    "name": "Finanzamt Uelzen-Lüchow"
+   },
+   {
+    "bufaNr": "2348",
+    "name": "Finanzamt Verden  (Aller)"
+   },
+   {
+    "bufaNr": "2349",
+    "name": "Finanzamt Wesermünde"
+   },
+   {
+    "bufaNr": "2350",
+    "name": "Finanzamt Winsen (Luhe)"
+   },
+   {
+    "bufaNr": "2351",
+    "name": "Finanzamt Wolfenbüttel"
+   },
+   {
+    "bufaNr": "2352",
+    "name": "Finanzamt Zeven"
+   },
+   {
+    "bufaNr": "2353",
+    "name": "Finanzamt Papenburg"
+   },
+   {
+    "bufaNr": "2354",
+    "name": "Finanzamt Aurich-Wittmund"
+   },
+   {
+    "bufaNr": "2355",
+    "name": "Finanzamt Bad Bentheim"
+   },
+   {
+    "bufaNr": "2356",
+    "name": "Finanzamt Cloppenburg"
+   },
+   {
+    "bufaNr": "2357",
+    "name": "Finanzamt Delmenhorst"
+   },
+   {
+    "bufaNr": "2358",
+    "name": "Finanzamt Emden-Norden"
+   },
+   {
+    "bufaNr": "2360",
+    "name": "Finanzamt Leer (Ostfriesland)"
+   },
+   {
+    "bufaNr": "2361",
+    "name": "Finanzamt Lingen (Ems)"
+   },
+   {
+    "bufaNr": "2363",
+    "name": "Finanzamt Nordenham"
+   },
+   {
+    "bufaNr": "2364",
+    "name": "Finanzamt Oldenburg (Oldb)"
+   },
+   {
+    "bufaNr": "2365",
+    "name": "Finanzamt Osnabrück-Land"
+   },
+   {
+    "bufaNr": "2366",
+    "name": "Finanzamt Osnabrück-Stadt"
+   },
+   {
+    "bufaNr": "2367",
+    "name": "Finanzamt Quakenbrück"
+   },
+   {
+    "bufaNr": "2368",
+    "name": "Finanzamt Vechta"
+   },
+   {
+    "bufaNr": "2369",
+    "name": "Finanzamt Westerstede"
+   },
+   {
+    "bufaNr": "2370",
+    "name": "Finanzamt Wilhelmshaven"
+   },
+   {
+    "bufaNr": "2390",
+    "name": "Finanzamt für Fahndung und Strafsachen Braunschweig"
+   },
+   {
+    "bufaNr": "2391",
+    "name": "Finanzamt Hannover für Fahndung und Strafsachen"
+   },
+   {
+    "bufaNr": "2392",
+    "name": "Finanzamt Lüneburg für Fahndung und Strafsachen"
+   },
+   {
+    "bufaNr": "2393",
+    "name": "Finanzamt Oldenburg für Fahndung und Strafsachen"
+   }
+  ],
+  "Nordrhein-Westfalen (51)": [
+   {
+    "bufaNr": "5101",
+    "name": "Finanzamt Dinslaken"
+   },
+   {
+    "bufaNr": "5102",
+    "name": "Finanzamt Viersen"
+   },
+   {
+    "bufaNr": "5103",
+    "name": "Finanzamt Düsseldorf-Altstadt"
+   },
+   {
+    "bufaNr": "5105",
+    "name": "Finanzamt Düsseldorf-Nord"
+   },
+   {
+    "bufaNr": "5106",
+    "name": "Finanzamt Düsseldorf-Süd"
+   },
+   {
+    "bufaNr": "5107",
+    "name": "Finanzamt Duisburg-Hamborn"
+   },
+   {
+    "bufaNr": "5109",
+    "name": "Finanzamt Duisburg-Süd"
+   },
+   {
+    "bufaNr": "5111",
+    "name": "Finanzamt Essen-NordOst"
+   },
+   {
+    "bufaNr": "5112",
+    "name": "Finanzamt Essen-Süd"
+   },
+   {
+    "bufaNr": "5113",
+    "name": "Finanzamt Geldern"
+   },
+   {
+    "bufaNr": "5114",
+    "name": "Finanzamt Grevenbroich"
+   },
+   {
+    "bufaNr": "5115",
+    "name": "Finanzamt Kempen"
+   },
+   {
+    "bufaNr": "5116",
+    "name": "Finanzamt Kleve"
+   },
+   {
+    "bufaNr": "5117",
+    "name": "Finanzamt Krefeld"
+   },
+   {
+    "bufaNr": "5119",
+    "name": "Finanzamt Kamp-Lintfort"
+   },
+   {
+    "bufaNr": "5120",
+    "name": "Finanzamt Mülheim an der Ruhr"
+   },
+   {
+    "bufaNr": "5121",
+    "name": "Finanzamt Mönchengladbach"
+   },
+   {
+    "bufaNr": "5122",
+    "name": "Finanzamt Neuss"
+   },
+   {
+    "bufaNr": "5123",
+    "name": "Finanzamt Oberhausen-Nord"
+   },
+   {
+    "bufaNr": "5124",
+    "name": "Finanzamt Oberhausen-Süd"
+   },
+   {
+    "bufaNr": "5126",
+    "name": "Finanzamt Remscheid"
+   },
+   {
+    "bufaNr": "5128",
+    "name": "Finanzamt Solingen"
+   },
+   {
+    "bufaNr": "5130",
+    "name": "Finanzamt Wesel"
+   },
+   {
+    "bufaNr": "5131",
+    "name": "Finanzamt Wuppertal-Barmen"
+   },
+   {
+    "bufaNr": "5132",
+    "name": "Finanzamt Wuppertal-Elberfeld"
+   },
+   {
+    "bufaNr": "5133",
+    "name": "Finanzamt Düsseldorf-Mitte"
+   },
+   {
+    "bufaNr": "5134",
+    "name": "Finanzamt Duisburg-West"
+   },
+   {
+    "bufaNr": "5135",
+    "name": "Finanzamt Hilden"
+   },
+   {
+    "bufaNr": "5139",
+    "name": "Finanzamt Velbert"
+   },
+   {
+    "bufaNr": "5147",
+    "name": "Finanzamt Düsseldorf-Mettmann"
+   }
+  ],
+  "Nordrhein-Westfalen (52)": [
+   {
+    "bufaNr": "5201",
+    "name": "Finanzamt Aachen-Stadt"
+   },
+   {
+    "bufaNr": "5202",
+    "name": "Finanzamt Aachen-Kreis"
+   },
+   {
+    "bufaNr": "5203",
+    "name": "Finanzamt Bergheim"
+   },
+   {
+    "bufaNr": "5204",
+    "name": "Finanzamt Bergisch Gladbach"
+   },
+   {
+    "bufaNr": "5205",
+    "name": "Finanzamt Bonn-Innenstadt"
+   },
+   {
+    "bufaNr": "5206",
+    "name": "Finanzamt Bonn-Außenstadt"
+   },
+   {
+    "bufaNr": "5207",
+    "name": "Finanzamt Düren"
+   },
+   {
+    "bufaNr": "5208",
+    "name": "Finanzamt Erkelenz"
+   },
+   {
+    "bufaNr": "5209",
+    "name": "Finanzamt Euskirchen"
+   },
+   {
+    "bufaNr": "5210",
+    "name": "Finanzamt Geilenkirchen"
+   },
+   {
+    "bufaNr": "5211",
+    "name": "Finanzamt Schleiden"
+   },
+   {
+    "bufaNr": "5212",
+    "name": "Finanzamt Gummersbach"
+   },
+   {
+    "bufaNr": "5213",
+    "name": "Finanzamt Jülich"
+   },
+   {
+    "bufaNr": "5214",
+    "name": "Finanzamt Köln-Altstadt"
+   },
+   {
+    "bufaNr": "5215",
+    "name": "Finanzamt Köln-Mitte"
+   },
+   {
+    "bufaNr": "5216",
+    "name": "Finanzamt Köln-Porz"
+   },
+   {
+    "bufaNr": "5217",
+    "name": "Finanzamt Köln-Nord"
+   },
+   {
+    "bufaNr": "5218",
+    "name": "Finanzamt Köln-Ost"
+   },
+   {
+    "bufaNr": "5219",
+    "name": "Finanzamt Köln-Süd"
+   },
+   {
+    "bufaNr": "5220",
+    "name": "Finanzamt Siegburg"
+   },
+   {
+    "bufaNr": "5221",
+    "name": "Finanzamt Wipperfürth"
+   },
+   {
+    "bufaNr": "5222",
+    "name": "Finanzamt Sankt Augustin"
+   },
+   {
+    "bufaNr": "5223",
+    "name": "Finanzamt Köln-West"
+   },
+   {
+    "bufaNr": "5224",
+    "name": "Finanzamt Brühl"
+   },
+   {
+    "bufaNr": "5230",
+    "name": "Finanzamt Leverkusen"
+   }
+  ],
+  "Nordrhein-Westfalen (53)": [
+   {
+    "bufaNr": "5301",
+    "name": "Finanzamt Ahaus"
+   },
+   {
+    "bufaNr": "5302",
+    "name": "Finanzamt Altena"
+   },
+   {
+    "bufaNr": "5303",
+    "name": "Finanzamt Arnsberg"
+   },
+   {
+    "bufaNr": "5304",
+    "name": "Finanzamt Beckum"
+   },
+   {
+    "bufaNr": "5305",
+    "name": "Finanzamt Bielefeld-Innenstadt"
+   },
+   {
+    "bufaNr": "5306",
+    "name": "Finanzamt Bochum-Mitte"
+   },
+   {
+    "bufaNr": "5307",
+    "name": "Finanzamt Borken"
+   },
+   {
+    "bufaNr": "5308",
+    "name": "Finanzamt Bottrop"
+   },
+   {
+    "bufaNr": "5309",
+    "name": "Finanzamt Brilon"
+   },
+   {
+    "bufaNr": "5310",
+    "name": "Finanzamt Bünde"
+   },
+   {
+    "bufaNr": "5311",
+    "name": "Finanzamt Steinfurt"
+   },
+   {
+    "bufaNr": "5312",
+    "name": "Finanzamt Coesfeld"
+   },
+   {
+    "bufaNr": "5313",
+    "name": "Finanzamt Detmold"
+   },
+   {
+    "bufaNr": "5314",
+    "name": "Finanzamt Dortmund-West"
+   },
+   {
+    "bufaNr": "5315",
+    "name": "Finanzamt Dortmund-Hörde"
+   },
+   {
+    "bufaNr": "5316",
+    "name": "Finanzamt Dortmund-Unna"
+   },
+   {
+    "bufaNr": "5317",
+    "name": "Finanzamt Dortmund-Ost"
+   },
+   {
+    "bufaNr": "5319",
+    "name": "Finanzamt Gelsenkirchen"
+   },
+   {
+    "bufaNr": "5321",
+    "name": "Finanzamt Hagen"
+   },
+   {
+    "bufaNr": "5322",
+    "name": "Finanzamt Hamm"
+   },
+   {
+    "bufaNr": "5323",
+    "name": "Finanzamt Hattingen"
+   },
+   {
+    "bufaNr": "5324",
+    "name": "Finanzamt Herford"
+   },
+   {
+    "bufaNr": "5325",
+    "name": "Finanzamt Herne"
+   },
+   {
+    "bufaNr": "5326",
+    "name": "Finanzamt Höxter"
+   },
+   {
+    "bufaNr": "5327",
+    "name": "Finanzamt Ibbenbüren"
+   },
+   {
+    "bufaNr": "5328",
+    "name": "Finanzamt Iserlohn"
+   },
+   {
+    "bufaNr": "5329",
+    "name": "Finanzamt Lemgo"
+   },
+   {
+    "bufaNr": "5330",
+    "name": "Finanzamt Lippstadt"
+   },
+   {
+    "bufaNr": "5331",
+    "name": "Finanzamt Lübbecke"
+   },
+   {
+    "bufaNr": "5332",
+    "name": "Finanzamt Lüdenscheid"
+   },
+   {
+    "bufaNr": "5333",
+    "name": "Finanzamt Lüdinghausen"
+   },
+   {
+    "bufaNr": "5334",
+    "name": "Finanzamt Meschede"
+   },
+   {
+    "bufaNr": "5335",
+    "name": "Finanzamt Minden"
+   },
+   {
+    "bufaNr": "5336",
+    "name": "Finanzamt Münster-Außenstadt"
+   },
+   {
+    "bufaNr": "5337",
+    "name": "Finanzamt Münster-Innenstadt"
+   },
+   {
+    "bufaNr": "5338",
+    "name": "Finanzamt Olpe"
+   },
+   {
+    "bufaNr": "5339",
+    "name": "Finanzamt Paderborn"
+   },
+   {
+    "bufaNr": "5340",
+    "name": "Finanzamt Recklinghausen"
+   },
+   {
+    "bufaNr": "5341",
+    "name": "Finanzamt Schwelm"
+   },
+   {
+    "bufaNr": "5342",
+    "name": "Finanzamt Siegen"
+   },
+   {
+    "bufaNr": "5343",
+    "name": "Finanzamt Soest"
+   },
+   {
+    "bufaNr": "5345",
+    "name": "Finanzamt Warburg"
+   },
+   {
+    "bufaNr": "5346",
+    "name": "Finanzamt Warendorf"
+   },
+   {
+    "bufaNr": "5347",
+    "name": "Finanzamt Wiedenbrück"
+   },
+   {
+    "bufaNr": "5348",
+    "name": "Finanzamt Witten"
+   },
+   {
+    "bufaNr": "5349",
+    "name": "Finanzamt Bielefeld-Außenstadt"
+   },
+   {
+    "bufaNr": "5350",
+    "name": "Finanzamt Bochum-Süd"
+   },
+   {
+    "bufaNr": "5351",
+    "name": "Finanzamt Gütersloh"
+   },
+   {
+    "bufaNr": "5359",
+    "name": "Finanzamt Marl"
+   },
+   {
+    "bufaNr": "5380",
+    "name": "Finanzamt Landesamt zur Bekämpfung der Finanzkriminalität (LBF NRW)"
+   }
+  ],
+  "Rheinland-Pfalz": [
+   {
+    "bufaNr": "2701",
+    "name": "Finanzamt Bad Neuenahr-Ahrweiler"
+   },
+   {
+    "bufaNr": "2702",
+    "name": "Finanzamt Altenkirchen-Hachenburg"
+   },
+   {
+    "bufaNr": "2706",
+    "name": "Finanzamt Bad Kreuznach"
+   },
+   {
+    "bufaNr": "2708",
+    "name": "Finanzamt Bingen-Alzey"
+   },
+   {
+    "bufaNr": "2709",
+    "name": "Finanzamt Idar-Oberstein"
+   },
+   {
+    "bufaNr": "2710",
+    "name": "Finanzamt Bitburg-Prüm"
+   },
+   {
+    "bufaNr": "2719",
+    "name": "Finanzamt Kaiserslautern"
+   },
+   {
+    "bufaNr": "2722",
+    "name": "Finanzamt Koblenz"
+   },
+   {
+    "bufaNr": "2723",
+    "name": "Finanzamt Kusel-Landstuhl"
+   },
+   {
+    "bufaNr": "2724",
+    "name": "Finanzamt Landau"
+   },
+   {
+    "bufaNr": "2726",
+    "name": "Finanzamt Mainz"
+   },
+   {
+    "bufaNr": "2727",
+    "name": "Finanzamt Ludwigshafen"
+   },
+   {
+    "bufaNr": "2729",
+    "name": "Finanzamt Mayen"
+   },
+   {
+    "bufaNr": "2730",
+    "name": "Finanzamt Montabaur-Diez"
+   },
+   {
+    "bufaNr": "2731",
+    "name": "Finanzamt Neustadt"
+   },
+   {
+    "bufaNr": "2732",
+    "name": "Finanzamt Neuwied"
+   },
+   {
+    "bufaNr": "2734",
+    "name": "Finanzamt Kusel-Landstuhl für Erb/Schenk.St. Saarland"
+   },
+   {
+    "bufaNr": "2735",
+    "name": "Finanzamt Pirmasens"
+   },
+   {
+    "bufaNr": "2740",
+    "name": "Finanzamt Simmern-Zell"
+   },
+   {
+    "bufaNr": "2741",
+    "name": "Finanzamt Speyer-Germersheim"
+   },
+   {
+    "bufaNr": "2742",
+    "name": "Finanzamt Trier"
+   },
+   {
+    "bufaNr": "2743",
+    "name": "Finanzamt Wittlich"
+   },
+   {
+    "bufaNr": "2744",
+    "name": "Finanzamt Worms-Kirchheimbolanden"
+   }
+  ],
+  "Saarland": [
+   {
+    "bufaNr": "1010",
+    "name": "Finanzamt Saarlouis"
+   },
+   {
+    "bufaNr": "1020",
+    "name": "Finanzamt Merzig"
+   },
+   {
+    "bufaNr": "1030",
+    "name": "Finanzamt Neunkirchen"
+   },
+   {
+    "bufaNr": "1040",
+    "name": "Finanzamt Saarbrücken I"
+   },
+   {
+    "bufaNr": "1055",
+    "name": "Finanzamt Saarbrücken II"
+   },
+   {
+    "bufaNr": "1060",
+    "name": "Finanzamt St. Wendel"
+   },
+   {
+    "bufaNr": "1075",
+    "name": "Finanzamt Homburg"
+   },
+   {
+    "bufaNr": "1085",
+    "name": "Finanzamt Homburg - Außenst. St. Ingbert"
+   }
+  ],
+  "Sachsen": [
+   {
+    "bufaNr": "3202",
+    "name": "Finanzamt Dresden-Nord"
+   },
+   {
+    "bufaNr": "3203",
+    "name": "Finanzamt Dresden-Süd"
+   },
+   {
+    "bufaNr": "3204",
+    "name": "Finanzamt Bautzen"
+   },
+   {
+    "bufaNr": "3207",
+    "name": "Finanzamt Görlitz"
+   },
+   {
+    "bufaNr": "3208",
+    "name": "Finanzamt Löbau"
+   },
+   {
+    "bufaNr": "3209",
+    "name": "Finanzamt Meißen"
+   },
+   {
+    "bufaNr": "3210",
+    "name": "Finanzamt Pirna"
+   },
+   {
+    "bufaNr": "3213",
+    "name": "Finanzamt Hoyerswerda"
+   },
+   {
+    "bufaNr": "3214",
+    "name": "Finanzamt Chemnitz-Süd"
+   },
+   {
+    "bufaNr": "3215",
+    "name": "Finanzamt Chemnitz-Mitte"
+   },
+   {
+    "bufaNr": "3217",
+    "name": "Finanzamt Annaberg"
+   },
+   {
+    "bufaNr": "3218",
+    "name": "Finanzamt Schwarzenberg"
+   },
+   {
+    "bufaNr": "3220",
+    "name": "Finanzamt Freiberg"
+   },
+   {
+    "bufaNr": "3222",
+    "name": "Finanzamt Mittweida"
+   },
+   {
+    "bufaNr": "3223",
+    "name": "Finanzamt Plauen"
+   },
+   {
+    "bufaNr": "3224",
+    "name": "Finanzamt Stollberg"
+   },
+   {
+    "bufaNr": "3227",
+    "name": "Finanzamt Zwickau"
+   },
+   {
+    "bufaNr": "3228",
+    "name": "Finanzamt Zschopau"
+   },
+   {
+    "bufaNr": "3231",
+    "name": "Finanzamt Leipzig II"
+   },
+   {
+    "bufaNr": "3232",
+    "name": "Finanzamt Leipzig I"
+   },
+   {
+    "bufaNr": "3236",
+    "name": "Finanzamt Döbeln"
+   },
+   {
+    "bufaNr": "3237",
+    "name": "Finanzamt Eilenburg"
+   },
+   {
+    "bufaNr": "3238",
+    "name": "Finanzamt Grimma"
+   },
+   {
+    "bufaNr": "3239",
+    "name": "Finanzamt Oschatz"
+   }
+  ],
+  "Sachsen-Anhalt": [
+   {
+    "bufaNr": "3102",
+    "name": "Finanzamt Magdeburg"
+   },
+   {
+    "bufaNr": "3103",
+    "name": "Finanzamt Genthin"
+   },
+   {
+    "bufaNr": "3105",
+    "name": "Finanzamt Haldensleben"
+   },
+   {
+    "bufaNr": "3106",
+    "name": "Finanzamt Salzwedel"
+   },
+   {
+    "bufaNr": "3107",
+    "name": "Finanzamt Staßfurt"
+   },
+   {
+    "bufaNr": "3108",
+    "name": "Finanzamt Stendal"
+   },
+   {
+    "bufaNr": "3110",
+    "name": "Finanzamt Halle (Saale)"
+   },
+   {
+    "bufaNr": "3112",
+    "name": "Finanzamt Merseburg"
+   },
+   {
+    "bufaNr": "3114",
+    "name": "Finanzamt Dessau-Roßlau"
+   },
+   {
+    "bufaNr": "3115",
+    "name": "Finanzamt Wittenberg"
+   },
+   {
+    "bufaNr": "3116",
+    "name": "Finanzamt Bitterfeld-Wolfen"
+   },
+   {
+    "bufaNr": "3117",
+    "name": "Finanzamt Quedlinburg"
+   },
+   {
+    "bufaNr": "3118",
+    "name": "Finanzamt Eisleben"
+   },
+   {
+    "bufaNr": "3119",
+    "name": "Finanzamt Naumburg"
+   }
+  ],
+  "Schleswig-Holstein": [
+   {
+    "bufaNr": "2111",
+    "name": "Finanzamt Bad Segeberg"
+   },
+   {
+    "bufaNr": "2113",
+    "name": "Finanzamt Elmshorn"
+   },
+   {
+    "bufaNr": "2115",
+    "name": "Finanzamt Flensburg"
+   },
+   {
+    "bufaNr": "2116",
+    "name": "Finanzamt Dithmarschen"
+   },
+   {
+    "bufaNr": "2117",
+    "name": "Finanzamt Nordfriesland"
+   },
+   {
+    "bufaNr": "2118",
+    "name": "Finanzamt Itzehoe"
+   },
+   {
+    "bufaNr": "2120",
+    "name": "Finanzamt Kiel"
+   },
+   {
+    "bufaNr": "2122",
+    "name": "Finanzamt Lübeck"
+   },
+   {
+    "bufaNr": "2124",
+    "name": "Finanzamt Neumünster"
+   },
+   {
+    "bufaNr": "2125",
+    "name": "Finanzamt Ostholstein"
+   },
+   {
+    "bufaNr": "2126",
+    "name": "Finanzamt Plön"
+   },
+   {
+    "bufaNr": "2127",
+    "name": "Finanzamt Ratzeburg"
+   },
+   {
+    "bufaNr": "2128",
+    "name": "Finanzamt Rendsburg"
+   },
+   {
+    "bufaNr": "2129",
+    "name": "Finanzamt Eckernförde-Schleswig"
+   },
+   {
+    "bufaNr": "2130",
+    "name": "Finanzamt Stormarn"
+   },
+   {
+    "bufaNr": "2131",
+    "name": "Finanzamt Pinneberg"
+   },
+   {
+    "bufaNr": "2137",
+    "name": "Finanzamt Zentrale Prüfungsdienste"
+   },
+   {
+    "bufaNr": "2171",
+    "name": "Finanzamt Bad Segeberg Bewertung für Grundsteuer 71"
+   },
+   {
+    "bufaNr": "2172",
+    "name": "Finanzamt Eckernförde-Schleswig Bewertung für Grundsteuer 72"
+   },
+   {
+    "bufaNr": "2173",
+    "name": "Finanzamt Elmshorn Bewertung für Grundsteuer 73"
+   },
+   {
+    "bufaNr": "2175",
+    "name": "Finanzamt Flensburg Bewertung für Grundsteuer 75"
+   },
+   {
+    "bufaNr": "2176",
+    "name": "Finanzamt Dithmarschen Bewertung für Grundsteuer 76"
+   },
+   {
+    "bufaNr": "2177",
+    "name": "Finanzamt Nordfriesland Bewertung für Grundsteuer 77"
+   },
+   {
+    "bufaNr": "2178",
+    "name": "Finanzamt Itzehoe Bewertung für Grundsteuer 78"
+   },
+   {
+    "bufaNr": "2179",
+    "name": "Finanzamt Kiel Bewertung für Grundsteuer 79"
+   },
+   {
+    "bufaNr": "2180",
+    "name": "Finanzamt Kiel Bewertung für Grundsteuer 80"
+   },
+   {
+    "bufaNr": "2181",
+    "name": "Finanzamt Nordfriesland Bewertung für Grundsteuer 81"
+   },
+   {
+    "bufaNr": "2182",
+    "name": "Finanzamt Lübeck Bewertung für Grundsteuer 82"
+   },
+   {
+    "bufaNr": "2183",
+    "name": "Finanzamt Dithmarschen Bewertung für Grundsteuer 83"
+   },
+   {
+    "bufaNr": "2184",
+    "name": "Finanzamt Neumünster Bewertung für Grundsteuer 84"
+   },
+   {
+    "bufaNr": "2185",
+    "name": "Finanzamt Ostholstein Bewertung für Grundsteuer 85"
+   },
+   {
+    "bufaNr": "2186",
+    "name": "Finanzamt Plön Bewertung für Grundsteuer 86"
+   },
+   {
+    "bufaNr": "2187",
+    "name": "Finanzamt Ratzeburg Bewertung für Grundsteuer 87"
+   },
+   {
+    "bufaNr": "2188",
+    "name": "Finanzamt Rendsburg Bewertung für Grundsteuer 88"
+   },
+   {
+    "bufaNr": "2189",
+    "name": "Finanzamt Eckernförde-Schleswig Bewertung für Grundsteuer 89"
+   },
+   {
+    "bufaNr": "2190",
+    "name": "Finanzamt Stormarn Bewertung für Grundsteuer 90"
+   },
+   {
+    "bufaNr": "2191",
+    "name": "Finanzamt Pinneberg Bewertung für Grundsteuer 91"
+   }
+  ],
+  "Thüringen": [
+   {
+    "bufaNr": "4151",
+    "name": "Finanzamt Erfurt"
+   },
+   {
+    "bufaNr": "4154",
+    "name": "Finanzamt Ilmenau"
+   },
+   {
+    "bufaNr": "4155",
+    "name": "Finanzamt Eisenach"
+   },
+   {
+    "bufaNr": "4156",
+    "name": "Finanzamt Gotha"
+   },
+   {
+    "bufaNr": "4157",
+    "name": "Finanzamt Mühlhausen"
+   },
+   {
+    "bufaNr": "4159",
+    "name": "Finanzamt Sondershausen"
+   },
+   {
+    "bufaNr": "4161",
+    "name": "Finanzamt Gera"
+   },
+   {
+    "bufaNr": "4162",
+    "name": "Finanzamt Jena"
+   },
+   {
+    "bufaNr": "4165",
+    "name": "Finanzamt Pößneck"
+   },
+   {
+    "bufaNr": "4166",
+    "name": "Finanzamt Altenburg"
+   },
+   {
+    "bufaNr": "4170",
+    "name": "Finanzamt Südthüringen (170)"
+   },
+   {
+    "bufaNr": "4171",
+    "name": "Finanzamt Südthüringen (171)"
+   }
+  ]
+ }
+}

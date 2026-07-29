@@ -86,6 +86,13 @@ function validate(xml, datenartVersion) {
 function submit(xml, datenartVersion) {
   return callWorker('submit', { xml, datenartVersion });
 }
+function validateFields(fields) {
+  // fields: { taxId?, iban?, bic? } - only the keys present get checked
+  return callWorker('validateFields', fields);
+}
+function getFinanzaemter() {
+  return callWorker('finanzaemter', {});
+}
 
 /* start the worker as soon as this module is required by server.js.
    If ERIC_HOME is not configured (e.g. local dev without the package),
@@ -97,4 +104,4 @@ if (process.env.ERIC_HOME) {
   console.log('[eric-service] ERIC_HOME not set - ERiC features disabled (routes will return 501)');
 }
 
-module.exports = { validate, submit, isReady, getInitError };
+module.exports = { validate, submit, validateFields, getFinanzaemter, isReady, getInitError };

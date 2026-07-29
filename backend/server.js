@@ -9,6 +9,8 @@ const jwt = require('jsonwebtoken');
 const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const ericService = require('./eric/eric-service');
+const { buildEStXML } = require('./eric/xml-builder');
 
 const { DATABASE_URL, JWT_SECRET, ALLOWED_ORIGIN = 'https://dvag-sunil.github.io', PORT = 3000 } = process.env;
 if (!DATABASE_URL || !JWT_SECRET) { console.error('Missing DATABASE_URL or JWT_SECRET in .env'); process.exit(1); }
@@ -345,6 +347,135 @@ app.post('/api/payments/verify', auth, async (req, res) => {
 });
 
 /* ---------- Belege (documents) ---------- */
+/* ---------- ERiC integration (Phase 5) ---------- */
+/* Stage 1 (raw client -> "simplytax-interchange" JSON) already runs
+   client-side via buildElsterDataset(c) in index.html - see that
+   function's own comment: "handover format for the ERiC backend
+   adapter". These two routes are that adapter's other half: Stage 2
+   (interchange JSON -> real XML) runs here via xml-builder.js, then the
+   isolated eric-worker.js process (see eric-service.js) calls the actual
+   ERiC library. A crash inside that native library can never take this
+   API down - eric-service.js detects it and restarts the worker. */
+
+/* Lightweight real-time field validation - checks a single field (or a
+   few) against ERiC's own checksum validators, WITHOUT needing a full
+   client/XML. Meant to be called from the wizard as the user types
+   (e.g. onblur on the Steuer-ID / IBAN fields), catching a typo'd but
+   still-11-digit ID before the user ever reaches payment. */
+/* Admin/export route - fetches the full official Finanzamt directory
+   live from ERiC. Not called by the wizard on every keystroke (that
+   would depend on the backend being awake and ERiC configured for a
+   purely informational lookup) - used instead by a one-time export
+   script (see tools/export-finanzaemter.js) that generates a static
+   JSON file bundled with the frontend. Re-run the export whenever the
+   directory needs refreshing (ELSTER updates this rarely). */
+app.get('/api/eric/finanzaemter', auth, async (req, res) => {
+  if (!ericService.isReady()) {
+    return res.status(501).json({ error: 'eric_unavailable', detail: ericService.getInitError() });
+  }
+  try {
+    const result = await ericService.getFinanzaemter();
+    res.json(result);
+  } catch (e) {
+    console.error('[eric/finanzaemter]', e.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+app.post('/api/eric/validate-fields', auth, async (req, res) => {
+  if (!ericService.isReady()) {
+    return res.status(501).json({ error: 'eric_unavailable', detail: ericService.getInitError() });
+  }
+  const { taxId, iban, bic } = req.body || {};
+  if (taxId == null && iban == null && bic == null) return res.status(400).json({ error: 'invalid_input' });
+  try {
+    const result = await ericService.validateFields({ taxId, iban, bic });
+    res.json(result);
+  } catch (e) {
+    console.error('[eric/validate-fields]', e.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+app.post('/api/eric/validate', auth, async (req, res) => {
+  if (!ericService.isReady()) {
+    return res.status(501).json({ error: 'eric_unavailable', detail: ericService.getInitError() });
+  }
+  const { clientId, interchangeData } = req.body || {};
+  if (!clientId || !interchangeData) return res.status(400).json({ error: 'invalid_input' });
+  try {
+    const { xml, skippedSections } = buildEStXML(interchangeData, {
+      herstellerID: process.env.ERIC_HERSTELLER_ID,
+    });
+    const result = await ericService.validate(xml, 'ESt_' + (interchangeData.meta?.taxYear || 2025));
+    audit(req.user.sub, 'eric_validate', { clientId, rc: result.rc, ok: result.rc === 0 });
+    res.json({
+      ok: result.rc === 0,
+      rc: result.rc,
+      resultXml: result.resultXml,
+      skippedSections,
+    });
+  } catch (e) {
+    console.error('[eric/validate]', e.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+/* Submission requires: payment already completed for this client, AND an
+   explicit § 87d Freigabe confirmation in the request body (the actual
+   Freigabe UI - showing the user their final data and capturing this
+   confirmation with a timestamp - is a separate, not-yet-built frontend
+   piece; this route enforces that the flag is present, it does not itself
+   constitute compliant Freigabe UX). */
+app.post('/api/eric/submit', auth, async (req, res) => {
+  if (!ericService.isReady()) {
+    return res.status(501).json({ error: 'eric_unavailable', detail: ericService.getInitError() });
+  }
+  const { clientId, interchangeData, freigabeConfirmed } = req.body || {};
+  if (!clientId || !interchangeData) return res.status(400).json({ error: 'invalid_input' });
+  if (!freigabeConfirmed) return res.status(400).json({ error: 'freigabe_required' });
+
+  const { rows } = await pool.query('SELECT data FROM clients WHERE id=$1 AND user_id=$2', [clientId, req.user.sub]);
+  if (!rows.length) return res.status(404).json({ error: 'not_found' });
+  const stored = rows[0].data;
+  if (!stored.pay || stored.pay.status !== 'paid') {
+    return res.status(402).json({ error: 'payment_required' });
+  }
+
+  try {
+    const { xml, skippedSections } = buildEStXML(interchangeData, {
+      herstellerID: process.env.ERIC_HERSTELLER_ID,
+    });
+    const result = await ericService.submit(xml, 'ESt_' + (interchangeData.meta?.taxYear || 2025));
+    audit(req.user.sub, 'eric_submit', { clientId, rc: result.rc, sent: result.sent });
+
+    if (result.sent) {
+      /* Transferticket extraction from result.serverXml is left as a TODO -
+         the real server response format has not been seen yet (blocked on
+         the Hersteller-ID for a real accepted submission as of this
+         writing). Once a real success response is available, parse the
+         Transferticket out of serverXml here and store it on the client
+         record (transferTicket field, already present in the interchange
+         meta block). */
+      await pool.query(
+        `UPDATE clients SET data = jsonb_set(data, '{status}', '"submitted"') WHERE id=$1 AND user_id=$2`,
+        [clientId, req.user.sub]
+      );
+    }
+
+    res.json({
+      ok: result.sent,
+      rc: result.rc,
+      resultXml: result.resultXml,
+      serverXml: result.serverXml,
+      skippedSections,
+    });
+  } catch (e) {
+    console.error('[eric/submit]', e.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
 app.post('/api/docs', auth, async (req, res) => {
   if (!storageOn()) return res.status(501).json({ error: 'storage_disabled' });
   const { id, dataUrl } = req.body || {};
