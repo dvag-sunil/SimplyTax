@@ -1355,6 +1355,13 @@ function incTotals(c){
  return a; },
  {gross:0,wageTax:0,soli:0,church:0,paid:0,kistSA:0,ersatz:0,fahrtA:0,fahrtB:0,rv:0,kv:0,pv:0,avA:0,avB:0,pkv:0,agKV:0,agPKV:0,agPV:0});
 }
+// Anlage R: taxable share by start year (§ 22 incl. WtChG: 2005=50%, +2pp to 2020, +1pp to 2022, +0.5pp after)
+// Shared at top level (not local to computeEstimate) so buildElsterDataset uses the EXACT same
+// formula when exporting for ERiC - avoids two copies of this drifting apart.
+const rentePct = sy => { sy=parseInt(sy)||2005;
+ if(sy<=2005) return 50; if(sy<=2020) return 50+2*(sy-2005);
+ if(sy<=2022) return 80+(sy-2020); return Math.min(100, 82+0.5*(sy-2022)); };
+
 function computeEstimate(c){
  const year = c.taxYear || 2025;
  const inc = incTotals(c);
@@ -1463,10 +1470,6 @@ function computeEstimate(c){
  const wageBaseA=(c.emps||[]).reduce((a,x)=>a+(x.person==='B'?0:Math.max(0,N(x.gross)-N(x.vb8))),0);
  const wageBaseB=(c.emps||[]).reduce((a,x)=>a+(x.person==='B'?Math.max(0,N(x.gross)-N(x.vb8)):0),0);
  const aeb = aebFor(c.p.birthDate, wageBaseA) + (joint ? aebFor(c.p.spouseBirth, wageBaseB) : 0);
- // Anlage R: taxable share by start year (§ 22 incl. WtChG: 2005=50%, +2pp to 2020, +1pp to 2022, +0.5pp after)
- const rentePct = sy => { sy=parseInt(sy)||2005;
- if(sy<=2005) return 50; if(sy<=2020) return 50+2*(sy-2005);
- if(sy<=2022) return 80+(sy-2020); return Math.min(100, 82+0.5*(sy-2022)); };
  const renteAgg=(c.rente||[]).reduce((a,r)=>{ const amt=N(r.amount); if(amt<=0) return a;
  const pct = r.type==='privat' ? Math.min(100,Math.max(0,N(r.pct))) : rentePct(r.startYear);
  a.taxable += amt*pct/100; a.persons.add(r.person==='B'?'B':'A'); return a; },
@@ -2852,7 +2855,15 @@ function buildElsterDataset(c){
  anlageV:(c.props||[]).map(p=>({ objekt:p.address, mieteinnahmen:N(p.rent), werbungskosten:N(p.costs),
  ergebnis:N(p.rent)-N(p.costs) })),
  anlageR:(c.rente||[]).map(r=>({ person:r.person==='B'?'B':'A', art:r.type||'gesetzlich',
- jahresbetrag:N(r.amount), rentenbeginn:r.startYear||'', ertragsanteilProzent:r.type==='privat'?N(r.pct):null })),
+ jahresbetrag:N(r.amount), rentenbeginn:r.startYear||'',
+ /* FIXED: was backwards (sent percentage only for privat). The real ERiC
+ schema has the taxable percentage field under /R/Leibr_gesetzl only -
+ private Leibrenten use an automatic age-based table with no percentage
+ field in the schema at all. gesetzlich's percentage is the SAME
+ auto-computed value already used for the app's own calculation
+ (rentePct, now shared at top level) - not a separately user-entered
+ figure, since the wizard never asks for one for gesetzlich. */
+ ertragsanteilProzent:(r.type||'gesetzlich')==='gesetzlich'?rentePct(r.startYear):null })),
  par35cEnergetisch:{ aufwendungen:N(c.oth.energCost), foerderjahr:c.oth.energStage||'' },
  weitereAngaben:{ ersatzleistungen:N(c.oth.ersatz), verlustvortrag:N(c.oth.lossCarry),
  realsplittingAnlageU:Math.min(N(c.oth.realsplitting),13805),
