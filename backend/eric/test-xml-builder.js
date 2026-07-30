@@ -40,6 +40,9 @@ const sample = {
     { vorname: '', geburtsdatum: '', kinship: 'stiefkind', betreuungskosten: 0 }, // deliberately incomplete - must be skipped
   ],
   anlageUnterhalt: { betrag: 3600, laendergruppe: '1' },
+  anlageNAUS: [
+    { person: 'A', arbeitgeberName: 'Muster GmbH', land: 'Schweiz', gesamtlohn: 60000, arbeitstageGesamt: 220, arbeitstageAusland: 90, steuerfreierBetrag: 24545.45 },
+  ],
 };
 
 const { xml, skippedSections } = buildEStXML(sample, { herstellerID: '99999' });
@@ -96,6 +99,12 @@ check('second child (missing name/birthdate) correctly SKIPPED, not sent incompl
 
 // Anlage Unterhalt - also newly wired in
 check('support payment written', xml.includes('<E0125007>3600,00</E0125007>'));
+
+// Anlage N-AUS - newly wired, was collected by the calculator but never exported before
+check('N-AUS country written', xml.includes('<E2601001>Schweiz</E2601001>'));
+check('N-AUS employer name written', xml.includes('<E2603101>Muster GmbH</E2603101>'));
+check('N-AUS final tax-free result matches the confirmed formula (60000, 90/220 -> 24545.45)', xml.includes('<E2604901>24545,45</E2604901>'));
+check('N-AUS employer address sub-fields correctly NOT written (no data source in the app)', !xml.includes('E2603201') && !xml.includes('E2603301'));
 
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);

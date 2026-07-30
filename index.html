@@ -2903,6 +2903,19 @@ function buildElsterDataset(c){
  zeile25_anGKV:N(k.anKV), zeile26_anPV:N(k.anPV), zeile27_anAV:N(k.anAV), zeile28_pkvMindest:N(k.pkv28),
  zeile29_bmgVersorgungsfreibetrag:N(k.bmg29), zeile30_versorgungsbeginn:k.vbJahr30||'',
  zeile31_monate:k.vbMon31||'', zeile32_sterbegeld:N(k.sterbe32), zeile34_dbaTuerkei:N(k.fb34) })),
+ /* Anlage N-AUS (foreign employment DBA calculator, c.aus[empId]) - was
+ collected by the calculator UI but never exported to the interchange
+ JSON before this fix. Only fields the app actually collects are sent -
+ employer address sub-fields have no data source anywhere in the app
+ (employer is a single free-text name field, no street/plz/city split)
+ and are deliberately NOT invented here. */
+ anlageNAUS:(c.emps||[]).filter(k=>c.aus && c.aus[k.id] && (N(c.aus[k.id].totalWage)>0)).map(k=>{
+ const a=c.aus[k.id];
+ return { person:k.person==='B'?'B':'A', arbeitgeberName:k.employer||'',
+ land:a.country||'', gesamtlohn:N(a.totalWage),
+ arbeitstageGesamt:parseInt(a.workDaysTotal)||0, arbeitstageAusland:parseInt(a.workDaysForeign)||0,
+ steuerfreierBetrag: (parseInt(a.workDaysTotal)>0) ? Math.round(N(a.totalWage)*(parseInt(a.workDaysForeign)||0)/parseInt(a.workDaysTotal)*100)/100 : 0 };
+ }),
  werbungskosten:{
  personA:{ entfernungspauschale:{ arbeitstage:N(c.wk.commuteDays), einfacheEntfernungKm:N(c.wk.commuteKm) },
  homeofficeTage:N(c.wk.homeOffice), arbeitsmittel:N(c.wk.equipment), fortbildung:N(c.wk.training),

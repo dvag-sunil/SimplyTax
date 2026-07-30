@@ -169,6 +169,38 @@ function buildAnlageN(data) {
 }
 
 /* =============================================================================
+   Anlage N-AUS - foreign employment DBA calculator. NEWLY WIRED IN (was
+   mapped in eric-fieldmap.js and collected by the app's calculator UI,
+   but never exported to the interchange JSON at all - a broken link
+   further upstream than the XML builder itself, not a missing builder).
+   SCOPE: only the fields the app actually collects are written -
+   employer address (street/plz/city/country) has no data source
+   anywhere in the app (employer is a single free-text name field) and
+   is deliberately NOT invented here. This is a smaller subset of the
+   already-deliberately-scoped N_AUS feature (see eric-fieldmap.js N_AUS
+   comment - the full official form has 82 fields, this covers the
+   common day-apportionment case only).
+============================================================================= */
+function buildNAUS(data) {
+  const entries = data.anlageNAUS || [];
+  if (!entries.length) return '';
+  let xml = '';
+  for (const a of entries) {
+    xml += '<N_AUS>\n';
+    if (a.land) xml += tag(fm.N_AUS.ausCountry, a.land);
+    if (a.arbeitgeberName) xml += tag(fm.N_AUS.ausEmployerName, a.arbeitgeberName);
+    xml += euroTag(fm.N_AUS.ausTotalWage, a.gesamtlohn);
+    if (a.arbeitstageGesamt) xml += tag(fm.N_AUS.ausWorkDaysTotal, String(a.arbeitstageGesamt));
+    if (a.arbeitstageAusland) xml += tag(fm.N_AUS.ausWorkDaysForeign, String(a.arbeitstageAusland));
+    xml += euroTag(fm.N_AUS.ausTaxFreeResult, a.steuerfreierBetrag);
+    /* employer address sub-fields (ausEmployerStreet/Plz/City/Country) -
+       deliberately NOT written, no data source in the app - see note above */
+    xml += '</N_AUS>\n';
+  }
+  return xml;
+}
+
+/* =============================================================================
    Vorsorgeaufwand - pension/insurance, including the routed employment lines
 ============================================================================= */
 function buildVOR(data) {
@@ -419,6 +451,7 @@ function buildEStXML(data, opts = {}) {
   let nutzdaten = `<E10 xmlns="http://finkonsens.de/elster/elstererklaerung/est/e10/v${year}" version="${year}">\n`;
   nutzdaten += buildESt1A(data);
   nutzdaten += buildAnlageN(data);
+  nutzdaten += buildNAUS(data);
   nutzdaten += buildVOR(data);
   nutzdaten += buildKAP(data);
   nutzdaten += buildR(data);
