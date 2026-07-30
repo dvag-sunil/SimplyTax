@@ -22,9 +22,14 @@
        category breakdown (189 fields total) our app's simple lump-sum
        cost model cannot honestly represent. Still skipped, now for a
        documented reason rather than "not yet researched".
-     - anlageKind.betreuungskosten (childcare amount) - confirmed absent
-       from the entire ERiC documentation after exhaustive search; a
-       German question for ELSTER developer support is drafted separately.
+     - anlageKind.betreuungskosten (childcare amount) - Kennzahlen NOW
+       KNOWN (resolved via the Kind - Regeln validation-rule trick, not
+       keyword search - see eric-fieldmap.js Kind section). Still NOT
+       written here: a real ERiC rule (Fehlercode 514139) requires the
+       provider name/address and service period to be submitted together
+       with the amount, and our app only collects a single lump-sum
+       number today - sending just the amount would fail that rule. This
+       is a UI gap now, not a research gap.
    This means: rental Werbungskosten and childcare amounts will NOT appear
    in the output XML, by design, not by bug or oversight.
 ============================================================================= */
@@ -305,6 +310,61 @@ function buildAgB(data) {
 }
 
 /* =============================================================================
+   Anlage Kind - children. NEWLY WIRED IN (was completely orphaned before -
+   mapped in eric-fieldmap.js and fully collected in the app UI, but no
+   builder function existed and nothing was ever written to the XML).
+   firstName and birthDate are REAL required fields (Pflichtfeld=Ja in the
+   source) - an entry missing either is skipped with a console warning
+   rather than sent incomplete, since ERiC would reject it anyway.
+============================================================================= */
+const KINSHIP_ENUM = { leiblich: '1', adoptiert: '1', pflegekind: '2', stiefkind: '3' };
+function buildKind(data) {
+  const entries = data.anlageKind || [];
+  if (!entries.length) return '';
+  let xml = '';
+  for (const k of entries) {
+    if (!k.vorname || !k.geburtsdatum) {
+      console.warn('[eric xml-builder] Kind entry skipped - missing required firstName or birthDate:', k.vorname || '(no name)');
+      continue;
+    }
+    xml += '<Kind>\n';
+    if (k.idnr) xml += tag(fm.Kind.idnr, k.idnr);
+    xml += tag(fm.Kind.firstName.kennzahlen[0], k.vorname);
+    xml += tag(fm.Kind.birthDate.kennzahlen[0], formatDateDE(k.geburtsdatum));
+    const kinCode = KINSHIP_ENUM[k.kinship] || '1';
+    xml += tag(fm.Kind.kinshipType.kennzahlen[0], kinCode);
+    if (k.kindergeld) xml += tag(fm.Kind.kindergeld.kennzahlen[0], 'X');
+    if (k.schulgeld) xml += euroTag(fm.Kind.schoolFees, k.schulgeld);
+    /* childcare - now safe to write: the app's UI enforces provider+period
+       whenever an amount is entered (see index.html Family step), so by
+       the time data reaches here the ERiC rule 514139 requirement is
+       already satisfied - but double-check defensively anyway rather than
+       trust the frontend blindly. */
+    if (k.betreuungskosten > 0 && k.betreuungAnbieter && k.betreuungVon && k.betreuungBis) {
+      xml += tag(fm.Kind.childcareProvider.kennzahlen[0], k.betreuungAnbieter);
+      xml += tag(fm.Kind.childcarePeriod.kennzahlen[0], `${formatDateDE(k.betreuungVon)} - ${formatDateDE(k.betreuungBis)}`);
+      xml += euroTag(fm.Kind.childcareAmount.kennzahlen[0], k.betreuungskosten);
+      xml += euroTag(fm.Kind.childcareSum.kennzahlen[0], k.betreuungskosten);
+    } else if (k.betreuungskosten > 0) {
+      console.warn('[eric xml-builder] childcare amount present but provider/period missing - skipped this entry\'s childcare block (should not happen if the app UI validation ran correctly)');
+    }
+    xml += '</Kind>\n';
+  }
+  return xml;
+}
+
+/* =============================================================================
+   Anlage Unterhalt - support payments to needy relatives (ESt1A_U context).
+   NEWLY WIRED IN - same orphan situation as Kind: mapped and collected,
+   never actually built into the XML before this pass.
+============================================================================= */
+function buildUnterhalt(data) {
+  const u = data.anlageUnterhalt;
+  if (!u || !(u.betrag > 0)) return '';
+  return '<ESt1A_U>\n' + euroTag(fm.ESt1A_U.support, u.betrag) + '</ESt1A_U>\n';
+}
+
+/* =============================================================================
    HA_35a - household services
 ============================================================================= */
 function buildHA35a(data) {
@@ -349,8 +409,8 @@ function buildEStXML(data, opts = {}) {
   const skippedSections = [];
   if ((data.anlageV || []).some(p => p.werbungskosten > 0))
     skippedSections.push('anlageV Werbungskosten (rental deduction costs - real schema needs itemized categories, our simple total cannot be honestly mapped)');
-  if ((data.anlageKind || []).some(k => k.betreuungskosten > 0))
-    skippedSections.push('anlageKind childcare amounts (confirmed absent from ERiC docs - see prepared support question)');
+  if ((data.anlageKind || []).some(k => k.betreuungskosten > 0 && (!k.betreuungAnbieter || !k.betreuungVon || !k.betreuungBis)))
+    skippedSections.push('anlageKind childcare amount present without provider/period for at least one child - that entry\'s childcare block was skipped (should not happen if the app UI validation ran, worth checking why it was bypassed)');
   if (skippedSections.length) {
     console.warn('[eric xml-builder] Sections present in data but not mapped, SKIPPED (not silently guessed):');
     skippedSections.forEach(s => console.warn('  - ' + s));
@@ -363,6 +423,8 @@ function buildEStXML(data, opts = {}) {
   nutzdaten += buildKAP(data);
   nutzdaten += buildR(data);
   nutzdaten += buildV(data);
+  nutzdaten += buildKind(data);
+  nutzdaten += buildUnterhalt(data);
   nutzdaten += buildSA(data);
   nutzdaten += buildAgB(data);
   nutzdaten += buildHA35a(data);

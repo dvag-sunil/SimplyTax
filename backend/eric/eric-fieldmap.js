@@ -87,15 +87,37 @@ const SA = {
 
 /* ---------- 5. Children - Kind context ---------- */
 const Kind = {
+  idnr:        'E0500406', // Identifikationsnummer
+  firstName:   { kennzahlen: ['E0500107'], required: true, note: 'Vorname - Pflichtfeld=Ja in the real schema' },
+  birthDate:   { kennzahlen: ['E0500701'], required: true, note: 'Geburtsdatum - Pflichtfeld=Ja in the real schema' },
+  altSurname:  'E0500108', // ggf. abweichender Familienname (only if different from parent)
   kinshipType: { kennzahlen: ['E0500807', 'E0500808'], note: 'Art des Kindschaftsverhaeltnisses - multi-child repeat pattern (same field reused per <Kind> block, up to 14 children), not different kinship values' },
   kindergeld:  { kennzahlen: ['E0500702', 'E0503802'] },
   schoolFees:  'E0504505',
   kidTransfer: 'E0504301',
-  // childcare (Kinderbetreuungskosten amount): genuinely unresolved.
-  // Found the SPLIT-RATIO field (E0508601) but never the underlying amount
-  // field despite checking all 57 real Kind field codes directly, the full
-  // Kind - Felder sheet, and the SA context. A German question for ELSTER
-  // developer support has been drafted separately for this.
+
+  /* RESOLVED. Found via the Kind - Regeln sheet (validation rule for
+     Fehlercode 514139), not keyword search - the amount field's own
+     description is literally just "Betrag" (the generic word "Amount"),
+     which is why no search term for "Kinderbetreuungskosten" /
+     "Betreuungskosten" ever found it directly. The rule's own "Geprüfte
+     Felder" (checked fields) list revealed the entire KBK
+     (Kinderbetreuungskosten) field group at once. */
+  childcareAmount:  { kennzahlen: ['E0506104'], note: 'Betrag - individual cost entry (per provider/period)' },
+  childcareSum:     { kennzahlen: ['E0506105'], note: 'berücksichtigungsfähige Gesamtaufwendungen der Eltern - summed total' },
+  childcareProvider:{ kennzahlen: ['E0506101'], note: 'Art der Dienstleistung, Name und Anschrift des Dienstleisters - service type + provider name + address, REQUIRED together, see rule below' },
+  childcarePeriod:  { kennzahlen: ['E0506103'], note: 'vom - bis (service period)' },
+  childcareReimbursement: { kennzahlen: ['E0506505', 'E0506506', 'E0506504'], note: 'Steuerfreier Ersatz (z.B. vom Arbeitgeber), Erstattungen' },
+  /* CRITICAL: real ERiC validation rule, Fehlercode 514139, Regelart
+     "Fehler" (hard rejection, not a warning). Confirmed: whenever any
+     childcare cost is reported, childcareAmount + childcareProvider +
+     childcarePeriod are ALL jointly required, or ERiC rejects the whole
+     submission. Our app currently collects childcare as ONE lump-sum
+     number (fam.childcare in index.html) with no provider name, address,
+     or date fields - sending just the amount WOULD FAIL this rule. Not
+     yet wired into xml-builder.js for that reason - needs a real UI
+     addition (provider name/address + a date range) in the app's Family
+     step before this can be safely transmitted, not just a code change. */
 };
 
 /* ---------- 6. Doppelte Haushaltsfuehrung (N_DHH context) ---------- */

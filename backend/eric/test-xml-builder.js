@@ -34,6 +34,12 @@ const sample = {
     { person: 'A', art: 'privat', jahresbetrag: 6000, rentenbeginn: '2020', ertragsanteilProzent: null },
   ],
   anlageV: [{ objekt: 'Musterstr. 5, 60000 Frankfurt', mieteinnahmen: 12000, werbungskosten: 4000, ergebnis: 8000 }],
+  anlageKind: [
+    { vorname: 'Lena', geburtsdatum: '2015-06-20', idnr: '98765432109', kinship: 'leiblich', kindergeld: 250,
+      betreuungskosten: 2400, betreuungAnbieter: 'Kita Sonnenschein', betreuungVon: '2025-01-01', betreuungBis: '2025-12-31', schulgeld: 0 },
+    { vorname: '', geburtsdatum: '', kinship: 'stiefkind', betreuungskosten: 0 }, // deliberately incomplete - must be skipped
+  ],
+  anlageUnterhalt: { betrag: 3600, laendergruppe: '1' },
 };
 
 const { xml, skippedSections } = buildEStXML(sample, { herstellerID: '99999' });
@@ -79,6 +85,17 @@ check('rental street address written', xml.includes('<E0700407>Musterstr. 5</E07
 check('rental income written (Einz and Sum)', xml.includes('<E0700201>12000,00</E0700201>') && xml.includes('<E0700206>12000,00</E0700206>'));
 check('rental Werbungskosten NOT written (documented scope gap, not a bug)', !xml.includes('4000,00'));
 check('skippedSections reports the rental costs gap', skippedSections.some(s => s.includes('Werbungskosten')));
+
+// Anlage Kind - newly wired in, was completely orphaned before
+check('child first name written (required field)', xml.includes('<E0500107>Lena</E0500107>'));
+check('child birthdate written, correctly formatted DD.MM.YYYY (required field)', xml.includes('<E0500701>20.06.2015</E0500701>'));
+check('child IdNr written', xml.includes('<E0500406>98765432109</E0500406>'));
+check('kinship enum correct (leiblich -> 1)', xml.includes('<E0500807>1</E0500807>'));
+check('complete childcare block written (provider+period+amount)', xml.includes('<E0506101>Kita Sonnenschein</E0506101>') && xml.includes('<E0506104>2400,00</E0506104>'));
+check('second child (missing name/birthdate) correctly SKIPPED, not sent incomplete', (xml.match(/<Kind>/g) || []).length === 1);
+
+// Anlage Unterhalt - also newly wired in
+check('support payment written', xml.includes('<E0125007>3600,00</E0125007>'));
 
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);

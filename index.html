@@ -424,6 +424,8 @@ en: {
  step1:"Personal data", step2:"Employment income", step3:"Insurance (Vorsorge)", step4:"Werbungskosten (work-related expenses)", step5:"Special expenses", step6:"Household & other", step7:"Review & submit",
  s1_lead:"Basic data for the main form (Hauptvordruck ESt 1 A).",
  birth_date:"Date of birth", tax_id:"Tax ID (IdNr, 11 digits)", tax_id_hint:"The personal Steuer-Identifikationsnummer.",
+ taxid_invalid_checksum:"This doesn't look like a valid Steuer-ID - please double-check the digits.",
+ taxid_valid_checksum:"Valid Steuer-ID",
  street:"Street", house_no:"No.", plz:"Postal code", city:"City",
  religion:"Church tax (religion)", rel_none:"None (no church tax)", rel_ev:"Protestant (EV)", rel_rk:"Catholic (RK)", rel_other:"Other",
  profession:"Profession", finanzamt:"Tax office (Finanzamt)", steuernummer:"Tax number (if available)",
@@ -679,6 +681,8 @@ de: {
  step1:"Persönliche Daten", step2:"Arbeitslohn", step3:"Vorsorgeaufwand", step4:"Werbungskosten", step5:"Sonderausgaben", step6:"Haushalt & Sonstiges", step7:"Prüfen & Absenden",
  s1_lead:"Grunddaten für den Hauptvordruck ESt 1 A.",
  birth_date:"Geburtsdatum", tax_id:"Steuer-ID (IdNr, 11 Ziffern)", tax_id_hint:"Die persönliche Steuer-Identifikationsnummer.",
+ taxid_invalid_checksum:"Das sieht nicht nach einer gültigen Steuer-ID aus - bitte die Ziffern noch einmal prüfen.",
+ taxid_valid_checksum:"Gültige Steuer-ID",
  street:"Straße", house_no:"Nr.", plz:"PLZ", city:"Ort",
  religion:"Kirchensteuer (Religion)", rel_none:"Keine (keine Kirchensteuer)", rel_ev:"Evangelisch (EV)", rel_rk:"Katholisch (RK)", rel_other:"Andere",
  profession:"Beruf", finanzamt:"Finanzamt", steuernummer:"Steuernummer (falls vorhanden)",
@@ -1972,6 +1976,33 @@ function upd(group,key,val,fmt){
  c[group][key]=val; c.updatedAt=Date.now();
  delete S.aiFields[group+'.'+key]; // user edited → no longer pure AI value
  scheduleSave(); render();
+ if(group==='p' && key==='taxId') checkTaxIdChecksum(val);
+}
+/* Real checksum validation via ERiC's own EricMtPruefeIdentifikationsMerkmal
+ (through the backend's /api/eric/validate-fields route) - catches a typo'd
+ but still-11-digit IdNr before payment/submission. Updates a SEPARATE
+ stable container directly, never calling the global render() from this
+ async callback - the same fix used for the Finanzamt search box, so this
+ never disrupts whatever the user is doing by the time the response comes
+ back. Degrades silently (no message) if the service isn't configured yet
+ (ERIC_HOME not set on the backend) - this is a nice-to-have improvement,
+ never a hard requirement, so its absence must never block the wizard. */
+let _taxIdCheckSeq = 0;
+async function checkTaxIdChecksum(val){
+ const digits=(val||'').replace(/\s/g,'');
+ const msgEl=()=>document.getElementById('taxid-check-msg');
+ if(!/^\d{11}$/.test(digits)){ const el=msgEl(); if(el) el.innerHTML=''; return; }
+ const seq = ++_taxIdCheckSeq;
+ try{
+ const r = await api('/api/eric/validate-fields','POST',{taxId:digits});
+ if(seq!==_taxIdCheckSeq) return; // a newer check superseded this one
+ const el=msgEl(); if(!el) return;
+ if(r && r.taxId && r.taxId.valid===false){
+ el.innerHTML = `<div class="hint" style="color:var(--red)">⚠ ${t('taxid_invalid_checksum')}</div>`;
+ } else if(r && r.taxId && r.taxId.valid===true){
+ el.innerHTML = `<div class="hint" style="color:var(--teal)">✓ ${t('taxid_valid_checksum')}</div>`;
+ }
+ } catch(e){ /* service unavailable - degrade silently, never block the wizard */ }
 }
 /* --- generic list items (employments, capital gains, properties) --- */
 function LF(list,item,field,label,opts={}){
@@ -2108,6 +2139,7 @@ function stepPersonal(c){
  ${F('p','firstName',t('first_name'))} ${F('p','lastName',t('last_name'))}
  ${F('p','birthDate',t('birth_date'),{type:'date'})}
  ${F('p','taxId',t('tax_id'),{ph:'12 345 678 901',hint:t('tax_id_hint')})}
+ <div id="taxid-check-msg"></div>
  </div>
  <div class="grid3">
  ${F('p','street',t('street'))} ${F('p','houseNo',t('house_no'))} ${F('p','plz',t('plz'))}
@@ -2859,6 +2891,7 @@ function buildElsterDataset(c){
  kategorie:INS_CAT[x.type]||'', beitrag:N(x.beitrag), erstattung:N(x.erstattung),
  netto:Math.max(0,N(x.beitrag)-N(x.erstattung)) })), sonstigeVersicherungen:N(c.ins.other) },
  anlageKind:(c.fam.children||[]).map(k=>({ vorname:k.name, geburtsdatum:k.birth, idnr:(k.taxId||'').replace(/\s/g,''),
+ kinship:k.kinship||'leiblich',
  kindergeld:N(k.kindergeld), betreuungskosten:N(k.childcare),
  betreuungAnbieter:k.ccProvider||'', betreuungVon:k.ccPeriodFrom||'', betreuungBis:k.ccPeriodTo||'',
  schulgeld:N(k.schoolFees) })),
