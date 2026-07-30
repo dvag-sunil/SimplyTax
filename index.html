@@ -468,6 +468,10 @@ en: {
  s_fam_lead:"Costs for children (Anlage Kind) and support payments to needy relatives - e.g., parents abroad (Anlage Unterhalt, § 33a EStG).",
  children_h:"Children", kids_count:"Number of children", childcare:"Childcare costs (per year, with invoices)", school_fees:"School fees (private school)",
  kids_hint:"2025: 80% deductible, max. €4,800 per child · 2023-2024: two thirds, max. €4,000 per child.",
+ cc_required_hint:"Because you entered a childcare cost, the tax office requires the provider's name/address and the service period to be reported too - these three fields below are now required.",
+ cc_provider:"Provider name & address", cc_provider_ph:"e.g. Kita Sonnenschein, Musterstr. 1, 60000 Frankfurt",
+ cc_period_from:"Service period - from", cc_period_to:"Service period - to",
+ err_cc_required:"Please fill in the provider name/address and the service period for the childcare costs you entered (required whenever an amount is filled in).",
  school_hint:"30% deductible, max. €5,000.",
  support_h:"Support for parents / relatives", support_amount:"Support paid (per year)", support_where:"Where does the supported person live?",
  grp1:"Germany / country group 1 (full maximum)", grp2:"Country group 2 (¾ of maximum)", grp3:"Country group 3 (½ of maximum, e.g. India)", grp4:"Country group 4 (¼ of maximum)",
@@ -719,6 +723,10 @@ de: {
  s_fam_lead:"Kosten für Kinder (Anlage Kind) und Unterhaltszahlungen an bedürftige Angehörige - z. B. Eltern im Ausland (Anlage Unterhalt, § 33a EStG).",
  children_h:"Kinder", kids_count:"Anzahl Kinder", childcare:"Kinderbetreuungskosten (pro Jahr, mit Rechnung)", school_fees:"Schulgeld (Privatschule)",
  kids_hint:"2025: 80 % absetzbar, max. 4.800 € je Kind · 2023-2024: zwei Drittel, max. 4.000 € je Kind.",
+ cc_required_hint:"Da Kinderbetreuungskosten eingetragen wurden, verlangt das Finanzamt auch Name/Anschrift des Anbieters und den Leistungszeitraum - diese drei Felder sind jetzt Pflichtfelder.",
+ cc_provider:"Name & Anschrift des Anbieters", cc_provider_ph:"z. B. Kita Sonnenschein, Musterstr. 1, 60000 Frankfurt",
+ cc_period_from:"Leistungszeitraum - von", cc_period_to:"Leistungszeitraum - bis",
+ err_cc_required:"Bitte Name/Anschrift des Anbieters und den Leistungszeitraum für die eingetragenen Kinderbetreuungskosten angeben (Pflichtfelder, sobald ein Betrag eingetragen ist).",
  school_hint:"30 % absetzbar, max. 5.000 €.",
  support_h:"Unterhalt für Eltern / Angehörige", support_amount:"Gezahlter Unterhalt (pro Jahr)", support_where:"Wo lebt die unterstützte Person?",
  grp1:"Deutschland / Ländergruppe 1 (voller Höchstbetrag)", grp2:"Ländergruppe 2 (¾ des Höchstbetrags)", grp3:"Ländergruppe 3 (½ des Höchstbetrags, z. B. Indien)", grp4:"Ländergruppe 4 (¼ des Höchstbetrags)",
@@ -1152,7 +1160,7 @@ function migrateClient(c){
  c.fam.children.forEach(k=>{ if(!k.kinship) k.kinship='leiblich'; });
  /* legacy: convert old lump-sum childcare/school fees into a first child entry */
  if(c.fam.children.length===0 && (N(c.fam.childcare)>0 || N(c.fam.schoolFees)>0)){
- c.fam.children.push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',kindergeld:'',childcare:c.fam.childcare,schoolFees:c.fam.schoolFees});
+ c.fam.children.push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',kindergeld:'',childcare:c.fam.childcare,ccProvider:'',ccPeriodFrom:'',ccPeriodTo:'',schoolFees:c.fam.schoolFees});
  c.fam.childcare=''; c.fam.schoolFees='';
  }
  c.docs = c.docs||[]; c.inq = c.inq||[];
@@ -2467,7 +2475,7 @@ function CF(kid,field,label,opts={}){
  <input data-tabkey="${tk}" type="${type}" value="${type==='date'?(esc(kid[field])||dateMax()):esc(kid[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
  onchange="updChild('${kid.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
-function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',kindergeld:'',childcare:'',schoolFees:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
+function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',kindergeld:'',childcare:'',ccProvider:'',ccPeriodFrom:'',ccPeriodTo:'',schoolFees:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function delChild(id){ const c=cur(); c.fam.children=(c.fam.children||[]).filter(k=>k.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function updChild(id,f,v,fmt){ v = validAmount(v, fmt); const c=cur(); const k=(c.fam.children||[]).find(x=>x.id===id); if(!k) return;
  if(fmt && String(v).trim()!=='') v=formatDE(N(v)); k[f]=v; c.updatedAt=Date.now(); scheduleSave(); render(); }
@@ -2493,6 +2501,14 @@ function stepFamily(c){
  ${CF(k,'childcare',t('childcare'),{euro:true,ph:'0,00 €',hint:t('kids_hint')})}
  ${CF(k,'schoolFees',t('school_fees'),{euro:true,ph:'0,00 €',hint:t('school_hint')})}
  </div>
+ ${N(k.childcare)>0?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
+ ⚠ ${t('cc_required_hint')}
+ </div>
+ <div class="grid3">
+ ${CF(k,'ccProvider',t('cc_provider')+' *',{ph:t('cc_provider_ph')})}
+ ${CF(k,'ccPeriodFrom',t('cc_period_from')+' *',{type:'date'})}
+ ${CF(k,'ccPeriodTo',t('cc_period_to')+' *',{type:'date'})}
+ </div>`:''}
  </div></div>`).join('');
  return `<h2>${t('step_fam')}</h2><p class="lead">${t('s_fam_lead')}</p>
  <div class="section-label">${t('children_h')}</div>
@@ -2641,6 +2657,10 @@ function submitElster(){
  if(!isPaid(c0)){ showPayModal(); return; }
  if(!/^\d{4}$/.test((c0.p.faNumber||'').trim())){ alert(t('err_fa')); S.step=0; render(); return; }
  if(!/^\d{11}$/.test((c0.p.taxId||'').replace(/\s/g,''))){ alert(t('err_taxid')); S.step=0; render(); return; }
+ /* childcare required-fields check (ERiC rule 514139: amount alone is
+ rejected without provider + service period once any amount is entered) */
+ const ccMissing = (c0.fam.children||[]).find(k => N(k.childcare)>0 && (!k.ccProvider||!k.ccPeriodFrom||!k.ccPeriodTo));
+ if(ccMissing){ alert(t('err_cc_required')); S.step=3; render(); return; }
  if(ERIC.enabled){ submitElsterReal(c0); return; }
  const faLine = `${t('submitting_to')}: <b>${esc(c0.p.faNumber)}</b> ${esc(c0.p.finanzamt||'')}`;
  const slot=document.getElementById('modal-slot');
@@ -2839,7 +2859,9 @@ function buildElsterDataset(c){
  kategorie:INS_CAT[x.type]||'', beitrag:N(x.beitrag), erstattung:N(x.erstattung),
  netto:Math.max(0,N(x.beitrag)-N(x.erstattung)) })), sonstigeVersicherungen:N(c.ins.other) },
  anlageKind:(c.fam.children||[]).map(k=>({ vorname:k.name, geburtsdatum:k.birth, idnr:(k.taxId||'').replace(/\s/g,''),
- kindergeld:N(k.kindergeld), betreuungskosten:N(k.childcare), schulgeld:N(k.schoolFees) })),
+ kindergeld:N(k.kindergeld), betreuungskosten:N(k.childcare),
+ betreuungAnbieter:k.ccProvider||'', betreuungVon:k.ccPeriodFrom||'', betreuungBis:k.ccPeriodTo||'',
+ schulgeld:N(k.schoolFees) })),
  anlageUnterhalt: N(c.fam.support)>0?{ betrag:N(c.fam.support), laendergruppe:c.fam.supportGroup }:null,
  sonderausgaben:{ spenden:N(c.sa.donations), sonstige:N(c.sa.other) },
  aussergewoehnlicheBelastungen:{ krankheitskosten:N(c.ex.medical) },
