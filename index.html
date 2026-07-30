@@ -429,6 +429,8 @@ en: {
  street:"Street", house_no:"No.", plz:"Postal code", city:"City",
  religion:"Church tax (religion)", rel_none:"None (no church tax)", rel_ev:"Protestant (EV)", rel_rk:"Catholic (RK)", rel_other:"Other",
  profession:"Profession", finanzamt:"Tax office (Finanzamt)", steuernummer:"Tax number (if available)",
+ stnr_invalid_checksum:"This doesn't look like a valid tax number for the selected Finanzamt - please double-check.",
+ stnr_valid_checksum:"Valid tax number",
  iban:"IBAN (for the refund)", spouse:"Spouse (Person B)",
  iban_invalid_checksum:"This doesn't look like a valid IBAN - please double-check.",
  iban_valid_checksum:"Valid IBAN",
@@ -688,6 +690,8 @@ de: {
  street:"Straße", house_no:"Nr.", plz:"PLZ", city:"Ort",
  religion:"Kirchensteuer (Religion)", rel_none:"Keine (keine Kirchensteuer)", rel_ev:"Evangelisch (EV)", rel_rk:"Katholisch (RK)", rel_other:"Andere",
  profession:"Beruf", finanzamt:"Finanzamt", steuernummer:"Steuernummer (falls vorhanden)",
+ stnr_invalid_checksum:"Das sieht nicht nach einer gültigen Steuernummer für das gewählte Finanzamt aus - bitte prüfen.",
+ stnr_valid_checksum:"Gültige Steuernummer",
  iban:"IBAN (für die Erstattung)", spouse:"Ehepartner/in (Person B)",
  iban_invalid_checksum:"Das sieht nicht nach einer gültigen IBAN aus - bitte noch einmal prüfen.",
  iban_valid_checksum:"Gültige IBAN",
@@ -1982,6 +1986,7 @@ function upd(group,key,val,fmt){
  scheduleSave(); render();
  if(group==='p' && key==='taxId') checkTaxIdChecksum(val);
  if(group==='p' && key==='iban') checkIbanChecksum(val);
+ if(group==='p' && (key==='steuernummer'||key==='faNumber')) checkSteuernummerChecksum();
 }
 /* Real IBAN checksum validation via ERiC's EricMtPruefeIBAN (through
  /api/eric/validate-fields) - same pattern and same safety properties as
@@ -2002,6 +2007,28 @@ async function checkIbanChecksum(val){
  el.innerHTML = `<div class="hint" style="color:var(--red)">⚠ ${t('iban_invalid_checksum')}</div>`;
  } else if(r && r.iban && r.iban.valid===true){
  el.innerHTML = `<div class="hint" style="color:var(--teal)">✓ ${t('iban_valid_checksum')}</div>`;
+ }
+ } catch(e){ /* service unavailable - degrade silently, never block the wizard */ }
+}
+/* Steuernummer needs the 4-digit Finanzamt number together with it (the
+ real ERiC function converts+validates using both) - so this fires when
+ EITHER field changes and reads both current values fresh each time. */
+let _stnrCheckSeq = 0;
+async function checkSteuernummerChecksum(){
+ const c=cur(); if(!c) return;
+ const stnr=(c.p.steuernummer||'').trim();
+ const bufaNr=(c.p.faNumber||'').trim();
+ const msgEl=()=>document.getElementById('stnr-check-msg');
+ if(!stnr || !/^\d{4}$/.test(bufaNr)){ const el=msgEl(); if(el) el.innerHTML=''; return; }
+ const seq = ++_stnrCheckSeq;
+ try{
+ const r = await api('/api/eric/validate-fields','POST',{steuernummer:stnr, bufaNr});
+ if(seq!==_stnrCheckSeq) return;
+ const el=msgEl(); if(!el) return;
+ if(r && r.steuernummer && r.steuernummer.valid===false){
+ el.innerHTML = `<div class="hint" style="color:var(--red)">⚠ ${t('stnr_invalid_checksum')}</div>`;
+ } else if(r && r.steuernummer && r.steuernummer.valid===true){
+ el.innerHTML = `<div class="hint" style="color:var(--teal)">✓ ${t('stnr_valid_checksum')}</div>`;
  }
  } catch(e){ /* service unavailable - degrade silently, never block the wizard */ }
 }
@@ -2188,6 +2215,7 @@ function stepPersonal(c){
  ${F('p','bundesland',t('bundesland'),{select:[['',t('select')],...BUNDESLAENDER.map(b=>[b,b])]})}
  ${finanzamtField(c)}
  ${F('p','steuernummer',t('steuernummer'))}
+ <div id="stnr-check-msg"></div>
  </div>
  ${F('p','iban',t('iban'),{ph:'DE00 0000 0000 0000 0000 00'})}
  <div id="iban-check-msg"></div>

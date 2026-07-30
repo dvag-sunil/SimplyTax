@@ -61,6 +61,15 @@ function init() {
     global.EricMtPruefeIBAN = lib.func('int EricMtPruefeIBAN(void* instanz, const char* iban)');
     global.EricMtPruefeBIC = lib.func('int EricMtPruefeBIC(void* instanz, const char* bic)');
 
+    /* Steuernummer: converts printed-format + 4-digit Finanzamt number into
+       the unified 13-digit ELSTER format AND validates it in one call
+       (confirmed from the real docs: "wird von der Funktion auch auf
+       Gueltigkeit geprueft"). landesnr is left empty since we always have
+       the 4-digit bundesfinanzamtsnr from the Finanzamt directory field. */
+    global.EricMtMakeElsterStnr = lib.func(
+      'int EricMtMakeElsterStnr(void* instanz, const char* steuernrBescheid, const char* landesnr, const char* bundesfinanzamtsnr, void* steuernrPuffer)'
+    );
+
     /* official Transferticket/error extraction from a server answer -
        replaces manual XML parsing with ERiC's own documented function */
     global.EricMtGetErrormessagesFromXMLAnswer = lib.func(
@@ -118,6 +127,16 @@ function handleValidateFields(msg) {
   if (msg.bic != null) {
     out.bic = { rc: global.EricMtPruefeBIC(instanz, String(msg.bic)) };
     out.bic.valid = out.bic.rc === 0;
+  }
+  if (msg.steuernummer != null) {
+    /* needs the 4-digit Finanzamt number too - bufaNr comes from the
+       app's already-populated faNumber field (via the Finanzamt directory) */
+    const bufaNr = msg.bufaNr ? String(msg.bufaNr) : '';
+    const outBuf = global.EricMtRueckgabepufferErzeugen(instanz);
+    const rc = global.EricMtMakeElsterStnr(instanz, String(msg.steuernummer), '', bufaNr, outBuf);
+    out.steuernummer = { rc, valid: rc === 0 };
+    if (rc === 0) out.steuernummer.elsterFormat = global.EricMtRueckgabepufferInhalt(instanz, outBuf) || null;
+    global.EricMtRueckgabepufferFreigeben(instanz, outBuf);
   }
   return out;
 }

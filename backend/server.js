@@ -386,10 +386,10 @@ app.post('/api/eric/validate-fields', auth, async (req, res) => {
   if (!ericService.isReady()) {
     return res.status(501).json({ error: 'eric_unavailable', detail: ericService.getInitError() });
   }
-  const { taxId, iban, bic } = req.body || {};
-  if (taxId == null && iban == null && bic == null) return res.status(400).json({ error: 'invalid_input' });
+  const { taxId, iban, bic, steuernummer, bufaNr } = req.body || {};
+  if (taxId == null && iban == null && bic == null && steuernummer == null) return res.status(400).json({ error: 'invalid_input' });
   try {
-    const result = await ericService.validateFields({ taxId, iban, bic });
+    const result = await ericService.validateFields({ taxId, iban, bic, steuernummer, bufaNr });
     res.json(result);
   } catch (e) {
     console.error('[eric/validate-fields]', e.message);
