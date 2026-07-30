@@ -430,6 +430,8 @@ en: {
  religion:"Church tax (religion)", rel_none:"None (no church tax)", rel_ev:"Protestant (EV)", rel_rk:"Catholic (RK)", rel_other:"Other",
  profession:"Profession", finanzamt:"Tax office (Finanzamt)", steuernummer:"Tax number (if available)",
  iban:"IBAN (for the refund)", spouse:"Spouse (Person B)",
+ iban_invalid_checksum:"This doesn't look like a valid IBAN - please double-check.",
+ iban_valid_checksum:"Valid IBAN",
  s2_lead:"Upload the Lohnsteuerbescheinigung - the app reads the values automatically. Please review every field before continuing.",
  upload_title:"Upload Lohnsteuerbescheinigung", upload_sub:"Drop a photo or PDF here, or click to choose a file",
  scanning:"Reading the document...", scan_ok:"Values captured automatically. Please check each field carefully - automatically filled fields are marked.",
@@ -687,6 +689,8 @@ de: {
  religion:"Kirchensteuer (Religion)", rel_none:"Keine (keine Kirchensteuer)", rel_ev:"Evangelisch (EV)", rel_rk:"Katholisch (RK)", rel_other:"Andere",
  profession:"Beruf", finanzamt:"Finanzamt", steuernummer:"Steuernummer (falls vorhanden)",
  iban:"IBAN (für die Erstattung)", spouse:"Ehepartner/in (Person B)",
+ iban_invalid_checksum:"Das sieht nicht nach einer gültigen IBAN aus - bitte noch einmal prüfen.",
+ iban_valid_checksum:"Gültige IBAN",
  s2_lead:"Lohnsteuerbescheinigung hochladen - die App liest die Werte automatisch aus. Bitte prüfen Sie jedes Feld, bevor Sie fortfahren.",
  upload_title:"Lohnsteuerbescheinigung hochladen", upload_sub:"Foto oder PDF hier ablegen oder klicken, um eine Datei zu wählen",
  scanning:"Dokument wird ausgelesen...", scan_ok:"Werte automatisch übernommen. Bitte prüfen Sie jedes Feld sorgfältig - automatisch ausgefüllte Felder sind markiert.",
@@ -1977,6 +1981,29 @@ function upd(group,key,val,fmt){
  delete S.aiFields[group+'.'+key]; // user edited → no longer pure AI value
  scheduleSave(); render();
  if(group==='p' && key==='taxId') checkTaxIdChecksum(val);
+ if(group==='p' && key==='iban') checkIbanChecksum(val);
+}
+/* Real IBAN checksum validation via ERiC's EricMtPruefeIBAN (through
+ /api/eric/validate-fields) - same pattern and same safety properties as
+ checkTaxIdChecksum: updates a separate stable container directly, never
+ calls the global render() from this async callback, and degrades
+ silently if the backend service isn't configured yet. */
+let _ibanCheckSeq = 0;
+async function checkIbanChecksum(val){
+ const iban=(val||'').replace(/\s/g,'').toUpperCase();
+ const msgEl=()=>document.getElementById('iban-check-msg');
+ if(iban.length<15){ const el=msgEl(); if(el) el.innerHTML=''; return; }
+ const seq = ++_ibanCheckSeq;
+ try{
+ const r = await api('/api/eric/validate-fields','POST',{iban});
+ if(seq!==_ibanCheckSeq) return;
+ const el=msgEl(); if(!el) return;
+ if(r && r.iban && r.iban.valid===false){
+ el.innerHTML = `<div class="hint" style="color:var(--red)">⚠ ${t('iban_invalid_checksum')}</div>`;
+ } else if(r && r.iban && r.iban.valid===true){
+ el.innerHTML = `<div class="hint" style="color:var(--teal)">✓ ${t('iban_valid_checksum')}</div>`;
+ }
+ } catch(e){ /* service unavailable - degrade silently, never block the wizard */ }
 }
 /* Real checksum validation via ERiC's own EricMtPruefeIdentifikationsMerkmal
  (through the backend's /api/eric/validate-fields route) - catches a typo'd
@@ -2163,6 +2190,7 @@ function stepPersonal(c){
  ${F('p','steuernummer',t('steuernummer'))}
  </div>
  ${F('p','iban',t('iban'),{ph:'DE00 0000 0000 0000 0000 00'})}
+ <div id="iban-check-msg"></div>
  ${married?`<div class="section-label">${t('spouse')}</div>
  <div class="grid2">
  ${F('p','spouseFirst',t('first_name'))} ${F('p','spouseLast',t('last_name'))}
