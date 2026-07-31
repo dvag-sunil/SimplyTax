@@ -1936,9 +1936,23 @@ function renderFaDropdown(query){
  const c=cur(); const land=c.p.bundesland;
  const slot=document.getElementById('fa-dropdown-slot'); if(!slot) return;
  if(_faDirectory===null){ loadFinanzamtDirectory().then(()=>renderFaDropdown(query)); return; }
- if(!_faDirectory || !land || !_faDirectory[land]){ slot.innerHTML=''; return; }
+ if(!_faDirectory || !land){ slot.innerHTML=''; return; }
+ /* CORRECTED: real bug found - ERiC's own directory splits some states
+    into multiple regional-authority entries rather than one entry per
+    Bundesland (e.g. "Bayern (Zuständigkeit LfSt - München)" and
+    "...Nürnberg)" for Bavaria's two regional tax offices; "Nordrhein-
+    Westfalen (51/52/53)" for NRW's three districts). A strict single-key
+    lookup found nothing for these states even though their data was
+    present, just filed under different keys. Now merges every directory
+    key that matches the selected state exactly OR starts with
+    "<state> (" - correctly finds Finanzämter in split states while
+    behaving exactly as before for the (majority of) states with a
+    single, unsplit entry. */
+ const matchingKeys = Object.keys(_faDirectory).filter(k => k === land || k.startsWith(land + ' ('));
+ if(!matchingKeys.length){ slot.innerHTML=''; return; }
+ const allEntries = matchingKeys.flatMap(k => _faDirectory[k]);
  const q=(query||'').toLowerCase();
- const matches=_faDirectory[land].filter(f=>!q || f.name.toLowerCase().includes(q)).slice(0,25);
+ const matches=allEntries.filter(f=>!q || f.name.toLowerCase().includes(q)).slice(0,25);
  if(matches.length){
  slot.innerHTML = `<div class="fa-dropdown">${matches.map(f=>
  `<div class="fa-option" onmousedown="selectFinanzamt('${esc(f.bufaNr)}','${esc(f.name).replace(/'/g,"\\'")}')">
