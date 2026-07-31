@@ -136,6 +136,27 @@ check('Vorsatz/Unterfallart is fixed at 10 for ESt', xml.includes('<Unterfallart
 check('Vorsatz/Vorgang is fixed at 01 (Veranlagung)', xml.includes('<Vorgang>01</Vorgang>'));
 check('Vorsatz appears as the last child of E10, right before it closes', /<\/Vorsatz>\s*<\/E10>/.test(xml));
 
+// ELEMENT ORDER matters strictly in XSD (xs:sequence) - a real regression
+// (ERIC_IO_READER_SCHEMA_VALIDIERUNG, 610301200) passed our own presence-
+// only checks silently, since .includes() never verifies order. These
+// tests check actual position, confirmed against the real official
+// ELSTER example, to close that gap going forward.
+check('Allg/A field order matches the real confirmed example: Geburtsdatum, Name, Vorname, Religion, Strasse, PLZ, Ort', (() => {
+  const aBlock = xml.match(/<A>\n([\s\S]*?)<\/A>/)?.[1] || '';
+  const order = ['E0100401', 'E0100201', 'E0100301', 'E0100402', 'E0101104', 'E0100601', 'E0100602'];
+  const positions = order.map(code => aBlock.indexOf(code));
+  return positions.every(p => p !== -1) && positions.every((p, i) => i === 0 || p > positions[i - 1]);
+})());
+check('Allg/B field order matches the real confirmed example: Geburtsdatum, Name, Vorname', (() => {
+  const withB = JSON.parse(JSON.stringify(sample));
+  withB.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Erika', geburtsdatum: '1987-05-20' };
+  const xmlWithB = buildEStXML(withB).xml;
+  const bBlock = xmlWithB.match(/<B>\n([\s\S]*?)<\/B>/)?.[1] || '';
+  const order = ['E0101001', 'E0100901', 'E0100801'];
+  const positions = order.map(code => bBlock.indexOf(code));
+  return positions.every(p => p !== -1) && positions.every((p, i) => i === 0 || p > positions[i - 1]);
+})());
+
 // Field-format fixes - confirmed via real ERiC validation (error code
 // 610001002, a detailed field-level punch list) after the structural
 // (610301106) issues were fully resolved.

@@ -105,12 +105,19 @@ function buildESt1A(data) {
      Vorsatz/ID instead - see buildVorsatz() below. Directly submitting
      this field is exactly what caused "Eingefuegt-Kennzeichen J oder P"
      / ERIC_IO_READER_UNERWARTETE_ELEMENTE. */
+  /* CORRECTED (element order): confirmed via the real official ELSTER
+     example that the correct sequence is Geburtsdatum, Name, Vorname,
+     Religion, Strasse, PLZ, Ort - NOT the order these were originally
+     added in across several separate fixes. XSD sequence types enforce
+     order strictly; getting this wrong passed our own structural tests
+     (which only check field presence, not order) but failed real ERiC's
+     basic schema validation (ERIC_IO_READER_SCHEMA_VALIDIERUNG,
+     610301200) - a more fundamental layer than the business-rule checks
+     debugged in earlier rounds, and a real regression worth having
+     caught sooner. */
+  xml += tag(fm.ESt1A.birthDate, formatDateDE(A.geburtsdatum));
   xml += tag(fm.ESt1A.lastName, A.name);
   xml += tag(fm.ESt1A.firstName, A.vorname);
-  xml += tag(fm.ESt1A.birthDate, formatDateDE(A.geburtsdatum));
-  xml += tag('E0101104', [A.anschrift?.strasse, A.anschrift?.hausnummer].filter(Boolean).join(' '));
-  xml += tag(fm.ESt1A.plz, A.anschrift?.plz);
-  xml += tag(fm.ESt1A.ort, A.anschrift?.ort);
   /* CORRECTED: confirmed via real ERiC validation ("enthält einen
      ungültigen Wert") and the real XSD enum that E0100402 wants 2-digit
      NUMERIC codes (11=none, 03=katholisch, 02=evangelisch), not the
@@ -122,6 +129,9 @@ function buildESt1A(data) {
      known, documented limitation, not a silent wrong guess. */
   const religionCode = { '--': '11', RK: '03', EV: '02' }[A.religion] || '11';
   xml += tag(fm.ESt1A.religion, religionCode);
+  xml += tag('E0101104', [A.anschrift?.strasse, A.anschrift?.hausnummer].filter(Boolean).join(' '));
+  xml += tag(fm.ESt1A.plz, A.anschrift?.plz);
+  xml += tag(fm.ESt1A.ort, A.anschrift?.ort);
   /* CORRECTED (structural): marital status flags belong INSIDE Allg/A.
      CORRECTED (semantic, confirmed via real XSD): maritalMarried
      (E0100701) and maritalWidowed (E0100702) are actually DATE fields
@@ -132,7 +142,9 @@ function buildESt1A(data) {
      not a code-only fix - so these two are correctly NOT sent for now
      rather than sent with a wrong value. maritalSeparateAssessment
      (E0102602, § 26a) IS confirmed to be a genuine checkbox (JaXBaseCType)
-     - that one is correct as-is. */
+     - that one is correct as-is, and per the real example's order, comes
+     LAST within the A block (it's the final field shown, right before
+     </A> closes). */
   /* CORRECTED: confirmed via real ERiC validation ("feldUnbekannt" - not
      supported for the given Veranlagungsart) that § 26a separate
      assessment logically requires an actual Person B to exist - it makes
@@ -150,7 +162,16 @@ function buildESt1A(data) {
      object but has no populated fields, since taxIdSpouse was removed
      and spouseBirthDate may be blank) is itself invalid - a context
      must either have content or not be written at all. */
-  const bContent = B ? (tag(fm.ESt1A.spouseLastName, B.name) + tag(fm.ESt1A.spouseFirstName, B.vorname) + tag(fm.ESt1A.spouseBirthDate, formatDateDE(B.geburtsdatum))) : '';
+  /* CORRECTED: element ORDER matters strictly in XSD (xs:sequence) -
+     confirmed via the real official ELSTER example that Person B's
+     fields must appear as Geburtsdatum, THEN Name, THEN Vorname - my
+     earlier addition of the name fields put them in the wrong order
+     (Name/Vorname before Geburtsdatum), which passed our own structural
+     tests (they only check presence, not order) but failed real ERiC's
+     basic XML schema validation (ERIC_IO_READER_SCHEMA_VALIDIERUNG,
+     610301200) - a more fundamental layer than the business-rule checks
+     we'd been debugging, and a genuine regression from that specific fix. */
+  const bContent = B ? (tag(fm.ESt1A.spouseBirthDate, formatDateDE(B.geburtsdatum)) + tag(fm.ESt1A.spouseLastName, B.name) + tag(fm.ESt1A.spouseFirstName, B.vorname)) : '';
   if (bContent) {
     xml += `<B>\n${bContent}</B>`;
   }
