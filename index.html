@@ -1937,35 +1937,34 @@ function renderFaDropdown(query){
  const slot=document.getElementById('fa-dropdown-slot'); if(!slot) return;
  if(_faDirectory===null){ loadFinanzamtDirectory().then(()=>renderFaDropdown(query)); return; }
  if(!_faDirectory || !land){ slot.innerHTML=''; return; }
- /* SELF-DIAGNOSING: rather than ask for another round of manual console
-    checks, this now shows exactly what it's doing directly in the UI
-    whenever something looks wrong - the actual land value, the actual
-    directory keys available, and any error caught - so the real cause
-    is visible immediately on the next test, not hidden. */
+ /* Merges every directory key that matches the selected state exactly
+    OR starts with "<state> (" - some states (Bayern, Nordrhein-
+    Westfalen) are split across multiple regional-authority entries in
+    ERiC's own directory rather than one entry per Bundesland. */
  try {
-   const allKeys = Object.keys(_faDirectory);
-   const matchingKeys = allKeys.filter(k => k === land || k.startsWith(land + ' ('));
-   if(!matchingKeys.length){
-     slot.innerHTML = `<div class="fa-dropdown"><div class="fa-option" style="color:var(--red);cursor:default;white-space:pre-wrap;font-size:11px">
-     DEBUG: no directory key matched bundesland="${esc(land)}".
-     Available keys: ${esc(JSON.stringify(allKeys))}</div></div>`;
-     return;
-   }
+   const matchingKeys = Object.keys(_faDirectory).filter(k => k === land || k.startsWith(land + ' ('));
+   if(!matchingKeys.length){ slot.innerHTML=''; return; }
    const allEntries = matchingKeys.flatMap(k => _faDirectory[k] || []);
    const q=(query||'').toLowerCase();
-   const matches=allEntries.filter(f=>!q || (f && f.name && f.name.toLowerCase().includes(q))).slice(0,25);
+   /* CORRECTED: the real bug, found via a self-diagnosing debug build -
+      this only ever searched the office NAME, never the office NUMBER
+      (bufaNr). Searching by the 4-digit number (a completely natural
+      thing to do, especially once a number is already visible in the
+      field) matched nothing, even though the underlying data and the
+      Bayern/NRW merge were both already correct - confirmed directly via
+      the debug output showing real entry counts (56 + 37) that were
+      then filtered down to zero by this one-sided name-only check. */
+   const matches=allEntries.filter(f=>!q || (f && f.name && (f.name.toLowerCase().includes(q) || (f.bufaNr||'').includes(q)))).slice(0,25);
    if(matches.length){
      slot.innerHTML = `<div class="fa-dropdown">${matches.map(f=>
      `<div class="fa-option" onmousedown="selectFinanzamt('${esc(f.bufaNr)}','${esc(f.name).replace(/'/g,"\\'")}')">
      <b>${esc(f.name)}</b><span>${esc(f.bufaNr)}</span></div>`).join('')}</div>`;
    } else {
-     slot.innerHTML = `<div class="fa-dropdown"><div class="fa-option" style="color:var(--ink-soft);cursor:default;white-space:pre-wrap;font-size:11px">
-     DEBUG: matched keys [${esc(matchingKeys.join(', '))}] but 0 entries after merge/filter.
-     Entry count per key: ${esc(matchingKeys.map(k => k+'='+((_faDirectory[k]||[]).length)).join(', '))}</div></div>`;
+     slot.innerHTML = `<div class="fa-dropdown"><div class="fa-option" style="color:var(--ink-soft);cursor:default">${t('fa_no_match')}</div></div>`;
    }
  } catch(err) {
-   slot.innerHTML = `<div class="fa-dropdown"><div class="fa-option" style="color:var(--red);cursor:default;white-space:pre-wrap;font-size:11px">
-   DEBUG: renderFaDropdown threw an error: ${esc(err.message)}</div></div>`;
+   console.error('[renderFaDropdown]', err);
+   slot.innerHTML = '';
  }
  return;
 }
