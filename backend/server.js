@@ -397,6 +397,38 @@ app.post('/api/eric/validate-fields', auth, async (req, res) => {
   }
 });
 
+/* Real bug found via actual ERiC validation (Fehlercode 10010
+   "Bundesfinanzamtsnummer und die ersten 4 Stellen der Steuernummer
+   unterscheiden sich", plus "ungueltigeSteuernummer"): xml-builder.js
+   was sending the raw, regionally-formatted Steuernummer directly (just
+   digit-stripped), never converted into the required unified 13-digit
+   ELSTER format (which encodes the issuing Finanzamt in its own
+   structure, confirmed via the real example: StNr "9181081508155" for
+   BuFa "9181" - first 4 digits match by design, "0" fixed at position
+   5). This means ANY real customer's regionally-formatted Steuernummer
+   would have failed this exact validation in production, not just in
+   this test. The real conversion function (EricMtMakeElsterStnr) was
+   already built and working for the live checksum-indicator feature -
+   this reuses it for the actual submission path, where it was missing. */
+async function convertSteuernummerForSubmission(interchangeData) {
+  const h = interchangeData.hauptvordruck;
+  if (!h || !h.steuernummer || !h.finanzamt?.bufaNr) return interchangeData;
+  try {
+    const result = await ericService.validateFields({ steuernummer: h.steuernummer, bufaNr: h.finanzamt.bufaNr });
+    if (result?.steuernummer?.valid && result.steuernummer.elsterFormat) {
+      return { ...interchangeData, hauptvordruck: { ...h, steuernummer: result.steuernummer.elsterFormat } };
+    }
+    /* conversion failed or the Steuernummer+Finanzamt combination is
+       genuinely invalid - pass through unconverted rather than silently
+       hide the problem; buildEStXML/ERiC will surface it clearly, same
+       as before this fix, rather than mask a real data problem */
+    return interchangeData;
+  } catch (e) {
+    console.error('[steuernummer conversion]', e.message);
+    return interchangeData;
+  }
+}
+
 app.post('/api/eric/validate', auth, async (req, res) => {
   if (!ericService.isReady()) {
     return res.status(501).json({ error: 'eric_unavailable', detail: ericService.getInitError() });
@@ -404,10 +436,11 @@ app.post('/api/eric/validate', auth, async (req, res) => {
   const { clientId, interchangeData } = req.body || {};
   if (!clientId || !interchangeData) return res.status(400).json({ error: 'invalid_input' });
   try {
-    const { xml, skippedSections } = buildEStXML(interchangeData, {
+    const convertedData = await convertSteuernummerForSubmission(interchangeData);
+    const { xml, skippedSections } = buildEStXML(convertedData, {
       herstellerID: process.env.ERIC_HERSTELLER_ID,
     });
-    const result = await ericService.validate(xml, 'ESt_' + (interchangeData.meta?.taxYear || 2025));
+    const result = await ericService.validate(xml, 'ESt_' + (convertedData.meta?.taxYear || 2025));
     audit(req.user.sub, 'eric_validate', { clientId, rc: result.rc, ok: result.rc === 0 });
     res.json({
       ok: result.rc === 0,
@@ -444,10 +477,11 @@ app.post('/api/eric/submit', auth, async (req, res) => {
   }
 
   try {
-    const { xml, skippedSections } = buildEStXML(interchangeData, {
+    const convertedData = await convertSteuernummerForSubmission(interchangeData);
+    const { xml, skippedSections } = buildEStXML(convertedData, {
       herstellerID: process.env.ERIC_HERSTELLER_ID,
     });
-    const result = await ericService.submit(xml, 'ESt_' + (interchangeData.meta?.taxYear || 2025));
+    const result = await ericService.submit(xml, 'ESt_' + (convertedData.meta?.taxYear || 2025));
     audit(req.user.sub, 'eric_submit', { clientId, rc: result.rc, sent: result.sent });
 
     if (result.sent) {

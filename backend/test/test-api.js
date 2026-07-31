@@ -144,6 +144,28 @@ async function run() {
     return r.status === 400;
   });
 
+  await check('eric/validate: real bug fix - the raw Steuernummer gets converted to the unified 13-digit ELSTER format before transmission, not sent raw', async () => {
+    ericMock._validateFieldsResult = { steuernummer: { rc: 0, valid: true, elsterFormat: '26480815471230' } };
+    let capturedXml = null;
+    const originalValidate = ericMock.validate;
+    ericMock.validate = async (xml) => { capturedXml = xml; return { rc: 0 }; };
+    await request(app).post('/api/eric/validate').set('Authorization', 'Bearer ' + token)
+      .send({ clientId: payClientId, interchangeData: { meta: { taxYear: 2025 },
+        hauptvordruck: { veranlagungsart: 'einzelveranlagung', steuernummer: '8154712305', finanzamt: { bufaNr: '2648' }, personA: { idnr: '1', vorname: 'X', geburtsdatum: '1985-01-01', anschrift: {} } } } });
+    ericMock.validate = originalValidate;
+    return capturedXml && capturedXml.includes('<StNr>26480815471230</StNr>') && !capturedXml.includes('>8154712305<');
+  });
+
+  await check('eric/validate: Steuernummer conversion degrades gracefully if the checksum service fails (never a 500, never blocks the request)', async () => {
+    const originalValidateFields = ericMock.validateFields;
+    ericMock.validateFields = async () => { throw new Error('simulated failure'); };
+    const r = await request(app).post('/api/eric/validate').set('Authorization', 'Bearer ' + token)
+      .send({ clientId: payClientId, interchangeData: { meta: { taxYear: 2025 },
+        hauptvordruck: { veranlagungsart: 'einzelveranlagung', steuernummer: '8154712305', finanzamt: { bufaNr: '2648' }, personA: { idnr: '1', vorname: 'X', geburtsdatum: '1985-01-01', anschrift: {} } } } });
+    ericMock.validateFields = originalValidateFields;
+    return r.status !== 500;
+  });
+
   await check('eric/validate: succeeds and returns ok:true when ERiC mock reports rc=0', async () => {
     ericMock._validateResult = { rc: 0, resultXml: '<ok/>' };
     const r = await request(app).post('/api/eric/validate').set('Authorization', 'Bearer ' + token)
