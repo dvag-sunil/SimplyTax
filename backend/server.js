@@ -10,7 +10,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const ericService = require('./eric/eric-service');
-const { buildEStXML } = require('./eric/xml-builder');
+const { buildEStXML, InterchangeDataError } = require('./eric/xml-builder');
 
 const { DATABASE_URL, JWT_SECRET, ALLOWED_ORIGIN = 'https://dvag-sunil.github.io', PORT = 3000 } = process.env;
 if (!DATABASE_URL || !JWT_SECRET) { console.error('Missing DATABASE_URL or JWT_SECRET in .env'); process.exit(1); }
@@ -416,6 +416,7 @@ app.post('/api/eric/validate', auth, async (req, res) => {
       skippedSections,
     });
   } catch (e) {
+    if (e instanceof InterchangeDataError) return res.status(400).json({ error: 'invalid_interchange_data', detail: e.message });
     console.error('[eric/validate]', e.message);
     res.status(500).json({ error: 'server_error' });
   }
@@ -471,6 +472,7 @@ app.post('/api/eric/submit', auth, async (req, res) => {
       skippedSections,
     });
   } catch (e) {
+    if (e instanceof InterchangeDataError) return res.status(400).json({ error: 'invalid_interchange_data', detail: e.message });
     console.error('[eric/submit]', e.message);
     res.status(500).json({ error: 'server_error' });
   }
@@ -511,4 +513,26 @@ app.delete('/api/docs/:id', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
-app.listen(PORT, () => console.log(`SimplyTax API listening on :${PORT}`));
+/* Global error handler - found during testing that a malformed JSON body
+   correctly resulted in a 400 (body-parser's own default behavior works),
+   but printed a raw, unhandled-looking stack trace to the logs. This
+   catches it explicitly for a clean one-line log instead, and is a
+   general safety net for any other error that reaches this point without
+   its own handler - ensures the app always responds with SOMETHING valid
+   rather than hanging or dropping the connection. */
+app.use((err, req, res, next) => {
+  if (err && err.type === 'entity.parse.failed') {
+    console.warn(`[body-parser] malformed JSON from ${req.ip} on ${req.path}`);
+    return res.status(400).json({ error: 'invalid_json' });
+  }
+  console.error('[unhandled]', err && err.message, err && err.stack);
+  res.status(500).json({ error: 'server_error' });
+});
+
+/* Guarded so requiring this file (e.g. from a test suite via supertest)
+   never binds a real port - only `node server.js` directly does, exactly
+   as before. Zero production behavior change. */
+if (require.main === module) {
+  app.listen(PORT, () => console.log(`SimplyTax API listening on :${PORT}`));
+}
+module.exports = app;

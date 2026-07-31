@@ -433,6 +433,24 @@ function formatDateDE(iso) {
    Main entry point
 ============================================================================= */
 function buildEStXML(data, opts = {}) {
+  /* Defensive check - found via testing that malformed/incomplete
+     interchangeData (missing hauptvordruck, missing personA) caused an
+     uncaught "Cannot read properties of undefined" deep inside
+     buildESt1A(), which the API route's try/catch turned into a generic
+     500. A 500 misleadingly signals a server bug when the real problem
+     is invalid input - this throws a clearly-labeled error instead, so
+     callers (the API route) can distinguish "bad input, return 400"
+     from "something actually broke, return 500". */
+  if (!data || typeof data !== 'object') {
+    throw new InterchangeDataError('interchangeData is missing or not an object');
+  }
+  if (!data.hauptvordruck || typeof data.hauptvordruck !== 'object') {
+    throw new InterchangeDataError('interchangeData.hauptvordruck is missing');
+  }
+  if (!data.hauptvordruck.personA || typeof data.hauptvordruck.personA !== 'object') {
+    throw new InterchangeDataError('interchangeData.hauptvordruck.personA is missing');
+  }
+
   const herstellerID = opts.herstellerID || process.env.ERIC_HERSTELLER_ID || '74931';
   const testmerker = data.meta?.testmerker !== false ? '700000004' : '';
   const year = data.meta?.taxYear || 2025;
@@ -498,4 +516,8 @@ function bundeslandCode(name) {
 }
 function uid() { return 'st' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
 
-module.exports = { buildEStXML };
+class InterchangeDataError extends Error {
+  constructor(msg) { super(msg); this.name = 'InterchangeDataError'; }
+}
+
+module.exports = { buildEStXML, InterchangeDataError };
