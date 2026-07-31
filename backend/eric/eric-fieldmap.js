@@ -16,13 +16,22 @@ const ESt1A = {
   taxIdSpouse: 'E0100082',
   birthDate: 'E0100401',
   spouseBirthDate: 'E0101001',
+  lastName: 'E0100201',
   firstName: 'E0100301',
   street: 'E0101104',
   plz: 'E0100601',
+  ort: 'E0100602',
+  religion: 'E0100402',
   maritalMarried: 'E0100701',
   maritalSeparateAssessment: 'E0102602',
   maritalWidowed: 'E0100702',
   maritalDivorced: 'E0100703',
+  // Allg/BV (Bankverbindung) - confirmed via real ERiC validation
+  // ("Bitte geben Sie Ihre Bankverbindungsdaten an...") that this is a
+  // real required-or-declare-none field, not optional to skip silently.
+  ibanDomestic: 'E0102102',
+  noBankAccount: 'E0102002', // declare explicitly if genuinely no IBAN
+  accountHolderIsTaxpayer: 'E0101601', // Kto_Inh marker - confirms whose account it is
 };
 
 /* ---------- 2. Employment income - Anlage N ---------- */
@@ -81,6 +90,7 @@ const VOR = {
    Einkuenfte - a different form entirely, crypto/private sales). */
 const SA = {
   donationsDomestic: 'E0108405',
+  donationsThisYear: 'E0108509', // required companion - confirmed via real ERiC validation (Regel 101100001): "how much of the donation applies THIS tax year" (endowment donations can otherwise be spread across up to 10 years)
   donationsEuEwr: 'E0105502',
   donationsBasis: 'E0105902',
 };
@@ -94,6 +104,7 @@ const Kind = {
   kinshipType: { kennzahlen: ['E0500807', 'E0500808'], note: 'Art des Kindschaftsverhaeltnisses - multi-child repeat pattern (same field reused per <Kind> block, up to 14 children), not different kinship values' },
   kindergeld:  { kennzahlen: ['E0500702', 'E0503802'] },
   schoolFees:  'E0504505',
+  schoolFeesSum: 'E0505607', // required companion total - confirmed via real ERiC validation
   kidTransfer: 'E0504301',
 
   /* RESOLVED. Found via the Kind - Regeln sheet (validation rule for

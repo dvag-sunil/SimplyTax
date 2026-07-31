@@ -44,6 +44,10 @@ function xesc(s) {
 /* German decimal format for XML values: dot-decimal internally in JS, but
    ERiC's own example XML uses comma-decimal in the field content itself
    (confirmed: <E0200204>67554,76</E0200204> in the real example). */
+function N(v) {
+  const n = parseFloat(String(v ?? '0').replace(',', '.'));
+  return isNaN(n) ? 0 : n;
+}
 function euro(n) {
   const v = Number(n) || 0;
   if (v === 0) return null; // omit zero-value fields, matching the real example's sparse style
@@ -55,6 +59,22 @@ function tag(name, value) {
 }
 function euroTag(name, n) {
   const v = euro(n);
+  return v ? tag(name, v) : '';
+}
+/* CONFIRMED via the real XSD: most monetary Kennzahlen are "Ganzzahl"
+   (whole euros, NO decimal separator at all - not even ",00") - only a
+   specific 13-field group (the Anlage N Einz/Sum wage lines plus the KAP
+   withholding lines) are genuinely "Dezimalzahl" (comma-decimal allowed).
+   Confirmed field-by-field against the XSD, not assumed - using euroTag
+   (comma-decimal) for a Ganzzahl field is exactly what produced the
+   "zahlHatDezimalTrenner" errors from real ERiC validation. */
+function wholeEuro(n) {
+  const v = Math.round(Number(n) || 0);
+  if (v === 0) return null;
+  return String(v);
+}
+function wholeEuroTag(name, n) {
+  const v = wholeEuro(n);
   return v ? tag(name, v) : '';
 }
 
@@ -69,32 +89,88 @@ function buildESt1A(data) {
   const A = h.personA, B = h.personB;
   let xml = '<ESt1A>\n';
 
-  /* declaration checkboxes - always present for a self-filed/consultant return */
-  xml += '<Art_Erkl>\n' + tag('E0100001', 'X') + tag('E0100002', 'X') + tag('E0100003', 'X') + '</Art_Erkl>\n';
+  /* CORRECTED: removed the unconditional E0100002 (Arbeitnehmer-Sparzulage
+     request) checkbox - real ERiC validation confirmed this specific
+     checkbox has its own deeper conditional requirement (all VL
+     certificates must additionally be flagged) that our app has no
+     matching feature for. Blanket-checking "yes" to a request we cannot
+     actually back up is wrong - only E0100001/E0100003 (general
+     declaration + advisor involvement) are unconditionally safe. */
+  xml += '<Art_Erkl>\n' + tag('E0100001', 'X') + tag('E0100003', 'X') + '</Art_Erkl>\n';
 
   xml += '<Allg><A>\n';
-  xml += tag(fm.ESt1A.taxId, A.idnr);
+  /* REMOVED: E0100081 (taxId) - confirmed via official ELSTER developer
+     forum (product manager response) to be an "internes ERiC Feld" that
+     MUST NOT be submitted directly. ERiC auto-populates it from
+     Vorsatz/ID instead - see buildVorsatz() below. Directly submitting
+     this field is exactly what caused "Eingefuegt-Kennzeichen J oder P"
+     / ERIC_IO_READER_UNERWARTETE_ELEMENTE. */
+  xml += tag(fm.ESt1A.lastName, A.name);
   xml += tag(fm.ESt1A.firstName, A.vorname);
   xml += tag(fm.ESt1A.birthDate, formatDateDE(A.geburtsdatum));
   xml += tag('E0101104', [A.anschrift?.strasse, A.anschrift?.hausnummer].filter(Boolean).join(' '));
   xml += tag(fm.ESt1A.plz, A.anschrift?.plz);
+  xml += tag(fm.ESt1A.ort, A.anschrift?.ort);
+  /* CORRECTED: confirmed via real ERiC validation ("enthält einen
+     ungültigen Wert") and the real XSD enum that E0100402 wants 2-digit
+     NUMERIC codes (11=none, 03=katholisch, 02=evangelisch), not the
+     frontend's letter codes (--/RK/EV/VD). The frontend's mapping was
+     never wrong for its own display purposes - this conversion was
+     simply never added on the way into the XML. Rarer denominations
+     (frontend's "VD"/other) fall back to "11" (none/not liable) rather
+     than guess a specific denomination code from a very long enum - a
+     known, documented limitation, not a silent wrong guess. */
+  const religionCode = { '--': '11', RK: '03', EV: '02' }[A.religion] || '11';
+  xml += tag(fm.ESt1A.religion, religionCode);
+  /* CORRECTED (structural): marital status flags belong INSIDE Allg/A.
+     CORRECTED (semantic, confirmed via real XSD): maritalMarried
+     (E0100701) and maritalWidowed (E0100702) are actually DATE fields
+     ("verheiratet SEIT DEM ...", "verwitwet SEIT DEM ...") - not simple
+     checkboxes. Sending 'X' triggered "datumFormatFalsch". The app does
+     not currently collect an actual marriage/widowhood date anywhere -
+     this is a REAL GAP needing a UI addition (a date field per status),
+     not a code-only fix - so these two are correctly NOT sent for now
+     rather than sent with a wrong value. maritalSeparateAssessment
+     (E0102602, § 26a) IS confirmed to be a genuine checkbox (JaXBaseCType)
+     - that one is correct as-is. */
+  /* CORRECTED: confirmed via real ERiC validation ("feldUnbekannt" - not
+     supported for the given Veranlagungsart) that § 26a separate
+     assessment logically requires an actual Person B to exist - it makes
+     no sense to declare "separate assessment of spouses" with no spouse
+     data present. If the test data selected this status without
+     providing personB, that is itself a data-consistency issue worth
+     checking, but this guard also protects against sending an
+     inconsistent declaration regardless. */
+  if (h.veranlagungsart === 'einzelveranlagung_ehegatten_par26a' && B) {
+    xml += tag(fm.ESt1A.maritalSeparateAssessment, 'X');
+  }
   xml += '</A>';
-  if (B) {
-    xml += '<B>\n';
-    xml += tag(fm.ESt1A.taxIdSpouse, B.idnr);
-    xml += tag(fm.ESt1A.spouseBirthDate, formatDateDE(B.geburtsdatum));
-    xml += '</B>';
+  /* CORRECTED: confirmed via real ERiC validation ("kontextLeer" - "the
+     context is empty") that an empty <B></B> block (when B exists as an
+     object but has no populated fields, since taxIdSpouse was removed
+     and spouseBirthDate may be blank) is itself invalid - a context
+     must either have content or not be written at all. */
+  const bContent = B ? tag(fm.ESt1A.spouseBirthDate, formatDateDE(B.geburtsdatum)) : '';
+  if (bContent) {
+    xml += `<B>\n${bContent}</B>`;
+  }
+  /* CORRECTED: confirmed via real ERiC validation ("Bitte geben Sie Ihre
+     Bankverbindungsdaten an oder erklären Sie...dass keine Bankverbindung
+     vorhanden ist") that this is a genuinely required declaration - either
+     real bank details or an explicit "none" flag, not silently omittable.
+     The IBAN itself was already being collected and exported by the
+     frontend (hauptvordruck.bankverbindung.iban) but never wired into the
+     XML at all until now. */
+  const iban = (h.bankverbindung?.iban || '').trim();
+  if (iban) {
+    xml += `<BV>\n${tag(fm.ESt1A.ibanDomestic, iban)}<Kto_Inh>${tag(fm.ESt1A.accountHolderIsTaxpayer, 'X')}</Kto_Inh>\n</BV>\n`;
+  } else {
+    xml += `<BV>\n${tag(fm.ESt1A.noBankAccount, 'X')}</BV>\n`;
   }
   xml += '</Allg>\n';
 
-  /* marital status flags - buildElsterDataset already resolved which case applies */
-  if (h.veranlagungsart === 'zusammenveranlagung') {
-    xml += tag(fm.ESt1A.maritalMarried, 'X');
-  } else if (h.veranlagungsart === 'einzelveranlagung_ehegatten_par26a') {
-    xml += tag(fm.ESt1A.maritalSeparateAssessment, 'X');
-  } else if (h.veranlagungsart === 'einzelveranlagung_verwitwete_gnadensplitting_par32a6') {
-    xml += tag(fm.ESt1A.maritalWidowed, 'X');
-  }
+  const w = data.weitereAngaben || {};
+  if (w.ersatzleistungen) xml += `<Eink_Ers><Inl><Sum>\n${wholeEuroTag(fm.ESt1A_Ersatz.ersatz, w.ersatzleistungen)}</Sum></Inl></Eink_Ers>\n`;
 
   xml += '</ESt1A>\n';
   return xml;
@@ -132,7 +208,12 @@ function buildAnlageN(data) {
     const sum = (field) => list.reduce((a, e) => a + (Number(e[field]) || 0), 0);
     xml += '<LStB_1_5_Sum>\n';
     xml += tag(fm.N.employerCount.sum, String(list.length));
-    xml += euroTag(fm.N.gross.sum, sum('zeile3_bruttoarbeitslohn'));
+    /* CORRECTED: confirmed via real XSD that E0200201 specifically is
+       Ganzzahl (whole number) - an asymmetric exception, since its
+       sibling sums (wageTax/soli/churchPaid below) are genuinely
+       Dezimalzahl. Verified per-field from the XSD, not assumed as a
+       uniform pattern. */
+    xml += wholeEuroTag(fm.N.gross.sum, sum('zeile3_bruttoarbeitslohn'));
     xml += euroTag(fm.N.wageTax.sum, sum('zeile4_lohnsteuer'));
     xml += euroTag(fm.N.soli.sum, sum('zeile5_soli'));
     xml += euroTag(fm.N.churchPaid.sum, sum('zeile6_kirchensteuer'));
@@ -141,15 +222,18 @@ function buildAnlageN(data) {
     /* remaining confirmed single-value lines - taken from the FIRST employer entry
        (these lines are rarely split across multiple employers in practice) */
     const first = list[0];
-    xml += euroTag(fm.N.vb8.kennzahlen[0], first.zeile8_versorgungsbezuege);
-    xml += euroTag(fm.N.vb9.kennzahlen[0], first.zeile9_versorgungMehrjaehrig);
-    xml += euroTag(fm.N.ml10.kennzahlen[0], first.zeile10_mehrjaehrigEntschaedigung);
-    xml += euroTag(fm.N.ersatz15.kennzahlen[0], first.zeile15_lohnersatz);
-    xml += euroTag(fm.N.dba16.kennzahlen[0], first.zeile16_dbaAte);
-    xml += euroTag(fm.N.fahrt17.kennzahlen[0], first.zeile17_agLeistungenEntfernung);
-    xml += euroTag(fm.N.pausch18.kennzahlen[0], first.zeile18_pauschal15);
-    xml += euroTag(fm.N.verpf20.kennzahlen[0], first.zeile20_verpflegung);
-    xml += euroTag(fm.N.bmg29.kennzahlen[0], first.zeile29_bmgVersorgungsfreibetrag);
+    xml += wholeEuroTag(fm.N.vb8.kennzahlen[0], first.zeile8_versorgungsbezuege);
+    xml += wholeEuroTag(fm.N.vb9.kennzahlen[0], first.zeile9_versorgungMehrjaehrig);
+    xml += wholeEuroTag(fm.N.ml10.kennzahlen[0], first.zeile10_mehrjaehrigEntschaedigung);
+    xml += wholeEuroTag(fm.N.ersatz15.kennzahlen[0], first.zeile15_lohnersatz);
+    /* CORRECTED: dba16 needs its own ArbL/Stfr_NAUS wrapper, confirmed via
+       the real Felder sheet Kontext column - was flat directly under
+       ArbL, causing "/N/ArbL/E0201502" to be unrecognized. */
+    if (N(first.zeile16_dbaAte) > 0) xml += `<Stfr_NAUS>${wholeEuroTag(fm.N.dba16.kennzahlen[0], first.zeile16_dbaAte)}</Stfr_NAUS>\n`;
+    xml += wholeEuroTag(fm.N.fahrt17.kennzahlen[0], first.zeile17_agLeistungenEntfernung);
+    xml += wholeEuroTag(fm.N.pausch18.kennzahlen[0], first.zeile18_pauschal15);
+    xml += wholeEuroTag(fm.N.verpf20.kennzahlen[0], first.zeile20_verpflegung);
+    xml += wholeEuroTag(fm.N.bmg29.kennzahlen[0], first.zeile29_bmgVersorgungsfreibetrag);
     if (first.zeile30_versorgungsbeginn) xml += tag(fm.N.vbJahr30.kennzahlen[0], first.zeile30_versorgungsbeginn);
     /* NOTE: taxClass (Steuerklasse, E0200002) deliberately NOT written here.
        E0200002 is confirmed to appear inside <LStB_1_5_Sum> as the employer
@@ -186,16 +270,26 @@ function buildNAUS(data) {
   if (!entries.length) return '';
   let xml = '';
   for (const a of entries) {
-    xml += '<N_AUS>\n';
-    if (a.land) xml += tag(fm.N_AUS.ausCountry, a.land);
-    if (a.arbeitgeberName) xml += tag(fm.N_AUS.ausEmployerName, a.arbeitgeberName);
-    xml += euroTag(fm.N_AUS.ausTotalWage, a.gesamtlohn);
-    if (a.arbeitstageGesamt) xml += tag(fm.N_AUS.ausWorkDaysTotal, String(a.arbeitstageGesamt));
-    if (a.arbeitstageAusland) xml += tag(fm.N_AUS.ausWorkDaysForeign, String(a.arbeitstageAusland));
-    xml += euroTag(fm.N_AUS.ausTaxFreeResult, a.steuerfreierBetrag);
+    xml += `<N_AUS><Person>Person${a.person === 'B' ? 'B' : 'A'}</Person><Staat>\n`;
+    /* CORRECTED (second pass): the Allg wrapper alone was not enough -
+       country and employer name each need their OWN sub-wrapper inside
+       Allg (Wohnsitz and Unternehmen respectively), confirmed via the
+       real Felder sheet - this was already researched correctly earlier
+       but not applied precisely when first implemented. */
+    if (a.land || a.arbeitgeberName) {
+      xml += '<Allg>\n';
+      if (a.land) xml += `<Wohnsitz>${tag(fm.N_AUS.ausCountry, a.land)}</Wohnsitz>\n`;
+      if (a.arbeitgeberName) xml += `<Unternehmen>${tag(fm.N_AUS.ausEmployerName, a.arbeitgeberName)}</Unternehmen>\n`;
+      xml += '</Allg>\n';
+    }
+    if (N(a.gesamtlohn) > 0) xml += `<Ang_ArbL><Sum_inl_ausl_AL>${wholeEuroTag(fm.N_AUS.ausTotalWage, a.gesamtlohn)}</Sum_inl_ausl_AL></Ang_ArbL>\n`;
+    const dbaInner = (a.arbeitstageGesamt ? tag(fm.N_AUS.ausWorkDaysTotal, String(a.arbeitstageGesamt)) : '')
+      + (a.arbeitstageAusland ? tag(fm.N_AUS.ausWorkDaysForeign, String(a.arbeitstageAusland)) : '')
+      + wholeEuroTag(fm.N_AUS.ausTaxFreeResult, a.steuerfreierBetrag);
+    if (dbaInner) xml += `<ArbL_DBA>\n${dbaInner}</ArbL_DBA>\n`;
     /* employer address sub-fields (ausEmployerStreet/Plz/City/Country) -
        deliberately NOT written, no data source in the app - see note above */
-    xml += '</N_AUS>\n';
+    xml += '</Staat></N_AUS>\n';
   }
   return xml;
 }
@@ -206,44 +300,55 @@ function buildNAUS(data) {
 function buildVOR(data) {
   const v = data.anlageVorsorgeaufwand;
   if (!v) return '';
-  let xml = '<VOR>\n';
   const l = v.ausLohnsteuerbescheinigungen || {};
-  xml += euroTag(fm.VOR.rv, l.rv);
-  xml += euroTag(fm.VOR.kv, l.gkv);
-  xml += euroTag(fm.VOR.pv, l.pv);
-  xml += euroTag(fm.VOR.kvOther, l.pkv28);
+  let xml = '<VOR>\n';
+  /* CORRECTED nesting - confirmed via the real Kennzahlen sheet paths.
+     Was flat (<VOR><E2000601>), which caused ERIC_IO_READER_UNERWARTETE_ELEMENTE
+     - ERiC could not find meta-information for ANY field at the wrong
+     nesting depth, even fields with genuinely correct Kennzahl codes. */
+  /* CORRECTED: <Person> is a REQUIRED sibling in both sub-blocks below,
+     confirmed via real ERiC validation ("mandatoryField"). Defaults to
+     PersonA since the app currently collects insurance contributions as
+     one pooled figure, not split per spouse. */
+  if (N(l.rv) > 0) xml += `<AVor><Person>PersonA</Person>\n${wholeEuroTag(fm.VOR.rv, l.rv)}</AVor>\n`;
+  if (N(l.gkv) > 0 || N(l.pv) > 0) {
+    xml += '<Beitr_g_KV_PV_Inl><Person>PersonA</Person><AN>\n';
+    xml += wholeEuroTag(fm.VOR.kv, l.gkv);
+    xml += wholeEuroTag(fm.VOR.pv, l.pv);
+    xml += '</AN></Beitr_g_KV_PV_Inl>\n';
+  }
   /* NOTE: v.privateVersicherungen (Haftpflicht etc.) are collected by the
      app but not yet mapped to a VOR Kennzahl - most private insurance
      types outside statutory RV/KV/PV are either non-deductible or belong
      to a different context not yet researched. Not written here rather
-     than guessed. */
+     than guessed. kvOther (pkv28) also not yet placed in this corrected
+     structure - needs its own confirmed nesting before use. */
   xml += '</VOR>\n';
   return xml;
 }
 
 /* =============================================================================
-   Anlage KAP - capital gains, field names already match Zeile numbers
+   Anlage KAP - capital gains, field names already match Zeile numbers.
+   CORRECTED nesting per line-group, confirmed via the real Kennzahlen sheet.
 ============================================================================= */
 function buildKAP(data) {
   const entries = data.anlageKAP || [];
   if (!entries.length) return '';
   let xml = '';
   for (const k of entries) {
-    xml += '<KAP>\n';
-    xml += euroTag(fm.KAP.k7, k.zeile7_kapitalertraege);
-    xml += euroTag(fm.KAP.k8, k.zeile8_aktiengewinne);
-    xml += euroTag(fm.KAP.k12, k.zeile12_verlusteOhneAktien);
-    xml += euroTag(fm.KAP.k13, k.zeile13_verlusteAktien);
-    xml += euroTag(fm.KAP.k16, k.zeile16_sparerPauschbetragGenutzt);
-    xml += euroTag(fm.KAP.k18, k.zeile18_inlaendischOhneSteuerabzug);
-    xml += euroTag(fm.KAP.k19, k.zeile19_auslaendisch);
-    xml += euroTag(fm.KAP.k20, k.zeile20_aktiengewinne);
-    xml += euroTag(fm.KAP.k21, k.zeile21_stillhalterTermingeschaefte);
-    xml += euroTag(fm.KAP.k22, k.zeile22_verlusteOhneAktien);
-    xml += euroTag(fm.KAP.k23, k.zeile23_verlusteAktien);
-    xml += euroTag(fm.KAP.k43, k.zeile43_kapitalertragsteuer);
-    xml += euroTag(fm.KAP.k44, k.zeile44_soli);
-    xml += euroTag(fm.KAP.k45, k.zeile45_kirchensteuer);
+    xml += `<KAP><Person>Person${k.person === 'B' ? 'B' : 'A'}</Person>\n`;
+    const g1 = wholeEuroTag(fm.KAP.k7, k.zeile7_kapitalertraege) + wholeEuroTag(fm.KAP.k8, k.zeile8_aktiengewinne)
+      + wholeEuroTag(fm.KAP.k12, k.zeile12_verlusteOhneAktien) + wholeEuroTag(fm.KAP.k13, k.zeile13_verlusteAktien);
+    if (g1) xml += `<KapErt_inl_StAbz><Betr_lt_StBesch>\n${g1}</Betr_lt_StBesch></KapErt_inl_StAbz>\n`;
+    const g2 = wholeEuroTag(fm.KAP.k16, k.zeile16_sparerPauschbetragGenutzt);
+    if (g2) xml += `<Sp_PB>\n${g2}</Sp_PB>\n`;
+    const g3 = wholeEuroTag(fm.KAP.k18, k.zeile18_inlaendischOhneSteuerabzug) + wholeEuroTag(fm.KAP.k19, k.zeile19_auslaendisch)
+      + wholeEuroTag(fm.KAP.k20, k.zeile20_aktiengewinne) + wholeEuroTag(fm.KAP.k21, k.zeile21_stillhalterTermingeschaefte)
+      + wholeEuroTag(fm.KAP.k22, k.zeile22_verlusteOhneAktien) + wholeEuroTag(fm.KAP.k23, k.zeile23_verlusteAktien);
+    if (g3) xml += `<KapErt_kein_inl_StAbz>\n${g3}</KapErt_kein_inl_StAbz>\n`;
+    const g4 = euroTag(fm.KAP.k43, k.zeile43_kapitalertragsteuer) + euroTag(fm.KAP.k44, k.zeile44_soli)
+      + euroTag(fm.KAP.k45, k.zeile45_kirchensteuer);
+    if (g4) xml += `<St_Abz_Betr_Inl_u_Inv_Ert>\n${g4}</St_Abz_Betr_Inl_u_Inv_Ert>\n`;
     xml += '</KAP>\n';
   }
   return xml;
@@ -266,14 +371,16 @@ function buildR(data) {
   for (const r of entries) {
     xml += '<R>\n';
     if (r.art === 'gesetzlich' || !r.art) {
-      xml += euroTag(fm.R.gesetzlichAmount, r.jahresbetrag);
+      xml += '<Leibr_gesetzl><Einz>\n';
+      xml += wholeEuroTag(fm.R.gesetzlichAmount, r.jahresbetrag);
       if (r.rentenbeginn) xml += tag(fm.R.gesetzlichStart, r.rentenbeginn);
-      if (r.ertragsanteilProzent != null) xml += tag(fm.R.gesetzlichPercent, r.ertragsanteilProzent);
+      if (r.ertragsanteilProzent != null) xml += `<Oeff_Kl>${tag(fm.R.gesetzlichPercent, r.ertragsanteilProzent)}</Oeff_Kl>\n`;
+      xml += '</Einz></Leibr_gesetzl>\n';
     } else if (r.art === 'privat') {
-      xml += euroTag(fm.R.privatAmount, r.jahresbetrag);
+      xml += '<Leibr_priv><Einz>\n';
+      xml += wholeEuroTag(fm.R.privatAmount, r.jahresbetrag);
       if (r.rentenbeginn) xml += tag(fm.R.privatStart, r.rentenbeginn);
-      /* no percentage field written for privat - confirmed correct, the
-         real schema has none here (age-based table applied automatically) */
+      xml += '</Einz></Leibr_priv>\n';
     }
     xml += '</R>\n';
   }
@@ -281,31 +388,32 @@ function buildR(data) {
 }
 
 /* =============================================================================
-   Anlage V - rental income. PARTIAL by design (see eric-fieldmap.js V
-   section comment): address and rental income are simple, safe single-
-   value fields and are mapped. Werbungskosten (deductible costs) are
-   NOT written - the real schema wants an itemized breakdown across many
-   categories (AfA, Schuldzinsen, Erhaltungsaufwand, etc.), not the one
-   lump-sum total our app currently collects. Writing costs into any
-   single category would misrepresent the deduction type, so this
-   deliberately omits it rather than guess - see skippedSections in the
-   main builder below, which surfaces this to the caller explicitly.
+   Anlage V - rental income. PARTIAL by design. CORRECTED nesting per
+   confirmed Kennzahlen sheet paths (Allg/Lage for address,
+   Einn/Mieteinn/Whg/Einz+Sum for income).
 ============================================================================= */
 function buildV(data) {
   const entries = data.anlageV || [];
   if (!entries.length) return '';
   let xml = '';
-  for (const p of entries) {
+  entries.forEach((p, idx) => {
     xml += '<V>\n';
+    /* CORRECTED: Laufende_Nummer_V confirmed required via real ERiC
+       validation - a simple 1-based sequence number identifying each
+       property, using the array position already available from the loop. */
+    xml += tag('Laufende_Nummer_V', String(idx + 1));
     if (p.objekt) {
       const parts = String(p.objekt).split(',');
-      if (parts[0]) xml += tag(fm.V.street, parts[0].trim());
+      if (parts[0]) xml += `<Allg><Lage>${tag(fm.V.street, parts[0].trim())}</Lage></Allg>\n`;
     }
-    xml += euroTag(fm.V.mieteinnahmen, p.mieteinnahmen);
-    xml += euroTag(fm.V.mieteinnahmenSum, p.mieteinnahmen);
-    /* p.werbungskosten and p.ergebnis intentionally NOT written - see note above */
+    if (N(p.mieteinnahmen) > 0) {
+      xml += '<Einn><Mieteinn><Whg>\n';
+      xml += `<Einz>${wholeEuroTag(fm.V.mieteinnahmen, p.mieteinnahmen)}</Einz>\n`;
+      xml += `<Sum>${wholeEuroTag(fm.V.mieteinnahmenSum, p.mieteinnahmen)}</Sum>\n`;
+      xml += '</Whg></Mieteinn></Einn>\n';
+    }
     xml += '</V>\n';
-  }
+  });
   return xml;
 }
 
@@ -315,11 +423,30 @@ function buildV(data) {
 function buildSA(data) {
   const s = data.sonderausgaben;
   if (!s || !s.spenden) return '';
-  return '<SA>\n' + euroTag(fm.SA.donationsDomestic, s.spenden) + '</SA>\n';
+  /* CORRECTED nesting - Zuw/Sp_erh_Verm_Stift confirmed via the real
+     Kennzahlen sheet. NOTE: this path name ("Spende erhöhter
+     Vermögensstock-Stiftung") suggests E0108405 may specifically be for
+     ENDOWMENT-related donations, not general everyday donations - worth
+     re-confirming in a future pass whether a separate, simpler donations
+     Kennzahl exists for the common case. Not changed here since this is
+     still the same code already independently confirmed to exist and be
+     donation-related - flagging the naming oddity rather than guessing
+     a different code. */
+  /* CORRECTED: confirmed via the real Regeln sheet (Regel 101100001) that
+     E0108509 is a REQUIRED companion to E0108405 - "how much of this
+     donation applies to THIS specific tax year" (Vermögensstock endowment
+     donations can otherwise be legally spread across up to 10 years).
+     This is why the amount alone kept failing across multiple rounds
+     despite being present and correctly formatted - a genuinely separate
+     missing field, not a formatting issue. Defaults to claiming the full
+     amount in the current year (the simple, most common case) rather than
+     spreading it - spreading would need real UI for the user to choose. */
+  return `<SA><Zuw><Sp_erh_Verm_Stift><Person>PersonA</Person>\n${wholeEuroTag(fm.SA.donationsDomestic, s.spenden)}${wholeEuroTag(fm.SA.donationsThisYear, s.spenden)}</Sp_erh_Verm_Stift></Zuw></SA>\n`;
 }
 
 /* =============================================================================
-   AgB - disability/care/medical
+   AgB - disability/care/medical. CORRECTED nesting per the confirmed
+   Kennzahlen sheet paths.
 ============================================================================= */
 function buildAgB(data) {
   const w = data.weitereAngaben || {};
@@ -327,14 +454,18 @@ function buildAgB(data) {
   const agb = data.aussergewoehnlicheBelastungen || {};
   let xml = '<AgB>\n';
   let any = false;
-  if (b.gdbA) { xml += tag(fm.AgB.gdbA, b.gdbA); any = true; }
+  if (b.gdbA) { xml += `<Beh><Person>PersonA</Person><Ausw_Rentb_Besch>${tag(fm.AgB.gdbA, b.gdbA)}</Ausw_Rentb_Besch></Beh>\n`; any = true; }
   if (b.pflegeA) {
     const grad = fm.amountToPflegegrad(b.pflegeA);
-    if (grad) { xml += tag(fm.AgB.pflegeGrad, grad); any = true; }
+    if (grad) { xml += `<Pflege_PB><Einz><Ang_pflegebeduerft_Pers>${tag(fm.AgB.pflegeGrad, grad)}</Ang_pflegebeduerft_Pers></Einz></Pflege_PB>\n`; any = true; }
   }
   if (agb.krankheitskosten) {
+    xml += '<And_Aufw><Krankh><Einz>\n';
     xml += tag(fm.AgB.medical.kennzahlen[0], 'Krankheitskosten');
-    xml += euroTag(fm.AgB.medical.kennzahlen[1], agb.krankheitskosten);
+    xml += wholeEuroTag(fm.AgB.medical.kennzahlen[1], agb.krankheitskosten);
+    xml += '</Einz><Sum>\n';
+    xml += wholeEuroTag(fm.AgB.medical.kennzahlen[3], agb.krankheitskosten);
+    xml += '</Sum></Krankh></And_Aufw>\n';
     any = true;
   }
   xml += '</AgB>\n';
@@ -360,23 +491,43 @@ function buildKind(data) {
       continue;
     }
     xml += '<Kind>\n';
+    /* CORRECTED nesting per confirmed Kennzahlen sheet paths - was
+       previously flat, causing every child field to be unrecognized. */
+    xml += '<Ang_Kind><Allg>\n';
     if (k.idnr) xml += tag(fm.Kind.idnr, k.idnr);
     xml += tag(fm.Kind.firstName.kennzahlen[0], k.vorname);
     xml += tag(fm.Kind.birthDate.kennzahlen[0], formatDateDE(k.geburtsdatum));
+    /* CORRECTED: confirmed via real XSD that E0500702 is a Ganzzahl
+       (whole-number) type despite its Ja/Nein-sounding description
+       ("Anspruch auf Kindergeld...") - sibling Ja1BaseCType fields
+       elsewhere in this schema use "1" for yes, not "X" (that's only
+       for JaXBaseCType fields specifically) - "X" triggered
+       "zahlHatUngueltigeZeichen" since it's not a valid digit. */
+    if (k.kindergeld) xml += tag(fm.Kind.kindergeld.kennzahlen[0], '1');
+    xml += '</Allg></Ang_Kind>\n';
+
     const kinCode = KINSHIP_ENUM[k.kinship] || '1';
-    xml += tag(fm.Kind.kinshipType.kennzahlen[0], kinCode);
-    if (k.kindergeld) xml += tag(fm.Kind.kindergeld.kennzahlen[0], 'X');
-    if (k.schulgeld) xml += euroTag(fm.Kind.schoolFees, k.schulgeld);
+    xml += `<K_Verh><K_Verh_A>${tag(fm.Kind.kinshipType.kennzahlen[0], kinCode)}</K_Verh_A></K_Verh>\n`;
+
+    /* CORRECTED: confirmed via real ERiC validation that Schulgeld/Sum
+       (the total) is a required companion to Elt_k_ZV (the individual
+       amount) - same Einz/Sum completeness pattern as everywhere else
+       in this schema. For a single child/single payer, the total equals
+       the individual amount. */
+    if (k.schulgeld) xml += `<Schulgeld><Elt_k_ZV>${wholeEuroTag(fm.Kind.schoolFees, k.schulgeld)}</Elt_k_ZV><Sum>${wholeEuroTag(fm.Kind.schoolFeesSum, k.schulgeld)}</Sum></Schulgeld>\n`;
+
     /* childcare - now safe to write: the app's UI enforces provider+period
-       whenever an amount is entered (see index.html Family step), so by
-       the time data reaches here the ERiC rule 514139 requirement is
-       already satisfied - but double-check defensively anyway rather than
-       trust the frontend blindly. */
+       whenever an amount is entered, so by the time data reaches here the
+       ERiC rule 514139 requirement is already satisfied - but double-check
+       defensively anyway rather than trust the frontend blindly. */
     if (k.betreuungskosten > 0 && k.betreuungAnbieter && k.betreuungVon && k.betreuungBis) {
+      xml += '<KBK><Art><Einz>\n';
       xml += tag(fm.Kind.childcareProvider.kennzahlen[0], k.betreuungAnbieter);
-      xml += tag(fm.Kind.childcarePeriod.kennzahlen[0], `${formatDateDE(k.betreuungVon)} - ${formatDateDE(k.betreuungBis)}`);
-      xml += euroTag(fm.Kind.childcareAmount.kennzahlen[0], k.betreuungskosten);
-      xml += euroTag(fm.Kind.childcareSum.kennzahlen[0], k.betreuungskosten);
+      xml += tag(fm.Kind.childcarePeriod.kennzahlen[0], formatDateRangeDE(k.betreuungVon, k.betreuungBis));
+      xml += wholeEuroTag(fm.Kind.childcareAmount.kennzahlen[0], k.betreuungskosten);
+      xml += '</Einz><Sum>\n';
+      xml += wholeEuroTag(fm.Kind.childcareSum.kennzahlen[0], k.betreuungskosten);
+      xml += '</Sum></Art></KBK>\n';
     } else if (k.betreuungskosten > 0) {
       console.warn('[eric xml-builder] childcare amount present but provider/period missing - skipped this entry\'s childcare block (should not happen if the app UI validation ran correctly)');
     }
@@ -391,22 +542,37 @@ function buildKind(data) {
    never actually built into the XML before this pass.
 ============================================================================= */
 function buildUnterhalt(data) {
-  const u = data.anlageUnterhalt;
-  if (!u || !(u.betrag > 0)) return '';
-  return '<ESt1A_U>\n' + euroTag(fm.ESt1A_U.support, u.betrag) + '</ESt1A_U>\n';
+  /* SCOPE LIMITATION, discovered via the real Regeln sheet condition for
+     error 100120044 (persisted across 3 rounds before being properly
+     researched instead of guessed at). E0125007 was ORIGINALLY MAPPED
+     WRONG - it is not a standalone "support amount paid" field at all.
+     It's part of the Opfergrenze (means-testing limit) SUB-CALCULATION,
+     which requires an entire separate parent block describing the
+     supported person - identity, relationship, income sources, assets -
+     a 50+ field sub-form (/ESt1A_U/Ang_HH_unt_P_Unt_Leist/...) the app
+     has no UI for at all. This mirrors the same honest-scope-limitation
+     pattern already used for N-AUS employer address and Anlage V
+     Werbungskosten: rather than guess-populate a form this deep, or keep
+     sending a field that cascades into unresolvable completeness
+     errors, support payments are NOT currently transmitted. The real
+     "how much support did you pay" field is very likely elsewhere in
+     that Ang_HH_unt_P_Unt_Leist sub-tree, not under OG_Ber at all - a
+     genuine future research task if this feature becomes a priority,
+     not something to guess at here. */
+  return '';
 }
 
 /* =============================================================================
-   HA_35a - household services
+   HA_35a - household services. CORRECTED nesting - both household and
+   handwerker Kennzahlen confirmed under the same St_Erm/Handw_L/Einz path.
 ============================================================================= */
 function buildHA35a(data) {
   const h = data.haushaltsnaheLeistungen;
   if (!h || (!h.haushaltsnaheDienstleistungen && !h.handwerkerleistungen)) return '';
-  let xml = '<HA_35a>\n';
-  xml += euroTag(fm.HA_35a.household.kennzahlen[0], h.haushaltsnaheDienstleistungen);
-  xml += euroTag(fm.HA_35a.handwerker, h.handwerkerleistungen);
-  xml += '</HA_35a>\n';
-  return xml;
+  let inner = '';
+  inner += wholeEuroTag(fm.HA_35a.household.kennzahlen[0], h.haushaltsnaheDienstleistungen);
+  inner += wholeEuroTag(fm.HA_35a.handwerker, h.handwerkerleistungen);
+  return `<HA_35a><St_Erm><Handw_L><Einz>\n${inner}</Einz></Handw_L></St_Erm></HA_35a>\n`;
 }
 
 /* =============================================================================
@@ -415,10 +581,23 @@ function buildHA35a(data) {
 function buildMisc(data) {
   const w = data.weitereAngaben || {};
   let xml = '';
-  if (w.ersatzleistungen) xml += euroTag(fm.ESt1A_Ersatz.ersatz, w.ersatzleistungen);
-  if (w.verlustvortrag) xml += euroTag(fm.Sonst.lossCarry, w.verlustvortrag);
+  /* CORRECTED: verlustvortrag and energCost were previously written with
+     NO wrapper tag at all (not even their own top-level context element)
+     - the log showed these as bare "/E0190701" and "/E0241901" with no
+     path prefix whatsoever. ersatzleistungen moved into buildESt1A
+     itself, since it belongs inside the single ESt1A block, not a
+     second separate one (E10 only allows one ESt1A element). */
+  /* CORRECTED: confirmed via real XSD that E0190701 is Ja1BaseCType - a
+     pure declaration flag ("a loss carryforward WAS established"), NOT
+     the loss amount itself. Was incorrectly sending the euro amount to
+     this field. Now sends the confirmed correct flag value "1" whenever
+     an amount is present - but the actual carried-forward LOSS AMOUNT
+     needs a genuinely different Kennzahl not yet found; that data is
+     currently NOT transmitted (a real remaining gap, not silently
+     guessed at). */
+  if (w.verlustvortrag) xml += `<Sonst><Verl_Abz><Vortrag><Person>PersonA</Person>\n${tag(fm.Sonst.lossCarry, '1')}</Vortrag></Verl_Abz></Sonst>\n`;
   const e = data.par35cEnergetisch;
-  if (e && e.aufwendungen) xml += euroTag(fm.EM_35c.energCost, e.aufwendungen);
+  if (e && e.aufwendungen) xml += `<EM_35c><Obj><Aufw><Massn><Sum>\n${wholeEuroTag(fm.EM_35c.energCost, e.aufwendungen)}</Sum></Massn></Aufw></Obj></EM_35c>\n`;
   return xml;
 }
 
@@ -428,10 +607,91 @@ function formatDateDE(iso) {
   const [y, m, d] = iso.split('-');
   return `${d}.${m}.${y}`;
 }
+/* CONFIRMED via real XSD (DatumBereichTTpMMbTTpMMBaseCType) and the actual
+   ERiC validation error ("Bitte geben Sie einen gültigen Datumsbereich
+   TT.MM-TT.MM ein") - day.month only, NO year, hyphen with no spaces.
+   Was previously sending full dates with a spaced hyphen, which is wrong
+   for every date-RANGE field in this schema. */
+function formatDateRangeDE(isoFrom, isoTo) {
+  const short = (iso) => {
+    if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '';
+    const [, m, d] = iso.split('-');
+    return `${d}.${m}`;
+  };
+  const a = short(isoFrom), b = short(isoTo);
+  return (a && b) ? `${a}-${b}` : '';
+}
 
 /* =============================================================================
    Main entry point
 ============================================================================= */
+/* =============================================================================
+   Vorsatz - REQUIRED block, confirmed via ELSTER's official developer
+   forum (product manager response) after ERIC_IO_READER_UNERWARTETE_ELEMENTE
+   / "Eingefuegt-Kennzeichen J oder P" investigation. E0100081/E0100082 are
+   "interne ERiC Felder" that must NEVER be submitted directly in ESt1A -
+   ERiC auto-populates them from Vorsatz/ID and Vorsatz/IDEhefrau instead.
+   Confirmed against the real official XSD (Vorsatz_67907_CType) - field
+   ORDER MATTERS for XML schema validation, matches the sequence below
+   exactly. This is a real, load-bearing XML block, not a Kennzahl-style
+   context - element names are used directly (ID, IDEhefrau, etc.), not
+   E-prefixed Kennzahl codes.
+============================================================================= */
+function buildVorsatz(data) {
+  const h = data.hauptvordruck || {};
+  const A = h.personA || {};
+  const B = h.personB;
+  const year = String(data.meta?.taxYear || 2025);
+
+  let xml = '<Vorsatz>\n';
+  xml += tag('Unterfallart', '10'); // fixed value for ESt per the XSD's own documentation
+  xml += tag('Vorgang', '01'); // "Veranlagung" - standard filing (the other option, "04", is for advance-payment cases)
+  if (h.steuernummer) xml += tag('StNr', String(h.steuernummer).replace(/\D/g, ''));
+  xml += tag('ID', A.idnr);
+  if (B && B.idnr) xml += tag('IDEhefrau', B.idnr);
+  xml += tag('Zeitraum', year);
+  /* sender = the preparer (self-filer's own name, or the consultant/
+     Kanzlei name for the consultant workspace) - reuses the same
+     DatenLieferant concept already used in the TransferHeader. */
+  const senderName = data.datenlieferant?.name || [A.vorname, h.lastName].filter(Boolean).join(' ') || 'SimplyTax';
+  xml += tag('AbsName', senderName.slice(0, 45));
+  if (A.anschrift?.strasse) xml += tag('AbsStr', [A.anschrift.strasse, A.anschrift.hausnummer].filter(Boolean).join(' ').slice(0, 30));
+  if (A.anschrift?.plz) xml += tag('AbsPlz', A.anschrift.plz);
+  if (A.anschrift?.ort) xml += tag('AbsOrt', A.anschrift.ort.slice(0, 29));
+  xml += tag('Copyright', 'SimplyTax');
+  /* DEFINITIVELY DISPROVEN (fourth pass) - confirmed via real ERiC
+     validation, not just documentation ambiguity: sending a space for
+     OrdNrArt returns "fuehrendesBlank" ("darf nicht mit einem Leerzeichen
+     beginnen"). Since this is a strict 1-character field, a value
+     beginning with a space and a value OF a space are the same thing
+     here - so this proves conclusively that a blank OrdNrArt is NOT
+     valid for E10's Vorsatz, unlike the developer manual's §15.4.1
+     BDS-2 record (a genuinely different record type, as flagged as a
+     real risk before trying this). E10's Vorsatz/OrdNrArt only accepts
+     "S" (needs a real Steuernummer) or "O" (needs a real Ordnungsbegriff,
+     which the app does not collect either). CONCLUSION: for this
+     specific data type/ERiC version, there is currently no confirmed
+     way to submit E10 without either a Steuernummer or an
+     Ordnungsbegriff - "ID-only" filing may exist at the ELSTER-portal
+     level for a human filer, but not through this specific
+     software-transmission path as currently understood. Reverted to
+     correctly omitting OrdNrArt when no steuernummer exists (an honest
+     incomplete submission ERiC will clearly flag, rather than an
+     actively wrong value). A sharpened, evidence-backed question - now
+     armed with this definitive proof - is the right next step, not
+     another guess. */
+  if (h.steuernummer) xml += tag('OrdNrArt', 'S');
+  /* CORRECTED: Rueckuebermittlung/Bescheid confirmed via real ERiC
+     validation to be required too ("ist anzugeben, ob die Bereitstellung
+     der Bescheiddaten...gewünscht wird"). "2" matches the real official
+     ELSTER example file - the app has no UI yet for this choice, so this
+     is the same safe default ELSTER's own demo uses, not an invented
+     value. */
+  xml += '<Rueckuebermittlung>' + tag('Bescheid', '2') + '</Rueckuebermittlung>\n';
+  xml += '</Vorsatz>\n';
+  return xml;
+}
+
 function buildEStXML(data, opts = {}) {
   /* Defensive check - found via testing that malformed/incomplete
      interchangeData (missing hauptvordruck, missing personA) caused an
@@ -461,6 +721,8 @@ function buildEStXML(data, opts = {}) {
     skippedSections.push('anlageV Werbungskosten (rental deduction costs - real schema needs itemized categories, our simple total cannot be honestly mapped)');
   if ((data.anlageKind || []).some(k => k.betreuungskosten > 0 && (!k.betreuungAnbieter || !k.betreuungVon || !k.betreuungBis)))
     skippedSections.push('anlageKind childcare amount present without provider/period for at least one child - that entry\'s childcare block was skipped (should not happen if the app UI validation ran, worth checking why it was bypassed)');
+  if (data.anlageUnterhalt && data.anlageUnterhalt.betrag > 0)
+    skippedSections.push('anlageUnterhalt support payment (was mapped to the wrong field originally - real ELSTER validation revealed the correct field requires an entire 50+ field supported-person sub-form our app does not collect; not transmitted until that scope decision is made)');
   if (skippedSections.length) {
     console.warn('[eric xml-builder] Sections present in data but not mapped, SKIPPED (not silently guessed):');
     skippedSections.forEach(s => console.warn('  - ' + s));
@@ -480,6 +742,7 @@ function buildEStXML(data, opts = {}) {
   nutzdaten += buildAgB(data);
   nutzdaten += buildHA35a(data);
   nutzdaten += buildMisc(data);
+  nutzdaten += buildVorsatz(data);
   nutzdaten += '</E10>\n';
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>

@@ -21,7 +21,12 @@
 const path = require('path');
 const fs = require('fs');
 const koffi = require('koffi');
-const { buildEStXML } = require('./xml-builder.js');
+const { buildEStXML } = require('/Users/Sunil/Documents/Tax_Application_App/SimplyTax/backend/eric/xml-builder.js');
+/* Points directly at the REAL backend code - not a local copy. This means
+   xml-builder.js's own require('./eric-fieldmap.js') automatically
+   resolves relative to THAT real folder too, so eric-fieldmap.js is also
+   read from the real location - there is now only ever one copy of
+   either file anywhere, so they can never drift out of sync again. */
 
 const ERIC_HOME = process.env.ERIC_HOME || '';
 const DATA_PATH = process.argv[2];
