@@ -55,13 +55,49 @@ const EricMtBearbeiteVorgang = lib.func(
   'void* druckParameter, void* cryptoParameter, ' +
   'void* rueckgabeXmlPuffer, void* serverantwortXmlPuffer)'
 );
+/* Real bug found via actual ERiC validation (Fehlercode 10010 +
+   ungueltigeSteuernummer): a raw, regionally-formatted Steuernummer must
+   be converted into the unified 13-digit ELSTER format before
+   transmission - this function does both the conversion AND validates
+   it in one call. This same fix was added to the real backend
+   (server.js), but THIS standalone script calls buildEStXML directly
+   and bypasses that entirely - so it needs its own copy of the same
+   conversion step. */
+const EricMtMakeElsterStnr = lib.func(
+  'int EricMtMakeElsterStnr(void* instanz, const char* steuernrBescheid, ' +
+  'const char* landesnr, const char* bundesfinanzamtsnr, void* steuernrPuffer)'
+);
 const ERIC_VALIDIERE = 2;
 
-/* ---------- build our own XML from real data ---------- */
+/* ---------- create the ERiC instance FIRST, so it can be used for the
+   Steuernummer conversion below, before building the XML ---------- */
+const instanz = EricMtInstanzErzeugen(PLUGINS, LOGDIR);
+if (!instanz) { console.error('Instance creation failed.'); process.exit(1); }
+console.log('[1/5] ERiC instance created');
+
+/* ---------- load the data and convert the Steuernummer if present ---------- */
 const data = JSON.parse(fs.readFileSync(DATA_PATH, 'utf8'));
+const rawStNr = data.hauptvordruck?.steuernummer;
+const bufaNr = data.hauptvordruck?.finanzamt?.bufaNr;
+if (rawStNr && bufaNr) {
+  const outBuf = EricMtRueckgabepufferErzeugen(instanz);
+  const rc = EricMtMakeElsterStnr(instanz, String(rawStNr), '', String(bufaNr), outBuf);
+  if (rc === 0) {
+    const converted = EricMtRueckgabepufferInhalt(instanz, outBuf);
+    console.log('[2/5] Steuernummer converted: ' + rawStNr + ' -> ' + converted);
+    data.hauptvordruck.steuernummer = converted;
+  } else {
+    console.log('[2/5] Steuernummer conversion FAILED (rc=' + rc + ') - check that the Steuernummer genuinely belongs to Finanzamt ' + bufaNr + '. Proceeding with the raw value, which will likely be rejected by the next step.');
+  }
+  EricMtRueckgabepufferFreigeben(instanz, outBuf);
+} else {
+  console.log('[2/5] No Steuernummer or Finanzamt number present - skipping conversion.');
+}
+
+/* ---------- build our own XML from the (now converted) data ---------- */
 const { xml, skippedSections } = buildEStXML(data);
 
-console.log('[1/4] Generated XML from: ' + DATA_PATH + ' (' + xml.length + ' bytes)');
+console.log('[3/5] Generated XML from: ' + DATA_PATH + ' (' + xml.length + ' bytes)');
 if (skippedSections.length) {
   console.log('      Skipped (not yet mapped, by design):', skippedSections.join('; '));
 }
@@ -69,17 +105,13 @@ if (skippedSections.length) {
 /* save a copy for inspection regardless of the validate result */
 const outPath = path.join(process.cwd(), 'generated-est.xml');
 fs.writeFileSync(outPath, xml, 'utf8');
-console.log('[2/4] Saved generated XML to: ' + outPath + ' (open it to inspect)');
+console.log('[4/5] Saved generated XML to: ' + outPath + ' (open it to inspect)');
 
-/* ---------- validate with the real library ---------- */
-const instanz = EricMtInstanzErzeugen(PLUGINS, LOGDIR);
-if (!instanz) { console.error('Instance creation failed.'); process.exit(1); }
-console.log('[3/4] ERiC instance created');
-
+/* ---------- validate with the real library (reusing the same instance) ---------- */
 const rueckgabeBuf = EricMtRueckgabepufferErzeugen(instanz);
 const rc = EricMtBearbeiteVorgang(instanz, xml, 'ESt_2025', ERIC_VALIDIERE, null, null, rueckgabeBuf, null);
 
-console.log('[4/4] EricMtBearbeiteVorgang returned code: ' + rc + (rc === 0 ? '  (0 = ERIC_OK - OUR GENERATED XML IS VALID)' : ''));
+console.log('[5/5] EricMtBearbeiteVorgang returned code: ' + rc + (rc === 0 ? '  (0 = ERIC_OK - OUR GENERATED XML IS VALID)' : ''));
 
 const resultXml = EricMtRueckgabepufferInhalt(instanz, rueckgabeBuf);
 console.log('----------------------------------------------------------------');

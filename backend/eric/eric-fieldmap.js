@@ -16,6 +16,8 @@ const ESt1A = {
   taxIdSpouse: 'E0100082',
   birthDate: 'E0100401',
   spouseBirthDate: 'E0101001',
+  spouseLastName: 'E0100901', // confirmed via the real official ELSTER example (est_e10_2025.xml) - was collected by the frontend but never wired into the XML
+  spouseFirstName: 'E0100801',
   lastName: 'E0100201',
   firstName: 'E0100301',
   street: 'E0101104',
@@ -76,7 +78,14 @@ const N = {
 
 /* ---------- 3. Insurance / Vorsorgeaufwand (VOR context) ---------- */
 const VOR = {
-  rv: 'E2000601',
+  /* CORRECTED: E2000601 was the wrong field - confirmed via the real
+     official ELSTER example (est_e10_2025.xml) and its Kennzahlen
+     description. E2000601 is specifically for RV contributions NOT
+     already covered via employment; our app's rv value comes directly
+     from the Lohnsteuerbescheinigung, matching E2000401
+     ("Arbeitnehmeranteil laut Nr. 23a/b der Lohnsteuerbescheinigung"). */
+  rv: 'E2000401',
+  rvArbeitgeber: 'E2000801', // required companion to rv, confirmed via real ERiC validation (Regel 950020) - must be declared together, "gegebenenfalls mit dem Wert 0"
   rvBerufsstaendisch: 'E2000501',
   kv: 'E2001203',
   kvOther: 'E2001805',

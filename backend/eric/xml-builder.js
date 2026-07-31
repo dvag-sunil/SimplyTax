@@ -150,7 +150,7 @@ function buildESt1A(data) {
      object but has no populated fields, since taxIdSpouse was removed
      and spouseBirthDate may be blank) is itself invalid - a context
      must either have content or not be written at all. */
-  const bContent = B ? tag(fm.ESt1A.spouseBirthDate, formatDateDE(B.geburtsdatum)) : '';
+  const bContent = B ? (tag(fm.ESt1A.spouseLastName, B.name) + tag(fm.ESt1A.spouseFirstName, B.vorname) + tag(fm.ESt1A.spouseBirthDate, formatDateDE(B.geburtsdatum))) : '';
   if (bContent) {
     xml += `<B>\n${bContent}</B>`;
   }
@@ -310,7 +310,15 @@ function buildVOR(data) {
      confirmed via real ERiC validation ("mandatoryField"). Defaults to
      PersonA since the app currently collects insurance contributions as
      one pooled figure, not split per spouse. */
-  if (N(l.rv) > 0) xml += `<AVor><Person>PersonA</Person>\n${wholeEuroTag(fm.VOR.rv, l.rv)}</AVor>\n`;
+  /* CONFIRMED via real ERiC validation (Regel 950020): E2000401
+     (Arbeitnehmeranteil) and E2000801 (Arbeitgeberanteil) must be
+     declared TOGETHER, explicitly with 0 if not otherwise available -
+     our app only collects one combined rv figure (the employee's own
+     contribution), so the employer portion is sent as 0 rather than
+     omitted, since omitting it entirely is exactly what caused this
+     error. wholeEuroTag() would otherwise silently drop a zero value,
+     so this writes the tag directly instead. */
+  if (N(l.rv) > 0) xml += `<AVor><Person>PersonA</Person>\n${wholeEuroTag(fm.VOR.rv, l.rv)}<${fm.VOR.rvArbeitgeber}>0</${fm.VOR.rvArbeitgeber}>\n</AVor>\n`;
   if (N(l.gkv) > 0 || N(l.pv) > 0) {
     xml += '<Beitr_g_KV_PV_Inl><Person>PersonA</Person><AN>\n';
     xml += wholeEuroTag(fm.VOR.kv, l.gkv);

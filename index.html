@@ -1983,6 +1983,16 @@ function upd(group,key,val,fmt){
  if(fmt && String(val).trim()!=='') val = formatDE(N(val)); // display in German format: 1.234,56
  c[group][key]=val; c.updatedAt=Date.now();
  delete S.aiFields[group+'.'+key]; // user edited → no longer pure AI value
+ /* CORRECTED: real bug found - switching Bundesland never cleared the
+    previously-selected Finanzamt, so the search field kept showing a
+    stale selection from the OLD state (e.g. staying on a Frankfurt/
+    Hessen office no matter which new state was picked) even though the
+    underlying dropdown SEARCH logic itself was already correctly
+    filtering by the new state - the input's displayed value just never
+    got reset to reflect that. Cleared here, before render(), so the
+    field visibly empties out the moment the state changes, prompting a
+    fresh search rather than silently keeping an inconsistent selection. */
+ if(group==='p' && key==='bundesland'){ c.p.finanzamt=''; c.p.faNumber=''; }
  scheduleSave(); render();
  if(group==='p' && key==='taxId') checkTaxIdChecksum(val);
  if(group==='p' && key==='iban') checkIbanChecksum(val);

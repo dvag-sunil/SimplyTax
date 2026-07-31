@@ -139,7 +139,7 @@ check('Vorsatz appears as the last child of E10, right before it closes', /<\/Vo
 // Field-format fixes - confirmed via real ERiC validation (error code
 // 610001002, a detailed field-level punch list) after the structural
 // (610301106) issues were fully resolved.
-check('whole-number fields have NO decimal separator (Ganzzahl type, confirmed via real XSD)', !xml.includes('<E2000601>4650,00</E2000601>') && xml.includes('<E2000601>4650</E2000601>'));
+check('whole-number fields have NO decimal separator (Ganzzahl type, confirmed via real XSD)', !xml.includes('<E2000401>4650,00</E2000401>') && xml.includes('<E2000401>4650</E2000401>'));
 check('decimal fields (the 13 confirmed Dezimalzahl group) STILL use comma-decimal correctly', xml.includes('<E0200204>50000,00</E0200204>') || xml.includes(',00</E02'));
 check('Kindergeld sends "1" not "X" (Ganzzahl type despite Ja/Nein-sounding description)', !xml.includes('<E0500702>X</E0500702>'));
 check('marital status date fields (E0100701/E0100702) are NOT sent with a wrong "X" value', !xml.includes('<E0100701>X</E0100701>') && !xml.includes('<E0100702>X</E0100702>'));
@@ -149,6 +149,7 @@ check('empty B block is never written (was triggering "kontextLeer")', !xml.incl
 // (error code 610001002, a detailed field-completeness punch list) after
 // all structural/nesting and number-format issues were fully resolved.
 check('VOR/AVor has the required Person tag', xml.includes('<AVor><Person>PersonA</Person>'));
+check('VOR/AVor sends the required employer-portion companion field, even as 0 (confirmed via real ERiC Regel 950020)', xml.includes('<E2000801>0</E2000801>'));
 check('KAP has the required Person tag, using the real per-entry person data', xml.includes('<KAP><Person>PersonA</Person>'));
 check('SA/Zuw/Sp_erh_Verm_Stift has the required Person tag', xml.includes('<Sp_erh_Verm_Stift><Person>PersonA</Person>'));
 check('AgB/Beh has the required Person tag', xml.includes('<Beh><Person>PersonA</Person>'));
