@@ -109,7 +109,20 @@ console.log('[4/5] Saved generated XML to: ' + outPath + ' (open it to inspect)'
 
 /* ---------- validate with the real library (reusing the same instance) ---------- */
 const rueckgabeBuf = EricMtRueckgabepufferErzeugen(instanz);
-const rc = EricMtBearbeiteVorgang(instanz, xml, 'ESt_2025', ERIC_VALIDIERE, null, null, rueckgabeBuf, null);
+/* CORRECTED: real bug found - this was hardcoded to 'ESt_2025' regardless
+   of the actual tax year in the loaded JSON. ERiC ships a separate
+   validation plugin per year (libcheckESt_2025.dylib, libcheckESt_2023.
+   dylib, etc. - already confirmed present in earlier sessions), and
+   picks the correct one ONLY based on this exact string. Testing a 2023
+   file while always requesting the 2025 plugin explains exactly the
+   "lots of errors on a 2023 file" symptom - those weren't necessarily
+   real problems with the 2023 data, they were the WRONG year's rulebook
+   being applied. xml-builder.js itself was already correctly year-aware
+   (the E10 namespace/version attributes derive from data.meta.taxYear
+   dynamically) - only this outer call parameter was hardcoded. */
+const datenartVersion = 'ESt_' + (data.meta?.taxYear || 2025);
+console.log('[4b/5] Using datenartVersion: ' + datenartVersion + ' (derived from the loaded file\'s taxYear, not hardcoded)');
+const rc = EricMtBearbeiteVorgang(instanz, xml, datenartVersion, ERIC_VALIDIERE, null, null, rueckgabeBuf, null);
 
 console.log('[5/5] EricMtBearbeiteVorgang returned code: ' + rc + (rc === 0 ? '  (0 = ERIC_OK - OUR GENERATED XML IS VALID)' : ''));
 

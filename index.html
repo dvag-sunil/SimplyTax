@@ -478,10 +478,22 @@ en: {
  cc_provider:"Provider name & address", cc_provider_ph:"e.g. Kita Sonnenschein, Musterstr. 1, 60000 Frankfurt",
  cc_period_from:"Service period - from", cc_period_to:"Service period - to",
  err_cc_required:"Please fill in the provider name/address and the service period for the childcare costs you entered (required whenever an amount is filled in).",
+ err_unt_required:"Please fill in the supported person's name, Tax ID, and household address for the support payment you entered (required whenever an amount is filled in).",
  school_hint:"30% deductible, max. €5,000.",
  support_h:"Support for parents / relatives", support_amount:"Support paid (per year)", support_where:"Where does the supported person live?",
  grp1:"Germany / country group 1 (full maximum)", grp2:"Country group 2 (¾ of maximum)", grp3:"Country group 3 (½ of maximum, e.g. India)", grp4:"Country group 4 (¼ of maximum)",
  support_hint:"Deductible up to the annual maximum (§ 33a EStG), reduced by country group. The recipient's own income can reduce the amount further.",
+ unt_required_hint:"Because you entered a support amount, the tax office requires details about the supported person and household - these fields are now required.",
+ unt_name:"Name of the supported person", unt_name_ph:"e.g. Maria Muster",
+ unt_idnr:"Their Tax ID (Steuer-IdNr)",
+ unt_relationship:"Relationship to you", unt_relationship_ph:"e.g. mother, father, adult child",
+ unt_address:"Their household address", unt_address_ph:"Street, house number, postal code, city",
+ unt_household_size:"Number of people in that household",
+ unt_from:"Support period - from", unt_to:"Support period - to",
+ unt_kindergeld:"Did anyone receive Kindergeld for this person?",
+ unt_other_contributor:"Did another person also contribute to their support?",
+ unt_has_income:"Did the supported person have their own income?",
+ yes:"Yes", no:"No",
  new_year:"New tax year", new_year_for:"New tax year for", year_exists:"A return for this year already exists for this client.",
  copy_note:"Personal data will be copied over - income and expenses start empty.",
  docs_h:"Documents (Belege)", docs_lead:"Attach receipts and proofs - kept with the return in case the Finanzamt requests verification.",
@@ -739,10 +751,22 @@ de: {
  cc_provider:"Name & Anschrift des Anbieters", cc_provider_ph:"z. B. Kita Sonnenschein, Musterstr. 1, 60000 Frankfurt",
  cc_period_from:"Leistungszeitraum - von", cc_period_to:"Leistungszeitraum - bis",
  err_cc_required:"Bitte Name/Anschrift des Anbieters und den Leistungszeitraum für die eingetragenen Kinderbetreuungskosten angeben (Pflichtfelder, sobald ein Betrag eingetragen ist).",
+ err_unt_required:"Bitte Name, Steuer-ID und Anschrift der unterstützten Person für die eingetragenen Unterhaltszahlungen angeben (Pflichtfelder, sobald ein Betrag eingetragen ist).",
  school_hint:"30 % absetzbar, max. 5.000 €.",
  support_h:"Unterhalt für Eltern / Angehörige", support_amount:"Gezahlter Unterhalt (pro Jahr)", support_where:"Wo lebt die unterstützte Person?",
  grp1:"Deutschland / Ländergruppe 1 (voller Höchstbetrag)", grp2:"Ländergruppe 2 (¾ des Höchstbetrags)", grp3:"Ländergruppe 3 (½ des Höchstbetrags, z. B. Indien)", grp4:"Ländergruppe 4 (¼ des Höchstbetrags)",
  support_hint:"Absetzbar bis zum Jahreshöchstbetrag (§ 33a EStG), gekürzt nach Ländergruppe. Eigene Einkünfte der unterstützten Person mindern den Betrag zusätzlich.",
+ unt_required_hint:"Da Unterhaltszahlungen eingetragen wurden, verlangt das Finanzamt auch Angaben zur unterstützten Person und zum Haushalt - diese Felder sind jetzt Pflichtfelder.",
+ unt_name:"Name der unterstützten Person", unt_name_ph:"z. B. Maria Muster",
+ unt_idnr:"Deren Steuer-Identifikationsnummer",
+ unt_relationship:"Verwandtschaftsverhältnis zu Ihnen", unt_relationship_ph:"z. B. Mutter, Vater, volljähriges Kind",
+ unt_address:"Anschrift dieses Haushaltes", unt_address_ph:"Straße, Hausnummer, PLZ, Ort",
+ unt_household_size:"Anzahl der Personen in diesem Haushalt",
+ unt_from:"Unterstützungszeitraum - von", unt_to:"Unterstützungszeitraum - bis",
+ unt_kindergeld:"Hatte jemand Anspruch auf Kindergeld für diese Person?",
+ unt_other_contributor:"Hat noch eine weitere Person zum Unterhalt beigetragen?",
+ unt_has_income:"Hatte die unterstützte Person eigene Einkünfte?",
+ yes:"Ja", no:"Nein",
  new_year:"Neues Steuerjahr", new_year_for:"Neues Steuerjahr für", year_exists:"Für dieses Jahr existiert bereits eine Erklärung dieses Mandanten.",
  copy_note:"Persönliche Daten werden übernommen - Einkünfte und Ausgaben starten leer.",
  docs_h:"Belege (Dokumente)", docs_lead:"Belege und Nachweise anhängen - sie bleiben bei der Erklärung gespeichert, falls das Finanzamt Nachweise anfordert.",
@@ -1071,7 +1095,7 @@ function newClient(f,l,year,marital){
  dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
  wkB:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',
  dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
- fam:{ kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',children:[] },
+ fam:{ kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',untName:'',untIdnr:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untKindergeld:'nein',untOtherContributor:'nein',untHasIncome:'nein',children:[] },
  sa:{ donations:'',other:'' },
  ex:{ medical:'',household:'',handwerker:'' },
  docs:[], inq:[], pay:{status:'unpaid'} };
@@ -1167,7 +1191,7 @@ function migrateClient(c){
  c.ins.rv=c.ins.kv=c.ins.pv=c.ins.av='';
  }
  c.wk = Object.assign({dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wk||{});
- c.fam = Object.assign({kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',children:[]}, c.fam||{});
+ c.fam = Object.assign({kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',untName:'',untIdnr:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untKindergeld:'nein',untOtherContributor:'nein',untHasIncome:'nein',children:[]}, c.fam||{});
  if(!Array.isArray(c.fam.children)) c.fam.children=[];
  c.fam.children.forEach(k=>{ if(!k.kinship) k.kinship='leiblich'; });
  /* legacy: convert old lump-sum childcare/school fees into a first child entry */
@@ -2638,6 +2662,23 @@ function stepFamily(c){
  ${F('fam','support',t('support_amount'),{euro:true,ph:'0,00 €',hint:t('support_hint')})}
  ${F('fam','supportGroup',t('support_where'),{select:[['1',t('grp1')],['2',t('grp2')],['3',t('grp3')],['4',t('grp4')]]})}
  </div>
+ ${N(c.fam.support)>0?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
+ ⚠ ${t('unt_required_hint')}
+ </div>
+ <div class="grid2">
+ ${F('fam','untName',t('unt_name')+' *',{ph:t('unt_name_ph')})}
+ ${F('fam','untIdnr',t('unt_idnr')+' *',{ph:'12 345 678 901'})}
+ ${F('fam','untRelationship',t('unt_relationship')+' *',{ph:t('unt_relationship_ph')})}
+ ${F('fam','untAddress',t('unt_address')+' *',{ph:t('unt_address_ph')})}
+ ${F('fam','untHouseholdSize',t('unt_household_size')+' *',{ph:'1'})}
+ ${F('fam','untFrom',t('unt_from')+' *',{type:'date'})}
+ ${F('fam','untTo',t('unt_to')+' *',{type:'date'})}
+ </div>
+ <div class="grid3">
+ ${F('fam','untKindergeld',t('unt_kindergeld')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
+ ${F('fam','untOtherContributor',t('unt_other_contributor')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
+ ${F('fam','untHasIncome',t('unt_has_income')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
+ </div>`:''}
  ${docSection('fam')}
  ${navRow()}`;
 }
@@ -2780,6 +2821,12 @@ function submitElster(){
  rejected without provider + service period once any amount is entered) */
  const ccMissing = (c0.fam.children||[]).find(k => N(k.childcare)>0 && (!k.ccProvider||!k.ccPeriodFrom||!k.ccPeriodTo));
  if(ccMissing){ alert(t('err_cc_required')); S.step=3; render(); return; }
+ /* support payment required-fields check (confirmed via real ERiC
+ validation: amount alone is rejected without the supported person's
+ name, IdNr, and household address once any amount is entered) */
+ if(N(c0.fam.support)>0 && (!c0.fam.untName||!c0.fam.untIdnr||!c0.fam.untAddress)){
+ alert(t('err_unt_required')); S.step=3; render(); return;
+ }
  if(ERIC.enabled){ submitElsterReal(c0); return; }
  const faLine = `${t('submitting_to')}: <b>${esc(c0.p.faNumber)}</b> ${esc(c0.p.finanzamt||'')}`;
  const slot=document.getElementById('modal-slot');
@@ -2995,7 +3042,11 @@ function buildElsterDataset(c){
  kindergeld:N(k.kindergeld), betreuungskosten:N(k.childcare),
  betreuungAnbieter:k.ccProvider||'', betreuungVon:k.ccPeriodFrom||'', betreuungBis:k.ccPeriodTo||'',
  schulgeld:N(k.schoolFees) })),
- anlageUnterhalt: N(c.fam.support)>0?{ betrag:N(c.fam.support), laendergruppe:c.fam.supportGroup }:null,
+ anlageUnterhalt: N(c.fam.support)>0?{ betrag:N(c.fam.support), laendergruppe:c.fam.supportGroup,
+ personName:c.fam.untName||'', personIdnr:(c.fam.untIdnr||'').replace(/\s/g,''), relationship:c.fam.untRelationship||'',
+ householdAddress:c.fam.untAddress||'', householdSize:N(c.fam.untHouseholdSize)||1,
+ von:c.fam.untFrom||'', bis:c.fam.untTo||'',
+ kindergeldEntitlement:c.fam.untKindergeld==='ja', otherContributor:c.fam.untOtherContributor==='ja', hasOwnIncome:c.fam.untHasIncome==='ja' }:null,
  sonderausgaben:{ spenden:N(c.sa.donations), sonstige:N(c.sa.other) },
  aussergewoehnlicheBelastungen:{ krankheitskosten:N(c.ex.medical) },
  haushaltsnaheLeistungen:{ haushaltsnaheDienstleistungen:N(c.ex.household), handwerkerleistungen:N(c.ex.handwerker) },

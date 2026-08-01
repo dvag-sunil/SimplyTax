@@ -100,6 +100,17 @@ const VOR = {
 const SA = {
   donationsDomestic: 'E0108405',
   donationsThisYear: 'E0108509', // required companion - confirmed via real ERiC validation (Regel 101100001): "how much of the donation applies THIS tax year" (endowment donations can otherwise be spread across up to 10 years)
+  // Anlage U / Realsplitting - confirmed via real Kennzahlen sheet under
+  // context /SA/Weit_Aufw/U_Leist (nested inside SA, NOT a separate
+  // top-level element, per the real content model). Confirmed genuinely
+  // required set (Regeln 58, 64, 65): amount + domestic-residence flag
+  // always, plus the ex-spouse's IdNr specifically when residence is
+  // domestic. Name/birthdate confirmed as a soft completeness companion,
+  // not a hard block if omitted.
+  realsplittingAmount: 'E0104408', // "tatsächlich erbracht" - amount actually paid
+  realsplittingInland: 'E0183001', // domestic residence Ja/Nein - Pflichtangabe whenever this context is used at all
+  realsplittingIdNr: 'E0104305', // ex-spouse's IdNr - required specifically when residence is domestic
+  realsplittingNameGeburt: 'E0183101', // combined Name+Geburtsdatum text field - recommended, not hard-required
   donationsEuEwr: 'E0105502',
   donationsBasis: 'E0105902',
 };
@@ -172,8 +183,25 @@ const Sonst = {
 
 /* ---------- 10. Support payments - Unterhalt (ESt1A_U context) ---------- */
 const ESt1A_U = {
-  support: 'E0125007',
-  supportGroup: { kennzahlen: ['E0120101', 'E0120102', 'E0120108', 'E0120109'] },
+  /* CORRECTED: 'support' (E0125007) was the WRONG field entirely - it's
+     part of the Opfergrenze means-testing sub-calculation, not the
+     support amount itself (confirmed via real ERiC validation Regel
+     100120044/101100001 investigated earlier this session). Real
+     confirmed minimal-required set below, verified against both the
+     Jahresdokumentation Felder sheet and the actual XSD types (not
+     guessed) - covers the common domestic case: one household, one
+     supported person, no other contributors, no income of their own.
+     All under context /ESt1A_U/Ang_HH_unt_P_Unt_Leist/... */
+  householdAddress: 'E0120101',   // HH_unt_P - Anschrift dieses Haushaltes (String)
+  householdSize: 'E0120108',      // HH_unt_P - Anzahl Personen im Haushalt (Ganzzahl)
+  name: 'E0120201',               // Ang_Unt_Pers/Allg/Persoenl - Name, Vorname (String)
+  idnr: 'E0120211',               // Ang_Unt_Pers/Allg/Persoenl - Identifikationsnummer
+  relationship: 'E0120701',       // Ang_Unt_Pers/Allg/Persoenl - Verwandtschaftsverhältnis (String)
+  kindergeldEntitlement: 'E0122613', // Ang_Unt_Pers/Allg/U_Berecht - JaNein12BaseCType (1=Ja,2=Nein)
+  otherContributor: 'E0124801',   // Ang_Unt_Pers/Weit_beitr_P - JaNein12BaseCType
+  hasOwnIncome: 'E0123313',       // Ang_Unt_Pers/Ek_Bez_u_P/Allg - JaNein12BaseCType (2=Nein skips the entire 40+ field income sub-tree)
+  amount: 'E0120103',             // AW_U/U_Ztr - Höhe der Unterhaltszahlung (Ganzzahl)
+  period: 'E0120109',             // AW_U/U_Ztr - Unterstützungszeitraum (DatumBereichTTpMMbTTpMMBaseCType - "TT.MM-TT.MM", same format as childcare's period)
 };
 
 /* ---------- 11. Foreign employment income - Anlage N-AUS (N_AUS context) ---------- */

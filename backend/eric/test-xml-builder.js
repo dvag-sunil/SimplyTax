@@ -157,6 +157,38 @@ check('Allg/B field order matches the real confirmed example: Geburtsdatum, Name
   return positions.every(p => p !== -1) && positions.every((p, i) => i === 0 || p > positions[i - 1]);
 })());
 
+// TOP-LEVEL section order - a real regression (ERIC_IO_READER_SCHEMA_
+// VALIDIERUNGSFEHLER, 610301200) found via actual ERiC, which quoted the
+// complete authoritative content model directly. This is checked here
+// with every section populated at once, using the confirmed exact
+// sequence, closing the gap that let SA drift to the wrong position
+// completely undetected by 69 other passing tests.
+check('Top-level section order matches the authoritative content model confirmed via real ERiC (ESt1A,SA,AgB,HA_35a,EM_35c,Sonst,ESt1A_U,Kind,N,N_AUS,KAP,R,V,VOR,Vorsatz)', (() => {
+  const full = {
+    meta: { taxYear: 2025 },
+    hauptvordruck: { veranlagungsart: 'einzelveranlagung', bundesland: 'Hessen', finanzamt: {},
+      personA: { idnr: '1', vorname: 'X', geburtsdatum: '1985-01-01', anschrift: {} } },
+    anlageN: [{ person: 'A', zeile3_bruttoarbeitslohn: 50000 }],
+    anlageNAUS: [{ person: 'A', land: 'Schweiz', gesamtlohn: 60000, steuerfreierBetrag: 100 }],
+    anlageVorsorgeaufwand: { ausLohnsteuerbescheinigungen: { rv: 4650 } },
+    anlageKAP: [{ person: 'A', zeile7_kapitalertraege: 1000 }],
+    sonderausgaben: { spenden: 500 },
+    weitereAngaben: { verlustvortrag: 1000, behinderung: { gdbA: '30' } },
+    aussergewoehnlicheBelastungen: {},
+    haushaltsnaheLeistungen: { handwerkerleistungen: 300 },
+    par35cEnergetisch: { aufwendungen: 500 },
+    anlageR: [{ person: 'A', art: 'gesetzlich', jahresbetrag: 12000, rentenbeginn: '2020' }],
+    anlageV: [{ objekt: 'Teststr. 1', mieteinnahmen: 8000 }],
+    anlageKind: [{ vorname: 'Lena', geburtsdatum: '2015-01-01', kinship: 'leiblich' }],
+  };  const fullXml = buildEStXML(full).xml;
+  const tags = ['<ESt1A>', '<SA>', '<AgB>', '<HA_35a>', '<EM_35c>', '<Sonst>', '<Kind>', '<N>', '<N_AUS>', '<KAP>', '<R>', '<V>', '<VOR>', '<Vorsatz>'];
+  const positions = tags.map(t => fullXml.indexOf(t));
+  const allPresent = positions.every(p => p !== -1);
+  const inOrder = positions.every((p, i) => i === 0 || p > positions[i - 1]);
+  if (!allPresent) console.log('  (order test note: some sections missing from test data - present:', tags.filter((t, i) => positions[i] !== -1).join(', '), ')');
+  return allPresent && inOrder;
+})());
+
 // Field-format fixes - confirmed via real ERiC validation (error code
 // 610001002, a detailed field-level punch list) after the structural
 // (610301106) issues were fully resolved.
@@ -180,6 +212,65 @@ check('ESt1A now includes city/Wohnort (was missing entirely)', xml.includes('<E
 check('ESt1A now includes religion (was missing entirely)', xml.includes('<E0100402>'));
 check('ESt1A now includes real IBAN under Allg/BV (was collected but never transmitted)', xml.includes('<BV>') && xml.includes('<E0102102>'));
 check('E0100002 (Sparzulage) blanket checkbox removed - had an unmet conditional requirement', !xml.includes('<E0100002>'));
+
+// Anlage U / Realsplitting - confirmed real Kennzahlen under /SA/Weit_Aufw/
+// U_Leist/Einz. Uses isolated test data since the main fixture doesn't
+// include this scenario.
+check('Realsplitting works standalone (no donations) - the early-return guard bug is fixed', (() => {
+  const rsOnly = JSON.parse(JSON.stringify(sample));
+  rsOnly.sonderausgaben = {};
+  rsOnly.weitereAngaben = { realsplittingAnlageU: 5000 };
+  const rsXml = buildEStXML(rsOnly).xml;
+  return rsXml.includes('<E0104408>5000</E0104408>') && rsXml.includes('<E0183001>1</E0183001>');
+})());
+check('Realsplitting and donations correctly coexist as siblings within one SA block', (() => {
+  const both = JSON.parse(JSON.stringify(sample));
+  both.sonderausgaben = { spenden: 500 };
+  both.weitereAngaben = { realsplittingAnlageU: 5000 };
+  const bothXml = buildEStXML(both).xml;
+  const saCount = (bothXml.match(/<SA>/g) || []).length;
+  return saCount === 1 && bothXml.includes('E0108405') && bothXml.includes('E0104408');
+})());
+check('Realsplitting skippedSections correctly warns about the missing ex-spouse IdNr', (() => {
+  const rsOnly = JSON.parse(JSON.stringify(sample));
+  rsOnly.sonderausgaben = {};
+  rsOnly.weitereAngaben = { realsplittingAnlageU: 5000 };
+  const result = buildEStXML(rsOnly);
+  return result.skippedSections.some(s => s.includes('Realsplitting'));
+})());
+
+// Anlage Unterhalt (bedürftige Personen) - complete rebuild using the
+// confirmed real minimal-required field set (10 fields), replacing the
+// original wrong single-field mapping.
+check('Anlage Unterhalt transmits correctly with complete data - all 10 confirmed fields present, no warnings', (() => {
+  const withU = JSON.parse(JSON.stringify(sample));
+  withU.anlageUnterhalt = { betrag: 6000, von: '2025-01-01', bis: '2025-12-31', personName: 'Maria Muster',
+    personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Musterstr. 1, 60000 Frankfurt',
+    householdSize: 1, kindergeldEntitlement: false, otherContributor: false, hasOwnIncome: false };
+  const result = buildEStXML(withU);
+  const uXml = result.xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
+  const hasAllFields = ['E0120101', 'E0120108', 'E0120201', 'E0120211', 'E0120701', 'E0122613', 'E0124801', 'E0123313', 'E0120103', 'E0120109']
+    .every(code => uXml.includes(code));
+  return hasAllFields && !result.skippedSections.some(s => s.includes('anlageUnterhalt'));
+})());
+check('Anlage Unterhalt correctly uses "2" (Nein) for hasOwnIncome, legally skipping the entire income sub-tree (JaNein12BaseCType, confirmed via real XSD)', (() => {
+  const withU = JSON.parse(JSON.stringify(sample));
+  withU.anlageUnterhalt = { betrag: 6000, personName: 'Maria', householdAddress: 'Test', hasOwnIncome: false };
+  const uXml = buildEStXML(withU).xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
+  return uXml.includes('<E0123313>2</E0123313>') && !uXml.includes('Ek_ns_A');
+})());
+check('Anlage Unterhalt correctly warns when required fields (name/address) are missing, rather than silently sending incomplete data', (() => {
+  const incomplete = JSON.parse(JSON.stringify(sample));
+  incomplete.anlageUnterhalt = { betrag: 6000 }; // no name, no address
+  const result = buildEStXML(incomplete);
+  return result.skippedSections.some(s => s.includes('anlageUnterhalt') && s.includes('missing'));
+})());
+check('Anlage Unterhalt period uses the confirmed date-range format (TT.MM-TT.MM, no year) - same DatumBereich type as childcare', (() => {
+  const withU = JSON.parse(JSON.stringify(sample));
+  withU.anlageUnterhalt = { betrag: 6000, personName: 'Maria', householdAddress: 'Test', von: '2025-03-01', bis: '2025-11-30' };
+  const uXml = buildEStXML(withU).xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
+  return uXml.includes('<E0120109>01.03-30.11</E0120109>');
+})());
 check('V includes the required Laufende_Nummer_V sequence field', xml.includes('<Laufende_Nummer_V>1</Laufende_Nummer_V>'));
 check('SA donation includes the required "this year" companion field (E0108509), resolving a persistent real ERiC validation error', xml.includes('<E0108509>500</E0108509>'));
 check('Vorsatz/OrdNrArt is present and correctly paired with a real StNr value', xml.includes('<StNr>91815081508</StNr>') && xml.includes('<OrdNrArt>S</OrdNrArt>'));

@@ -450,27 +450,53 @@ function buildV(data) {
    Sonderausgaben - donations
 ============================================================================= */
 function buildSA(data) {
-  const s = data.sonderausgaben;
-  if (!s || !s.spenden) return '';
-  /* CORRECTED nesting - Zuw/Sp_erh_Verm_Stift confirmed via the real
-     Kennzahlen sheet. NOTE: this path name ("Spende erhöhter
-     Vermögensstock-Stiftung") suggests E0108405 may specifically be for
-     ENDOWMENT-related donations, not general everyday donations - worth
-     re-confirming in a future pass whether a separate, simpler donations
-     Kennzahl exists for the common case. Not changed here since this is
-     still the same code already independently confirmed to exist and be
-     donation-related - flagging the naming oddity rather than guessing
-     a different code. */
-  /* CORRECTED: confirmed via the real Regeln sheet (Regel 101100001) that
-     E0108509 is a REQUIRED companion to E0108405 - "how much of this
-     donation applies to THIS specific tax year" (Vermögensstock endowment
-     donations can otherwise be legally spread across up to 10 years).
-     This is why the amount alone kept failing across multiple rounds
-     despite being present and correctly formatted - a genuinely separate
-     missing field, not a formatting issue. Defaults to claiming the full
-     amount in the current year (the simple, most common case) rather than
-     spreading it - spreading would need real UI for the user to choose. */
-  return `<SA><Zuw><Sp_erh_Verm_Stift><Person>PersonA</Person>\n${wholeEuroTag(fm.SA.donationsDomestic, s.spenden)}${wholeEuroTag(fm.SA.donationsThisYear, s.spenden)}</Sp_erh_Verm_Stift></Zuw></SA>\n`;
+  const s = data.sonderausgaben || {};
+  const w = data.weitereAngaben || {};
+  /* CORRECTED: the early-return guard previously only checked for
+     donations - meaning Realsplitting data alone (no donations) would
+     have been silently dropped entirely, never even reaching the
+     Realsplitting logic below. Now checks both. */
+  if (!s.spenden && !w.realsplittingAnlageU) return '';
+
+  let inner = '';
+  if (s.spenden) {
+    /* CORRECTED nesting - Zuw/Sp_erh_Verm_Stift confirmed via the real
+       Kennzahlen sheet. NOTE: this path name ("Spende erhöhter
+       Vermögensstock-Stiftung") suggests E0108405 may specifically be for
+       ENDOWMENT-related donations, not general everyday donations - worth
+       re-confirming in a future pass whether a separate, simpler donations
+       Kennzahl exists for the common case. Not changed here since this is
+       still the same code already independently confirmed to exist and be
+       donation-related - flagging the naming oddity rather than guessing
+       a different code.
+       CORRECTED: confirmed via the real Regeln sheet (Regel 101100001) that
+       E0108509 is a REQUIRED companion to E0108405 - "how much of this
+       donation applies to THIS specific tax year" (Vermögensstock endowment
+       donations can otherwise be legally spread across up to 10 years).
+       Defaults to claiming the full amount in the current year (the simple,
+       most common case) rather than spreading it - spreading would need
+       real UI for the user to choose. */
+    inner += `<Zuw><Sp_erh_Verm_Stift><Person>PersonA</Person>\n${wholeEuroTag(fm.SA.donationsDomestic, s.spenden)}${wholeEuroTag(fm.SA.donationsThisYear, s.spenden)}</Sp_erh_Verm_Stift></Zuw>\n`;
+  }
+  if (w.realsplittingAnlageU) {
+    /* Anlage U / Realsplitting - confirmed via the real Kennzahlen sheet,
+       nested at /SA/Weit_Aufw/U_Leist/Einz (a SIBLING of Zuw within SA,
+       not a separate top-level element - confirmed via the real
+       Kontexte sheet). Confirmed genuinely required set (Regeln 58, 64,
+       65): amount + domestic-residence flag always, plus the ex-spouse's
+       IdNr specifically when residence is domestic.
+       SCOPE NOTE: the app currently only collects the amount - not the
+       ex-spouse's IdNr or name/birthdate. Domestic residence defaults to
+       "Wahr" (true), the overwhelmingly common case for this app's
+       German-resident user base. Without the ex-spouse's IdNr, this
+       submission would fail Regel 65 for domestic cases - that gap is
+       surfaced via skippedSections below, not silently sent incomplete. */
+    /* CONFIRMED via the real XSD: E0183001 is JaNein12BaseCType (the same
+       type family as Vorsatz/Rueckuebermittlung/Bescheid, where "1"=Ja
+       was already confirmed) - NOT a simple "X" checkbox. */
+    inner += `<Weit_Aufw><U_Leist><Einz>\n${wholeEuroTag(fm.SA.realsplittingAmount, w.realsplittingAnlageU)}${tag(fm.SA.realsplittingInland, '1')}</Einz></U_Leist></Weit_Aufw>\n`;
+  }
+  return `<SA>\n${inner}</SA>\n`;
 }
 
 /* =============================================================================
@@ -571,24 +597,36 @@ function buildKind(data) {
    never actually built into the XML before this pass.
 ============================================================================= */
 function buildUnterhalt(data) {
-  /* SCOPE LIMITATION, discovered via the real Regeln sheet condition for
-     error 100120044 (persisted across 3 rounds before being properly
-     researched instead of guessed at). E0125007 was ORIGINALLY MAPPED
-     WRONG - it is not a standalone "support amount paid" field at all.
-     It's part of the Opfergrenze (means-testing limit) SUB-CALCULATION,
-     which requires an entire separate parent block describing the
-     supported person - identity, relationship, income sources, assets -
-     a 50+ field sub-form (/ESt1A_U/Ang_HH_unt_P_Unt_Leist/...) the app
-     has no UI for at all. This mirrors the same honest-scope-limitation
-     pattern already used for N-AUS employer address and Anlage V
-     Werbungskosten: rather than guess-populate a form this deep, or keep
-     sending a field that cascades into unresolvable completeness
-     errors, support payments are NOT currently transmitted. The real
-     "how much support did you pay" field is very likely elsewhere in
-     that Ang_HH_unt_P_Unt_Leist sub-tree, not under OG_Ber at all - a
-     genuine future research task if this feature becomes a priority,
-     not something to guess at here. */
-  return '';
+  const u = data.anlageUnterhalt;
+  if (!u || !(u.betrag > 0)) return '';
+  /* CORRECTED: complete rebuild using the confirmed real minimal-required
+     field set (10 fields, verified against the actual Regeln sheet - see
+     eric-fieldmap.js ESt1A_U section for the full research trail), not
+     the wrong single field (E0125007) used before. Covers the common
+     domestic case: one household, one supported person, no other
+     contributors, no income of their own for the supported person -
+     which legally allows skipping the entire 40+ field income sub-tree
+     (confirmed via Regel 84/85: hasOwnIncome=Nein means none of the
+     income-source sub-contexts are required at all). */
+  const yn = (v) => (v ? '1' : '2'); // JaNein12BaseCType: 1=Ja, 2=Nein
+  let xml = '<ESt1A_U><Ang_HH_unt_P_Unt_Leist>\n';
+  xml += `<HH_unt_P>\n${tag(fm.ESt1A_U.householdAddress, u.householdAddress)}${wholeEuroTag(fm.ESt1A_U.householdSize, u.householdSize || 2)}</HH_unt_P>\n`;
+  xml += '<Ang_Unt_Pers><Allg><Persoenl>\n';
+  xml += tag(fm.ESt1A_U.name, u.personName);
+  xml += tag(fm.ESt1A_U.idnr, (u.personIdnr || '').replace(/\s/g, ''));
+  xml += tag(fm.ESt1A_U.relationship, u.relationship);
+  xml += '</Persoenl><U_Berecht>\n';
+  xml += tag(fm.ESt1A_U.kindergeldEntitlement, yn(u.kindergeldEntitlement));
+  xml += '</U_Berecht></Allg>\n';
+  xml += `<Weit_beitr_P>\n${tag(fm.ESt1A_U.otherContributor, yn(u.otherContributor))}</Weit_beitr_P>\n`;
+  xml += `<Ek_Bez_u_P><Allg>\n${tag(fm.ESt1A_U.hasOwnIncome, yn(u.hasOwnIncome))}</Allg></Ek_Bez_u_P>\n`;
+  xml += '</Ang_Unt_Pers>\n';
+  xml += '<AW_U><U_Ztr>\n';
+  xml += wholeEuroTag(fm.ESt1A_U.amount, u.betrag);
+  if (u.von && u.bis) xml += tag(fm.ESt1A_U.period, formatDateRangeDE(u.von, u.bis));
+  xml += '</U_Ztr></AW_U>\n';
+  xml += '</Ang_HH_unt_P_Unt_Leist></ESt1A_U>\n';
+  return xml;
 }
 
 /* =============================================================================
@@ -607,27 +645,22 @@ function buildHA35a(data) {
 /* =============================================================================
    Wage-replacement benefits + loss carryforward + energetic renovation
 ============================================================================= */
-function buildMisc(data) {
+function buildEM35c(data) {
+  const e = data.par35cEnergetisch;
+  if (!e || !e.aufwendungen) return '';
+  return `<EM_35c><Obj><Aufw><Massn><Sum>\n${wholeEuroTag(fm.EM_35c.energCost, e.aufwendungen)}</Sum></Massn></Aufw></Obj></EM_35c>\n`;
+}
+function buildSonst(data) {
   const w = data.weitereAngaben || {};
-  let xml = '';
-  /* CORRECTED: verlustvortrag and energCost were previously written with
-     NO wrapper tag at all (not even their own top-level context element)
-     - the log showed these as bare "/E0190701" and "/E0241901" with no
-     path prefix whatsoever. ersatzleistungen moved into buildESt1A
-     itself, since it belongs inside the single ESt1A block, not a
-     second separate one (E10 only allows one ESt1A element). */
   /* CORRECTED: confirmed via real XSD that E0190701 is Ja1BaseCType - a
      pure declaration flag ("a loss carryforward WAS established"), NOT
-     the loss amount itself. Was incorrectly sending the euro amount to
-     this field. Now sends the confirmed correct flag value "1" whenever
-     an amount is present - but the actual carried-forward LOSS AMOUNT
-     needs a genuinely different Kennzahl not yet found; that data is
-     currently NOT transmitted (a real remaining gap, not silently
+     the loss amount itself. Sends the confirmed correct flag value "1"
+     whenever an amount is present - the actual carried-forward LOSS
+     AMOUNT needs a genuinely different Kennzahl not yet found; that data
+     is currently NOT transmitted (a real remaining gap, not silently
      guessed at). */
-  if (w.verlustvortrag) xml += `<Sonst><Verl_Abz><Vortrag><Person>PersonA</Person>\n${tag(fm.Sonst.lossCarry, '1')}</Vortrag></Verl_Abz></Sonst>\n`;
-  const e = data.par35cEnergetisch;
-  if (e && e.aufwendungen) xml += `<EM_35c><Obj><Aufw><Massn><Sum>\n${wholeEuroTag(fm.EM_35c.energCost, e.aufwendungen)}</Sum></Massn></Aufw></Obj></EM_35c>\n`;
-  return xml;
+  if (!w.verlustvortrag) return '';
+  return `<Sonst><Verl_Abz><Vortrag><Person>PersonA</Person>\n${tag(fm.Sonst.lossCarry, '1')}</Vortrag></Verl_Abz></Sonst>\n`;
 }
 
 /* ---------- date format: interchange uses ISO (YYYY-MM-DD), ERiC example uses DD.MM.YYYY ---------- */
@@ -750,27 +783,48 @@ function buildEStXML(data, opts = {}) {
     skippedSections.push('anlageV Werbungskosten (rental deduction costs - real schema needs itemized categories, our simple total cannot be honestly mapped)');
   if ((data.anlageKind || []).some(k => k.betreuungskosten > 0 && (!k.betreuungAnbieter || !k.betreuungVon || !k.betreuungBis)))
     skippedSections.push('anlageKind childcare amount present without provider/period for at least one child - that entry\'s childcare block was skipped (should not happen if the app UI validation ran, worth checking why it was bypassed)');
-  if (data.anlageUnterhalt && data.anlageUnterhalt.betrag > 0)
-    skippedSections.push('anlageUnterhalt support payment (was mapped to the wrong field originally - real ELSTER validation revealed the correct field requires an entire 50+ field supported-person sub-form our app does not collect; not transmitted until that scope decision is made)');
+  if (data.anlageUnterhalt?.betrag > 0 && (!data.anlageUnterhalt.personName || !data.anlageUnterhalt.householdAddress))
+    skippedSections.push('anlageUnterhalt support payment present but missing the supported person\'s name and/or household address - these are required fields (confirmed via real ERiC validation) that the app UI needs to collect before this can transmit successfully.');
+  if (data.weitereAngaben?.realsplittingAnlageU)
+    skippedSections.push('Realsplitting (Anlage U) sent WITHOUT the ex-spouse\'s IdNr, name, or birthdate - the app does not currently collect these. Real ERiC validation (Regel 65) requires the IdNr specifically for a domestic residence, which this data defaults to - a real submission with this data would likely be rejected until those fields are added to the UI.');
   if (skippedSections.length) {
     console.warn('[eric xml-builder] Sections present in data but not mapped, SKIPPED (not silently guessed):');
     skippedSections.forEach(s => console.warn('  - ' + s));
   }
 
   let nutzdaten = `<E10 xmlns="http://finkonsens.de/elster/elstererklaerung/est/e10/v${year}" version="${year}">\n`;
+  /* CORRECTED (major): the ENTIRE call order below was wrong - confirmed
+     directly and authoritatively via a real ERiC schema validation error
+     (610301200 / ERIC_IO_READER_SCHEMA_VALIDIERUNGSFEHLER) that quoted
+     the complete required content model:
+       (ESt1A?,SA?,AgB?,HA_35a?,EM_35c?,Sonst?,WA_ESt?,ESt1A_U?,Kind*,
+        L*,Anl_34b*,Anl_32c?,G*,Zins*,S*,N_GRE*,N*,N_DHH*,N_AUS*,KAP*,
+        KAP_BET*,KAP_I*,AUS*,R*,RAV_bAV*,R_AUS*,SO?,V*,V_FeWo*,
+        V_Sonstige?,FW*,VOR?,AV?,Mob?,Vorsatz?)
+     XSD content models are strictly ORDERED even when every element is
+     individually optional/repeatable - SA was being written after N,
+     N_AUS, VOR, KAP, R, V, Kind and Unterhalt, when it must come
+     immediately after ESt1A. This previously passed all our own
+     structural tests (which checked presence and, after the earlier
+     regression, INTRA-element field order - but never checked TOP-LEVEL
+     section order against each other). Every build*() call below is now
+     in the exact confirmed sequence; sections we don't implement are
+     simply skipped, which is valid since every element in this model is
+     optional (?) or repeatable (*), not required. */
   nutzdaten += buildESt1A(data);
-  nutzdaten += buildAnlageN(data);
-  nutzdaten += buildNAUS(data);
-  nutzdaten += buildVOR(data);
-  nutzdaten += buildKAP(data);
-  nutzdaten += buildR(data);
-  nutzdaten += buildV(data);
-  nutzdaten += buildKind(data);
-  nutzdaten += buildUnterhalt(data);
   nutzdaten += buildSA(data);
   nutzdaten += buildAgB(data);
   nutzdaten += buildHA35a(data);
-  nutzdaten += buildMisc(data);
+  nutzdaten += buildEM35c(data);
+  nutzdaten += buildSonst(data);
+  nutzdaten += buildUnterhalt(data); // ESt1A_U
+  nutzdaten += buildKind(data);
+  nutzdaten += buildAnlageN(data); // N
+  nutzdaten += buildNAUS(data); // N_AUS
+  nutzdaten += buildKAP(data);
+  nutzdaten += buildR(data);
+  nutzdaten += buildV(data);
+  nutzdaten += buildVOR(data);
   nutzdaten += buildVorsatz(data);
   nutzdaten += '</E10>\n';
 
