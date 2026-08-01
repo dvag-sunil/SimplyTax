@@ -322,7 +322,7 @@ function buildVOR(data) {
   const v = data.anlageVorsorgeaufwand;
   if (!v) return '';
   const l = v.ausLohnsteuerbescheinigungen || {};
-  let xml = '<VOR>\n';
+  let inner = '';
   /* CORRECTED nesting - confirmed via the real Kennzahlen sheet paths.
      Was flat (<VOR><E2000601>), which caused ERIC_IO_READER_UNERWARTETE_ELEMENTE
      - ERiC could not find meta-information for ANY field at the wrong
@@ -339,12 +339,12 @@ function buildVOR(data) {
      omitted, since omitting it entirely is exactly what caused this
      error. wholeEuroTag() would otherwise silently drop a zero value,
      so this writes the tag directly instead. */
-  if (N(l.rv) > 0) xml += `<AVor><Person>PersonA</Person>\n${wholeEuroTag(fm.VOR.rv, l.rv)}<${fm.VOR.rvArbeitgeber}>0</${fm.VOR.rvArbeitgeber}>\n</AVor>\n`;
+  if (N(l.rv) > 0) inner += `<AVor><Person>PersonA</Person>\n${wholeEuroTag(fm.VOR.rv, l.rv)}<${fm.VOR.rvArbeitgeber}>0</${fm.VOR.rvArbeitgeber}>\n</AVor>\n`;
   if (N(l.gkv) > 0 || N(l.pv) > 0) {
-    xml += '<Beitr_g_KV_PV_Inl><Person>PersonA</Person><AN>\n';
-    xml += wholeEuroTag(fm.VOR.kv, l.gkv);
-    xml += wholeEuroTag(fm.VOR.pv, l.pv);
-    xml += '</AN></Beitr_g_KV_PV_Inl>\n';
+    inner += '<Beitr_g_KV_PV_Inl><Person>PersonA</Person><AN>\n';
+    inner += wholeEuroTag(fm.VOR.kv, l.gkv);
+    inner += wholeEuroTag(fm.VOR.pv, l.pv);
+    inner += '</AN></Beitr_g_KV_PV_Inl>\n';
   }
   /* NOTE: v.privateVersicherungen (Haftpflicht etc.) are collected by the
      app but not yet mapped to a VOR Kennzahl - most private insurance
@@ -352,8 +352,13 @@ function buildVOR(data) {
      to a different context not yet researched. Not written here rather
      than guessed. kvOther (pkv28) also not yet placed in this corrected
      structure - needs its own confirmed nesting before use. */
-  xml += '</VOR>\n';
-  return xml;
+  /* CORRECTED: real bug found via the architectural review's empirical
+     test - anlageVorsorgeaufwand being an empty object ({}, truthy) but
+     with no actual contribution amounts still produced a bare, empty
+     <VOR></VOR> wrapper, triggering ERiC's "kontextLeer" (empty context)
+     error. Now only emits the wrapper at all if there's genuinely
+     something inside it. */
+  return inner ? `<VOR>\n${inner}</VOR>\n` : '';
 }
 
 /* =============================================================================
@@ -365,20 +370,25 @@ function buildKAP(data) {
   if (!entries.length) return '';
   let xml = '';
   for (const k of entries) {
-    xml += `<KAP><Person>Person${k.person === 'B' ? 'B' : 'A'}</Person>\n`;
+    let inner = '';
     const g1 = wholeEuroTag(fm.KAP.k7, k.zeile7_kapitalertraege) + wholeEuroTag(fm.KAP.k8, k.zeile8_aktiengewinne)
       + wholeEuroTag(fm.KAP.k12, k.zeile12_verlusteOhneAktien) + wholeEuroTag(fm.KAP.k13, k.zeile13_verlusteAktien);
-    if (g1) xml += `<KapErt_inl_StAbz><Betr_lt_StBesch>\n${g1}</Betr_lt_StBesch></KapErt_inl_StAbz>\n`;
+    if (g1) inner += `<KapErt_inl_StAbz><Betr_lt_StBesch>\n${g1}</Betr_lt_StBesch></KapErt_inl_StAbz>\n`;
     const g2 = wholeEuroTag(fm.KAP.k16, k.zeile16_sparerPauschbetragGenutzt);
-    if (g2) xml += `<Sp_PB>\n${g2}</Sp_PB>\n`;
+    if (g2) inner += `<Sp_PB>\n${g2}</Sp_PB>\n`;
     const g3 = wholeEuroTag(fm.KAP.k18, k.zeile18_inlaendischOhneSteuerabzug) + wholeEuroTag(fm.KAP.k19, k.zeile19_auslaendisch)
       + wholeEuroTag(fm.KAP.k20, k.zeile20_aktiengewinne) + wholeEuroTag(fm.KAP.k21, k.zeile21_stillhalterTermingeschaefte)
       + wholeEuroTag(fm.KAP.k22, k.zeile22_verlusteOhneAktien) + wholeEuroTag(fm.KAP.k23, k.zeile23_verlusteAktien);
-    if (g3) xml += `<KapErt_kein_inl_StAbz>\n${g3}</KapErt_kein_inl_StAbz>\n`;
+    if (g3) inner += `<KapErt_kein_inl_StAbz>\n${g3}</KapErt_kein_inl_StAbz>\n`;
     const g4 = euroTag(fm.KAP.k43, k.zeile43_kapitalertragsteuer) + euroTag(fm.KAP.k44, k.zeile44_soli)
       + euroTag(fm.KAP.k45, k.zeile45_kirchensteuer);
-    if (g4) xml += `<St_Abz_Betr_Inl_u_Inv_Ert>\n${g4}</St_Abz_Betr_Inl_u_Inv_Ert>\n`;
-    xml += '</KAP>\n';
+    if (g4) inner += `<St_Abz_Betr_Inl_u_Inv_Ert>\n${g4}</St_Abz_Betr_Inl_u_Inv_Ert>\n`;
+    /* CORRECTED: same class of bug found via the architectural review's
+       empirical test (originally surfaced in buildVOR) - an entry with
+       no actual populated amounts would still have produced an empty
+       <KAP><Person>.../<KAP> wrapper, triggering ERiC's "kontextLeer"
+       error. Now only emits per-entry if there's genuinely content. */
+    if (inner) xml += `<KAP><Person>Person${k.person === 'B' ? 'B' : 'A'}</Person>\n${inner}</KAP>\n`;
   }
   return xml;
 }
@@ -398,20 +408,24 @@ function buildR(data) {
   if (!entries.length) return '';
   let xml = '';
   for (const r of entries) {
-    xml += '<R>\n';
+    let inner = '';
     if (r.art === 'gesetzlich' || !r.art) {
-      xml += '<Leibr_gesetzl><Einz>\n';
-      xml += wholeEuroTag(fm.R.gesetzlichAmount, r.jahresbetrag);
-      if (r.rentenbeginn) xml += tag(fm.R.gesetzlichStart, r.rentenbeginn);
-      if (r.ertragsanteilProzent != null) xml += `<Oeff_Kl>${tag(fm.R.gesetzlichPercent, r.ertragsanteilProzent)}</Oeff_Kl>\n`;
-      xml += '</Einz></Leibr_gesetzl>\n';
+      inner += '<Leibr_gesetzl><Einz>\n';
+      inner += wholeEuroTag(fm.R.gesetzlichAmount, r.jahresbetrag);
+      if (r.rentenbeginn) inner += tag(fm.R.gesetzlichStart, r.rentenbeginn);
+      if (r.ertragsanteilProzent != null) inner += `<Oeff_Kl>${tag(fm.R.gesetzlichPercent, r.ertragsanteilProzent)}</Oeff_Kl>\n`;
+      inner += '</Einz></Leibr_gesetzl>\n';
     } else if (r.art === 'privat') {
-      xml += '<Leibr_priv><Einz>\n';
-      xml += wholeEuroTag(fm.R.privatAmount, r.jahresbetrag);
-      if (r.rentenbeginn) xml += tag(fm.R.privatStart, r.rentenbeginn);
-      xml += '</Einz></Leibr_priv>\n';
+      inner += '<Leibr_priv><Einz>\n';
+      inner += wholeEuroTag(fm.R.privatAmount, r.jahresbetrag);
+      if (r.rentenbeginn) inner += tag(fm.R.privatStart, r.rentenbeginn);
+      inner += '</Einz></Leibr_priv>\n';
     }
-    xml += '</R>\n';
+    /* CORRECTED: same class of bug as buildVOR/buildKAP - an entry with
+       an unrecognized 'art' value (neither 'gesetzlich' nor 'privat')
+       would have produced an empty <R></R> wrapper. Now only emits if
+       genuinely populated. */
+    if (inner) xml += `<R>\n${inner}</R>\n`;
   }
   return xml;
 }
@@ -599,40 +613,41 @@ function buildKind(data) {
 function buildUnterhalt(data) {
   const u = data.anlageUnterhalt;
   if (!u || !(u.betrag > 0)) return '';
-  /* CORRECTED: complete rebuild using the confirmed real minimal-required
-     field set (10 fields, verified against the actual Regeln sheet - see
-     eric-fieldmap.js ESt1A_U section for the full research trail), not
-     the wrong single field (E0125007) used before. Covers the common
-     domestic case: one household, one supported person, no other
-     contributors, no income of their own for the supported person -
-     which legally allows skipping the entire 40+ field income sub-tree
-     (confirmed via Regel 84/85: hasOwnIncome=Nein means none of the
-     income-source sub-contexts are required at all). */
+  /* CORRECTED (second pass) via a real empirical ERiC test comparing a
+     WITH-IdNr and a WITHOUT-IdNr submission side by side (not just
+     documentation reading): IdNr is genuinely NOT required - removing
+     it produced zero new errors, only removed the "invalid ID" error
+     that was there because the TEST value itself was a fake/invalid
+     number, unrelated to whether the field itself is mandatory. That
+     same real test surfaced several genuinely required fields that
+     were missed in the original research pass: Beruf/Familienstand and
+     Geburtsdatum of the supported person (Regel 100120001 - required
+     together with Name as an all-or-nothing group), cohabitation
+     (Regel 100120068), and a Vermögen/assets Yes-No declaration (same
+     pattern as hasOwnIncome - detail sub-fields only needed if "Ja"). */
   const yn = (v) => (v ? '1' : '2'); // JaNein12BaseCType: 1=Ja, 2=Nein
   const isForeign = u.country && u.country !== 'Deutschland';
   let xml = '<ESt1A_U><Ang_HH_unt_P_Unt_Leist>\n';
   xml += '<HH_unt_P>\n';
   xml += tag(fm.ESt1A_U.householdAddress, u.householdAddress);
-  /* CORRECTED: confirmed via real Regeln (46 vs 48) that domestic AND
-     foreign BOTH require the IdNr - country here does NOT relax that,
-     it triggers one ADDITIONAL requirement below instead. Country field
-     is a real ~232-value enum (NAEnum_LAENDERGR_2024_1) - omitted
-     entirely correctly means domestic, matching the confirmed rule
-     condition exactly (FeldNichtAngegeben OR value="Deutschland"). */
   if (isForeign) xml += tag(fm.ESt1A_U.country, u.country);
   xml += wholeEuroTag(fm.ESt1A_U.householdSize, u.householdSize || 2);
   xml += '</HH_unt_P>\n';
   xml += '<Ang_Unt_Pers><Allg><Persoenl>\n';
   xml += tag(fm.ESt1A_U.name, u.personName);
-  xml += tag(fm.ESt1A_U.idnr, (u.personIdnr || '').replace(/\s/g, ''));
+  xml += tag(fm.ESt1A_U.profession, u.profession);
+  xml += tag(fm.ESt1A_U.personBirthDate, formatDateDE(u.personBirthDate));
+  if (u.personIdnr) xml += tag(fm.ESt1A_U.idnr, u.personIdnr.replace(/\s/g, '')); // confirmed optional - only sent when actually available
   xml += tag(fm.ESt1A_U.relationship, u.relationship);
   xml += '</Persoenl><U_Berecht>\n';
+  xml += tag(fm.ESt1A_U.cohabitation, yn(u.cohabitation));
   xml += tag(fm.ESt1A_U.kindergeldEntitlement, yn(u.kindergeldEntitlement));
   xml += '</U_Berecht>\n';
-  /* CONFIRMED via real Regel 32: this confirmation (home-country
-     authority + supported person jointly confirmed the need) is
-     REQUIRED specifically when the household is foreign - an ADDITIONAL
-     requirement on top of the IdNr, not instead of it. */
+  /* Vermögen (assets) - confirmed required via the real empirical test.
+     Detail sub-fields (total value, period) only needed if "Ja" - not
+     implemented, matching the same already-established pattern used
+     for hasOwnIncome (defaulting to "Nein" covers the common case). */
+  xml += `<Verm_u_P>\n${tag(fm.ESt1A_U.hasAssets, yn(u.hasAssets))}</Verm_u_P>\n`;
   if (isForeign) xml += `<Erkl_Beduerft>\n${tag(fm.ESt1A_U.foreignNeedConfirmed, yn(u.foreignNeedConfirmed))}</Erkl_Beduerft>\n`;
   xml += '</Allg>\n';
   xml += `<Weit_beitr_P>\n${tag(fm.ESt1A_U.otherContributor, yn(u.otherContributor))}</Weit_beitr_P>\n`;
@@ -800,10 +815,10 @@ function buildEStXML(data, opts = {}) {
     skippedSections.push('anlageV Werbungskosten (rental deduction costs - real schema needs itemized categories, our simple total cannot be honestly mapped)');
   if ((data.anlageKind || []).some(k => k.betreuungskosten > 0 && (!k.betreuungAnbieter || !k.betreuungVon || !k.betreuungBis)))
     skippedSections.push('anlageKind childcare amount present without provider/period for at least one child - that entry\'s childcare block was skipped (should not happen if the app UI validation ran, worth checking why it was bypassed)');
-  if (data.anlageUnterhalt?.betrag > 0 && (!data.anlageUnterhalt.personName || !data.anlageUnterhalt.householdAddress))
-    skippedSections.push('anlageUnterhalt support payment present but missing the supported person\'s name and/or household address - these are required fields (confirmed via real ERiC validation) that the app UI needs to collect before this can transmit successfully.');
+  if (data.anlageUnterhalt?.betrag > 0 && (!data.anlageUnterhalt.personName || !data.anlageUnterhalt.householdAddress || !data.anlageUnterhalt.profession || !data.anlageUnterhalt.personBirthDate))
+    skippedSections.push('anlageUnterhalt support payment present but missing one or more required fields (confirmed via a real empirical ERiC test, not just documentation): the supported person\'s name, profession/marital status, birthdate, and household address are all required together (Regel 100120001). Note: the person\'s IdNr is genuinely NOT required, confirmed via the same empirical test - do not block on that field.');
   if (data.anlageUnterhalt?.betrag > 0 && data.anlageUnterhalt.country && data.anlageUnterhalt.country !== 'Deutschland' && data.anlageUnterhalt.foreignNeedConfirmed !== true)
-    skippedSections.push('anlageUnterhalt support payment for a foreign household - confirmed via real ERiC validation (Regel 32) that the home-country-authority confirmation (foreignNeedConfirmed) is an ADDITIONAL requirement on top of the IdNr, not a replacement for it.');
+    skippedSections.push('anlageUnterhalt support payment for a foreign household - confirmed via real ERiC validation (Regel 32) that the home-country-authority confirmation (foreignNeedConfirmed) is required for foreign households.');
   if (data.weitereAngaben?.realsplittingAnlageU)
     skippedSections.push('Realsplitting (Anlage U) sent WITHOUT the ex-spouse\'s IdNr, name, or birthdate - the app does not currently collect these. Real ERiC validation (Regel 65) requires the IdNr specifically for a domestic residence, which this data defaults to - a real submission with this data would likely be rejected until those fields are added to the UI.');
   if (skippedSections.length) {

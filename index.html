@@ -487,6 +487,11 @@ en: {
  unt_required_hint:"Because you entered a support amount, the tax office requires details about the supported person and household - these fields are now required.",
  unt_name:"Name of the supported person", unt_name_ph:"e.g. Maria Muster",
  unt_idnr:"Their Tax ID (Steuer-IdNr)",
+ unt_idnr_hint:"Optional - not required by ELSTER, but useful to have on file if available.",
+ unt_profession:"Their profession and marital status", unt_profession_ph:"e.g. retired, widowed",
+ unt_birthdate:"Their date of birth",
+ unt_cohabitation:"Did they live in your household in Germany?",
+ unt_has_assets:"Did the supported person have significant assets?",
  unt_relationship:"Relationship to you", unt_relationship_ph:"e.g. mother, father, adult child",
  unt_address:"Their household address", unt_address_ph:"Street, house number, postal code, city",
  unt_household_size:"Number of people in that household",
@@ -764,6 +769,11 @@ de: {
  unt_required_hint:"Da Unterhaltszahlungen eingetragen wurden, verlangt das Finanzamt auch Angaben zur unterstützten Person und zum Haushalt - diese Felder sind jetzt Pflichtfelder.",
  unt_name:"Name der unterstützten Person", unt_name_ph:"z. B. Maria Muster",
  unt_idnr:"Deren Steuer-Identifikationsnummer",
+ unt_idnr_hint:"Optional - von ELSTER nicht verlangt, aber nützlich, falls bekannt.",
+ unt_profession:"Deren Beruf und Familienstand", unt_profession_ph:"z. B. Rentnerin, verwitwet",
+ unt_birthdate:"Deren Geburtsdatum",
+ unt_cohabitation:"Lebte diese Person in Ihrem inländischen Haushalt?",
+ unt_has_assets:"Hatte die unterstützte Person nennenswertes Vermögen?",
  unt_relationship:"Verwandtschaftsverhältnis zu Ihnen", unt_relationship_ph:"z. B. Mutter, Vater, volljähriges Kind",
  unt_address:"Anschrift dieses Haushaltes", unt_address_ph:"Straße, Hausnummer, PLZ, Ort",
  unt_household_size:"Anzahl der Personen in diesem Haushalt",
@@ -1105,7 +1115,7 @@ function newClient(f,l,year,marital){
  dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
  wkB:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',
  dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
- fam:{ kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',untName:'',untIdnr:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untKindergeld:'nein',untOtherContributor:'nein',untHasIncome:'nein',untCountry:'',untForeignConfirmed:'nein',children:[] },
+ fam:{ kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',untName:'',untIdnr:'',untProfession:'',untBirthDate:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untCohabitation:'nein',untKindergeld:'nein',untOtherContributor:'nein',untHasAssets:'nein',untHasIncome:'nein',untCountry:'',untForeignConfirmed:'nein',children:[] },
  sa:{ donations:'',other:'' },
  ex:{ medical:'',household:'',handwerker:'' },
  docs:[], inq:[], pay:{status:'unpaid'} };
@@ -1201,7 +1211,7 @@ function migrateClient(c){
  c.ins.rv=c.ins.kv=c.ins.pv=c.ins.av='';
  }
  c.wk = Object.assign({dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wk||{});
- c.fam = Object.assign({kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',untName:'',untIdnr:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untKindergeld:'nein',untOtherContributor:'nein',untHasIncome:'nein',untCountry:'',untForeignConfirmed:'nein',children:[]}, c.fam||{});
+ c.fam = Object.assign({kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',untName:'',untIdnr:'',untProfession:'',untBirthDate:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untCohabitation:'nein',untKindergeld:'nein',untOtherContributor:'nein',untHasAssets:'nein',untHasIncome:'nein',untCountry:'',untForeignConfirmed:'nein',children:[]}, c.fam||{});
  if(!Array.isArray(c.fam.children)) c.fam.children=[];
  c.fam.children.forEach(k=>{ if(!k.kinship) k.kinship='leiblich'; });
  /* legacy: convert old lump-sum childcare/school fees into a first child entry */
@@ -2677,7 +2687,9 @@ function stepFamily(c){
  </div>
  <div class="grid2">
  ${F('fam','untName',t('unt_name')+' *',{ph:t('unt_name_ph')})}
- ${F('fam','untIdnr',t('unt_idnr')+' *',{ph:'12 345 678 901'})}
+ ${F('fam','untProfession',t('unt_profession')+' *',{ph:t('unt_profession_ph')})}
+ ${F('fam','untBirthDate',t('unt_birthdate')+' *',{type:'date'})}
+ ${F('fam','untIdnr',t('unt_idnr'),{ph:'12 345 678 901',hint:t('unt_idnr_hint')})}
  ${F('fam','untRelationship',t('unt_relationship')+' *',{ph:t('unt_relationship_ph')})}
  ${F('fam','untAddress',t('unt_address')+' *',{ph:t('unt_address_ph')})}
  ${F('fam','untHouseholdSize',t('unt_household_size')+' *',{ph:'1'})}
@@ -2685,8 +2697,10 @@ function stepFamily(c){
  ${F('fam','untTo',t('unt_to')+' *',{type:'date'})}
  </div>
  <div class="grid3">
+ ${F('fam','untCohabitation',t('unt_cohabitation')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
  ${F('fam','untKindergeld',t('unt_kindergeld')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
  ${F('fam','untOtherContributor',t('unt_other_contributor')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
+ ${F('fam','untHasAssets',t('unt_has_assets')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
  ${F('fam','untHasIncome',t('unt_has_income')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
  </div>
  <div class="grid2">
@@ -2843,7 +2857,13 @@ function submitElster(){
  /* support payment required-fields check (confirmed via real ERiC
  validation: amount alone is rejected without the supported person's
  name, IdNr, and household address once any amount is entered) */
- if(N(c0.fam.support)>0 && (!c0.fam.untName||!c0.fam.untIdnr||!c0.fam.untAddress)){
+ /* CORRECTED: confirmed via a real empirical ERiC test (not just
+ documentation reading) that the supported person's IdNr is genuinely
+ NOT required - removing it from a real test submission produced zero
+ new errors. That same test surfaced that profession/marital status
+ and birthdate ARE required (Regel 100120001, an all-or-nothing group
+ with name), which were missing from validation before. */
+ if(N(c0.fam.support)>0 && (!c0.fam.untName||!c0.fam.untProfession||!c0.fam.untBirthDate||!c0.fam.untAddress)){
  alert(t('err_unt_required')); S.step=3; render(); return;
  }
  if(N(c0.fam.support)>0 && c0.fam.untCountry && c0.fam.untCountry!=='Deutschland' && c0.fam.untForeignConfirmed!=='ja'){
@@ -3065,10 +3085,12 @@ function buildElsterDataset(c){
  betreuungAnbieter:k.ccProvider||'', betreuungVon:k.ccPeriodFrom||'', betreuungBis:k.ccPeriodTo||'',
  schulgeld:N(k.schoolFees) })),
  anlageUnterhalt: N(c.fam.support)>0?{ betrag:N(c.fam.support), laendergruppe:c.fam.supportGroup,
- personName:c.fam.untName||'', personIdnr:(c.fam.untIdnr||'').replace(/\s/g,''), relationship:c.fam.untRelationship||'',
+ personName:c.fam.untName||'', personIdnr:(c.fam.untIdnr||'').replace(/\s/g,''),
+ profession:c.fam.untProfession||'', personBirthDate:c.fam.untBirthDate||'', relationship:c.fam.untRelationship||'',
  householdAddress:c.fam.untAddress||'', householdSize:N(c.fam.untHouseholdSize)||1,
  von:c.fam.untFrom||'', bis:c.fam.untTo||'',
- kindergeldEntitlement:c.fam.untKindergeld==='ja', otherContributor:c.fam.untOtherContributor==='ja', hasOwnIncome:c.fam.untHasIncome==='ja',
+ cohabitation:c.fam.untCohabitation==='ja', kindergeldEntitlement:c.fam.untKindergeld==='ja', otherContributor:c.fam.untOtherContributor==='ja',
+ hasAssets:c.fam.untHasAssets==='ja', hasOwnIncome:c.fam.untHasIncome==='ja',
  country:c.fam.untCountry||'', foreignNeedConfirmed:c.fam.untForeignConfirmed==='ja' }:null,
  sonderausgaben:{ spenden:N(c.sa.donations), sonstige:N(c.sa.other) },
  aussergewoehnlicheBelastungen:{ krankheitskosten:N(c.ex.medical) },

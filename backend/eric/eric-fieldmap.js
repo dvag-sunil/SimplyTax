@@ -195,10 +195,20 @@ const ESt1A_U = {
   householdAddress: 'E0120101',   // HH_unt_P - Anschrift dieses Haushaltes (String)
   householdSize: 'E0120108',      // HH_unt_P - Anzahl Personen im Haushalt (Ganzzahl)
   name: 'E0120201',               // Ang_Unt_Pers/Allg/Persoenl - Name, Vorname (String)
-  idnr: 'E0120211',               // Ang_Unt_Pers/Allg/Persoenl - Identifikationsnummer
+  /* CORRECTED via a real empirical ERiC test (not just documentation
+     reading): IdNr is genuinely NOT required - a submission missing it
+     entirely produced no "missing field" error at all, only the earlier
+     documentation-based assumption said otherwise. Kept as a field since
+     the data may still be useful/correct when available, but no longer
+     treated as mandatory anywhere in the app. */
+  idnr: 'E0120211',               // Ang_Unt_Pers/Allg/Persoenl - Identifikationsnummer (confirmed NOT mandatory)
+  profession: 'E0120202',         // Ang_Unt_Pers/Allg/Persoenl - Beruf, Familienstand (combined free-text String) - CONFIRMED required via real ERiC validation (Regel 100120001), found via empirical testing, not originally researched
+  personBirthDate: 'E0120203',    // Ang_Unt_Pers/Allg/Persoenl - Geburtsdatum - CONFIRMED required alongside Name (same Regel 100120001)
   relationship: 'E0120701',       // Ang_Unt_Pers/Allg/Persoenl - Verwandtschaftsverhältnis (String)
+  cohabitation: 'E0122505',       // Ang_Unt_Pers/Allg/U_Berecht - "lebte in meinem inländischen Haushalt" - CONFIRMED required (Regel 100120068), JaNein12BaseCType
   kindergeldEntitlement: 'E0122613', // Ang_Unt_Pers/Allg/U_Berecht - JaNein12BaseCType (1=Ja,2=Nein)
   otherContributor: 'E0124801',   // Ang_Unt_Pers/Weit_beitr_P - JaNein12BaseCType
+  hasAssets: 'E0123105',          // Ang_Unt_Pers/Allg/Verm_u_P - "Hatte...Vermögen?" - CONFIRMED required (same Regel that flagged missing Vermögen data), JaNein12BaseCType. Detail sub-fields (E0120305 total value, E0120302 period) only needed if "Ja" - not implemented, matches the same pattern already used for hasOwnIncome.
   hasOwnIncome: 'E0123313',       // Ang_Unt_Pers/Ek_Bez_u_P/Allg - JaNein12BaseCType (2=Nein skips the entire 40+ field income sub-tree)
   amount: 'E0120103',             // AW_U/U_Ztr - Höhe der Unterhaltszahlung (Ganzzahl)
   period: 'E0120109',             // AW_U/U_Ztr - Unterstützungszeitraum (DatumBereichTTpMMbTTpMMBaseCType - "TT.MM-TT.MM", same format as childcare's period)

@@ -242,14 +242,14 @@ check('Realsplitting skippedSections correctly warns about the missing ex-spouse
 // Anlage Unterhalt (bedürftige Personen) - complete rebuild using the
 // confirmed real minimal-required field set (10 fields), replacing the
 // original wrong single-field mapping.
-check('Anlage Unterhalt transmits correctly with complete data - all 10 confirmed fields present, no warnings', (() => {
+check('Anlage Unterhalt transmits correctly with complete data - all empirically-confirmed required fields present, no warnings', (() => {
   const withU = JSON.parse(JSON.stringify(sample));
   withU.anlageUnterhalt = { betrag: 6000, von: '2025-01-01', bis: '2025-12-31', personName: 'Maria Muster',
-    personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Musterstr. 1, 60000 Frankfurt',
-    householdSize: 1, kindergeldEntitlement: false, otherContributor: false, hasOwnIncome: false };
+    profession: 'Rentnerin, verwitwet', personBirthDate: '1945-03-10', relationship: 'Mutter', householdAddress: 'Musterstr. 1, 60000 Frankfurt',
+    householdSize: 1, cohabitation: false, kindergeldEntitlement: false, otherContributor: false, hasAssets: false, hasOwnIncome: false };
   const result = buildEStXML(withU);
   const uXml = result.xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
-  const hasAllFields = ['E0120101', 'E0120108', 'E0120201', 'E0120211', 'E0120701', 'E0122613', 'E0124801', 'E0123313', 'E0120103', 'E0120109']
+  const hasAllFields = ['E0120101', 'E0120108', 'E0120201', 'E0120202', 'E0120203', 'E0120701', 'E0122505', 'E0122613', 'E0124801', 'E0123105', 'E0123313', 'E0120103', 'E0120109']
     .every(code => uXml.includes(code));
   return hasAllFields && !result.skippedSections.some(s => s.includes('anlageUnterhalt'));
 })());
@@ -259,11 +259,40 @@ check('Anlage Unterhalt correctly uses "2" (Nein) for hasOwnIncome, legally skip
   const uXml = buildEStXML(withU).xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
   return uXml.includes('<E0123313>2</E0123313>') && !uXml.includes('Ek_ns_A');
 })());
-check('Anlage Unterhalt correctly warns when required fields (name/address) are missing, rather than silently sending incomplete data', (() => {
+check('Anlage Unterhalt correctly warns when required fields are missing, rather than silently sending incomplete data', (() => {
   const incomplete = JSON.parse(JSON.stringify(sample));
-  incomplete.anlageUnterhalt = { betrag: 6000 }; // no name, no address
+  incomplete.anlageUnterhalt = { betrag: 6000 }; // no name, profession, birthdate, or address
   const result = buildEStXML(incomplete);
-  return result.skippedSections.some(s => s.includes('anlageUnterhalt') && s.includes('missing'));
+  return result.skippedSections.some(s => s.includes('anlageUnterhalt') && s.includes('required'));
+})());
+check('Anlage Unterhalt correctly OMITS the IdNr field entirely when not provided, and does NOT trigger any missing-field warning for it (confirmed genuinely optional via real empirical ERiC test)', (() => {
+  const noIdnr = JSON.parse(JSON.stringify(sample));
+  noIdnr.anlageUnterhalt = { betrag: 6000, personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', householdAddress: 'Test' };
+  const result = buildEStXML(noIdnr);
+  const uXml = result.xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
+  return !uXml.includes('E0120211') && !result.skippedSections.some(s => s.includes('IdNr') && s.includes('missing'));
+})());
+
+// Empty-wrapper bug (found via the real empirical test - "kontextLeer")
+// - a truthy-but-empty input object should never produce a bare, empty
+// XML wrapper. Fixed in buildVOR, buildKAP, buildR.
+check('buildVOR produces nothing (not an empty wrapper) when anlageVorsorgeaufwand is an empty object', (() => {
+  const emptyVOR = JSON.parse(JSON.stringify(sample));
+  emptyVOR.anlageVorsorgeaufwand = {};
+  const xmlEmpty = buildEStXML(emptyVOR).xml;
+  return !xmlEmpty.includes('<VOR>');
+})());
+check('buildKAP produces nothing for an entry with no populated amounts, rather than an empty wrapper', (() => {
+  const emptyKAP = JSON.parse(JSON.stringify(sample));
+  emptyKAP.anlageKAP = [{ person: 'A' }]; // no actual amounts
+  const xmlEmpty = buildEStXML(emptyKAP).xml;
+  return !xmlEmpty.includes('<KAP>');
+})());
+check('buildR produces nothing for an entry with an unrecognized art value, rather than an empty wrapper', (() => {
+  const emptyR = JSON.parse(JSON.stringify(sample));
+  emptyR.anlageR = [{ art: 'unknown_type', jahresbetrag: 0 }];
+  const xmlEmpty = buildEStXML(emptyR).xml;
+  return !xmlEmpty.includes('<R>');
 })());
 check('Anlage Unterhalt period uses the confirmed date-range format (TT.MM-TT.MM, no year) - same DatumBereich type as childcare', (() => {
   const withU = JSON.parse(JSON.stringify(sample));
