@@ -202,6 +202,15 @@ const ESt1A_U = {
   hasOwnIncome: 'E0123313',       // Ang_Unt_Pers/Ek_Bez_u_P/Allg - JaNein12BaseCType (2=Nein skips the entire 40+ field income sub-tree)
   amount: 'E0120103',             // AW_U/U_Ztr - Höhe der Unterhaltszahlung (Ganzzahl)
   period: 'E0120109',             // AW_U/U_Ztr - Unterstützungszeitraum (DatumBereichTTpMMbTTpMMBaseCType - "TT.MM-TT.MM", same format as childcare's period)
+  /* CORRECTED (found via user's own re-check request): confirmed via the
+     real Regeln sheet that BOTH domestic (Regel 46) AND foreign (Regel
+     48) branches require the supported person's IdNr - the foreign case
+     does NOT relax this, it ADDS one more requirement on top (the
+     confirmation declaration below, per Regel 32). Country is a genuine
+     enum (NAEnum_LAENDERGR_2024_1_BaseCType, ~232 real country names,
+     not free text) - omitted entirely means domestic. */
+  country: 'E0120102',            // HH_unt_P - Wohnsitzstaat, wenn Ausland (enum, exact country name match required)
+  foreignNeedConfirmed: 'E0123213', // Ang_Unt_Pers/Allg/Erkl_Beduerft - confirmation from the home-country authority - REQUIRED when country is foreign (Regel 32), JaNein12BaseCType
 };
 
 /* ---------- 11. Foreign employment income - Anlage N-AUS (N_AUS context) ---------- */

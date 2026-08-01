@@ -609,15 +609,32 @@ function buildUnterhalt(data) {
      (confirmed via Regel 84/85: hasOwnIncome=Nein means none of the
      income-source sub-contexts are required at all). */
   const yn = (v) => (v ? '1' : '2'); // JaNein12BaseCType: 1=Ja, 2=Nein
+  const isForeign = u.country && u.country !== 'Deutschland';
   let xml = '<ESt1A_U><Ang_HH_unt_P_Unt_Leist>\n';
-  xml += `<HH_unt_P>\n${tag(fm.ESt1A_U.householdAddress, u.householdAddress)}${wholeEuroTag(fm.ESt1A_U.householdSize, u.householdSize || 2)}</HH_unt_P>\n`;
+  xml += '<HH_unt_P>\n';
+  xml += tag(fm.ESt1A_U.householdAddress, u.householdAddress);
+  /* CORRECTED: confirmed via real Regeln (46 vs 48) that domestic AND
+     foreign BOTH require the IdNr - country here does NOT relax that,
+     it triggers one ADDITIONAL requirement below instead. Country field
+     is a real ~232-value enum (NAEnum_LAENDERGR_2024_1) - omitted
+     entirely correctly means domestic, matching the confirmed rule
+     condition exactly (FeldNichtAngegeben OR value="Deutschland"). */
+  if (isForeign) xml += tag(fm.ESt1A_U.country, u.country);
+  xml += wholeEuroTag(fm.ESt1A_U.householdSize, u.householdSize || 2);
+  xml += '</HH_unt_P>\n';
   xml += '<Ang_Unt_Pers><Allg><Persoenl>\n';
   xml += tag(fm.ESt1A_U.name, u.personName);
   xml += tag(fm.ESt1A_U.idnr, (u.personIdnr || '').replace(/\s/g, ''));
   xml += tag(fm.ESt1A_U.relationship, u.relationship);
   xml += '</Persoenl><U_Berecht>\n';
   xml += tag(fm.ESt1A_U.kindergeldEntitlement, yn(u.kindergeldEntitlement));
-  xml += '</U_Berecht></Allg>\n';
+  xml += '</U_Berecht>\n';
+  /* CONFIRMED via real Regel 32: this confirmation (home-country
+     authority + supported person jointly confirmed the need) is
+     REQUIRED specifically when the household is foreign - an ADDITIONAL
+     requirement on top of the IdNr, not instead of it. */
+  if (isForeign) xml += `<Erkl_Beduerft>\n${tag(fm.ESt1A_U.foreignNeedConfirmed, yn(u.foreignNeedConfirmed))}</Erkl_Beduerft>\n`;
+  xml += '</Allg>\n';
   xml += `<Weit_beitr_P>\n${tag(fm.ESt1A_U.otherContributor, yn(u.otherContributor))}</Weit_beitr_P>\n`;
   xml += `<Ek_Bez_u_P><Allg>\n${tag(fm.ESt1A_U.hasOwnIncome, yn(u.hasOwnIncome))}</Allg></Ek_Bez_u_P>\n`;
   xml += '</Ang_Unt_Pers>\n';
@@ -785,6 +802,8 @@ function buildEStXML(data, opts = {}) {
     skippedSections.push('anlageKind childcare amount present without provider/period for at least one child - that entry\'s childcare block was skipped (should not happen if the app UI validation ran, worth checking why it was bypassed)');
   if (data.anlageUnterhalt?.betrag > 0 && (!data.anlageUnterhalt.personName || !data.anlageUnterhalt.householdAddress))
     skippedSections.push('anlageUnterhalt support payment present but missing the supported person\'s name and/or household address - these are required fields (confirmed via real ERiC validation) that the app UI needs to collect before this can transmit successfully.');
+  if (data.anlageUnterhalt?.betrag > 0 && data.anlageUnterhalt.country && data.anlageUnterhalt.country !== 'Deutschland' && data.anlageUnterhalt.foreignNeedConfirmed !== true)
+    skippedSections.push('anlageUnterhalt support payment for a foreign household - confirmed via real ERiC validation (Regel 32) that the home-country-authority confirmation (foreignNeedConfirmed) is an ADDITIONAL requirement on top of the IdNr, not a replacement for it.');
   if (data.weitereAngaben?.realsplittingAnlageU)
     skippedSections.push('Realsplitting (Anlage U) sent WITHOUT the ex-spouse\'s IdNr, name, or birthdate - the app does not currently collect these. Real ERiC validation (Regel 65) requires the IdNr specifically for a domestic residence, which this data defaults to - a real submission with this data would likely be rejected until those fields are added to the UI.');
   if (skippedSections.length) {

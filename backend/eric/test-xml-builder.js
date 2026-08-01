@@ -271,6 +271,36 @@ check('Anlage Unterhalt period uses the confirmed date-range format (TT.MM-TT.MM
   const uXml = buildEStXML(withU).xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
   return uXml.includes('<E0120109>01.03-30.11</E0120109>');
 })());
+
+// Domestic vs foreign branches - confirmed via real Regeln 46/48/32 that
+// BOTH branches require the IdNr (foreign does NOT relax this), and the
+// foreign branch adds ONE MORE requirement on top (the home-country
+// confirmation), not a replacement.
+check('Domestic case (no country given): no country field written, no foreign confirmation written', (() => {
+  const dom = JSON.parse(JSON.stringify(sample));
+  dom.anlageUnterhalt = { betrag: 6000, personName: 'Maria', personIdnr: '12345678901', householdAddress: 'Test' };
+  const uXml = buildEStXML(dom).xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
+  return !uXml.includes('E0120102') && !uXml.includes('E0123213') && uXml.includes('E0120211');
+})());
+check('Foreign case: country IS written, AND the additional home-country confirmation IS written (real Regel 32 - additive, not a replacement for IdNr)', (() => {
+  const foreign = JSON.parse(JSON.stringify(sample));
+  foreign.anlageUnterhalt = { betrag: 6000, personName: 'Ahmet Muster', personIdnr: '12345678901', householdAddress: 'Test',
+    country: 'Türkei', foreignNeedConfirmed: true };
+  const uXml = buildEStXML(foreign).xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
+  return uXml.includes('<E0120102>Türkei</E0120102>') && uXml.includes('<E0123213>1</E0123213>') && uXml.includes('E0120211');
+})());
+check('Foreign case missing the confirmation declaration correctly triggers a warning (skippedSections), not a silent incomplete send', (() => {
+  const foreignIncomplete = JSON.parse(JSON.stringify(sample));
+  foreignIncomplete.anlageUnterhalt = { betrag: 6000, personName: 'Ahmet', personIdnr: '12345678901', householdAddress: 'Test', country: 'Türkei' };
+  const result = buildEStXML(foreignIncomplete);
+  return result.skippedSections.some(s => s.includes('foreign household') || s.includes('Regel 32'));
+})());
+check('"Deutschland" as an explicit country value is correctly treated as domestic (matching the exact real rule condition, not just "no country given")', (() => {
+  const explicitDE = JSON.parse(JSON.stringify(sample));
+  explicitDE.anlageUnterhalt = { betrag: 6000, personName: 'Maria', personIdnr: '12345678901', householdAddress: 'Test', country: 'Deutschland' };
+  const uXml = buildEStXML(explicitDE).xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
+  return !uXml.includes('E0120102') && !uXml.includes('E0123213');
+})());
 check('V includes the required Laufende_Nummer_V sequence field', xml.includes('<Laufende_Nummer_V>1</Laufende_Nummer_V>'));
 check('SA donation includes the required "this year" companion field (E0108509), resolving a persistent real ERiC validation error', xml.includes('<E0108509>500</E0108509>'));
 check('Vorsatz/OrdNrArt is present and correctly paired with a real StNr value', xml.includes('<StNr>91815081508</StNr>') && xml.includes('<OrdNrArt>S</OrdNrArt>'));

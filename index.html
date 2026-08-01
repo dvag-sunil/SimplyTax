@@ -479,6 +479,7 @@ en: {
  cc_period_from:"Service period - from", cc_period_to:"Service period - to",
  err_cc_required:"Please fill in the provider name/address and the service period for the childcare costs you entered (required whenever an amount is filled in).",
  err_unt_required:"Please fill in the supported person's name, Tax ID, and household address for the support payment you entered (required whenever an amount is filled in).",
+ err_unt_foreign_required:"Because the supported household is abroad, please confirm you have the home-country authority's confirmation of need (required in addition to the Tax ID for foreign households).",
  school_hint:"30% deductible, max. €5,000.",
  support_h:"Support for parents / relatives", support_amount:"Support paid (per year)", support_where:"Where does the supported person live?",
  grp1:"Germany / country group 1 (full maximum)", grp2:"Country group 2 (¾ of maximum)", grp3:"Country group 3 (½ of maximum, e.g. India)", grp4:"Country group 4 (¼ of maximum)",
@@ -493,6 +494,9 @@ en: {
  unt_kindergeld:"Did anyone receive Kindergeld for this person?",
  unt_other_contributor:"Did another person also contribute to their support?",
  unt_has_income:"Did the supported person have their own income?",
+ unt_country:"Country of residence (leave as Germany if domestic)", unt_country_de:"Germany (domestic)",
+ unt_foreign_hint:"Because the household is abroad, the tax office additionally requires a confirmation that the need (Bedürftigkeit) was verified by the home country's authority together with the supported person - this comes on top of, not instead of, the Tax ID above.",
+ unt_foreign_confirmed:"Do you have this home-country confirmation of need?",
  yes:"Yes", no:"No",
  new_year:"New tax year", new_year_for:"New tax year for", year_exists:"A return for this year already exists for this client.",
  copy_note:"Personal data will be copied over - income and expenses start empty.",
@@ -752,6 +756,7 @@ de: {
  cc_period_from:"Leistungszeitraum - von", cc_period_to:"Leistungszeitraum - bis",
  err_cc_required:"Bitte Name/Anschrift des Anbieters und den Leistungszeitraum für die eingetragenen Kinderbetreuungskosten angeben (Pflichtfelder, sobald ein Betrag eingetragen ist).",
  err_unt_required:"Bitte Name, Steuer-ID und Anschrift der unterstützten Person für die eingetragenen Unterhaltszahlungen angeben (Pflichtfelder, sobald ein Betrag eingetragen ist).",
+ err_unt_foreign_required:"Da der unterstützte Haushalt im Ausland liegt, bestätigen Sie bitte, dass Ihnen die Unterhaltserklärung der Heimatbehörde vorliegt (zusätzlich zur Steuer-ID bei ausländischen Haushalten erforderlich).",
  school_hint:"30 % absetzbar, max. 5.000 €.",
  support_h:"Unterhalt für Eltern / Angehörige", support_amount:"Gezahlter Unterhalt (pro Jahr)", support_where:"Wo lebt die unterstützte Person?",
  grp1:"Deutschland / Ländergruppe 1 (voller Höchstbetrag)", grp2:"Ländergruppe 2 (¾ des Höchstbetrags)", grp3:"Ländergruppe 3 (½ des Höchstbetrags, z. B. Indien)", grp4:"Ländergruppe 4 (¼ des Höchstbetrags)",
@@ -766,6 +771,9 @@ de: {
  unt_kindergeld:"Hatte jemand Anspruch auf Kindergeld für diese Person?",
  unt_other_contributor:"Hat noch eine weitere Person zum Unterhalt beigetragen?",
  unt_has_income:"Hatte die unterstützte Person eigene Einkünfte?",
+ unt_country:"Wohnsitzstaat (bei Inland: Deutschland belassen)", unt_country_de:"Deutschland (Inland)",
+ unt_foreign_hint:"Da der Haushalt im Ausland liegt, verlangt das Finanzamt zusätzlich eine Bestätigung, dass die Bedürftigkeit von der Heimatbehörde gemeinsam mit der unterstützten Person bestätigt wurde - dies kommt zusätzlich zur, nicht anstelle der, oben genannten Steuer-ID.",
+ unt_foreign_confirmed:"Liegt Ihnen diese Unterhaltserklärung der Heimatbehörde vor?",
  yes:"Ja", no:"Nein",
  new_year:"Neues Steuerjahr", new_year_for:"Neues Steuerjahr für", year_exists:"Für dieses Jahr existiert bereits eine Erklärung dieses Mandanten.",
  copy_note:"Persönliche Daten werden übernommen - Einkünfte und Ausgaben starten leer.",
@@ -965,6 +973,8 @@ let S = {
 const t = k => (STR[S.lang][k] ?? k);
 const uid = () => 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const BUNDESLAENDER=['Baden-Württemberg','Bayern','Berlin','Brandenburg','Bremen','Hamburg','Hessen','Mecklenburg-Vorpommern','Niedersachsen','Nordrhein-Westfalen','Rheinland-Pfalz','Saarland','Sachsen','Sachsen-Anhalt','Schleswig-Holstein','Thüringen'];
+/* Confirmed real ~232-entry country enum (NAEnum_LAENDERGR_2024_1_BaseCType), extracted directly from the real E10-2025.xsd - exact match required for Anlage Unterhalt's foreign-residence field (E0120102). */
+const UNT_COUNTRIES=['Afghanistan','Ägypten','Albanien','Algerien','Amerikanisch-Samoa','Amerikanische Jungferninseln','Andorra','Angola','Antigua und Barbuda','Äquatorialguinea','Argentinien','Armenien','Aruba','Aserbaidschan','Äthiopien','Australien','Bahamas','Bahrain','Bangladesch','Barbados','Belarus','Belgien','Belize','Benin','Bermuda','Bhutan','Bolivien','Plurinationaler Staat','Bosnien und Herzegowina','Botsuana','Brasilien','Britische Jungferninseln','Brunei Darussalam','Bulgarien','Burkina Faso','Burundi','Cabo Verde','Chile','China','Cookinseln','Costa Rica','Cote d Ivoire','Curacao','Dänemark','Deutschland','Dominica','Dominikanische Republik','Dschibuti','Ecuador','El Salvador','Eritrea','Estland','Eswatini','Färöer','Fidschi','Finnland','Frankreich','Französisch-Polynesien','Gabun','Gambia','Georgien','Ghana','Gibraltar','Grenada','Griechenland','Grönland','Guam','Guatemala','Guinea','Guinea-Bissau','Guyana','Haiti','Honduras','Hongkong','Indien','Indonesien','Insel Man','Irak','Iran','Islamische Republik','Irland','Island','Israel','Italien','Jamaika','Japan','Jemen','Jordanien','Kaimaninseln','Kambodscha','Kamerun','Kanada','Kanalinseln','Kasachstan','Katar','Kenia','Kirgisistan','Kiribati','Kolumbien','Komoren','Kongo','Kongo','Demokratische Republik','Korea','Demokratische Volksrepublik','Korea','Republik','Kosovo','Kroatien','Kuba','Kuwait','Laos','Demokratische Volksrepublik','Lesotho','Lettland','Libanon','Liberia','Libyen','Liechtenstein','Litauen','Luxemburg','Macau','Madagaskar','Malawi','Malaysia','Malediven','Mali','Malta','Marokko (einschl. Westsahara)','Marshallinseln','Mauretanien','Mauritius','Mexiko','Mikronesien','Föderierte Staaten von','Moldau','Republik','Monaco','Mongolei','Montenegro','Mosambik','Myanmar','Namibia','Nauru','Nepal','Neukaledonien','Neuseeland','Nicaragua','Niederlande','Niger','Nigeria','Niue','Nördliche Marianen','Nordmazedonien','Norwegen','Oman','Österreich','Pakistan','Palästinensische Gebiete','Palau','Panama','Papua Neuguinea','Paraguay','Peru','Philippinen','Polen','Portugal','Puerto Rico','Ruanda','Rumänien','Russische Föderation','Salomonen','Sambia','Samoa','San Marino','Sao Tome und Principe','Saudi-Arabien','Schweden','Schweiz','Senegal','Serbien','Seychellen','Sierra Leone','Simbabwe','Singapur','Slowakei','Slowenien','Somalia','Spanien','Sri Lanka','St. Kitts und Nevis','St. Lucia','St. Martin (französischer Teil)','St. Martin (niederländischer Teil)','St. Vincent und die Grenadinen','Südafrika','Sudan','Südsudan','Suriname','Syrien','Arabische Republik','Tadschikistan','Taiwan','Tansania','Vereinigte Republik','Thailand','Timor-Leste','Togo','Tonga','Trinidad und Tobago','Tschad','Tschechien','Tunesien','Türkei','Turkmenistan','Turks- und Caicosinseln','Tuvalu','Uganda','Ukraine','Ungarn','Uruguay','Usbekistan','Vanuatu','Vatikanstadt','Venezuela','Bolivarische Republik','Vereinigte Arabische Emirate','Vereinigte Staaten','Vereinigtes Königreich','Vietnam','Zentralafrikanische Republik','Zypern'];
 
 /* German insurance market catalog, grouped by tax treatment:
  basis = Basisabsicherung KV/PV (fully deductible) · alters = Altersvorsorge §10 Abs.1 Nr.2 (fully)
@@ -1095,7 +1105,7 @@ function newClient(f,l,year,marital){
  dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
  wkB:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',
  dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
- fam:{ kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',untName:'',untIdnr:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untKindergeld:'nein',untOtherContributor:'nein',untHasIncome:'nein',children:[] },
+ fam:{ kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',untName:'',untIdnr:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untKindergeld:'nein',untOtherContributor:'nein',untHasIncome:'nein',untCountry:'',untForeignConfirmed:'nein',children:[] },
  sa:{ donations:'',other:'' },
  ex:{ medical:'',household:'',handwerker:'' },
  docs:[], inq:[], pay:{status:'unpaid'} };
@@ -1191,7 +1201,7 @@ function migrateClient(c){
  c.ins.rv=c.ins.kv=c.ins.pv=c.ins.av='';
  }
  c.wk = Object.assign({dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wk||{});
- c.fam = Object.assign({kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',untName:'',untIdnr:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untKindergeld:'nein',untOtherContributor:'nein',untHasIncome:'nein',children:[]}, c.fam||{});
+ c.fam = Object.assign({kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',untName:'',untIdnr:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untKindergeld:'nein',untOtherContributor:'nein',untHasIncome:'nein',untCountry:'',untForeignConfirmed:'nein',children:[]}, c.fam||{});
  if(!Array.isArray(c.fam.children)) c.fam.children=[];
  c.fam.children.forEach(k=>{ if(!k.kinship) k.kinship='leiblich'; });
  /* legacy: convert old lump-sum childcare/school fees into a first child entry */
@@ -2678,7 +2688,16 @@ function stepFamily(c){
  ${F('fam','untKindergeld',t('unt_kindergeld')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
  ${F('fam','untOtherContributor',t('unt_other_contributor')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
  ${F('fam','untHasIncome',t('unt_has_income')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
- </div>`:''}
+ </div>
+ <div class="grid2">
+ ${F('fam','untCountry',t('unt_country'),{select:[['Deutschland',t('unt_country_de')],...UNT_COUNTRIES.filter(c=>c!=='Deutschland').map(c=>[c,c])]})}
+ </div>
+ ${c.fam.untCountry && c.fam.untCountry!=='Deutschland'?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
+ ⚠ ${t('unt_foreign_hint')}
+ </div>
+ <div class="grid2">
+ ${F('fam','untForeignConfirmed',t('unt_foreign_confirmed')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
+ </div>`:''}`:''}
  ${docSection('fam')}
  ${navRow()}`;
 }
@@ -2826,6 +2845,9 @@ function submitElster(){
  name, IdNr, and household address once any amount is entered) */
  if(N(c0.fam.support)>0 && (!c0.fam.untName||!c0.fam.untIdnr||!c0.fam.untAddress)){
  alert(t('err_unt_required')); S.step=3; render(); return;
+ }
+ if(N(c0.fam.support)>0 && c0.fam.untCountry && c0.fam.untCountry!=='Deutschland' && c0.fam.untForeignConfirmed!=='ja'){
+ alert(t('err_unt_foreign_required')); S.step=3; render(); return;
  }
  if(ERIC.enabled){ submitElsterReal(c0); return; }
  const faLine = `${t('submitting_to')}: <b>${esc(c0.p.faNumber)}</b> ${esc(c0.p.finanzamt||'')}`;
@@ -3046,7 +3068,8 @@ function buildElsterDataset(c){
  personName:c.fam.untName||'', personIdnr:(c.fam.untIdnr||'').replace(/\s/g,''), relationship:c.fam.untRelationship||'',
  householdAddress:c.fam.untAddress||'', householdSize:N(c.fam.untHouseholdSize)||1,
  von:c.fam.untFrom||'', bis:c.fam.untTo||'',
- kindergeldEntitlement:c.fam.untKindergeld==='ja', otherContributor:c.fam.untOtherContributor==='ja', hasOwnIncome:c.fam.untHasIncome==='ja' }:null,
+ kindergeldEntitlement:c.fam.untKindergeld==='ja', otherContributor:c.fam.untOtherContributor==='ja', hasOwnIncome:c.fam.untHasIncome==='ja',
+ country:c.fam.untCountry||'', foreignNeedConfirmed:c.fam.untForeignConfirmed==='ja' }:null,
  sonderausgaben:{ spenden:N(c.sa.donations), sonstige:N(c.sa.other) },
  aussergewoehnlicheBelastungen:{ krankheitskosten:N(c.ex.medical) },
  haushaltsnaheLeistungen:{ haushaltsnaheDienstleistungen:N(c.ex.household), handwerkerleistungen:N(c.ex.handwerker) },
