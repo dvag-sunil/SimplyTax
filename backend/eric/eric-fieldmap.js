@@ -130,6 +130,26 @@ const Kind = {
   kinshipTypeA: { kennzahlen: ['E0500807'], note: 'Art des Kindschaftsverhaeltnisses - parent A (K_Verh_A)' },
   kinshipTypeB: { kennzahlen: ['E0500808'], note: 'Art des Kindschaftsverhaeltnisses - parent B / the child\'s other parent, confirmed required alongside A regardless of whether that person is a co-filer on this return (K_Verh_B)' },
   kinshipPeriodB: 'E0500805', // K_Verh_B - Kindschaftsverhältnis bestand vom - bis (DatumBereich)
+  /* NEW: real bug found via the multi-year regression test - discovered
+     that K_Verh_B (above) is just ONE of five ways to satisfy the
+     "second parent" completeness rule (Regel 100500048/25) - and it's
+     specifically the one that's forbidden for single filers (confirmed:
+     "Einzelveranlagung, daher...zur Ehefrau nicht zulässig"). The real,
+     correct mechanism for single filers is a genuinely different
+     context, K_Verh_and_P/Ang_Pers - simply naming the other parent,
+     without treating them as a co-filer. This is the simplest of the
+     five valid options (the other four require special circumstances:
+     the other parent's death, unknown whereabouts, or living abroad -
+     none of which should be guessed/defaulted). */
+  otherParentName: 'E0501103', // K_Verh/K_Verh_and_P/Ang_Pers - Name, Vorname
+  /* NEW: real bug found via a third regression test round - confirmed
+     via the actual error text ("Namen...Dauer...Art...gemeinsam
+     anzugeben") that Name alone isn't enough - the duration and type of
+     this relationship must be given TOGETHER with it (Regel
+     100500001). Same enum values as K_Verh_A/B (1=leiblich/adoptiert,
+     2=Pflegekind), confirmed via the real XSD. */
+  otherParentPeriod: 'E0501903', // K_Verh/K_Verh_and_P/Ang_Pers - Dauer des Kindschaftsverhältnisses (DatumBereich)
+  otherParentKinType: 'E0501106', // K_Verh/K_Verh_and_P/Ang_Pers - Art des Kindschaftsverhältnisses (enum)
   familienkasse: 'E0500706', // Ang_Kind/Allg - für die Kindergeldfestsetzung zuständige Familienkasse (free text)
   residenceInl: 'E0500703',  // Ang_Kind/WS/Inl - vom - bis (residence duration in Germany, DatumBereich)
   gemHhElt: 'E0504807',      // KBK/Ang_HH/Gem_HH_Elt - shared parental household period (DatumBereich)
@@ -148,6 +168,19 @@ const Kind = {
      (Kinderbetreuungskosten) field group at once. */
   childcareAmount:  { kennzahlen: ['E0506104'], note: 'Betrag - individual cost entry (per provider/period)' },
   childcareSum:     { kennzahlen: ['E0506105'], note: 'berücksichtigungsfähige Gesamtaufwendungen der Eltern - summed total' },
+  /* NEW: real bug found via the multi-year regression test - whenever
+     the parents are NOT jointly assessed (no Person B, or separate
+     assessment), a SEPARATE declaration is required: how much of the
+     childcare cost THIS specific taxpayer personally bore (as opposed
+     to the general KBK/Art total, which doesn't distinguish between
+     two separately-filing parents). Since this app only supports a
+     single taxpayer entering childcare costs (no cost-splitting between
+     two separate filers), the natural value is the same amount already
+     collected - the taxpayer entering it is, by construction, the one
+     who bore it. */
+  eltKZvPeriod: 'E0506606', // KBK/Elt_k_ZV/Kosten/Einz - Zeitraum (vom - bis)
+  eltKZvAmount: 'E0506605', // KBK/Elt_k_ZV/Kosten/Einz - Betrag
+  eltKZvSum: 'E0506604',    // KBK/Elt_k_ZV/Kosten/Sum - berücksichtigungsfähige Aufwendungen
   childcareProvider:{ kennzahlen: ['E0506101'], note: 'Art der Dienstleistung, Name und Anschrift des Dienstleisters - service type + provider name + address, REQUIRED together, see rule below' },
   childcarePeriod:  { kennzahlen: ['E0506103'], note: 'vom - bis (service period)' },
   childcareReimbursement: { kennzahlen: ['E0506505', 'E0506506', 'E0506504'], note: 'Steuerfreier Ersatz (z.B. vom Arbeitgeber), Erstattungen' },

@@ -380,7 +380,15 @@ function buildKAP(data) {
     const g1 = wholeEuroTag(fm.KAP.k7, k.zeile7_kapitalertraege) + wholeEuroTag(fm.KAP.k8, k.zeile8_aktiengewinne)
       + wholeEuroTag(fm.KAP.k12, k.zeile12_verlusteOhneAktien) + wholeEuroTag(fm.KAP.k13, k.zeile13_verlusteAktien);
     if (g1) inner += `<KapErt_inl_StAbz><Betr_lt_StBesch>\n${g1}</Betr_lt_StBesch></KapErt_inl_StAbz>\n`;
-    const g2 = wholeEuroTag(fm.KAP.k16, k.zeile16_sparerPauschbetragGenutzt);
+    /* CORRECTED: real bug found via the multi-year regression test
+       (Regel 192036) - whenever Günstigerprüfung is requested (which
+       happens automatically whenever g1/domestic withheld gains are
+       present), the Sparer-Pauschbetrag USED must ALSO be stated,
+       explicitly as 0 if the user hasn't used any - wholeEuroTag()
+       would otherwise silently omit a zero value, which is exactly
+       what caused this error despite the field being "collected" (just
+       never written when it was 0). */
+    const g2 = g1 ? `<${fm.KAP.k16}>${N(k.zeile16_sparerPauschbetragGenutzt)}</${fm.KAP.k16}>\n` : wholeEuroTag(fm.KAP.k16, k.zeile16_sparerPauschbetragGenutzt);
     if (g2) inner += `<Sp_PB>\n${g2}</Sp_PB>\n`;
     const g3 = wholeEuroTag(fm.KAP.k18, k.zeile18_inlaendischOhneSteuerabzug) + wholeEuroTag(fm.KAP.k19, k.zeile19_auslaendisch)
       + wholeEuroTag(fm.KAP.k20, k.zeile20_aktiengewinne) + wholeEuroTag(fm.KAP.k21, k.zeile21_stillhalterTermingeschaefte)
@@ -686,6 +694,13 @@ function buildKind(data) {
       xml += `<K_Verh_B>${tag(fm.Kind.kinshipTypeB.kennzahlen[0], kinCodeB)}`;
       xml += tag(fm.Kind.kinshipPeriodB, formatDateRangeDE(wsVon, wsBis));
       xml += '</K_Verh_B></K_Verh>\n';
+    } else if (k.otherParentName) {
+      /* CORRECTED (second pass): for single filers, K_Verh_and_P/Ang_Pers
+         (simply naming the other parent) is the correct mechanism -
+         confirmed via real ERiC validation that K_Verh_B specifically
+         requires an actual spouse. */
+      xml += `<K_Verh><K_Verh_A>${tag(fm.Kind.kinshipTypeA.kennzahlen[0], kinCode)}</K_Verh_A>`;
+      xml += `<K_Verh_and_P><Ang_Pers>${tag(fm.Kind.otherParentName, k.otherParentName)}${tag(fm.Kind.otherParentPeriod, formatDateRangeDE(wsVon, wsBis))}${tag(fm.Kind.otherParentKinType, kinCode)}</Ang_Pers></K_Verh_and_P></K_Verh>\n`;
     } else {
       xml += `<K_Verh><K_Verh_A>${tag(fm.Kind.kinshipTypeA.kennzahlen[0], kinCode)}</K_Verh_A></K_Verh>\n`;
     }
@@ -717,6 +732,15 @@ function buildKind(data) {
          the common case where the shared parental household covers the
          same period the childcare was used. */
       xml += `<Ang_HH><Gem_HH_Elt>\n${tag(fm.Kind.gemHhElt, formatDateRangeDE(k.betreuungVon, k.betreuungBis))}${tag(fm.Kind.gemHhEltKind, formatDateRangeDE(k.betreuungVon, k.betreuungBis))}</Gem_HH_Elt></Ang_HH>\n`;
+      /* NEW: real bug found via the multi-year regression test - when
+         the parents are NOT jointly assessed (no Person B on this
+         return), a separate declaration of how much of the childcare
+         cost THIS taxpayer personally bore is required (Regel
+         100500024, "gegebenenfalls '0'"). Since this app only supports
+         one taxpayer entering the cost (no splitting between two
+         separately-filing parents), the same amount already collected
+         is the correct value here too. */
+      if (!B) xml += `<Elt_k_ZV><Kosten><Einz>\n${tag(fm.Kind.eltKZvPeriod, formatDateRangeDE(k.betreuungVon, k.betreuungBis))}${wholeEuroTag(fm.Kind.eltKZvAmount, k.betreuungskosten)}</Einz><Sum>\n${wholeEuroTag(fm.Kind.eltKZvSum, k.betreuungskosten)}</Sum></Kosten></Elt_k_ZV>\n`;
       xml += '</KBK>\n';
     } else if (k.betreuungskosten > 0) {
       console.warn('[eric xml-builder] childcare amount present but provider/period missing - skipped this entry\'s childcare block (should not happen if the app UI validation ran correctly)');
@@ -970,6 +994,8 @@ function buildEStXML(data, opts = {}) {
     skippedSections.push('anlageKind childcare amount present without provider/period for at least one child - that entry\'s childcare block was skipped (should not happen if the app UI validation ran, worth checking why it was bypassed)');
   if ((data.anlageKind || []).some(k => k.vorname && k.geburtsdatum && !k.familienkasse))
     skippedSections.push('anlageKind present without the Familienkasse (responsible child-benefit office) for at least one child - confirmed required alongside name/birthdate (Regel 5021). This is genuinely case-specific data (which office is responsible) that cannot be safely defaulted - needs to come from the user.');
+  if (!data.hauptvordruck?.personB && (data.anlageKind || []).some(k => k.vorname && k.geburtsdatum && !k.otherParentName))
+    skippedSections.push('anlageKind present for a single filer without the other parent\'s name for at least one child - confirmed required (Regel 100500048/25). This is genuinely case-specific data that cannot be safely defaulted - needs to come from the user.');
   if (data.anlageUnterhalt?.betrag > 0 && (!data.anlageUnterhalt.personName || !data.anlageUnterhalt.householdAddress || !data.anlageUnterhalt.profession || !data.anlageUnterhalt.personBirthDate))
     skippedSections.push('anlageUnterhalt support payment present but missing one or more required fields (confirmed via a real empirical ERiC test, not just documentation): the supported person\'s name, profession/marital status, birthdate, and household address are all required together (Regel 100120001).');
   if (data.anlageUnterhalt?.betrag > 0 && !(data.anlageUnterhalt.country && data.anlageUnterhalt.country !== 'Deutschland') && !data.anlageUnterhalt.personIdnr)

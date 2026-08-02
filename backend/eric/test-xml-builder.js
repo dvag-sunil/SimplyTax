@@ -478,6 +478,50 @@ check('HA_35a Handwerkerleistungen includes all four required fields (Art, invoi
   return haBlock.includes('E0111217') && haBlock.includes('<E0170601>900</E0170601>')
     && haBlock.includes('<E0111214>900</E0111214>') && haBlock.includes('<E0111215>900</E0111215>');
 })());
+check('KAP explicitly sends Sp_PB as 0 whenever Günstigerprüfung is requested, even with no Pauschbetrag used - real bug found via a second regression test round (Regel 192036)', (() => {
+  const withKAP = JSON.parse(JSON.stringify(sample));
+  withKAP.anlageKAP = [{ person: 'A', zeile7_kapitalertraege: 1500 }];
+  const xml = buildEStXML(withKAP).xml;
+  return xml.includes('<Sp_PB>\n<E1901401>0</E1901401>\n</Sp_PB>');
+})());
+check('Kind uses K_Verh_and_P (naming the other parent) for single filers instead of the forbidden K_Verh_B - real bug found via a second regression test round confirming the earlier fix was still incomplete', (() => {
+  const singleFiler = JSON.parse(JSON.stringify(sample));
+  singleFiler.hauptvordruck.personB = null;
+  singleFiler.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich', familienkasse: 'Test', otherParentName: 'Max Mustermann' }];
+  const xml = buildEStXML(singleFiler).xml;
+  return xml.includes('<K_Verh_and_P><Ang_Pers><E0501103>Max Mustermann</E0501103>') && !xml.includes('<K_Verh_B>');
+})());
+check('Kind K_Verh_and_P includes the required duration and relationship-type fields alongside the name - real bug found via a third regression test round (Regel 100500001, "Name...Dauer...Art...gemeinsam")', (() => {
+  const singleFiler = JSON.parse(JSON.stringify(sample));
+  singleFiler.hauptvordruck.personB = null;
+  singleFiler.meta.taxYear = 2025;
+  singleFiler.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich', familienkasse: 'Test', otherParentName: 'Max Mustermann' }];
+  const xml = buildEStXML(singleFiler).xml;
+  return xml.includes('<E0501903>01.01-31.12</E0501903>') && xml.includes('<E0501106>1</E0501106>');
+})());
+check('Kind warns when other parent\'s name is missing for a single filer, since it cannot be safely defaulted', (() => {
+  const singleFilerNoParent = JSON.parse(JSON.stringify(sample));
+  singleFilerNoParent.hauptvordruck.personB = null;
+  singleFilerNoParent.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich', familienkasse: 'Test' }];
+  const result = buildEStXML(singleFilerNoParent);
+  return result.skippedSections.some(s => s.includes('other parent'));
+})());
+check('Kind childcare includes the Elt_k_ZV/Kosten declaration for non-jointly-assessed filers (no Person B) - real bug found via a second regression test round (Regel 100500024)', (() => {
+  const singleFiler = JSON.parse(JSON.stringify(sample));
+  singleFiler.hauptvordruck.personB = null;
+  singleFiler.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich', familienkasse: 'Test', otherParentName: 'Max Mustermann',
+    betreuungskosten: 1400, betreuungAnbieter: 'Kita', betreuungVon: '2025-01-01', betreuungBis: '2025-12-31' }];
+  const xml = buildEStXML(singleFiler).xml;
+  return xml.includes('<Elt_k_ZV><Kosten><Einz>') && xml.includes('<E0506605>1400</E0506605>') && xml.includes('<E0506604>1400</E0506604>');
+})());
+check('Kind childcare correctly OMITS Elt_k_ZV/Kosten when jointly assessed (Person B exists) - only needed when parents are NOT jointly assessed', (() => {
+  const married = JSON.parse(JSON.stringify(sample));
+  married.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Erika', geburtsdatum: '1987-05-20' };
+  married.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich', familienkasse: 'Test',
+    betreuungskosten: 1400, betreuungAnbieter: 'Kita', betreuungVon: '2025-01-01', betreuungBis: '2025-12-31' }];
+  const xml = buildEStXML(married).xml;
+  return !xml.includes('Elt_k_ZV');
+})());
 check('Anlage Unterhalt includes the required paymentPeriod field (E0120104) alongside amount - real bug found via the multi-year regression test (Regel 300010, FelderNichtGemeinsamAngegeben)', (() => {
   const withU = JSON.parse(JSON.stringify(sample));
   withU.anlageUnterhalt = { betrag: 6000, von: '2025-01-01', bis: '2025-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', householdAddress: 'Test' };

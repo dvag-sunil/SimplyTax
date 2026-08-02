@@ -632,6 +632,8 @@ en: {
  kinship_hint:"Biological and adopted children receive the FULL child allowance / Kindergeld - no difference in amount. Foster and step-/grandchildren qualify only under conditions (see notes below).",
  familienkasse:"Responsible Familienkasse (child-benefit office)", familienkasse_ph:"e.g. Familienkasse München",
  familienkasse_hint:"The specific office that pays/administers Kindergeld for this child - usually shown on the Kindergeld award notice.",
+ other_parent_name:"Child's other parent - full name", other_parent_name_ph:"e.g. Max Mustermann",
+ other_parent_name_hint:"Required by the tax office when filing as a single person with a child - simply naming the other parent, not adding them to this return.",
  kin_pflege_hint:"Counts as your child only if a genuine family-like bond exists (Obhuts- und Pflegeverhältnis) on a long-term basis, not for profit, and the bond to the birth parents is essentially severed.",
  kin_stief_hint:"Counts only for as long as the child actually lives in your household.",
  marital_hint:"Separated or in a divorce? Each spouse then files their OWN return - choose 'separate assessment' (§ 26a, individual tariff; spouse identity is still recorded). In the YEAR of separation, joint assessment is usually still allowed. After the separation year or divorce, choose 'Single'.",
@@ -924,6 +926,8 @@ de: {
  kinship_hint:"Leibliche und adoptierte Kinder erhalten den VOLLEN Kinderfreibetrag / das volle Kindergeld - kein Unterschied im Betrag. Pflege- und Stief-/Enkelkinder zählen nur unter Voraussetzungen (siehe Hinweise unten).",
  familienkasse:"Zuständige Familienkasse", familienkasse_ph:"z. B. Familienkasse München",
  familienkasse_hint:"Die Stelle, die für dieses Kind das Kindergeld zahlt/verwaltet - meist auf dem Kindergeldbescheid vermerkt.",
+ other_parent_name:"Anderer Elternteil des Kindes - vollständiger Name", other_parent_name_ph:"z. B. Max Mustermann",
+ other_parent_name_hint:"Vom Finanzamt bei Einzelveranlagung mit Kind verlangt - nennt lediglich den anderen Elternteil, ohne ihn dieser Erklärung hinzuzufügen.",
  kin_pflege_hint:"Zählt nur als Ihr Kind, wenn ein echtes familienähnliches Band besteht (Obhuts- und Pflegeverhältnis) auf Dauer angelegt, nicht zu Erwerbszwecken, und das Verhältnis zu den leiblichen Eltern im Wesentlichen aufgehoben ist.",
  kin_stief_hint:"Zählt nur, solange das Kind tatsächlich in Ihrem Haushalt lebt.",
  marital_hint:"Getrennt lebend oder in Scheidung? Dann gibt jeder Ehegatte eine EIGENE Erklärung ab - 'Einzelveranlagung' wählen (§ 26a, Grundtarif; die Daten des Ehegatten werden trotzdem erfasst). Im Trennungsjahr ist die Zusammenveranlagung meist noch möglich. Nach dem Trennungsjahr bzw. der Scheidung: 'Ledig'.",
@@ -2675,7 +2679,7 @@ function CF(kid,field,label,opts={}){
  <input data-tabkey="${tk}" type="${type}" value="${type==='date'?(esc(kid[field])||dateMax()):esc(kid[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
  onchange="updChild('${kid.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
-function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',familienkasse:'',kindergeld:'',childcare:'',ccProvider:'',ccPeriodFrom:'',ccPeriodTo:'',schoolFees:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
+function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',familienkasse:'',otherParentName:'',kindergeld:'',childcare:'',ccProvider:'',ccPeriodFrom:'',ccPeriodTo:'',schoolFees:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function delChild(id){ const c=cur(); c.fam.children=(c.fam.children||[]).filter(k=>k.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function updChild(id,f,v,fmt){ v = validAmount(v, fmt); const c=cur(); const k=(c.fam.children||[]).find(x=>x.id===id); if(!k) return;
  if(fmt && String(v).trim()!=='') v=formatDE(N(v)); k[f]=v; c.updatedAt=Date.now(); scheduleSave(); render(); }
@@ -2695,6 +2699,9 @@ function stepFamily(c){
  ${CF(k,'kinship',t('kinship'),{select:[['leiblich',t('kin_leib')],['adoptiert',t('kin_adopt')],['pflegekind',t('kin_pflege')],['stiefkind',t('kin_stief')]],hint:i===0?t('kinship_hint'):''})}
  ${CF(k,'familienkasse',t('familienkasse')+' *',{ph:t('familienkasse_ph'),hint:t('familienkasse_hint')})}
  </div>
+ ${c.p.marital==='single'||c.p.marital==='verwitwet'||c.p.marital==='getrennt_lebend'?`<div class="grid2">
+ ${CF(k,'otherParentName',t('other_parent_name')+' *',{ph:t('other_parent_name_ph'),hint:t('other_parent_name_hint')})}
+ </div>`:''}
  ${k.kinship==='pflegekind'?`<div class="auth-err" style="background:var(--amber-soft);color:var(--amber);border:none">ℹ️ ${t('kin_pflege_hint')}</div>`:''}
  ${k.kinship==='stiefkind'?`<div class="auth-err" style="background:var(--amber-soft);color:var(--amber);border:none">ℹ️ ${t('kin_stief_hint')}</div>`:''}
  <div class="grid3">
@@ -3128,7 +3135,7 @@ function buildElsterDataset(c){
  kategorie:INS_CAT[x.type]||'', beitrag:N(x.beitrag), erstattung:N(x.erstattung),
  netto:Math.max(0,N(x.beitrag)-N(x.erstattung)) })), sonstigeVersicherungen:N(c.ins.other) },
  anlageKind:(c.fam.children||[]).map(k=>({ vorname:k.name, geburtsdatum:k.birth, idnr:(k.taxId||'').replace(/\s/g,''),
- kinship:k.kinship||'leiblich', familienkasse:k.familienkasse||'',
+ kinship:k.kinship||'leiblich', familienkasse:k.familienkasse||'', otherParentName:k.otherParentName||'',
  kindergeld:N(k.kindergeld), betreuungskosten:N(k.childcare),
  betreuungAnbieter:k.ccProvider||'', betreuungVon:k.ccPeriodFrom||'', betreuungBis:k.ccPeriodTo||'',
  schulgeld:N(k.schoolFees) })),
