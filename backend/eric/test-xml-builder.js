@@ -294,6 +294,57 @@ check('buildR produces nothing for an entry with an unrecognized art value, rath
   const xmlEmpty = buildEStXML(emptyR).xml;
   return !xmlEmpty.includes('<R>');
 })());
+
+// Multi-year architecture - confirmed via a real, direct comparison of
+// the actual 2023/2024/2025 Kontexte structures and Kennzahl existence
+// (see eric-fieldmap.js SECTION_YEAR_SUPPORT / FIELD_YEAR_SUPPORT), not
+// assumed. Structural section changes are gated entirely off; simple
+// field-level differences are gated individually while the surrounding
+// structure stays intact.
+check('Anlage Unterhalt (ESt1A_U) is correctly OMITTED entirely for tax year 2023 - real structural change confirmed, not yet safe to generate', (() => {
+  const old2023 = JSON.parse(JSON.stringify(sample));
+  old2023.meta.taxYear = 2023;
+  old2023.anlageUnterhalt = { betrag: 6000, personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', householdAddress: 'Test' };
+  const result = buildEStXML(old2023);
+  return !result.xml.includes('<ESt1A_U>') && result.skippedSections.some(s => s.includes('anlageUnterhalt') && s.includes('2023'));
+})());
+check('Anlage Unterhalt (ESt1A_U) still works normally for tax year 2025 - the year gate does not affect the verified year', (() => {
+  const current2025 = JSON.parse(JSON.stringify(sample));
+  current2025.meta.taxYear = 2025;
+  current2025.anlageUnterhalt = { betrag: 6000, personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', householdAddress: 'Test' };
+  const result = buildEStXML(current2025);
+  return result.xml.includes('<ESt1A_U>') && !result.skippedSections.some(s => s.includes('2025'));
+})());
+check('Realsplitting domestic/foreign flag (E0183001) is correctly OMITTED for tax year 2023, while the amount itself still transmits normally', (() => {
+  const old2023 = JSON.parse(JSON.stringify(sample));
+  old2023.meta.taxYear = 2023;
+  old2023.sonderausgaben = {};
+  old2023.weitereAngaben = { realsplittingAnlageU: 5000 };
+  const xml2023 = buildEStXML(old2023).xml;
+  return xml2023.includes('E0104408') && !xml2023.includes('E0183001');
+})());
+check('Realsplitting domestic/foreign flag (E0183001) IS present for tax year 2024 onward, matching its confirmed real introduction year', (() => {
+  const y2024 = JSON.parse(JSON.stringify(sample));
+  y2024.meta.taxYear = 2024;
+  y2024.sonderausgaben = {};
+  y2024.weitereAngaben = { realsplittingAnlageU: 5000 };
+  const xml2024 = buildEStXML(y2024).xml;
+  return xml2024.includes('E0183001');
+})());
+check('N/vb9 multi-year pension breakdown (E0201606) is correctly OMITTED for tax year 2024, confirmed genuinely new in 2025', (() => {
+  const y2024 = JSON.parse(JSON.stringify(sample));
+  y2024.meta.taxYear = 2024;
+  y2024.anlageN[0].zeile9_versorgungMehrjaehrig = 500;
+  const xml2024 = buildEStXML(y2024).xml;
+  return !xml2024.includes('E0201606');
+})());
+check('N/vb9 (E0201606) IS present for tax year 2025, matching its confirmed real introduction year', (() => {
+  const y2025 = JSON.parse(JSON.stringify(sample));
+  y2025.meta.taxYear = 2025;
+  y2025.anlageN[0].zeile9_versorgungMehrjaehrig = 500;
+  const xml2025 = buildEStXML(y2025).xml;
+  return xml2025.includes('E0201606');
+})());
 check('Anlage Unterhalt period uses the confirmed date-range format (TT.MM-TT.MM, no year) - same DatumBereich type as childcare', (() => {
   const withU = JSON.parse(JSON.stringify(sample));
   withU.anlageUnterhalt = { betrag: 6000, personName: 'Maria', householdAddress: 'Test', von: '2025-03-01', bis: '2025-11-30' };

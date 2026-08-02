@@ -244,7 +244,13 @@ function buildAnlageN(data) {
        (these lines are rarely split across multiple employers in practice) */
     const first = list[0];
     xml += wholeEuroTag(fm.N.vb8.kennzahlen[0], first.zeile8_versorgungsbezuege);
-    xml += wholeEuroTag(fm.N.vb9.kennzahlen[0], first.zeile9_versorgungMehrjaehrig);
+    /* YEAR GATE: E0201606 confirmed genuinely new in 2025 via direct XSD
+       comparison against 2023/2024 - simply omitted for earlier years,
+       the underlying amount is still captured within the broader
+       Bruttoarbeitslohn total either way, so this is a lossless omission,
+       not a missing-data situation. */
+    if (fm.isFieldSupportedForYear('E0201606', data.meta?.taxYear || 2025))
+      xml += wholeEuroTag(fm.N.vb9.kennzahlen[0], first.zeile9_versorgungMehrjaehrig);
     xml += wholeEuroTag(fm.N.ml10.kennzahlen[0], first.zeile10_mehrjaehrigEntschaedigung);
     xml += wholeEuroTag(fm.N.ersatz15.kennzahlen[0], first.zeile15_lohnersatz);
     /* CORRECTED: dba16 needs its own ArbL/Stfr_NAUS wrapper, confirmed via
@@ -507,8 +513,14 @@ function buildSA(data) {
        surfaced via skippedSections below, not silently sent incomplete. */
     /* CONFIRMED via the real XSD: E0183001 is JaNein12BaseCType (the same
        type family as Vorsatz/Rueckuebermittlung/Bescheid, where "1"=Ja
-       was already confirmed) - NOT a simple "X" checkbox. */
-    inner += `<Weit_Aufw><U_Leist><Einz>\n${wholeEuroTag(fm.SA.realsplittingAmount, w.realsplittingAnlageU)}${tag(fm.SA.realsplittingInland, '1')}</Einz></U_Leist></Weit_Aufw>\n`;
+       was already confirmed) - NOT a simple "X" checkbox.
+       YEAR GATE: confirmed genuinely new in 2024 via direct XSD
+       comparison against 2023 - the surrounding structure (SA/Weit_Aufw/
+       U_Leist) is confirmed stable across 2023-2025, only this one field
+       is year-gated, so it's simply omitted for 2023 rather than the
+       whole section being restricted. */
+    const inlandTag = fm.isFieldSupportedForYear('E0183001', data.meta?.taxYear || 2025) ? tag(fm.SA.realsplittingInland, '1') : '';
+    inner += `<Weit_Aufw><U_Leist><Einz>\n${wholeEuroTag(fm.SA.realsplittingAmount, w.realsplittingAnlageU)}${inlandTag}</Einz></U_Leist></Weit_Aufw>\n`;
   }
   return `<SA>\n${inner}</SA>\n`;
 }
@@ -613,6 +625,17 @@ function buildKind(data) {
 function buildUnterhalt(data) {
   const u = data.anlageUnterhalt;
   if (!u || !(u.betrag > 0)) return '';
+  /* YEAR GATE: confirmed via direct comparison of the real 2023/2024/2025
+     Kontexte structure that this section was restructured for 2025 (a
+     new wrapper level was introduced, not just a field code change).
+     This implementation was built and empirically tested against 2025
+     only - rather than guess at the older structure's requirements,
+     this section is correctly skipped (not silently sent wrong) for
+     earlier years, matching the honest-scope-limitation pattern used
+     throughout this project. See eric-fieldmap.js SECTION_YEAR_SUPPORT
+     for the full research trail. */
+  const year = data.meta?.taxYear || 2025;
+  if (!fm.isSectionSupportedForYear('ESt1A_U', year)) return ''; // reported to the user via skippedSections in buildEStXML, not silently dropped
   /* CORRECTED (second pass) via a real empirical ERiC test comparing a
      WITH-IdNr and a WITHOUT-IdNr submission side by side (not just
      documentation reading): IdNr is genuinely NOT required - removing
@@ -815,7 +838,9 @@ function buildEStXML(data, opts = {}) {
     skippedSections.push('anlageV Werbungskosten (rental deduction costs - real schema needs itemized categories, our simple total cannot be honestly mapped)');
   if ((data.anlageKind || []).some(k => k.betreuungskosten > 0 && (!k.betreuungAnbieter || !k.betreuungVon || !k.betreuungBis)))
     skippedSections.push('anlageKind childcare amount present without provider/period for at least one child - that entry\'s childcare block was skipped (should not happen if the app UI validation ran, worth checking why it was bypassed)');
-  if (data.anlageUnterhalt?.betrag > 0 && (!data.anlageUnterhalt.personName || !data.anlageUnterhalt.householdAddress || !data.anlageUnterhalt.profession || !data.anlageUnterhalt.personBirthDate))
+  if (data.anlageUnterhalt?.betrag > 0 && !fm.isSectionSupportedForYear('ESt1A_U', data.meta?.taxYear || 2025))
+    skippedSections.push(`anlageUnterhalt support payment present, but this deduction is not yet supported for tax year ${data.meta?.taxYear} - confirmed via a direct structural comparison that ELSTER's schema for Anlage Unterhalt changed for 2025 (a real restructuring, not a bug). Not transmitted for this year until that structure is separately researched and implemented; the ${data.meta?.taxYear} return should be filed without this specific deduction for now, or the client's tax year changed to 2025 if that's an option.`);
+  else if (data.anlageUnterhalt?.betrag > 0 && (!data.anlageUnterhalt.personName || !data.anlageUnterhalt.householdAddress || !data.anlageUnterhalt.profession || !data.anlageUnterhalt.personBirthDate))
     skippedSections.push('anlageUnterhalt support payment present but missing one or more required fields (confirmed via a real empirical ERiC test, not just documentation): the supported person\'s name, profession/marital status, birthdate, and household address are all required together (Regel 100120001). Note: the person\'s IdNr is genuinely NOT required, confirmed via the same empirical test - do not block on that field.');
   if (data.anlageUnterhalt?.betrag > 0 && data.anlageUnterhalt.country && data.anlageUnterhalt.country !== 'Deutschland' && data.anlageUnterhalt.foreignNeedConfirmed !== true)
     skippedSections.push('anlageUnterhalt support payment for a foreign household - confirmed via real ERiC validation (Regel 32) that the home-country-authority confirmation (foreignNeedConfirmed) is required for foreign households.');

@@ -480,6 +480,9 @@ en: {
  err_cc_required:"Please fill in the provider name/address and the service period for the childcare costs you entered (required whenever an amount is filled in).",
  err_unt_required:"Please fill in the supported person's name, Tax ID, and household address for the support payment you entered (required whenever an amount is filled in).",
  err_unt_foreign_required:"Because the supported household is abroad, please confirm you have the home-country authority's confirmation of need (required in addition to the Tax ID for foreign households).",
+ year_warn_no_schema:"⚠ ELSTER has not published this tax year's forms yet - returns for this year cannot be validated or submitted until they do.",
+ year_warn_no_unterhalt:"Support payments to needy persons (Anlage Unterhalt) are not yet supported for this tax year.",
+ year_warn_no_realsplit_country:"Realsplitting for a foreign ex-spouse is not yet supported for this tax year (domestic works normally).",
  school_hint:"30% deductible, max. €5,000.",
  support_h:"Support for parents / relatives", support_amount:"Support paid (per year)", support_where:"Where does the supported person live?",
  grp1:"Germany / country group 1 (full maximum)", grp2:"Country group 2 (¾ of maximum)", grp3:"Country group 3 (½ of maximum, e.g. India)", grp4:"Country group 4 (¼ of maximum)",
@@ -762,6 +765,9 @@ de: {
  err_cc_required:"Bitte Name/Anschrift des Anbieters und den Leistungszeitraum für die eingetragenen Kinderbetreuungskosten angeben (Pflichtfelder, sobald ein Betrag eingetragen ist).",
  err_unt_required:"Bitte Name, Steuer-ID und Anschrift der unterstützten Person für die eingetragenen Unterhaltszahlungen angeben (Pflichtfelder, sobald ein Betrag eingetragen ist).",
  err_unt_foreign_required:"Da der unterstützte Haushalt im Ausland liegt, bestätigen Sie bitte, dass Ihnen die Unterhaltserklärung der Heimatbehörde vorliegt (zusätzlich zur Steuer-ID bei ausländischen Haushalten erforderlich).",
+ year_warn_no_schema:"⚠ ELSTER hat die Formulare für dieses Steuerjahr noch nicht veröffentlicht - Erklärungen für dieses Jahr können noch nicht geprüft oder übermittelt werden.",
+ year_warn_no_unterhalt:"Unterhaltsleistungen an bedürftige Personen (Anlage Unterhalt) werden für dieses Steuerjahr noch nicht unterstützt.",
+ year_warn_no_realsplit_country:"Realsplitting für einen im Ausland lebenden Ex-Ehegatten wird für dieses Steuerjahr noch nicht unterstützt (Inland funktioniert normal).",
  school_hint:"30 % absetzbar, max. 5.000 €.",
  support_h:"Unterhalt für Eltern / Angehörige", support_amount:"Gezahlter Unterhalt (pro Jahr)", support_where:"Wo lebt die unterstützte Person?",
  grp1:"Deutschland / Ländergruppe 1 (voller Höchstbetrag)", grp2:"Ländergruppe 2 (¾ des Höchstbetrags)", grp3:"Ländergruppe 3 (½ des Höchstbetrags, z. B. Indien)", grp4:"Ländergruppe 4 (¼ des Höchstbetrags)",
@@ -984,6 +990,23 @@ const t = k => (STR[S.lang][k] ?? k);
 const uid = () => 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const BUNDESLAENDER=['Baden-Württemberg','Bayern','Berlin','Brandenburg','Bremen','Hamburg','Hessen','Mecklenburg-Vorpommern','Niedersachsen','Nordrhein-Westfalen','Rheinland-Pfalz','Saarland','Sachsen','Sachsen-Anhalt','Schleswig-Holstein','Thüringen'];
 /* Confirmed real ~232-entry country enum (NAEnum_LAENDERGR_2024_1_BaseCType), extracted directly from the real E10-2025.xsd - exact match required for Anlage Unterhalt's foreign-residence field (E0120102). */
+/* Mirrors the backend's real, verified multi-year findings (eric-fieldmap.js
+   SECTION_YEAR_SUPPORT/FIELD_YEAR_SUPPORT) - confirmed via direct comparison
+   of the actual 2023/2024/2025 ELSTER schemas, not assumed. */
+const YEAR_LIMITATIONS = {
+  2026: { noSchema:true },                 // ELSTER has not published this year's forms yet - confirmed directly, not a bug
+  2023: { noRealsplittingCountry:true, noUnterhalt:true },
+  2024: { noUnterhalt:true },
+};
+function yearWarning(year){
+  const lim = YEAR_LIMITATIONS[year];
+  if(!lim) return '';
+  if(lim.noSchema) return t('year_warn_no_schema');
+  const parts=[];
+  if(lim.noUnterhalt) parts.push(t('year_warn_no_unterhalt'));
+  if(lim.noRealsplittingCountry) parts.push(t('year_warn_no_realsplit_country'));
+  return parts.join(' ');
+}
 const UNT_COUNTRIES=['Afghanistan','Ägypten','Albanien','Algerien','Amerikanisch-Samoa','Amerikanische Jungferninseln','Andorra','Angola','Antigua und Barbuda','Äquatorialguinea','Argentinien','Armenien','Aruba','Aserbaidschan','Äthiopien','Australien','Bahamas','Bahrain','Bangladesch','Barbados','Belarus','Belgien','Belize','Benin','Bermuda','Bhutan','Bolivien','Plurinationaler Staat','Bosnien und Herzegowina','Botsuana','Brasilien','Britische Jungferninseln','Brunei Darussalam','Bulgarien','Burkina Faso','Burundi','Cabo Verde','Chile','China','Cookinseln','Costa Rica','Cote d Ivoire','Curacao','Dänemark','Deutschland','Dominica','Dominikanische Republik','Dschibuti','Ecuador','El Salvador','Eritrea','Estland','Eswatini','Färöer','Fidschi','Finnland','Frankreich','Französisch-Polynesien','Gabun','Gambia','Georgien','Ghana','Gibraltar','Grenada','Griechenland','Grönland','Guam','Guatemala','Guinea','Guinea-Bissau','Guyana','Haiti','Honduras','Hongkong','Indien','Indonesien','Insel Man','Irak','Iran','Islamische Republik','Irland','Island','Israel','Italien','Jamaika','Japan','Jemen','Jordanien','Kaimaninseln','Kambodscha','Kamerun','Kanada','Kanalinseln','Kasachstan','Katar','Kenia','Kirgisistan','Kiribati','Kolumbien','Komoren','Kongo','Kongo','Demokratische Republik','Korea','Demokratische Volksrepublik','Korea','Republik','Kosovo','Kroatien','Kuba','Kuwait','Laos','Demokratische Volksrepublik','Lesotho','Lettland','Libanon','Liberia','Libyen','Liechtenstein','Litauen','Luxemburg','Macau','Madagaskar','Malawi','Malaysia','Malediven','Mali','Malta','Marokko (einschl. Westsahara)','Marshallinseln','Mauretanien','Mauritius','Mexiko','Mikronesien','Föderierte Staaten von','Moldau','Republik','Monaco','Mongolei','Montenegro','Mosambik','Myanmar','Namibia','Nauru','Nepal','Neukaledonien','Neuseeland','Nicaragua','Niederlande','Niger','Nigeria','Niue','Nördliche Marianen','Nordmazedonien','Norwegen','Oman','Österreich','Pakistan','Palästinensische Gebiete','Palau','Panama','Papua Neuguinea','Paraguay','Peru','Philippinen','Polen','Portugal','Puerto Rico','Ruanda','Rumänien','Russische Föderation','Salomonen','Sambia','Samoa','San Marino','Sao Tome und Principe','Saudi-Arabien','Schweden','Schweiz','Senegal','Serbien','Seychellen','Sierra Leone','Simbabwe','Singapur','Slowakei','Slowenien','Somalia','Spanien','Sri Lanka','St. Kitts und Nevis','St. Lucia','St. Martin (französischer Teil)','St. Martin (niederländischer Teil)','St. Vincent und die Grenadinen','Südafrika','Sudan','Südsudan','Suriname','Syrien','Arabische Republik','Tadschikistan','Taiwan','Tansania','Vereinigte Republik','Thailand','Timor-Leste','Togo','Tonga','Trinidad und Tobago','Tschad','Tschechien','Tunesien','Türkei','Turkmenistan','Turks- und Caicosinseln','Tuvalu','Uganda','Ukraine','Ungarn','Uruguay','Usbekistan','Vanuatu','Vatikanstadt','Venezuela','Bolivarische Republik','Vereinigte Arabische Emirate','Vereinigte Staaten','Vereinigtes Königreich','Vietnam','Zentralafrikanische Republik','Zypern'];
 
 /* German insurance market catalog, grouped by tax treatment:
@@ -1787,9 +1810,10 @@ function showNewClient(){
  <div class="field"><label>${t('last_name')}</label><input id="nc-l"></div>
  </div>
  <div class="grid2">
- <div class="field"><label>${t('tax_year')}</label><select id="nc-y">${yrs.map(y=>`<option>${y}</option>`).join('')}</select></div>
+ <div class="field"><label>${t('tax_year')}</label><select id="nc-y" onchange="document.getElementById('nc-y-warn').textContent=yearWarning(parseInt(this.value))">${yrs.map(y=>`<option>${y}</option>`).join('')}</select></div>
  <div class="field"><label>${t('marital')}</label><select id="nc-m"><option value="single">${t('single')}</option><option value="married">${t('married')}</option><option value="married_sep">${t('married_sep')}</option><option value="verwitwet">${t('widowed')}</option><option value="getrennt_lebend">${t('separated_living')}</option></select></div>
  </div>
+ <div id="nc-y-warn" style="font-size:12px;color:var(--amber-ink,#92600a);margin-top:-6px">${yearWarning(yrs[0])}</div>
  <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
  <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
  <button class="btn btn-primary" onclick="createClient()">${t('create')}</button>
@@ -2682,7 +2706,10 @@ function stepFamily(c){
  ${F('fam','support',t('support_amount'),{euro:true,ph:'0,00 €',hint:t('support_hint')})}
  ${F('fam','supportGroup',t('support_where'),{select:[['1',t('grp1')],['2',t('grp2')],['3',t('grp3')],['4',t('grp4')]]})}
  </div>
- ${N(c.fam.support)>0?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
+ ${N(c.fam.support)>0 && YEAR_LIMITATIONS[c.taxYear]?.noUnterhalt ? `<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
+ ⚠ ${t('year_warn_no_unterhalt')}
+ </div>` : ''}
+ ${N(c.fam.support)>0 && !YEAR_LIMITATIONS[c.taxYear]?.noUnterhalt?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
  ⚠ ${t('unt_required_hint')}
  </div>
  <div class="grid2">
@@ -2726,7 +2753,10 @@ function stepSpecial(c){
  <div class="grid2">
  ${F('oth','realsplitting',t('realsplit'),{euro:true,ph:'0,00 €',hint:t('realsplit_hint')})}
  ${F('oth','lossCarry',t('loss_carry'),{euro:true,ph:'0,00 €',hint:t('loss_hint')})}
- </div>${navRow()}`;
+ </div>
+ ${N(c.oth.realsplitting)>0 && YEAR_LIMITATIONS[c.taxYear]?.noRealsplittingCountry?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
+ ⚠ ${t('year_warn_no_realsplit_country')}
+ </div>`:''}${navRow()}`;
 }
 
 /* --- step 6: household & extraordinary --- */

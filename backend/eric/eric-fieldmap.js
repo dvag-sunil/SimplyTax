@@ -359,7 +359,58 @@ function routeToVOR(empField) {
   return routing[empField] || null;
 }
 
+/* =============================================================================
+   Multi-year support registry
+   =============================================================================
+   Built from a direct, real comparison of the actual Kontexte structure
+   (not just Kennzahl existence) across the 2023, 2024, and 2025
+   Jahresdokumentation for every section this app uses. The app's UI
+   currently offers 2023-2026 as selectable tax years; 2026 has no
+   published ELSTER schema yet (checked directly - genuinely doesn't
+   exist, not a bug), so it is excluded from what can be verified here.
+
+   SECTION_YEAR_SUPPORT: sections whose XML STRUCTURE itself changed
+   meaningfully between years (not just a field code) - these need a
+   real minimum verified year, below which the section is not safely
+   generated at all, rather than silently producing structurally wrong
+   XML for an older year.
+============================================================================= */
+const SECTION_YEAR_SUPPORT = {
+  ESt1A_U: {
+    minYear: 2025,
+    note: 'Confirmed via direct Kontexte comparison: 2023 and 2024 both used ' +
+      '/ESt1A_U/Ang_Unt_Pers/... directly, while 2025 introduced a new wrapper ' +
+      'level, /ESt1A_U/Ang_HH_unt_P_Unt_Leist/Ang_Unt_Pers/... - a real ' +
+      'structural change, not a field-code difference. The current ' +
+      'buildUnterhalt() implementation was built and empirically tested ' +
+      'against 2025 only. Building a correct 2023/2024 version is real, ' +
+      'separate work (its own required-field research pass, since older ' +
+      'years may have different validation rules too, not just different ' +
+      'nesting) - not attempted here rather than guessed at.',
+  },
+};
+
+/* FIELD_YEAR_SUPPORT: individual fields whose CODE is genuinely
+   year-gated but the surrounding structure is stable - confirmed via
+   direct existence checks against the real 2023/2024/2025 XSDs. */
+const FIELD_YEAR_SUPPORT = {
+  E0201606: { minYear: 2025, section: 'N', note: 'granular multi-year pension income breakdown, genuinely new in 2025' },
+  E0183001: { minYear: 2024, section: 'SA (Realsplitting)', note: 'domestic/foreign residence flag for Anlage U, genuinely new in 2024 - structure itself (SA/Weit_Aufw/U_Leist) confirmed stable across all three years' },
+};
+
+function isSectionSupportedForYear(section, year) {
+  const rule = SECTION_YEAR_SUPPORT[section];
+  if (!rule) return true; // no known restriction = assumed stable, matching every other field in this app
+  return year >= rule.minYear;
+}
+function isFieldSupportedForYear(code, year) {
+  const rule = FIELD_YEAR_SUPPORT[code];
+  if (!rule) return true;
+  return year >= rule.minYear;
+}
+
 module.exports = {
   ESt1A, N, VOR, SA, Kind, N_DHH, HA_35a, KAP, Sonst, ESt1A_U, N_AUS, AgB, EM_35c, ESt1A_Ersatz, R, V,
   isSlotResolved, unresolvedFields, sumEmployerField, routeToVOR, computeAusTaxFree, amountToPflegegrad,
+  SECTION_YEAR_SUPPORT, FIELD_YEAR_SUPPORT, isSectionSupportedForYear, isFieldSupportedForYear,
 };
