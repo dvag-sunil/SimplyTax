@@ -450,14 +450,14 @@ en: {
  donations:"Donations (with receipt)", other_sa:"Other special expenses",
  s6_lead:"Extraordinary burdens and household services (§ 35a EStG - 20% of labor costs are credited directly against the tax).",
  medical:"Medical costs (extraordinary burden)", household:"Household services (labor costs)", handwerker:"Craftsmen services (labor costs)",
- s7_lead:"Check all data. Submission goes to ELSTER - in this prototype the transmission is simulated.",
- submit_elster:"Submit to ELSTER", resubmit:"Submitted on", edit:"Edit",
+ s7_lead:"Check all data. Submission goes to the tax authority - in this prototype the transmission is simulated.",
+ submit_elster:"Submit to the tax authority", resubmit:"Submitted on", edit:"Edit",
  personal:"Personal data", income:"Employment income", insurance:"Insurance", work_exp:"Werbungskosten (work-related expenses)", special_exp:"Special expenses", household_g:"Household & other",
  meter_title:"Estimated refund", meter_nach:"Estimated back payment",
  m_zve:"Taxable income (est.)", m_tax:"Income tax (est.)", m_soli:"Solidarity surch.", m_kist:"Church tax", m_paid:"Already paid", m_credit:"§ 35a credit",
  meter_foot:"Non-binding estimate (unverbindliche Schätzung). The final assessment (Bescheid) by the Finanzamt may differ.",
  next:"Next", back:"Back",
- submitting:"Transmitting to ELSTER...",
+ submitting:"Transmitting to the tax authority...",
  success_title:"Return submitted", success_sub:"The tax return was transmitted successfully (simulation).",
  transfer_ticket:"Transfer ticket", close:"Close",
  warn_taxhigh:"Wage tax seems very high compared to the gross salary - please double-check.",
@@ -480,8 +480,8 @@ en: {
  err_cc_required:"Please fill in the provider name/address and the service period for the childcare costs you entered (required whenever an amount is filled in).",
  err_unt_required:"Please fill in the supported person's name, Tax ID, and household address for the support payment you entered (required whenever an amount is filled in).",
  err_unt_foreign_required:"Because the supported household is abroad, please confirm you have the home-country authority's confirmation of need (required in addition to the Tax ID for foreign households).",
- err_realsplit_idnr_required:"Please fill in the ex-spouse's Tax ID for the Realsplitting amount you entered - required by ELSTER for this deduction.",
- year_warn_no_schema:"⚠ ELSTER has not published this tax year's forms yet - returns for this year cannot be validated or submitted until they do.",
+ err_realsplit_idnr_required:"Please fill in the ex-spouse's Tax ID for the Realsplitting amount you entered - required by the tax authority for this deduction.",
+ year_warn_no_schema:"⚠ The tax authority has not published this tax year's forms yet - returns for this year cannot be validated or submitted until they do.",
  year_warn_no_unterhalt:"Support payments to needy persons (Anlage Unterhalt) are not yet supported for this tax year.",
  year_warn_no_realsplit_country:"For this tax year, the ex-spouse's Tax ID is required regardless of where they live - there's no exception for a foreign residence yet (that exception starts in 2024).",
  school_hint:"30% deductible, max. €5,000.",
@@ -491,10 +491,10 @@ en: {
  unt_required_hint:"Because you entered a support amount, the tax office requires details about the supported person and household - these fields are now required.",
  unt_name:"Name of the supported person", unt_name_ph:"e.g. Maria Muster",
  unt_idnr:"Their Tax ID (Steuer-IdNr)",
- unt_idnr_hint:"Optional - not required by ELSTER, but useful to have on file if available.",
+ unt_idnr_hint:"Optional - not required by the tax authority, but useful to have on file if available.",
  realsplit_idnr:"Ex-spouse's Tax ID (Steuer-IdNr)",
- realsplit_idnr_hint:"Generally required by ELSTER for this deduction.",
- realsplit_idnr_hint_2023:"Required for this tax year - 2023's ELSTER schema has no exception for those living abroad (that exception starts in 2024).",
+ realsplit_idnr_hint:"Generally required by the tax authority for this deduction.",
+ realsplit_idnr_hint_2023:"Required for this tax year - 2023's filing rules have no exception for those living abroad (that exception starts in 2024).",
  unt_profession:"Their profession and marital status", unt_profession_ph:"e.g. retired, widowed",
  unt_birthdate:"Their date of birth",
  unt_cohabitation:"Did they live in your household in Germany?",
@@ -514,10 +514,10 @@ en: {
  copy_note:"Personal data will be copied over - income and expenses start empty.",
  docs_h:"Documents (Belege)", docs_lead:"Attach receipts and proofs - kept with the return in case the Finanzamt requests verification.",
  add_doc:"Add document", doc_too_big:"File is too large (max. 5 MB after compression). Larger receipts cannot be forwarded to the Finanzamt electronically.", doc_bad_type:"Only PDF, Word (.doc/.docx) and image files are allowed.", no_docs:"No documents attached yet.", download:"Download",
- step_inq:"Finanzamt inquiries", s_inq_lead:"Questions from the Finanzamt (Rückfragen) usually reach the client by post. Log them here, contact the client, and record the answer. In the production version, electronic notices are retrieved via ELSTER.",
+ step_inq:"Finanzamt inquiries", s_inq_lead:"Questions from the Finanzamt (Rückfragen) usually reach the client by post. Log them here, contact the client, and record the answer. In the production version, electronic notices are retrieved via the tax authority's official portal.",
  add_inq:"Add inquiry", inq_q:"Question from the Finanzamt", inq_a:"Answer / internal note",
  inq_open:"Open", inq_answered:"Answered", no_inq:"No inquiries logged yet.", mark_answered:"Mark answered", reopen:"Reopen",
- inq_send:"Send answer via ELSTER", inq_sent_on:"Sent to Finanzamt on",
+ inq_send:"Send answer to the tax authority", inq_sent_on:"Sent to Finanzamt on",
  inq_send_hint:"In production this transmits as a 'Sonstige Nachricht an das Finanzamt' (Belege as Belegnachreichung) via ERiC - simulated here.",
  pdf_btn:"Download PDF summary", pdf_title:"Income tax return - summary for the client",
  pdf_est:"Estimated result", pdf_generated:"Generated on", pdf_docs:"Attached documents (Belege)",
@@ -528,14 +528,14 @@ en: {
  err_exists:"An account with this email already exists.", err_creds:"Email or password is incorrect.",
  err_match:"The passwords do not match.", err_short:"The password needs at least 8 characters.", err_fields:"Please fill in all fields.",
  bundesland:"Federal state (Bundesland)", fa_name:"Tax office name", fa_number:"Tax office number (BUFA, 4 digits)",
- fa_hint:"The 4-digit federal tax office number identifies the receiving Finanzamt in the ELSTER transmission.",
+ fa_hint:"The 4-digit federal tax office number identifies the receiving Finanzamt.",
  fa_manual_hint:"Official directory not loaded yet - please enter the exact office name and number manually.",
  fa_select_land_first:"Select your Bundesland above first",
  fa_search_ph:"Type to search your Finanzamt...", fa_no_match:"No match found - try a different search term",
  err_fa:"Please enter the 4-digit Finanzamt number (BUFA) in Personal data before submitting.",
  err_taxid:"Please enter the 11-digit tax ID (IdNr) in Personal data before submitting.",
  submitting_to:"Receiving tax office",
- freigabe_title:"Release for transmission", freigabe_sub:"Please review the figures below carefully. Once you release this return, it is transmitted to the Finanzamt via the official ELSTER interface.",
+ freigabe_title:"Release for transmission", freigabe_sub:"Please review the figures below carefully. Once you release this return, it is transmitted to the Finanzamt through the official electronic filing system.",
  freigabe_validate_failed:"ERiC could not confirm this return is ready to send yet.",
  freigabe_checkbox:"I have reviewed this data and release it for transmission to the tax office.",
  freigabe_submit:"Release & submit", freigabe_not_sent:"Not transmitted",
@@ -609,7 +609,7 @@ en: {
  err_wrong_pass:"The password is incorrect.", err_email_invalid:"Please enter a valid email address.",
  step_counter_lbl:"Step",
  deadline_banner:"Filing deadline - Tax year 2025: self-filers 31 July 2026 · with Steuerberater/Lohnsteuerhilfeverein 1 March 2027 · voluntary filers have 4 years (until 31 Dec 2029).",
- elster_link:"Official ELSTER",
+ elster_link:"Official Tax Portal",
  expat_section:"Residency", full_year_resident:"Did you live in Germany the entire tax year?",
  fy_yes:"Yes - full year in Germany", fy_no:"No - only part of the year (moved in or out)",
  arrival_date:"Arrival / registration date in Germany", departure_date:"Departure date from Germany (if applicable)",
@@ -637,7 +637,7 @@ en: {
  death_year_hint:"In the tax year immediately following the year of death, you can still use the splitting tariff once more (Witwensplitting / Gnadensplitting, § 32a Abs. 6 EStG) - applied automatically below. From the second year after death onward, the individual tariff applies like for a single person.",
  separated_hint:"Married but permanently living apart (dauernd getrennt lebend) - taxed individually like separate assessment; spouse identity is still recorded on the main form. In the YEAR the separation began, joint assessment may still be chosen - pick 'Married' instead for that specific filing year.",
  single_parent_hint:"Yes = at least one child lives in your household and no other adult lives with you. Relief: €4,260 + €240 per further child - applied automatically.",
- pay_title:"Unlock this tax return", pay_sub:"Preparation and calculation are free. Downloading the client PDF and submitting to ELSTER are enabled after payment for this return (one-time, per return).",
+ pay_title:"Unlock this tax return", pay_sub:"Preparation and calculation are free. Downloading the client PDF and submitting to the tax authority are enabled after payment for this return (one-time, per return).",
  pay_now:"Pay now", pay_locked:"Locked until payment", paid_on:"Paid on",
  pay_sim_note:"Prototype: the payment is simulated. In production, Stripe Checkout runs via the backend and a webhook unlocks the return.",
  discount_label:"Discount code (optional)", discount_ph:"e.g. WELCOME10", discount_apply:"Apply",
@@ -692,7 +692,7 @@ en: {
  s_wki_lead:"Itemized job-related expenses per person - pick a category, describe the item, and enter the annual amount. These add onto the structured Work expenses (commuting, home office...). Enter each cost only once.",
  wki_type:"Category", wki_desc:"Description (optional)", wki_amount:"Amount (per year)",
  add_wki:"Add expense item", wki_tot_a:"Total Person A", wki_tot_b:"Total Person B",
- export_elster:"Export ELSTER dataset (JSON)",
+ export_elster:"Export tax authority dataset (JSON)",
  person:"Belongs to (person)", person_b_detect:"Assigned to Person B (spouse) - Identifikationsnummer did not match Person A.",
  privacy_foot:"Encrypted sign-in · Data stored in an EU database (GDPR) · Payments via certified provider"
 },
@@ -739,14 +739,14 @@ de: {
  donations:"Spenden (mit Beleg)", other_sa:"Weitere Sonderausgaben",
  s6_lead:"Außergewöhnliche Belastungen und haushaltsnahe Leistungen (§ 35a EStG - 20 % der Arbeitskosten werden direkt von der Steuer abgezogen).",
  medical:"Krankheitskosten (außergew. Belastung)", household:"Haushaltsnahe Dienstleistungen (Arbeitskosten)", handwerker:"Handwerkerleistungen (Arbeitskosten)",
- s7_lead:"Alle Daten prüfen. Die Abgabe erfolgt an ELSTER - im Prototyp wird die Übermittlung simuliert.",
- submit_elster:"An ELSTER übermitteln", resubmit:"Übermittelt am", edit:"Bearbeiten",
+ s7_lead:"Alle Daten prüfen. Die Abgabe erfolgt an das Finanzamt - im Prototyp wird die Übermittlung simuliert.",
+ submit_elster:"An das Finanzamt übermitteln", resubmit:"Übermittelt am", edit:"Bearbeiten",
  personal:"Persönliche Daten", income:"Arbeitslohn", insurance:"Vorsorge", work_exp:"Werbungskosten", special_exp:"Sonderausgaben", household_g:"Haushalt & Sonstiges",
  meter_title:"Voraussichtliche Erstattung", meter_nach:"Voraussichtliche Nachzahlung",
  m_zve:"Zu verst. Einkommen (ca.)", m_tax:"Einkommensteuer (ca.)", m_soli:"Solidaritätszuschlag", m_kist:"Kirchensteuer", m_paid:"Bereits gezahlt", m_credit:"§ 35a-Ermäßigung",
  meter_foot:"Unverbindliche Schätzung. Der endgültige Bescheid des Finanzamts kann abweichen.",
  next:"Weiter", back:"Zurück",
- submitting:"Übermittlung an ELSTER...",
+ submitting:"Übermittlung an das Finanzamt...",
  success_title:"Erklärung übermittelt", success_sub:"Die Steuererklärung wurde erfolgreich übermittelt (Simulation).",
  transfer_ticket:"Transferticket", close:"Schließen",
  warn_taxhigh:"Die Lohnsteuer wirkt im Verhältnis zum Bruttolohn sehr hoch - bitte prüfen.",
@@ -769,8 +769,8 @@ de: {
  err_cc_required:"Bitte Name/Anschrift des Anbieters und den Leistungszeitraum für die eingetragenen Kinderbetreuungskosten angeben (Pflichtfelder, sobald ein Betrag eingetragen ist).",
  err_unt_required:"Bitte Name, Steuer-ID und Anschrift der unterstützten Person für die eingetragenen Unterhaltszahlungen angeben (Pflichtfelder, sobald ein Betrag eingetragen ist).",
  err_unt_foreign_required:"Da der unterstützte Haushalt im Ausland liegt, bestätigen Sie bitte, dass Ihnen die Unterhaltserklärung der Heimatbehörde vorliegt (zusätzlich zur Steuer-ID bei ausländischen Haushalten erforderlich).",
- err_realsplit_idnr_required:"Bitte geben Sie die Steuer-ID des Ex-Ehegatten für den eingetragenen Realsplitting-Betrag an - von ELSTER für diesen Abzug erforderlich.",
- year_warn_no_schema:"⚠ ELSTER hat die Formulare für dieses Steuerjahr noch nicht veröffentlicht - Erklärungen für dieses Jahr können noch nicht geprüft oder übermittelt werden.",
+ err_realsplit_idnr_required:"Bitte geben Sie die Steuer-ID des Ex-Ehegatten für den eingetragenen Realsplitting-Betrag an - vom Finanzamt für diesen Abzug erforderlich.",
+ year_warn_no_schema:"⚠ Das Finanzamt hat die Formulare für dieses Steuerjahr noch nicht veröffentlicht - Erklärungen für dieses Jahr können noch nicht geprüft oder übermittelt werden.",
  year_warn_no_unterhalt:"Unterhaltsleistungen an bedürftige Personen (Anlage Unterhalt) werden für dieses Steuerjahr noch nicht unterstützt.",
  year_warn_no_realsplit_country:"Für dieses Steuerjahr ist die Steuer-ID des Ex-Ehegatten unabhängig vom Wohnsitz erforderlich - eine Ausnahme für Wohnsitz im Ausland gibt es noch nicht (diese Ausnahme gilt erst ab 2024).",
  school_hint:"30 % absetzbar, max. 5.000 €.",
@@ -780,10 +780,10 @@ de: {
  unt_required_hint:"Da Unterhaltszahlungen eingetragen wurden, verlangt das Finanzamt auch Angaben zur unterstützten Person und zum Haushalt - diese Felder sind jetzt Pflichtfelder.",
  unt_name:"Name der unterstützten Person", unt_name_ph:"z. B. Maria Muster",
  unt_idnr:"Deren Steuer-Identifikationsnummer",
- unt_idnr_hint:"Optional - von ELSTER nicht verlangt, aber nützlich, falls bekannt.",
+ unt_idnr_hint:"Optional - vom Finanzamt nicht verlangt, aber nützlich, falls bekannt.",
  realsplit_idnr:"Steuer-ID des Ex-Ehegatten",
- realsplit_idnr_hint:"Von ELSTER für diesen Abzug in der Regel erforderlich.",
- realsplit_idnr_hint_2023:"Für dieses Steuerjahr erforderlich - das ELSTER-Schema für 2023 kennt keine Ausnahme für Personen im Ausland (diese Ausnahme gilt erst ab 2024).",
+ realsplit_idnr_hint:"Vom Finanzamt für diesen Abzug in der Regel erforderlich.",
+ realsplit_idnr_hint_2023:"Für dieses Steuerjahr erforderlich - die Regeln für 2023 kennen keine Ausnahme für Personen im Ausland (diese Ausnahme gilt erst ab 2024).",
  unt_profession:"Deren Beruf und Familienstand", unt_profession_ph:"z. B. Rentnerin, verwitwet",
  unt_birthdate:"Deren Geburtsdatum",
  unt_cohabitation:"Lebte diese Person in Ihrem inländischen Haushalt?",
@@ -803,10 +803,10 @@ de: {
  copy_note:"Persönliche Daten werden übernommen - Einkünfte und Ausgaben starten leer.",
  docs_h:"Belege (Dokumente)", docs_lead:"Belege und Nachweise anhängen - sie bleiben bei der Erklärung gespeichert, falls das Finanzamt Nachweise anfordert.",
  add_doc:"Beleg hinzufügen", doc_too_big:"Datei ist zu groß (max. 5 MB nach Komprimierung). Größere Belege können nicht elektronisch an das Finanzamt weitergereicht werden.", doc_bad_type:"Nur PDF-, Word- (.doc/.docx) und Bilddateien sind erlaubt.", no_docs:"Noch keine Belege angehängt.", download:"Herunterladen",
- step_inq:"Rückfragen Finanzamt", s_inq_lead:"Rückfragen des Finanzamts erreichen den Mandanten in der Regel per Post. Erfassen Sie sie hier, kontaktieren Sie den Mandanten und dokumentieren Sie die Antwort. In der Produktionsversion werden elektronische Mitteilungen über ELSTER abgerufen.",
+ step_inq:"Rückfragen Finanzamt", s_inq_lead:"Rückfragen des Finanzamts erreichen den Mandanten in der Regel per Post. Erfassen Sie sie hier, kontaktieren Sie den Mandanten und dokumentieren Sie die Antwort. In der Produktionsversion werden elektronische Mitteilungen über das offizielle Finanzamt-Portal abgerufen.",
  add_inq:"Rückfrage erfassen", inq_q:"Frage des Finanzamts", inq_a:"Antwort / interne Notiz",
  inq_open:"Offen", inq_answered:"Beantwortet", no_inq:"Noch keine Rückfragen erfasst.", mark_answered:"Als beantwortet markieren", reopen:"Wieder öffnen",
- inq_send:"Antwort über ELSTER senden", inq_sent_on:"An das Finanzamt gesendet am",
+ inq_send:"Antwort an das Finanzamt senden", inq_sent_on:"An das Finanzamt gesendet am",
  inq_send_hint:"In Produktion erfolgt die Übermittlung als 'Sonstige Nachricht an das Finanzamt' (Belege als Belegnachreichung) über ERiC - hier simuliert.",
  pdf_btn:"PDF-Zusammenfassung herunterladen", pdf_title:"Einkommensteuererklärung - Zusammenfassung für den Mandanten",
  pdf_est:"Voraussichtliches Ergebnis", pdf_generated:"Erstellt am", pdf_docs:"Angehängte Belege",
@@ -817,14 +817,14 @@ de: {
  err_exists:"Ein Konto mit dieser E-Mail existiert bereits.", err_creds:"E-Mail oder Passwort ist falsch.",
  err_match:"Die Passwörter stimmen nicht überein.", err_short:"Das Passwort braucht mindestens 8 Zeichen.", err_fields:"Bitte alle Felder ausfüllen.",
  bundesland:"Bundesland", fa_name:"Name des Finanzamts", fa_number:"Finanzamtsnummer (BUFA, 4-stellig)",
- fa_hint:"Die 4-stellige Bundesfinanzamtsnummer identifiziert das empfangende Finanzamt bei der ELSTER-Übermittlung.",
+ fa_hint:"Die 4-stellige Bundesfinanzamtsnummer identifiziert das empfangende Finanzamt.",
  fa_manual_hint:"Offizielles Verzeichnis noch nicht geladen - bitte Name und Nummer des Finanzamts manuell eingeben.",
  fa_select_land_first:"Bitte zuerst oben das Bundesland auswählen",
  fa_search_ph:"Finanzamt suchen...", fa_no_match:"Kein Treffer - anderen Suchbegriff versuchen",
  err_fa:"Bitte vor der Übermittlung die 4-stellige Finanzamtsnummer (BUFA) in den persönlichen Daten eintragen.",
  err_taxid:"Bitte vor der Übermittlung die 11-stellige Steuer-ID (IdNr) in den persönlichen Daten eintragen.",
  submitting_to:"Empfangendes Finanzamt",
- freigabe_title:"Zur Übermittlung freigeben", freigabe_sub:"Bitte prüfen Sie die folgenden Angaben sorgfältig. Mit der Freigabe wird diese Erklärung über die offizielle ELSTER-Schnittstelle an das Finanzamt übermittelt.",
+ freigabe_title:"Zur Übermittlung freigeben", freigabe_sub:"Bitte prüfen Sie die folgenden Angaben sorgfältig. Mit der Freigabe wird diese Erklärung über die offizielle elektronische Schnittstelle an das Finanzamt übermittelt.",
  freigabe_validate_failed:"ERiC konnte noch nicht bestätigen, dass diese Erklärung versandbereit ist.",
  freigabe_checkbox:"Ich habe diese Daten geprüft und gebe sie zur Übermittlung an das Finanzamt frei.",
  freigabe_submit:"Freigeben & übermitteln", freigabe_not_sent:"Nicht übermittelt",
@@ -898,7 +898,7 @@ de: {
  err_wrong_pass:"Das Passwort ist nicht korrekt.", err_email_invalid:"Bitte eine gültige E-Mail-Adresse eingeben.",
  step_counter_lbl:"Schritt",
  deadline_banner:"Abgabefrist - Steuerjahr 2025: Selbsteinreicher 31. Juli 2026 · mit Steuerberater/Lohnsteuerhilfeverein 1. März 2027 · freiwillige Abgabe bis 31. Dez. 2029 möglich.",
- elster_link:"Offizielles ELSTER",
+ elster_link:"Offizielles Finanzamt-Portal",
  expat_section:"Aufenthalt", full_year_resident:"Haben Sie das gesamte Steuerjahr in Deutschland gelebt?",
  fy_yes:"Ja - das gesamte Jahr in Deutschland", fy_no:"Nein - nur einen Teil des Jahres (Zu- oder Wegzug)",
  arrival_date:"Zuzugsdatum / Anmeldedatum in Deutschland", departure_date:"Wegzugsdatum aus Deutschland (falls zutreffend)",
@@ -926,7 +926,7 @@ de: {
  death_year_hint:"Im Steuerjahr direkt nach dem Todesjahr können Sie noch einmal den Splittingtarif nutzen (Witwensplitting / Gnadensplitting, § 32a Abs. 6 EStG) - wird unten automatisch angewendet. Ab dem zweiten Jahr nach dem Tod gilt der Grundtarif wie bei Ledigen.",
  separated_hint:"Verheiratet, aber dauernd getrennt lebend - Einzelveranlagung wie bei getrennter Veranlagung; die Daten des Ehegatten werden weiterhin auf dem Hauptvordruck erfasst. Im Jahr des Trennungsbeginns ist die Zusammenveranlagung meist noch möglich - für dieses Jahr stattdessen 'Verheiratet' wählen.",
  single_parent_hint:"Ja = mindestens ein Kind lebt in Ihrem Haushalt und keine weitere volljährige Person wohnt bei Ihnen. Entlastung: 4.260 € + 240 € je weiteres Kind - wird automatisch angesetzt.",
- pay_title:"Diese Steuererklärung freischalten", pay_sub:"Erfassung und Berechnung sind kostenlos. PDF-Download und ELSTER-Übermittlung werden nach Zahlung für diese Erklärung freigeschaltet (einmalig, je Erklärung).",
+ pay_title:"Diese Steuererklärung freischalten", pay_sub:"Erfassung und Berechnung sind kostenlos. PDF-Download und Übermittlung an das Finanzamt werden nach Zahlung für diese Erklärung freigeschaltet (einmalig, je Erklärung).",
  pay_now:"Jetzt bezahlen", pay_locked:"Bis zur Zahlung gesperrt", paid_on:"Bezahlt am",
  pay_sim_note:"Prototyp: Die Zahlung wird simuliert. In Produktion läuft Stripe Checkout über das Backend; ein Webhook schaltet die Erklärung frei.",
  discount_label:"Rabattcode (optional)", discount_ph:"z. B. WELCOME10", discount_apply:"Anwenden",
@@ -981,7 +981,7 @@ de: {
  s_wki_lead:"Berufliche Ausgaben als Einzelposten je Person - Kategorie wählen, Posten beschreiben, Jahresbetrag eintragen. Diese ergänzen die strukturierten Werbungskosten (Pendlerpauschale, Homeoffice...). Jede Ausgabe bitte nur einmal erfassen.",
  wki_type:"Kategorie", wki_desc:"Bezeichnung (optional)", wki_amount:"Betrag (pro Jahr)",
  add_wki:"Posten hinzufügen", wki_tot_a:"Summe Person A", wki_tot_b:"Summe Person B",
- export_elster:"ELSTER-Datensatz exportieren (JSON)",
+ export_elster:"Finanzamt-Datensatz exportieren (JSON)",
  person:"Gehört zu (Person)", person_b_detect:"Person B (Ehepartner) zugeordnet - Identifikationsnummer stimmte nicht mit Person A überein.",
  privacy_foot:"Verschlüsselte Anmeldung · Daten in EU-Datenbank gespeichert (DSGVO) · Zahlung über zertifizierten Dienstleister"
 }};
@@ -1097,8 +1097,8 @@ step_prop:{en:{what:"One entry per rented property: annual rental income and all
  de:{what:"Ein Eintrag je vermieteter Immobilie: Jahresmieteinnahmen und alle Kosten (Darlehenszinsen, Instandhaltung, AfA, Nebenkosten) - ein Verlust mindert das zu versteuernde Einkommen.",docs:"Mietabrechnungen, Zinsbescheinigung der Bank, Rechnungen, Nebenkostenabrechnung.",anlage:"Anlage V (§ 21 EStG)"}},
 step6:{en:{what:"Medical costs above the reasonable burden, and household/craftsmen services - only the LABOR cost counts and it must be paid by bank transfer (20% credited directly against the tax). Plus: energetic renovation of your own home (§ 35c - 20% of up to €200,000 over 3 years) and the disability & care lump sums (§ 33b - count WITHOUT the reasonable-burden threshold, transferable from a child).",docs:"Invoices with labor cost shown separately, bank transfer proofs, Fachunternehmer certificate (§ 35c), disability card / care-grade notice.",anlage:"§§ 33, 33b, 35a, 35c EStG"},
  de:{what:"Krankheitskosten oberhalb der zumutbaren Belastung sowie haushaltsnahe Dienst- und Handwerkerleistungen - nur der ARBEITSKOSTENANTEIL zählt und muss per Überweisung bezahlt sein (20 % direkt von der Steuer). Plus: energetische Sanierung des Eigenheims (§ 35c - 20 % von bis zu 200.000 € über 3 Jahre) und die Behinderten- & Pflege-Pauschbeträge (§ 33b - zählen OHNE zumutbare Belastung, vom Kind übertragbar).",docs:"Rechnungen mit ausgewiesenem Arbeitskostenanteil, Überweisungsbelege, Fachunternehmer-Bescheinigung (§ 35c), Schwerbehindertenausweis / Pflegegradbescheid.",anlage:"§§ 33, 33b, 35a, 35c EStG"}},
-step7:{en:{what:"Final check of all data. The PDF summary is for the client; submission transmits the complete return to the Finanzamt via ELSTER.",docs:" - ",anlage:"Complete return (all Anlagen)"},
- de:{what:"Abschließende Prüfung aller Daten. Die PDF-Zusammenfassung ist für den Mandanten; die Abgabe übermittelt die komplette Erklärung über ELSTER an das Finanzamt.",docs:" - ",anlage:"Gesamte Erklärung (alle Anlagen)"}},
+step7:{en:{what:"Final check of all data. The PDF summary is for the client; submission transmits the complete return to the Finanzamt.",docs:" - ",anlage:"Complete return (all Anlagen)"},
+ de:{what:"Abschließende Prüfung aller Daten. Die PDF-Zusammenfassung ist für den Mandanten; die Abgabe übermittelt die komplette Erklärung an das Finanzamt.",docs:" - ",anlage:"Gesamte Erklärung (alle Anlagen)"}},
 step_inq:{en:{what:"Log letters from the Finanzamt, record your answer and send it electronically (as 'Sonstige Nachricht'; receipts as Belegnachreichung).",docs:"The Finanzamt letter forwarded by the client.",anlage:"Sonstige Nachricht · Belegnachreichung"},
  de:{what:"Schreiben des Finanzamts erfassen, Antwort dokumentieren und elektronisch senden (als 'Sonstige Nachricht'; Belege als Belegnachreichung).",docs:"Das vom Mandanten weitergeleitete Finanzamtsschreiben.",anlage:"Sonstige Nachricht · Belegnachreichung"}}
 };
@@ -1981,11 +1981,11 @@ function finanzamtField(c){
  const land = c.p.bundesland;
  const currentLabel = c.p.finanzamt ? `${esc(c.p.finanzamt)}${c.p.faNumber?' · '+esc(c.p.faNumber):''}` : '';
  return `<div class="field" style="position:relative">
- <label>${t('fa_name')}</label>
+ <label>${t('fa_name')} *</label>
  ${!hasDirectory ? `
  <input value="${esc(c.p.finanzamt)}" placeholder="z. B. Finanzamt Offenbach am Main" onchange="upd('p','finanzamt',this.value)">
  <div class="hint">${t('fa_manual_hint')}</div>
- ${F('p','faNumber',t('fa_number'),{ph:'2644',hint:t('fa_hint')})}
+ ${F('p','faNumber',t('fa_number')+' *',{ph:'2644',hint:t('fa_hint')})}
  ` : !land ? `
  <input disabled placeholder="${t('fa_select_land_first')}" style="background:var(--paper);color:var(--ink-soft)">
  ` : `
@@ -2296,29 +2296,29 @@ function stepPersonal(c){
  return `<h2>${t('step1')}</h2><p class="lead">${t('s1_lead')}</p>
  <div class="section-label">${t('personal')}</div>
  <div class="grid2">
- ${F('p','firstName',t('first_name'))} ${F('p','lastName',t('last_name'))}
- ${F('p','birthDate',t('birth_date'),{type:'date'})}
- ${F('p','taxId',t('tax_id'),{ph:'12 345 678 901',hint:t('tax_id_hint')})}
+ ${F('p','firstName',t('first_name')+' *')} ${F('p','lastName',t('last_name')+' *')}
+ ${F('p','birthDate',t('birth_date')+' *',{type:'date'})}
+ ${F('p','taxId',t('tax_id')+' *',{ph:'12 345 678 901',hint:t('tax_id_hint')})}
  <div id="taxid-check-msg"></div>
  </div>
  <div class="grid3">
- ${F('p','street',t('street'))} ${F('p','houseNo',t('house_no'))} ${F('p','plz',t('plz'))}
+ ${F('p','street',t('street')+' *')} ${F('p','houseNo',t('house_no')+' *')} ${F('p','plz',t('plz')+' *')}
  </div>
  <div class="grid2">
- ${F('p','city',t('city'))}
- ${F('p','marital',t('marital'),{select:[['single',t('single')],['married',t('married')],['married_sep',t('married_sep')],['verwitwet',t('widowed')],['getrennt_lebend',t('separated_living')]],hint:t('marital_hint'),hintMode:'toggle'})}
+ ${F('p','city',t('city')+' *')}
+ ${F('p','marital',t('marital')+' *',{select:[['single',t('single')],['married',t('married')],['married_sep',t('married_sep')],['verwitwet',t('widowed')],['getrennt_lebend',t('separated_living')]],hint:t('marital_hint'),hintMode:'toggle'})}
  ${c.p.marital==='verwitwet'?F('p','deathYear',t('death_year'),{ph:String(new Date().getFullYear()-1),hint:t('death_year_hint')}):''}
  ${c.p.marital==='getrennt_lebend'?`<div class="hint" style="margin-top:-8px;margin-bottom:14px">${t('separated_hint')}</div>`:''}
  <div class="section-label" style="margin-top:22px">${t('expat_section')}</div>
- ${F('p','fullYearResident',t('full_year_resident'),{select:[['yes',t('fy_yes')],['no',t('fy_no')]]})}
+ ${F('p','fullYearResident',t('full_year_resident')+' *',{select:[['yes',t('fy_yes')],['no',t('fy_no')]]})}
  ${(c.p.fullYearResident==='no')?`<div class="grid2">
- ${F('p','arrivalDate',t('arrival_date'),{type:'date',hint:t('partial_year_hint')})}
- ${F('p','departureDate',t('departure_date'),{type:'date'})}
+ ${F('p','arrivalDate',t('arrival_date')+' *',{type:'date',hint:t('partial_year_hint')})}
+ ${F('p','departureDate',t('departure_date')+' *',{type:'date'})}
  </div>`:'' }
  ${c.p.marital!=='married' ? F('p','singleParent',t('single_parent'),{select:[['no',t('opt_no')],['yes',t('opt_yes')]],hint:t('single_parent_hint')}) : ''}
  ${F('p','religion',t('religion'),{select:[['none',t('rel_none')],['ev',t('rel_ev')],['rk',t('rel_rk')],['other',t('rel_other')]]})}
  ${F('p','profession',t('profession'))}
- ${F('p','bundesland',t('bundesland'),{select:[['',t('select')],...BUNDESLAENDER.map(b=>[b,b])]})}
+ ${F('p','bundesland',t('bundesland')+' *',{select:[['',t('select')],...BUNDESLAENDER.map(b=>[b,b])]})}
  ${finanzamtField(c)}
  ${F('p','steuernummer',t('steuernummer'))}
  <div id="stnr-check-msg"></div>
@@ -2327,8 +2327,8 @@ function stepPersonal(c){
  <div id="iban-check-msg"></div>
  ${married?`<div class="section-label">${t('spouse')}</div>
  <div class="grid2">
- ${F('p','spouseFirst',t('first_name'))} ${F('p','spouseLast',t('last_name'))}
- ${F('p','spouseBirth',t('birth_date'),{type:'date'})} ${F('p','spouseTaxId',t('tax_id'))}
+ ${F('p','spouseFirst',t('first_name')+' *')} ${F('p','spouseLast',t('last_name')+' *')}
+ ${F('p','spouseBirth',t('birth_date')+' *',{type:'date'})} ${F('p','spouseTaxId',t('tax_id')+' *')}
  ${F('p','spouseReligion',t('religion'),{select:[['none',t('rel_none')],['ev',t('rel_ev')],['rk',t('rel_rk')],['other',t('rel_other')]]})}
  </div>`:''}
  ${navRow()}`;
