@@ -109,7 +109,7 @@ const SA = {
   // not a hard block if omitted.
   realsplittingAmount: 'E0104408', // "tatsächlich erbracht" - amount actually paid
   realsplittingInland: 'E0183001', // domestic residence Ja/Nein - Pflichtangabe whenever this context is used at all
-  realsplittingIdNr: 'E0104305', // ex-spouse's IdNr - required specifically when residence is domestic
+  realsplittingIdNr: 'E0104305', // ex-spouse's IdNr - required unconditionally for 2023 (Regel 66, no country exception exists that year); required only for domestic residence from 2024 onward (once the country/foreign-exception concept was introduced)
   realsplittingNameGeburt: 'E0183101', // combined Name+Geburtsdatum text field - recommended, not hard-required
   donationsEuEwr: 'E0105502',
   donationsBasis: 'E0105902',

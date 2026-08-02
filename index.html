@@ -480,9 +480,10 @@ en: {
  err_cc_required:"Please fill in the provider name/address and the service period for the childcare costs you entered (required whenever an amount is filled in).",
  err_unt_required:"Please fill in the supported person's name, Tax ID, and household address for the support payment you entered (required whenever an amount is filled in).",
  err_unt_foreign_required:"Because the supported household is abroad, please confirm you have the home-country authority's confirmation of need (required in addition to the Tax ID for foreign households).",
+ err_realsplit_idnr_required:"Please fill in the ex-spouse's Tax ID for the Realsplitting amount you entered - required by ELSTER for this deduction.",
  year_warn_no_schema:"⚠ ELSTER has not published this tax year's forms yet - returns for this year cannot be validated or submitted until they do.",
  year_warn_no_unterhalt:"Support payments to needy persons (Anlage Unterhalt) are not yet supported for this tax year.",
- year_warn_no_realsplit_country:"Realsplitting for a foreign ex-spouse is not yet supported for this tax year (domestic works normally).",
+ year_warn_no_realsplit_country:"For this tax year, the ex-spouse's Tax ID is required regardless of where they live - there's no exception for a foreign residence yet (that exception starts in 2024).",
  school_hint:"30% deductible, max. €5,000.",
  support_h:"Support for parents / relatives", support_amount:"Support paid (per year)", support_where:"Where does the supported person live?",
  grp1:"Germany / country group 1 (full maximum)", grp2:"Country group 2 (¾ of maximum)", grp3:"Country group 3 (½ of maximum, e.g. India)", grp4:"Country group 4 (¼ of maximum)",
@@ -491,6 +492,9 @@ en: {
  unt_name:"Name of the supported person", unt_name_ph:"e.g. Maria Muster",
  unt_idnr:"Their Tax ID (Steuer-IdNr)",
  unt_idnr_hint:"Optional - not required by ELSTER, but useful to have on file if available.",
+ realsplit_idnr:"Ex-spouse's Tax ID (Steuer-IdNr)",
+ realsplit_idnr_hint:"Generally required by ELSTER for this deduction.",
+ realsplit_idnr_hint_2023:"Required for this tax year - 2023's ELSTER schema has no exception for those living abroad (that exception starts in 2024).",
  unt_profession:"Their profession and marital status", unt_profession_ph:"e.g. retired, widowed",
  unt_birthdate:"Their date of birth",
  unt_cohabitation:"Did they live in your household in Germany?",
@@ -765,9 +769,10 @@ de: {
  err_cc_required:"Bitte Name/Anschrift des Anbieters und den Leistungszeitraum für die eingetragenen Kinderbetreuungskosten angeben (Pflichtfelder, sobald ein Betrag eingetragen ist).",
  err_unt_required:"Bitte Name, Steuer-ID und Anschrift der unterstützten Person für die eingetragenen Unterhaltszahlungen angeben (Pflichtfelder, sobald ein Betrag eingetragen ist).",
  err_unt_foreign_required:"Da der unterstützte Haushalt im Ausland liegt, bestätigen Sie bitte, dass Ihnen die Unterhaltserklärung der Heimatbehörde vorliegt (zusätzlich zur Steuer-ID bei ausländischen Haushalten erforderlich).",
+ err_realsplit_idnr_required:"Bitte geben Sie die Steuer-ID des Ex-Ehegatten für den eingetragenen Realsplitting-Betrag an - von ELSTER für diesen Abzug erforderlich.",
  year_warn_no_schema:"⚠ ELSTER hat die Formulare für dieses Steuerjahr noch nicht veröffentlicht - Erklärungen für dieses Jahr können noch nicht geprüft oder übermittelt werden.",
  year_warn_no_unterhalt:"Unterhaltsleistungen an bedürftige Personen (Anlage Unterhalt) werden für dieses Steuerjahr noch nicht unterstützt.",
- year_warn_no_realsplit_country:"Realsplitting für einen im Ausland lebenden Ex-Ehegatten wird für dieses Steuerjahr noch nicht unterstützt (Inland funktioniert normal).",
+ year_warn_no_realsplit_country:"Für dieses Steuerjahr ist die Steuer-ID des Ex-Ehegatten unabhängig vom Wohnsitz erforderlich - eine Ausnahme für Wohnsitz im Ausland gibt es noch nicht (diese Ausnahme gilt erst ab 2024).",
  school_hint:"30 % absetzbar, max. 5.000 €.",
  support_h:"Unterhalt für Eltern / Angehörige", support_amount:"Gezahlter Unterhalt (pro Jahr)", support_where:"Wo lebt die unterstützte Person?",
  grp1:"Deutschland / Ländergruppe 1 (voller Höchstbetrag)", grp2:"Ländergruppe 2 (¾ des Höchstbetrags)", grp3:"Ländergruppe 3 (½ des Höchstbetrags, z. B. Indien)", grp4:"Ländergruppe 4 (¼ des Höchstbetrags)",
@@ -776,6 +781,9 @@ de: {
  unt_name:"Name der unterstützten Person", unt_name_ph:"z. B. Maria Muster",
  unt_idnr:"Deren Steuer-Identifikationsnummer",
  unt_idnr_hint:"Optional - von ELSTER nicht verlangt, aber nützlich, falls bekannt.",
+ realsplit_idnr:"Steuer-ID des Ex-Ehegatten",
+ realsplit_idnr_hint:"Von ELSTER für diesen Abzug in der Regel erforderlich.",
+ realsplit_idnr_hint_2023:"Für dieses Steuerjahr erforderlich - das ELSTER-Schema für 2023 kennt keine Ausnahme für Personen im Ausland (diese Ausnahme gilt erst ab 2024).",
  unt_profession:"Deren Beruf und Familienstand", unt_profession_ph:"z. B. Rentnerin, verwitwet",
  unt_birthdate:"Deren Geburtsdatum",
  unt_cohabitation:"Lebte diese Person in Ihrem inländischen Haushalt?",
@@ -1131,7 +1139,7 @@ function newClient(f,l,year,marital){
  inc:{ employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:'' },
  emps:[], kap:[], props:[], privIns:[], wkItems:[], rente:[],
  oth:{ ersatz:'', gdbA:'', gdbB:'', fahrtA:'', fahrtB:'', pflegeA:'', pflegeB:'', kidTransfer:'',
- realsplitting:'', lossCarry:'', soGain:'', soUnterhalt:'', energCost:'', energStage:'' },
+ realsplitting:'', realsplitIdnr:'', lossCarry:'', soGain:'', soUnterhalt:'', energCost:'', energStage:'' },
  ins:{ rv:'',kv:'',pv:'',av:'',other:'' },
  wk:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',
  dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
@@ -1212,7 +1220,7 @@ function migrateClient(c){
  c.props = Array.isArray(c.props)?c.props:[];
  c.privIns = Array.isArray(c.privIns)?c.privIns:[];
  c.oth = Object.assign({ersatz:'',gdbA:'',gdbB:'',fahrtA:'',fahrtB:'',pflegeA:'',pflegeB:'',kidTransfer:'',
- realsplitting:'',lossCarry:'',soGain:'',soUnterhalt:'',energCost:'',energStage:''}, c.oth||{});
+ realsplitting:'',realsplitIdnr:'',lossCarry:'',soGain:'',soUnterhalt:'',energCost:'',energStage:''}, c.oth||{});
  c.rente = Array.isArray(c.rente)?c.rente:[];
  c.rente.forEach(r=>{ if(r.person!=='B') r.person='A'; });
  c.wkItems = Array.isArray(c.wkItems)?c.wkItems:[];
@@ -2750,6 +2758,9 @@ function stepSpecial(c){
  ${F('oth','realsplitting',t('realsplit'),{euro:true,ph:'0,00 €',hint:t('realsplit_hint')})}
  ${F('oth','lossCarry',t('loss_carry'),{euro:true,ph:'0,00 €',hint:t('loss_hint')})}
  </div>
+ ${N(c.oth.realsplitting)>0?`<div class="grid2">
+ ${F('oth','realsplitIdnr',t('realsplit_idnr')+' *',{ph:'12 345 678 901',hint: c.taxYear<=2023 ? t('realsplit_idnr_hint_2023') : t('realsplit_idnr_hint')})}
+ </div>`:''}
  ${N(c.oth.realsplitting)>0 && YEAR_LIMITATIONS[c.taxYear]?.noRealsplittingCountry?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
  ⚠ ${t('year_warn_no_realsplit_country')}
  </div>`:''}${navRow()}`;
@@ -2894,6 +2905,9 @@ function submitElster(){
  }
  if(N(c0.fam.support)>0 && c0.fam.untCountry && c0.fam.untCountry!=='Deutschland' && c0.fam.untForeignConfirmed!=='ja'){
  alert(t('err_unt_foreign_required')); S.step=3; render(); return;
+ }
+ if(N(c0.oth.realsplitting)>0 && !c0.oth.realsplitIdnr){
+ alert(t('err_realsplit_idnr_required')); S.step=5; render(); return;
  }
  if(ERIC.enabled){ submitElsterReal(c0); return; }
  const faLine = `${t('submitting_to')}: <b>${esc(c0.p.faNumber)}</b> ${esc(c0.p.finanzamt||'')}`;
@@ -3143,7 +3157,7 @@ function buildElsterDataset(c){
  ertragsanteilProzent:(r.type||'gesetzlich')==='gesetzlich'?rentePct(r.startYear):null })),
  par35cEnergetisch:{ aufwendungen:N(c.oth.energCost), foerderjahr:c.oth.energStage||'' },
  weitereAngaben:{ ersatzleistungen:N(c.oth.ersatz), verlustvortrag:N(c.oth.lossCarry),
- realsplittingAnlageU:Math.min(N(c.oth.realsplitting),13805),
+ realsplittingAnlageU:Math.min(N(c.oth.realsplitting),13805), realsplitIdnr:(c.oth.realsplitIdnr||'').replace(/\s/g,''),
  behinderung:{ gdbA:c.oth.gdbA||'', gdbB:c.oth.gdbB||'', fahrtA:N(c.oth.fahrtA), fahrtB:N(c.oth.fahrtB),
  pflegeA:N(c.oth.pflegeA), pflegeB:N(c.oth.pflegeB), uebertragKind:N(c.oth.kidTransfer) },
  anlageSO:{ privateVeraeusserungsgeschaefte:N(c.oth.soGain), erhaltenerUnterhalt:N(c.oth.soUnterhalt) } },

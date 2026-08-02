@@ -238,7 +238,25 @@ check('Realsplitting skippedSections correctly warns about the missing ex-spouse
   const result = buildEStXML(rsOnly);
   return result.skippedSections.some(s => s.includes('Realsplitting'));
 })());
-
+check('Realsplitting correctly writes the ex-spouse IdNr in the confirmed real field order (Amount, IdNr, domestic-flag), resolving a gap where the field was mapped but never actually used', (() => {
+  const withIdnr = JSON.parse(JSON.stringify(sample));
+  withIdnr.sonderausgaben = {};
+  withIdnr.weitereAngaben = { realsplittingAnlageU: 5000, realsplitIdnr: '12345678901' };
+  const result = buildEStXML(withIdnr);
+  const uXml = result.xml.match(/<Weit_Aufw>[\s\S]*?<\/Weit_Aufw>/)?.[0] || '';
+  const posAmount = uXml.indexOf('E0104408');
+  const posIdnr = uXml.indexOf('E0104305');
+  return posAmount !== -1 && posIdnr !== -1 && posAmount < posIdnr
+    && !result.skippedSections.some(s => s.includes('Realsplitting') && s.includes('IdNr'));
+})());
+check('Realsplitting warning correctly cites the unconditional 2023 rule when the year is 2023, not the generic domestic-only framing', (() => {
+  const rs2023 = JSON.parse(JSON.stringify(sample));
+  rs2023.meta.taxYear = 2023;
+  rs2023.sonderausgaben = {};
+  rs2023.weitereAngaben = { realsplittingAnlageU: 5000 };
+  const result = buildEStXML(rs2023);
+  return result.skippedSections.some(s => s.includes('Realsplitting') && s.includes('unconditionally for tax year 2023'));
+})());
 // Anlage Unterhalt (bedürftige Personen) - complete rebuild using the
 // confirmed real minimal-required field set (10 fields), replacing the
 // original wrong single-field mapping.

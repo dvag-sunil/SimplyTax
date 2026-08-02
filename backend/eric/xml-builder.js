@@ -520,7 +520,13 @@ function buildSA(data) {
        is year-gated, so it's simply omitted for 2023 rather than the
        whole section being restricted. */
     const inlandTag = fm.isFieldSupportedForYear('E0183001', data.meta?.taxYear || 2025) ? tag(fm.SA.realsplittingInland, '1') : '';
-    inner += `<Weit_Aufw><U_Leist><Einz>\n${wholeEuroTag(fm.SA.realsplittingAmount, w.realsplittingAnlageU)}${inlandTag}</Einz></U_Leist></Weit_Aufw>\n`;
+    /* CORRECTED: confirmed exact field order via the real Kennzahlen
+       sheet row order: Name (optional), Amount, IdNr, domestic-flag.
+       IdNr was mapped in the field table from the start but never
+       actually written here - the app only collected the amount. Now
+       wired in properly, in the correct position. */
+    const idnrTag = w.realsplitIdnr ? tag(fm.SA.realsplittingIdNr, w.realsplitIdnr.replace(/\s/g, '')) : '';
+    inner += `<Weit_Aufw><U_Leist><Einz>\n${wholeEuroTag(fm.SA.realsplittingAmount, w.realsplittingAnlageU)}${idnrTag}${inlandTag}</Einz></U_Leist></Weit_Aufw>\n`;
   }
   return `<SA>\n${inner}</SA>\n`;
 }
@@ -838,8 +844,19 @@ function buildEStXML(data, opts = {}) {
     skippedSections.push('anlageUnterhalt support payment present but missing one or more required fields (confirmed via a real empirical ERiC test, not just documentation): the supported person\'s name, profession/marital status, birthdate, and household address are all required together (Regel 100120001). Note: the person\'s IdNr is genuinely NOT required, confirmed via the same empirical test - do not block on that field.');
   if (data.anlageUnterhalt?.betrag > 0 && data.anlageUnterhalt.country && data.anlageUnterhalt.country !== 'Deutschland' && data.anlageUnterhalt.foreignNeedConfirmed !== true)
     skippedSections.push('anlageUnterhalt support payment for a foreign household - confirmed via real ERiC validation (Regel 32) that the home-country-authority confirmation (foreignNeedConfirmed) is required for foreign households.');
-  if (data.weitereAngaben?.realsplittingAnlageU)
-    skippedSections.push('Realsplitting (Anlage U) sent WITHOUT the ex-spouse\'s IdNr, name, or birthdate - the app does not currently collect these. Real ERiC validation (Regel 65) requires the IdNr specifically for a domestic residence, which this data defaults to - a real submission with this data would likely be rejected until those fields are added to the UI.');
+  if (data.weitereAngaben?.realsplittingAnlageU && !data.weitereAngaben.realsplitIdnr) {
+    /* NOTE: the app does not currently collect a country/residence field
+       specifically for Realsplitting (unlike Anlage Unterhalt) - so this
+       warns whenever the amount is present without an IdNr, for any
+       year. Confirmed via real research: 2023 requires this
+       unconditionally (Regel 66, no country exception exists that
+       year); 2024+ requires it specifically for a domestic residence -
+       since we have no way to know the residence here, treating it as
+       required is the safe, honest default rather than assuming it's
+       exempt. */
+    const rsYear = data.meta?.taxYear || 2025;
+    skippedSections.push(`Realsplitting (Anlage U) sent without the ex-spouse's IdNr - confirmed required ${rsYear <= 2023 ? 'unconditionally for tax year ' + rsYear + ' (no foreign-residence exception exists that year)' : 'for a domestic residence, and the app does not yet collect residence country for this specific field to know otherwise'}. A real submission with this data would likely be rejected until this field is filled in.`);
+  }
   if (skippedSections.length) {
     console.warn('[eric xml-builder] Sections present in data but not mapped, SKIPPED (not silently guessed):');
     skippedSections.forEach(s => console.warn('  - ' + s));
