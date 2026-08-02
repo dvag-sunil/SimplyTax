@@ -428,18 +428,55 @@ check('Kind residence duration (E0500703) defaults to the full tax year when not
   const xml = buildEStXML(withKind).xml;
   return xml.includes('<E0500703>01.01-31.12</E0500703>');
 })());
-check('Kind K_Verh_B (second parent) is always present, defaulting to the same kinship type as parent A - real bug found via the multi-year regression test (Regel 100500048)', (() => {
+check('Kind K_Verh_B is correctly OMITTED for single filers (no Person B) - corrected understanding: real ERiC error proved this is specifically tied to an actual spouse, not "the child\'s second parent generally" as first hypothesized', (() => {
   const withKind = JSON.parse(JSON.stringify(sample));
+  withKind.hauptvordruck.personB = null;
+  withKind.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich', familienkasse: 'Test' }];
+  const xml = buildEStXML(withKind).xml;
+  return xml.includes('<K_Verh_A>') && !xml.includes('<K_Verh_B>');
+})());
+check('Kind K_Verh_B IS present when Person B genuinely exists on the return', (() => {
+  const withKind = JSON.parse(JSON.stringify(sample));
+  withKind.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Erika', geburtsdatum: '1987-05-20' };
   withKind.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich', familienkasse: 'Test' }];
   const xml = buildEStXML(withKind).xml;
   return xml.includes('<K_Verh_B>') && xml.includes('<E0500808>1</E0500808>');
 })());
-check('Kind childcare block includes the required Ang_HH/Gem_HH_Elt shared-household period - real bug found via the multi-year regression test (Regel 10514160)', (() => {
+check('Kind childcare block includes the required Ang_HH/Gem_HH_Elt shared-household period, AND its required companion field (both fields needed together, confirmed via Regel 514120 found in a second regression test round)', (() => {
   const withCC = JSON.parse(JSON.stringify(sample));
   withCC.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich', familienkasse: 'Test',
     betreuungskosten: 1400, betreuungAnbieter: 'Kita', betreuungVon: '2025-01-01', betreuungBis: '2025-12-31' }];
   const xml = buildEStXML(withCC).xml;
-  return xml.includes('<Ang_HH><Gem_HH_Elt>') && xml.includes('<E0504807>01.01-31.12</E0504807>');
+  return xml.includes('<E0504807>01.01-31.12</E0504807>') && xml.includes('<E0504808>01.01-31.12</E0504808>');
+})());
+
+// KAP Günstigerprüfung - real bug found via the multi-year regression
+// test (Regel 192000). Universally safe to default since it can only
+// benefit the taxpayer, unlike the church-tax alternative.
+check('KAP includes the Günstigerprüfung request (E1900401) whenever domestic withheld capital gains are reported', (() => {
+  const withKAP = JSON.parse(JSON.stringify(sample));
+  withKAP.anlageKAP = [{ person: 'A', zeile7_kapitalertraege: 1500 }];
+  const xml = buildEStXML(withKAP).xml;
+  return xml.includes('<Ant>\n<E1900401>1</E1900401>\n</Ant>');
+})());
+check('KAP Ant block correctly appears right after Person, before KapErt_inl_StAbz - confirmed real field order', (() => {
+  const withKAP = JSON.parse(JSON.stringify(sample));
+  withKAP.anlageKAP = [{ person: 'A', zeile7_kapitalertraege: 1500 }];
+  const xml = buildEStXML(withKAP).xml;
+  const kapBlock = xml.match(/<KAP>([\s\S]*?)<\/KAP>/)?.[1] || '';
+  return kapBlock.indexOf('<Person>') < kapBlock.indexOf('<Ant>') && kapBlock.indexOf('<Ant>') < kapBlock.indexOf('KapErt_inl_StAbz');
+})());
+
+// HA_35a Handwerkerleistungen - real bug found via the multi-year
+// regression test (Regel 101170002). Was only sending the invoice
+// total; now sends all four required companion fields.
+check('HA_35a Handwerkerleistungen includes all four required fields (Art, invoice total, labor portion, Sum) - real bug found via the multi-year regression test', (() => {
+  const withHA = JSON.parse(JSON.stringify(sample));
+  withHA.haushaltsnaheLeistungen = { handwerkerleistungen: 900 };
+  const xml = buildEStXML(withHA).xml;
+  const haBlock = xml.match(/<HA_35a>[\s\S]*?<\/HA_35a>/)?.[0] || '';
+  return haBlock.includes('E0111217') && haBlock.includes('<E0170601>900</E0170601>')
+    && haBlock.includes('<E0111214>900</E0111214>') && haBlock.includes('<E0111215>900</E0111215>');
 })());
 check('Anlage Unterhalt includes the required paymentPeriod field (E0120104) alongside amount - real bug found via the multi-year regression test (Regel 300010, FelderNichtGemeinsamAngegeben)', (() => {
   const withU = JSON.parse(JSON.stringify(sample));

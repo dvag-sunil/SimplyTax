@@ -394,7 +394,15 @@ function buildKAP(data) {
        no actual populated amounts would still have produced an empty
        <KAP><Person>.../<KAP> wrapper, triggering ERiC's "kontextLeer"
        error. Now only emits per-entry if there's genuinely content. */
-    if (inner) xml += `<KAP><Person>Person${k.person === 'B' ? 'B' : 'A'}</Person>\n${inner}</KAP>\n`;
+    if (inner) {
+      /* NEW: confirmed required whenever domestic withheld capital
+         gains (g1/KapErt_inl_StAbz) are reported - see eric-fieldmap.js
+         KAP.guenstigerpruefung for the full reasoning on why this
+         specific option is safe to default. Context /KAP/Ant, right
+         after Person. */
+      const antTag = g1 ? `<Ant>\n${tag(fm.KAP.guenstigerpruefung, '1')}</Ant>\n` : '';
+      xml += `<KAP><Person>Person${k.person === 'B' ? 'B' : 'A'}</Person>\n${antTag}${inner}</KAP>\n`;
+    }
   }
   return xml;
 }
@@ -609,6 +617,7 @@ const KINSHIP_ENUM = { leiblich: '1', adoptiert: '1', pflegekind: '2', stiefkind
 function buildKind(data) {
   const entries = data.anlageKind || [];
   if (!entries.length) return '';
+  const B = data.hauptvordruck?.personB;
   let xml = '';
   for (const k of entries) {
     if (!k.vorname || !k.geburtsdatum) {
@@ -660,12 +669,26 @@ function buildKind(data) {
        co-filer on this return at all. Pragmatic default for the common
        case: same kinship type as parent A, same period - editable in
        the UI if the family situation differs (e.g. blended families). */
+    /* CORRECTED (second pass): the multi-year regression test proved my
+       earlier semantic interpretation wrong. Real ERiC error, verbatim:
+       "Es handelt sich um eine Einzelveranlagung, daher sind Angaben
+       zum Kindschaftsverhältnis zur Ehefrau nicht zulässig" - K_Verh_B
+       is NOT "the child's second parent generally" as first
+       hypothesized; it's specifically tied to an actual spouse (Person
+       B) filing on this same return. For single filers, it must be
+       OMITTED entirely, not defaulted - sending it at all (even a
+       reasonable-looking default) is itself the error, not just an
+       incomplete one. */
     const kinCode = KINSHIP_ENUM[k.kinship] || '1';
-    const kinCodeB = KINSHIP_ENUM[k.kinshipB] || kinCode;
-    xml += `<K_Verh><K_Verh_A>${tag(fm.Kind.kinshipTypeA.kennzahlen[0], kinCode)}</K_Verh_A>`;
-    xml += `<K_Verh_B>${tag(fm.Kind.kinshipTypeB.kennzahlen[0], kinCodeB)}`;
-    xml += tag(fm.Kind.kinshipPeriodB, formatDateRangeDE(wsVon, wsBis));
-    xml += '</K_Verh_B></K_Verh>\n';
+    if (B) {
+      const kinCodeB = KINSHIP_ENUM[k.kinshipB] || kinCode;
+      xml += `<K_Verh><K_Verh_A>${tag(fm.Kind.kinshipTypeA.kennzahlen[0], kinCode)}</K_Verh_A>`;
+      xml += `<K_Verh_B>${tag(fm.Kind.kinshipTypeB.kennzahlen[0], kinCodeB)}`;
+      xml += tag(fm.Kind.kinshipPeriodB, formatDateRangeDE(wsVon, wsBis));
+      xml += '</K_Verh_B></K_Verh>\n';
+    } else {
+      xml += `<K_Verh><K_Verh_A>${tag(fm.Kind.kinshipTypeA.kennzahlen[0], kinCode)}</K_Verh_A></K_Verh>\n`;
+    }
 
     /* CORRECTED: confirmed via real ERiC validation that Schulgeld/Sum
        (the total) is a required companion to Elt_k_ZV (the individual
@@ -693,7 +716,7 @@ function buildKind(data) {
          Defaults to the same period as the childcare service itself -
          the common case where the shared parental household covers the
          same period the childcare was used. */
-      xml += `<Ang_HH><Gem_HH_Elt>\n${tag(fm.Kind.gemHhElt, formatDateRangeDE(k.betreuungVon, k.betreuungBis))}</Gem_HH_Elt></Ang_HH>\n`;
+      xml += `<Ang_HH><Gem_HH_Elt>\n${tag(fm.Kind.gemHhElt, formatDateRangeDE(k.betreuungVon, k.betreuungBis))}${tag(fm.Kind.gemHhEltKind, formatDateRangeDE(k.betreuungVon, k.betreuungBis))}</Gem_HH_Elt></Ang_HH>\n`;
       xml += '</KBK>\n';
     } else if (k.betreuungskosten > 0) {
       console.warn('[eric xml-builder] childcare amount present but provider/period missing - skipped this entry\'s childcare block (should not happen if the app UI validation ran correctly)');
@@ -782,9 +805,26 @@ function buildHA35a(data) {
   const h = data.haushaltsnaheLeistungen;
   if (!h || (!h.haushaltsnaheDienstleistungen && !h.handwerkerleistungen)) return '';
   let inner = '';
-  inner += wholeEuroTag(fm.HA_35a.household.kennzahlen[0], h.haushaltsnaheDienstleistungen);
-  inner += wholeEuroTag(fm.HA_35a.handwerker, h.handwerkerleistungen);
-  return `<HA_35a><St_Erm><Handw_L><Einz>\n${inner}</Einz></Handw_L></St_Erm></HA_35a>\n`;
+  /* NOTE: household services (h.haushaltsnaheDienstleistungen) is
+     intentionally NOT written here - flagged as likely using the wrong
+     Kennzahlen entirely (see eric-fieldmap.js HA_35a.household comment).
+     Rather than send data through a mapping known to be questionable
+     and never tested, it's correctly omitted until researched properly. */
+  if (h.handwerkerleistungen > 0) {
+    /* CORRECTED: real bug found via the multi-year regression test -
+       confirmed field order: Art (description), Rechnungsbetrag
+       (total), Lohnanteile (labor portion), then Sum as a sibling. Our
+       app's own field label confirms the collected value IS the labor
+       portion already, so it's used for both total and labor fields. */
+    inner += tag(fm.HA_35a.handwerkerArt, 'Handwerkerleistungen im Haushalt');
+    inner += wholeEuroTag(fm.HA_35a.handwerkerInvoice, h.handwerkerleistungen);
+    inner += wholeEuroTag(fm.HA_35a.handwerkerLabor, h.handwerkerleistungen);
+  }
+  if (!inner) return '';
+  let xml = `<HA_35a><St_Erm><Handw_L><Einz>\n${inner}</Einz>`;
+  if (h.handwerkerleistungen > 0) xml += `<Sum>\n${wholeEuroTag(fm.HA_35a.handwerkerLaborSum, h.handwerkerleistungen)}</Sum>`;
+  xml += '</Handw_L></St_Erm></HA_35a>\n';
+  return xml;
 }
 
 /* =============================================================================

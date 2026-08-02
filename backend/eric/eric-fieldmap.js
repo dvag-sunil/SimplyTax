@@ -133,6 +133,7 @@ const Kind = {
   familienkasse: 'E0500706', // Ang_Kind/Allg - für die Kindergeldfestsetzung zuständige Familienkasse (free text)
   residenceInl: 'E0500703',  // Ang_Kind/WS/Inl - vom - bis (residence duration in Germany, DatumBereich)
   gemHhElt: 'E0504807',      // KBK/Ang_HH/Gem_HH_Elt - shared parental household period (DatumBereich)
+  gemHhEltKind: 'E0504808', // KBK/Ang_HH/Gem_HH_Elt - "Das Kind gehörte zu unserem Haushalt im Zeitraum" - confirmed required TOGETHER with gemHhElt via real ERiC validation (Regel 514120, FelderNichtGemeinsamAngegeben-style pairing)
   kindergeld:  { kennzahlen: ['E0500702', 'E0503802'] },
   schoolFees:  'E0504505',
   schoolFeesSum: 'E0505607', // required companion total - confirmed via real ERiC validation
@@ -174,8 +175,32 @@ const N_DHH = {
 
 /* ---------- 7. Household services / Section 35a (HA_35a context) ---------- */
 const HA_35a = {
-  household: { kennzahlen: ['E0111214', 'E0111215'], note: 'labor-only portion is deductible, not materials' },
-  handwerker: 'E0170601',
+  /* FLAGGED (not fixed here - out of scope for this pass, never tested):
+     this uses the SAME Kennzahlen (E0111214/E0111215) that Handw_L
+     (Handwerkerleistungen, below) also needs - real research (Kontexte
+     sheet) shows household services actually belong to a DIFFERENT
+     context, Hhn_BV_DL, with its own distinct field codes, not shared
+     with Handw_L. This was never caught because our test data never
+     populated haushaltsnaheDienstleistungen with a real amount - worth
+     a dedicated research pass before this is used for a real client. */
+  household: { kennzahlen: ['E0111214', 'E0111215'], note: 'LIKELY WRONG - see flag above, needs its own research pass, not yet done' },
+  /* CORRECTED: real bug found via the multi-year regression test -
+     Handwerkerleistungen only sent the invoice total (E0170601), never
+     the three companion fields real ERiC requires alongside it: a
+     description of the expense type (E0111217), the labor/machine/
+     travel-cost portion itself (E0111214), and its Sum companion
+     (E0111215, same Einz/Sum completeness pattern as elsewhere in this
+     schema). Confirmed via the app's own field label ("labor costs" /
+     "Arbeitskosten") that the value we already collect IS the labor
+     portion, not the full invoice - so the same value is used for both
+     the total and the labor-portion fields (a defensible simplification
+     since materials costs aren't collected separately), with a generic,
+     purely-descriptive default for the required "type of expense" text
+     field (safe to default, unlike a fact-based declaration). */
+  handwerkerInvoice: 'E0170601',   // Rechnungsbetrag
+  handwerkerLabor: 'E0111214',     // darin enthaltene Lohnanteile etc. (Einz)
+  handwerkerLaborSum: 'E0111215',  // Summe (Sum)
+  handwerkerArt: 'E0111217',       // Art der Aufwendungen (required text description)
 };
 
 /* ---------- 8. Capital gains - Anlage KAP ---------- */
@@ -185,6 +210,18 @@ const KAP = {
   k16: 'E1901401', sparerUsed: 'E1901401',
   k18: 'E1901501', k19: 'E1901702', k20: 'E1901701', k21: 'E1901802',
   k22: 'E1901903', k23: 'E1902001', k43: 'E1904701', k44: 'E1904901', k45: 'E1904801',
+  /* NEW: real bug found via the multi-year regression test - whenever
+     domestic withheld capital gains are reported, ERiC requires stating
+     a REASON for reporting them (one of three options: Günstigerprüfung
+     request, withholding-review request, or church-tax declaration).
+     Günstigerprüfung ("please check whether my regular tax rate would
+     be more favorable than the flat rate") is confirmed universally
+     safe to request for every taxpayer - it can only help (if the flat
+     rate is already best, the Finanzamt just confirms that; if the
+     taxpayer's marginal rate is lower, they get money back) - unlike
+     the church-tax option, which would be a false declaration for most
+     users. Context /KAP/Ant, a sibling of Person. */
+  guenstigerpruefung: 'E1900401',
 };
 
 /* ---------- 9. Loss carryforward (Sonst context) ---------- */
