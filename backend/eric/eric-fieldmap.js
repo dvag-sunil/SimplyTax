@@ -376,18 +376,15 @@ function routeToVOR(empField) {
    XML for an older year.
 ============================================================================= */
 const SECTION_YEAR_SUPPORT = {
-  ESt1A_U: {
-    minYear: 2025,
-    note: 'Confirmed via direct Kontexte comparison: 2023 and 2024 both used ' +
-      '/ESt1A_U/Ang_Unt_Pers/... directly, while 2025 introduced a new wrapper ' +
-      'level, /ESt1A_U/Ang_HH_unt_P_Unt_Leist/Ang_Unt_Pers/... - a real ' +
-      'structural change, not a field-code difference. The current ' +
-      'buildUnterhalt() implementation was built and empirically tested ' +
-      'against 2025 only. Building a correct 2023/2024 version is real, ' +
-      'separate work (its own required-field research pass, since older ' +
-      'years may have different validation rules too, not just different ' +
-      'nesting) - not attempted here rather than guessed at.',
-  },
+  /* ESt1A_U previously listed here as 2025-only. RESOLVED after direct
+     research: confirmed via a full field-by-field and Regel-by-Regel
+     comparison of the real 2023/2024/2025 Jahresdokumentation that every
+     Kennzahl code and validation rule is identical across all three
+     years - only the XML wrapper differs (2025 added a
+     <Ang_HH_unt_P_Unt_Leist> level). buildUnterhalt() in xml-builder.js
+     now handles this directly with a year-conditional wrapper, so no
+     section-level block is needed here anymore. This registry stays in
+     place for any future section that turns out to need one. */
 };
 
 /* FIELD_YEAR_SUPPORT: individual fields whose CODE is genuinely

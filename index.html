@@ -995,8 +995,7 @@ const BUNDESLAENDER=['Baden-Württemberg','Bayern','Berlin','Brandenburg','Breme
    of the actual 2023/2024/2025 ELSTER schemas, not assumed. */
 const YEAR_LIMITATIONS = {
   2026: { noSchema:true },                 // ELSTER has not published this year's forms yet - confirmed directly, not a bug
-  2023: { noRealsplittingCountry:true, noUnterhalt:true },
-  2024: { noUnterhalt:true },
+  2023: { noRealsplittingCountry:true },   // Anlage Unterhalt resolved after direct research - the older 2023/2024 XML structure is now correctly generated automatically
 };
 function yearWarning(year){
   const lim = YEAR_LIMITATIONS[year];
@@ -2706,10 +2705,7 @@ function stepFamily(c){
  ${F('fam','support',t('support_amount'),{euro:true,ph:'0,00 €',hint:t('support_hint')})}
  ${F('fam','supportGroup',t('support_where'),{select:[['1',t('grp1')],['2',t('grp2')],['3',t('grp3')],['4',t('grp4')]]})}
  </div>
- ${N(c.fam.support)>0 && YEAR_LIMITATIONS[c.taxYear]?.noUnterhalt ? `<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
- ⚠ ${t('year_warn_no_unterhalt')}
- </div>` : ''}
- ${N(c.fam.support)>0 && !YEAR_LIMITATIONS[c.taxYear]?.noUnterhalt?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
+ ${N(c.fam.support)>0?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
  ⚠ ${t('unt_required_hint')}
  </div>
  <div class="grid2">

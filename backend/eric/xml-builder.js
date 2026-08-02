@@ -625,63 +625,59 @@ function buildKind(data) {
 function buildUnterhalt(data) {
   const u = data.anlageUnterhalt;
   if (!u || !(u.betrag > 0)) return '';
-  /* YEAR GATE: confirmed via direct comparison of the real 2023/2024/2025
-     Kontexte structure that this section was restructured for 2025 (a
-     new wrapper level was introduced, not just a field code change).
-     This implementation was built and empirically tested against 2025
-     only - rather than guess at the older structure's requirements,
-     this section is correctly skipped (not silently sent wrong) for
-     earlier years, matching the honest-scope-limitation pattern used
-     throughout this project. See eric-fieldmap.js SECTION_YEAR_SUPPORT
-     for the full research trail. */
+  /* MULTI-YEAR SUPPORT (implemented after direct research, not guessed):
+     confirmed via a full field-by-field and Regel-by-Regel comparison of
+     the real 2023, 2024, and 2025 Jahresdokumentation that:
+       - Every Kennzahl code used below is IDENTICAL across all three years.
+       - Every validation rule (the Name/Profession/Birthdate all-or-nothing
+         group, cohabitation, assets, amount/period pairing) is functionally
+         IDENTICAL across all three years.
+       - The ONLY real structural difference is that 2025 introduced an
+         additional wrapper element, <Ang_HH_unt_P_Unt_Leist>, directly
+         under <ESt1A_U> - 2023 and 2024 nest HH_unt_P/Ang_Unt_Pers/AW_U
+         directly under <ESt1A_U> instead, with no such wrapper.
+     This means the SAME field-building logic is correct for all three
+     years - only the wrapper needs to be conditional on year, not a
+     separate implementation per year. */
   const year = data.meta?.taxYear || 2025;
-  if (!fm.isSectionSupportedForYear('ESt1A_U', year)) return ''; // reported to the user via skippedSections in buildEStXML, not silently dropped
-  /* CORRECTED (second pass) via a real empirical ERiC test comparing a
-     WITH-IdNr and a WITHOUT-IdNr submission side by side (not just
-     documentation reading): IdNr is genuinely NOT required - removing
-     it produced zero new errors, only removed the "invalid ID" error
-     that was there because the TEST value itself was a fake/invalid
-     number, unrelated to whether the field itself is mandatory. That
-     same real test surfaced several genuinely required fields that
-     were missed in the original research pass: Beruf/Familienstand and
-     Geburtsdatum of the supported person (Regel 100120001 - required
-     together with Name as an all-or-nothing group), cohabitation
-     (Regel 100120068), and a Vermögen/assets Yes-No declaration (same
-     pattern as hasOwnIncome - detail sub-fields only needed if "Ja"). */
+  const useWrapper = year >= 2025; // confirmed cutover year via direct Kontexte comparison
   const yn = (v) => (v ? '1' : '2'); // JaNein12BaseCType: 1=Ja, 2=Nein
   const isForeign = u.country && u.country !== 'Deutschland';
-  let xml = '<ESt1A_U><Ang_HH_unt_P_Unt_Leist>\n';
-  xml += '<HH_unt_P>\n';
-  xml += tag(fm.ESt1A_U.householdAddress, u.householdAddress);
-  if (isForeign) xml += tag(fm.ESt1A_U.country, u.country);
-  xml += wholeEuroTag(fm.ESt1A_U.householdSize, u.householdSize || 2);
-  xml += '</HH_unt_P>\n';
-  xml += '<Ang_Unt_Pers><Allg><Persoenl>\n';
-  xml += tag(fm.ESt1A_U.name, u.personName);
-  xml += tag(fm.ESt1A_U.profession, u.profession);
-  xml += tag(fm.ESt1A_U.personBirthDate, formatDateDE(u.personBirthDate));
-  if (u.personIdnr) xml += tag(fm.ESt1A_U.idnr, u.personIdnr.replace(/\s/g, '')); // confirmed optional - only sent when actually available
-  xml += tag(fm.ESt1A_U.relationship, u.relationship);
-  xml += '</Persoenl><U_Berecht>\n';
-  xml += tag(fm.ESt1A_U.cohabitation, yn(u.cohabitation));
-  xml += tag(fm.ESt1A_U.kindergeldEntitlement, yn(u.kindergeldEntitlement));
-  xml += '</U_Berecht>\n';
-  /* Vermögen (assets) - confirmed required via the real empirical test.
+
+  let inner = '';
+  inner += '<HH_unt_P>\n';
+  inner += tag(fm.ESt1A_U.householdAddress, u.householdAddress);
+  if (isForeign) inner += tag(fm.ESt1A_U.country, u.country);
+  inner += wholeEuroTag(fm.ESt1A_U.householdSize, u.householdSize || 2);
+  inner += '</HH_unt_P>\n';
+  inner += '<Ang_Unt_Pers><Allg><Persoenl>\n';
+  inner += tag(fm.ESt1A_U.name, u.personName);
+  inner += tag(fm.ESt1A_U.profession, u.profession);
+  inner += tag(fm.ESt1A_U.personBirthDate, formatDateDE(u.personBirthDate));
+  if (u.personIdnr) inner += tag(fm.ESt1A_U.idnr, u.personIdnr.replace(/\s/g, '')); // confirmed optional - only sent when actually available
+  inner += tag(fm.ESt1A_U.relationship, u.relationship);
+  inner += '</Persoenl><U_Berecht>\n';
+  inner += tag(fm.ESt1A_U.cohabitation, yn(u.cohabitation));
+  inner += tag(fm.ESt1A_U.kindergeldEntitlement, yn(u.kindergeldEntitlement));
+  inner += '</U_Berecht>\n';
+  /* Vermögen (assets) - confirmed required, same rule, all three years.
      Detail sub-fields (total value, period) only needed if "Ja" - not
      implemented, matching the same already-established pattern used
      for hasOwnIncome (defaulting to "Nein" covers the common case). */
-  xml += `<Verm_u_P>\n${tag(fm.ESt1A_U.hasAssets, yn(u.hasAssets))}</Verm_u_P>\n`;
-  if (isForeign) xml += `<Erkl_Beduerft>\n${tag(fm.ESt1A_U.foreignNeedConfirmed, yn(u.foreignNeedConfirmed))}</Erkl_Beduerft>\n`;
-  xml += '</Allg>\n';
-  xml += `<Weit_beitr_P>\n${tag(fm.ESt1A_U.otherContributor, yn(u.otherContributor))}</Weit_beitr_P>\n`;
-  xml += `<Ek_Bez_u_P><Allg>\n${tag(fm.ESt1A_U.hasOwnIncome, yn(u.hasOwnIncome))}</Allg></Ek_Bez_u_P>\n`;
-  xml += '</Ang_Unt_Pers>\n';
-  xml += '<AW_U><U_Ztr>\n';
-  xml += wholeEuroTag(fm.ESt1A_U.amount, u.betrag);
-  if (u.von && u.bis) xml += tag(fm.ESt1A_U.period, formatDateRangeDE(u.von, u.bis));
-  xml += '</U_Ztr></AW_U>\n';
-  xml += '</Ang_HH_unt_P_Unt_Leist></ESt1A_U>\n';
-  return xml;
+  inner += `<Verm_u_P>\n${tag(fm.ESt1A_U.hasAssets, yn(u.hasAssets))}</Verm_u_P>\n`;
+  if (isForeign) inner += `<Erkl_Beduerft>\n${tag(fm.ESt1A_U.foreignNeedConfirmed, yn(u.foreignNeedConfirmed))}</Erkl_Beduerft>\n`;
+  inner += '</Allg>\n';
+  inner += `<Weit_beitr_P>\n${tag(fm.ESt1A_U.otherContributor, yn(u.otherContributor))}</Weit_beitr_P>\n`;
+  inner += `<Ek_Bez_u_P><Allg>\n${tag(fm.ESt1A_U.hasOwnIncome, yn(u.hasOwnIncome))}</Allg></Ek_Bez_u_P>\n`;
+  inner += '</Ang_Unt_Pers>\n';
+  inner += '<AW_U><U_Ztr>\n';
+  inner += wholeEuroTag(fm.ESt1A_U.amount, u.betrag);
+  if (u.von && u.bis) inner += tag(fm.ESt1A_U.period, formatDateRangeDE(u.von, u.bis));
+  inner += '</U_Ztr></AW_U>\n';
+
+  return useWrapper
+    ? `<ESt1A_U><Ang_HH_unt_P_Unt_Leist>\n${inner}</Ang_HH_unt_P_Unt_Leist></ESt1A_U>\n`
+    : `<ESt1A_U>\n${inner}</ESt1A_U>\n`;
 }
 
 /* =============================================================================
@@ -838,9 +834,7 @@ function buildEStXML(data, opts = {}) {
     skippedSections.push('anlageV Werbungskosten (rental deduction costs - real schema needs itemized categories, our simple total cannot be honestly mapped)');
   if ((data.anlageKind || []).some(k => k.betreuungskosten > 0 && (!k.betreuungAnbieter || !k.betreuungVon || !k.betreuungBis)))
     skippedSections.push('anlageKind childcare amount present without provider/period for at least one child - that entry\'s childcare block was skipped (should not happen if the app UI validation ran, worth checking why it was bypassed)');
-  if (data.anlageUnterhalt?.betrag > 0 && !fm.isSectionSupportedForYear('ESt1A_U', data.meta?.taxYear || 2025))
-    skippedSections.push(`anlageUnterhalt support payment present, but this deduction is not yet supported for tax year ${data.meta?.taxYear} - confirmed via a direct structural comparison that ELSTER's schema for Anlage Unterhalt changed for 2025 (a real restructuring, not a bug). Not transmitted for this year until that structure is separately researched and implemented; the ${data.meta?.taxYear} return should be filed without this specific deduction for now, or the client's tax year changed to 2025 if that's an option.`);
-  else if (data.anlageUnterhalt?.betrag > 0 && (!data.anlageUnterhalt.personName || !data.anlageUnterhalt.householdAddress || !data.anlageUnterhalt.profession || !data.anlageUnterhalt.personBirthDate))
+  if (data.anlageUnterhalt?.betrag > 0 && (!data.anlageUnterhalt.personName || !data.anlageUnterhalt.householdAddress || !data.anlageUnterhalt.profession || !data.anlageUnterhalt.personBirthDate))
     skippedSections.push('anlageUnterhalt support payment present but missing one or more required fields (confirmed via a real empirical ERiC test, not just documentation): the supported person\'s name, profession/marital status, birthdate, and household address are all required together (Regel 100120001). Note: the person\'s IdNr is genuinely NOT required, confirmed via the same empirical test - do not block on that field.');
   if (data.anlageUnterhalt?.betrag > 0 && data.anlageUnterhalt.country && data.anlageUnterhalt.country !== 'Deutschland' && data.anlageUnterhalt.foreignNeedConfirmed !== true)
     skippedSections.push('anlageUnterhalt support payment for a foreign household - confirmed via real ERiC validation (Regel 32) that the home-country-authority confirmation (foreignNeedConfirmed) is required for foreign households.');

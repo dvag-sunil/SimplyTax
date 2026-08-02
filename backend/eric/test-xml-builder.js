@@ -301,12 +301,35 @@ check('buildR produces nothing for an entry with an unrecognized art value, rath
 // assumed. Structural section changes are gated entirely off; simple
 // field-level differences are gated individually while the surrounding
 // structure stays intact.
-check('Anlage Unterhalt (ESt1A_U) is correctly OMITTED entirely for tax year 2023 - real structural change confirmed, not yet safe to generate', (() => {
+check('Anlage Unterhalt (ESt1A_U) correctly uses the OLDER structure (no Ang_HH_unt_P_Unt_Leist wrapper) for tax year 2023, confirmed via direct research that this is the real, correct structure for that year - not blocked, genuinely supported', (() => {
   const old2023 = JSON.parse(JSON.stringify(sample));
   old2023.meta.taxYear = 2023;
   old2023.anlageUnterhalt = { betrag: 6000, personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', householdAddress: 'Test' };
   const result = buildEStXML(old2023);
-  return !result.xml.includes('<ESt1A_U>') && result.skippedSections.some(s => s.includes('anlageUnterhalt') && s.includes('2023'));
+  const uXml = result.xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
+  return uXml.includes('E0120201') && !uXml.includes('Ang_HH_unt_P_Unt_Leist')
+    && !result.skippedSections.some(s => s.includes('anlageUnterhalt') && s.includes('2023'));
+})());
+check('Anlage Unterhalt (ESt1A_U) correctly uses the OLDER structure for tax year 2024 too (confirmed same cutover as 2023)', (() => {
+  const y2024 = JSON.parse(JSON.stringify(sample));
+  y2024.meta.taxYear = 2024;
+  y2024.anlageUnterhalt = { betrag: 6000, personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', householdAddress: 'Test' };
+  const uXml = buildEStXML(y2024).xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
+  return uXml.includes('E0120201') && !uXml.includes('Ang_HH_unt_P_Unt_Leist');
+})());
+check('Anlage Unterhalt (ESt1A_U) correctly uses the NEWER structure (WITH the wrapper) for tax year 2025, the confirmed real cutover', (() => {
+  const y2025 = JSON.parse(JSON.stringify(sample));
+  y2025.meta.taxYear = 2025;
+  y2025.anlageUnterhalt = { betrag: 6000, personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', householdAddress: 'Test' };
+  const uXml = buildEStXML(y2025).xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
+  return uXml.includes('Ang_HH_unt_P_Unt_Leist') && uXml.includes('E0120201');
+})());
+check('Anlage Unterhalt required-field validation (name/profession/birthdate/address) applies identically regardless of year, since the underlying rules are confirmed identical', (() => {
+  const incomplete2023 = JSON.parse(JSON.stringify(sample));
+  incomplete2023.meta.taxYear = 2023;
+  incomplete2023.anlageUnterhalt = { betrag: 6000 }; // missing everything
+  const result = buildEStXML(incomplete2023);
+  return result.skippedSections.some(s => s.includes('anlageUnterhalt') && s.includes('required'));
 })());
 check('Anlage Unterhalt (ESt1A_U) still works normally for tax year 2025 - the year gate does not affect the verified year', (() => {
   const current2025 = JSON.parse(JSON.stringify(sample));
