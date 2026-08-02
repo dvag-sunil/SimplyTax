@@ -263,11 +263,11 @@ check('Realsplitting warning correctly cites the unconditional 2023 rule when th
 check('Anlage Unterhalt transmits correctly with complete data - all empirically-confirmed required fields present, no warnings', (() => {
   const withU = JSON.parse(JSON.stringify(sample));
   withU.anlageUnterhalt = { betrag: 6000, von: '2025-01-01', bis: '2025-12-31', personName: 'Maria Muster',
-    profession: 'Rentnerin, verwitwet', personBirthDate: '1945-03-10', relationship: 'Mutter', householdAddress: 'Musterstr. 1, 60000 Frankfurt',
+    profession: 'Rentnerin, verwitwet', personBirthDate: '1945-03-10', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Musterstr. 1, 60000 Frankfurt',
     householdSize: 1, cohabitation: false, kindergeldEntitlement: false, otherContributor: false, hasAssets: false, hasOwnIncome: false };
   const result = buildEStXML(withU);
   const uXml = result.xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
-  const hasAllFields = ['E0120101', 'E0120108', 'E0120201', 'E0120202', 'E0120203', 'E0120701', 'E0122505', 'E0122613', 'E0124801', 'E0123105', 'E0123313', 'E0120103', 'E0120109']
+  const hasAllFields = ['E0120101', 'E0120108', 'E0120201', 'E0120202', 'E0120203', 'E0120211', 'E0120701', 'E0122505', 'E0122613', 'E0124801', 'E0123105', 'E0123313', 'E0120103', 'E0120104', 'E0120109']
     .every(code => uXml.includes(code));
   return hasAllFields && !result.skippedSections.some(s => s.includes('anlageUnterhalt'));
 })());
@@ -283,12 +283,18 @@ check('Anlage Unterhalt correctly warns when required fields are missing, rather
   const result = buildEStXML(incomplete);
   return result.skippedSections.some(s => s.includes('anlageUnterhalt') && s.includes('required'));
 })());
-check('Anlage Unterhalt correctly OMITS the IdNr field entirely when not provided, and does NOT trigger any missing-field warning for it (confirmed genuinely optional via real empirical ERiC test)', (() => {
-  const noIdnr = JSON.parse(JSON.stringify(sample));
-  noIdnr.anlageUnterhalt = { betrag: 6000, personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', householdAddress: 'Test' };
-  const result = buildEStXML(noIdnr);
+check('Anlage Unterhalt: domestic case missing IdNr correctly WARNS (corrected understanding - an earlier round wrongly generalized a foreign-only empirical finding to domestic too; the real multi-year regression test proved domestic genuinely requires it)', (() => {
+  const noIdnrDomestic = JSON.parse(JSON.stringify(sample));
+  noIdnrDomestic.anlageUnterhalt = { betrag: 6000, personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', householdAddress: 'Test' };
+  const result = buildEStXML(noIdnrDomestic);
+  return result.skippedSections.some(s => s.includes('IdNr') && s.includes('domestic'));
+})());
+check('Anlage Unterhalt: foreign case missing IdNr correctly does NOT warn about IdNr specifically (genuinely exempt, confirmed via the original empirical ERiC test)', (() => {
+  const noIdnrForeign = JSON.parse(JSON.stringify(sample));
+  noIdnrForeign.anlageUnterhalt = { betrag: 6000, personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', householdAddress: 'Test', country: 'Türkei', foreignNeedConfirmed: true };
+  const result = buildEStXML(noIdnrForeign);
   const uXml = result.xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
-  return !uXml.includes('E0120211') && !result.skippedSections.some(s => s.includes('IdNr') && s.includes('missing'));
+  return !uXml.includes('E0120211') && !result.skippedSections.some(s => s.includes('IdNr') && s.includes('domestic household'));
 })());
 
 // Empty-wrapper bug (found via the real empirical test - "kontextLeer")
@@ -385,6 +391,68 @@ check('N/vb9 (E0201606) IS present for tax year 2025, matching its confirmed rea
   y2025.anlageN[0].zeile9_versorgungMehrjaehrig = 500;
   const xml2025 = buildEStXML(y2025).xml;
   return xml2025.includes('E0201606');
+})());
+check('buildR includes the required Person tag - real bug found via the multi-year regression test (mandatoryField, "/R[1]/Person[1]")', (() => {
+  const withR = JSON.parse(JSON.stringify(sample));
+  withR.anlageR = [{ art: 'gesetzlich', jahresbetrag: 12000, rentenbeginn: '2020' }];
+  const xml = buildEStXML(withR).xml;
+  const rBlock = xml.match(/<R>\n([\s\S]*?)<\/R>/)?.[1] || '';
+  return rBlock.startsWith('<Person>PersonA</Person>');
+})());
+check('buildR formats a year-only rentenbeginn into a full TT.MM.JJJJ date - real bug found via the multi-year regression test (datumFormatFalsch)', (() => {
+  const withR = JSON.parse(JSON.stringify(sample));
+  withR.anlageR = [{ art: 'gesetzlich', jahresbetrag: 12000, rentenbeginn: '2015' }];
+  const xml = buildEStXML(withR).xml;
+  return xml.includes('<E1800501>01.01.2015</E1800501>');
+})());
+
+// Kind (child) - four gaps closed after the multi-year regression test:
+// Familienkasse, residence duration, second parent's relationship
+// (K_Verh_B), and shared-household period.
+check('Kind includes Familienkasse when provided (E0500706)', (() => {
+  const withKind = JSON.parse(JSON.stringify(sample));
+  withKind.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich', familienkasse: 'Familienkasse München' }];
+  const xml = buildEStXML(withKind).xml;
+  return xml.includes('<E0500706>Familienkasse München</E0500706>');
+})());
+check('Kind warns when Familienkasse is missing, since it cannot be safely defaulted', (() => {
+  const noFK = JSON.parse(JSON.stringify(sample));
+  noFK.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich' }];
+  const result = buildEStXML(noFK);
+  return result.skippedSections.some(s => s.includes('Familienkasse'));
+})());
+check('Kind residence duration (E0500703) defaults to the full tax year when not explicitly set - the common case', (() => {
+  const withKind = JSON.parse(JSON.stringify(sample));
+  withKind.meta.taxYear = 2025;
+  withKind.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich', familienkasse: 'Test' }];
+  const xml = buildEStXML(withKind).xml;
+  return xml.includes('<E0500703>01.01-31.12</E0500703>');
+})());
+check('Kind K_Verh_B (second parent) is always present, defaulting to the same kinship type as parent A - real bug found via the multi-year regression test (Regel 100500048)', (() => {
+  const withKind = JSON.parse(JSON.stringify(sample));
+  withKind.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich', familienkasse: 'Test' }];
+  const xml = buildEStXML(withKind).xml;
+  return xml.includes('<K_Verh_B>') && xml.includes('<E0500808>1</E0500808>');
+})());
+check('Kind childcare block includes the required Ang_HH/Gem_HH_Elt shared-household period - real bug found via the multi-year regression test (Regel 10514160)', (() => {
+  const withCC = JSON.parse(JSON.stringify(sample));
+  withCC.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich', familienkasse: 'Test',
+    betreuungskosten: 1400, betreuungAnbieter: 'Kita', betreuungVon: '2025-01-01', betreuungBis: '2025-12-31' }];
+  const xml = buildEStXML(withCC).xml;
+  return xml.includes('<Ang_HH><Gem_HH_Elt>') && xml.includes('<E0504807>01.01-31.12</E0504807>');
+})());
+check('Anlage Unterhalt includes the required paymentPeriod field (E0120104) alongside amount - real bug found via the multi-year regression test (Regel 300010, FelderNichtGemeinsamAngegeben)', (() => {
+  const withU = JSON.parse(JSON.stringify(sample));
+  withU.anlageUnterhalt = { betrag: 6000, von: '2025-01-01', bis: '2025-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', householdAddress: 'Test' };
+  const uXml = buildEStXML(withU).xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
+  return uXml.includes('<E0120104>01.01-31.12</E0120104>') && uXml.includes('<E0120109>01.01-31.12</E0120109>');
+})());
+check('Realsplitting includes the required Name field (E0183101) alongside amount - corrected understanding (real bug: earlier read as optional based on a misunderstood rule type)', (() => {
+  const withRS = JSON.parse(JSON.stringify(sample));
+  withRS.sonderausgaben = {};
+  withRS.weitereAngaben = { realsplittingAnlageU: 5000, realsplitIdnr: '12345678901', realsplitName: 'Max Mustermann' };
+  const xml = buildEStXML(withRS).xml;
+  return xml.includes('<E0183101>Max Mustermann</E0183101>');
 })());
 check('Anlage Unterhalt period uses the confirmed date-range format (TT.MM-TT.MM, no year) - same DatumBereich type as childcare', (() => {
   const withU = JSON.parse(JSON.stringify(sample));

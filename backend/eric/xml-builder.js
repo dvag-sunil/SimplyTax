@@ -415,23 +415,55 @@ function buildR(data) {
   let xml = '';
   for (const r of entries) {
     let inner = '';
+    let hasContent = false;
     if (r.art === 'gesetzlich' || !r.art) {
-      inner += '<Leibr_gesetzl><Einz>\n';
-      inner += wholeEuroTag(fm.R.gesetzlichAmount, r.jahresbetrag);
-      if (r.rentenbeginn) inner += tag(fm.R.gesetzlichStart, r.rentenbeginn);
-      if (r.ertragsanteilProzent != null) inner += `<Oeff_Kl>${tag(fm.R.gesetzlichPercent, r.ertragsanteilProzent)}</Oeff_Kl>\n`;
-      inner += '</Einz></Leibr_gesetzl>\n';
+      if (N(r.jahresbetrag) > 0) {
+        hasContent = true;
+        inner += '<Leibr_gesetzl><Einz>\n';
+        inner += wholeEuroTag(fm.R.gesetzlichAmount, r.jahresbetrag);
+        /* CORRECTED: real bug found via the multi-year regression test -
+           E1800501 ("Beginn der Rente") requires a genuine TT.MM.JJJJ
+           date (confirmed via the real error: "Bitte geben Sie ein
+           gültiges Datum TT.MM.JJJJ ein"), but the raw value was passed
+           through unformatted. Our app's data model only collects the
+           start YEAR (matching the existing rentePct(startYear)
+           percentage-calculation logic elsewhere) - converts that into
+           January 1st of that year as a reasonable, defensible default
+           when only a year is available, or formats a genuine full date
+           correctly if one is provided. */
+        if (r.rentenbeginn) {
+          const isYearOnly = /^\d{4}$/.test(String(r.rentenbeginn));
+          const startDate = isYearOnly ? `01.01.${r.rentenbeginn}` : formatDateDE(r.rentenbeginn);
+          if (startDate) inner += tag(fm.R.gesetzlichStart, startDate);
+        }
+        if (r.ertragsanteilProzent != null) inner += `<Oeff_Kl>${tag(fm.R.gesetzlichPercent, r.ertragsanteilProzent)}</Oeff_Kl>\n`;
+        inner += '</Einz></Leibr_gesetzl>\n';
+      }
     } else if (r.art === 'privat') {
-      inner += '<Leibr_priv><Einz>\n';
-      inner += wholeEuroTag(fm.R.privatAmount, r.jahresbetrag);
-      if (r.rentenbeginn) inner += tag(fm.R.privatStart, r.rentenbeginn);
-      inner += '</Einz></Leibr_priv>\n';
+      if (N(r.jahresbetrag) > 0) {
+        hasContent = true;
+        inner += '<Leibr_priv><Einz>\n';
+        inner += wholeEuroTag(fm.R.privatAmount, r.jahresbetrag);
+        /* Same fix as gesetzlichStart above - year-only value converted
+           to a full date, since ELSTER requires TT.MM.JJJJ. */
+        if (r.rentenbeginn) {
+          const isYearOnly = /^\d{4}$/.test(String(r.rentenbeginn));
+          const startDate = isYearOnly ? `01.01.${r.rentenbeginn}` : formatDateDE(r.rentenbeginn);
+          if (startDate) inner += tag(fm.R.privatStart, startDate);
+        }
+        inner += '</Einz></Leibr_priv>\n';
+      }
     }
-    /* CORRECTED: same class of bug as buildVOR/buildKAP - an entry with
-       an unrecognized 'art' value (neither 'gesetzlich' nor 'privat')
-       would have produced an empty <R></R> wrapper. Now only emits if
-       genuinely populated. */
-    if (inner) xml += `<R>\n${inner}</R>\n`;
+    /* CORRECTED: real bug found via the multi-year regression test -
+       buildR never wrote a <Person> tag at all, confirmed unconditionally
+       required by real ERiC validation (mandatoryField, "/R[1]/Person[1]").
+       Added as the first child, matching the pattern used everywhere
+       else in this file (KAP, VOR, SA, etc.) - but only when there's
+       genuine pension content, checked separately via hasContent, so
+       the Person tag alone doesn't defeat the empty-wrapper protection
+       (a real regression this same fix could have silently reintroduced
+       if not checked carefully). */
+    if (hasContent) xml += `<R>\n<Person>Person${r.person === 'B' ? 'B' : 'A'}</Person>\n${inner}</R>\n`;
   }
   return xml;
 }
@@ -520,13 +552,19 @@ function buildSA(data) {
        is year-gated, so it's simply omitted for 2023 rather than the
        whole section being restricted. */
     const inlandTag = fm.isFieldSupportedForYear('E0183001', data.meta?.taxYear || 2025) ? tag(fm.SA.realsplittingInland, '1') : '';
-    /* CORRECTED: confirmed exact field order via the real Kennzahlen
-       sheet row order: Name (optional), Amount, IdNr, domestic-flag.
-       IdNr was mapped in the field table from the start but never
-       actually written here - the app only collected the amount. Now
-       wired in properly, in the correct position. */
+    /* CORRECTED (second pass): confirmed exact field order via the real
+       Kennzahlen sheet row order: Name, Amount, IdNr, domestic-flag.
+       Name (E0183101) was originally read as "optional/soft" based on a
+       misunderstanding of the FelderNichtGemeinsamAngegeben rule type -
+       the real multi-year regression test proved it's genuinely
+       required TOGETHER with the amount (Regel 101180025). The app does
+       not yet collect the ex-spouse's name - built here from whatever
+       is available (falls back to a generic placeholder is NOT done;
+       if no name is available, this is correctly surfaced as a
+       skippedSections warning instead of guessed). */
+    const nameTag = w.realsplitName ? tag(fm.SA.realsplittingNameGeburt, w.realsplitName) : '';
     const idnrTag = w.realsplitIdnr ? tag(fm.SA.realsplittingIdNr, w.realsplitIdnr.replace(/\s/g, '')) : '';
-    inner += `<Weit_Aufw><U_Leist><Einz>\n${wholeEuroTag(fm.SA.realsplittingAmount, w.realsplittingAnlageU)}${idnrTag}${inlandTag}</Einz></U_Leist></Weit_Aufw>\n`;
+    inner += `<Weit_Aufw><U_Leist><Einz>\n${nameTag}${wholeEuroTag(fm.SA.realsplittingAmount, w.realsplittingAnlageU)}${idnrTag}${inlandTag}</Einz></U_Leist></Weit_Aufw>\n`;
   }
   return `<SA>\n${inner}</SA>\n`;
 }
@@ -584,6 +622,13 @@ function buildKind(data) {
     if (k.idnr) xml += tag(fm.Kind.idnr, k.idnr);
     xml += tag(fm.Kind.firstName.kennzahlen[0], k.vorname);
     xml += tag(fm.Kind.birthDate.kennzahlen[0], formatDateDE(k.geburtsdatum));
+    /* Sensible default for residence duration: full tax year, the
+       common case where a child lived with the filer in Germany all
+       year - fully overridable when the UI provides explicit dates
+       (e.g. a child born mid-year, or one who moved). */
+    const taxYear = data.meta?.taxYear || 2025;
+    const wsVon = k.wsVon || `${taxYear}-01-01`;
+    const wsBis = k.wsBis || `${taxYear}-12-31`;
     /* CORRECTED: confirmed via real XSD that E0500702 is a Ganzzahl
        (whole-number) type despite its Ja/Nein-sounding description
        ("Anspruch auf Kindergeld...") - sibling Ja1BaseCType fields
@@ -591,10 +636,36 @@ function buildKind(data) {
        for JaXBaseCType fields specifically) - "X" triggered
        "zahlHatUngueltigeZeichen" since it's not a valid digit. */
     if (k.kindergeld) xml += tag(fm.Kind.kindergeld.kennzahlen[0], '1');
-    xml += '</Allg></Ang_Kind>\n';
+    /* NEW: Familienkasse - confirmed required alongside name/birthdate
+       (Regel 5021, "Vorname...Geburtsdatum...Familienkasse...nicht
+       gemeinsam angegeben") via the multi-year regression test. Free
+       text - the specific office responsible for Kindergeld, which the
+       app does not track by code, only by name. */
+    if (k.familienkasse) xml += tag(fm.Kind.familienkasse, k.familienkasse);
+    xml += '</Allg>\n';
+    /* NEW: residence duration (Wohnsitz) - confirmed required alongside
+       first name (Regel 5039/8) via the multi-year regression test.
+       Defaults to the full tax year for the common case (a child living
+       with the filer in Germany all year) - editable in the UI for
+       partial-year cases. */
+    xml += `<WS><Inl>\n${tag(fm.Kind.residenceInl, formatDateRangeDE(wsVon, wsBis))}</Inl></WS>\n`;
+    xml += '</Ang_Kind>\n';
 
+    /* NEW: K_Verh_B (the child's OTHER parent's relationship) -
+       confirmed required alongside K_Verh_A (Regel 100500048, "es wurde
+       nur ein Kindschaftsverhältnis...angegeben") via the multi-year
+       regression test. Important semantic note found during research:
+       this is NOT specifically about "Person B" the tax-filing spouse -
+       it's about the child's second parent generally, who may not be a
+       co-filer on this return at all. Pragmatic default for the common
+       case: same kinship type as parent A, same period - editable in
+       the UI if the family situation differs (e.g. blended families). */
     const kinCode = KINSHIP_ENUM[k.kinship] || '1';
-    xml += `<K_Verh><K_Verh_A>${tag(fm.Kind.kinshipType.kennzahlen[0], kinCode)}</K_Verh_A></K_Verh>\n`;
+    const kinCodeB = KINSHIP_ENUM[k.kinshipB] || kinCode;
+    xml += `<K_Verh><K_Verh_A>${tag(fm.Kind.kinshipTypeA.kennzahlen[0], kinCode)}</K_Verh_A>`;
+    xml += `<K_Verh_B>${tag(fm.Kind.kinshipTypeB.kennzahlen[0], kinCodeB)}`;
+    xml += tag(fm.Kind.kinshipPeriodB, formatDateRangeDE(wsVon, wsBis));
+    xml += '</K_Verh_B></K_Verh>\n';
 
     /* CORRECTED: confirmed via real ERiC validation that Schulgeld/Sum
        (the total) is a required companion to Elt_k_ZV (the individual
@@ -614,7 +685,16 @@ function buildKind(data) {
       xml += wholeEuroTag(fm.Kind.childcareAmount.kennzahlen[0], k.betreuungskosten);
       xml += '</Einz><Sum>\n';
       xml += wholeEuroTag(fm.Kind.childcareSum.kennzahlen[0], k.betreuungskosten);
-      xml += '</Sum></Art></KBK>\n';
+      xml += '</Sum></Art>\n';
+      /* NEW: Ang_HH/Gem_HH_Elt - confirmed required whenever childcare
+         costs are claimed (Regel 10514160, "Für den Abzug von
+         Kinderbetreuungskosten werden auch Angaben zum Haushalt der
+         Elternteile...benötigt") via the multi-year regression test.
+         Defaults to the same period as the childcare service itself -
+         the common case where the shared parental household covers the
+         same period the childcare was used. */
+      xml += `<Ang_HH><Gem_HH_Elt>\n${tag(fm.Kind.gemHhElt, formatDateRangeDE(k.betreuungVon, k.betreuungBis))}</Gem_HH_Elt></Ang_HH>\n`;
+      xml += '</KBK>\n';
     } else if (k.betreuungskosten > 0) {
       console.warn('[eric xml-builder] childcare amount present but provider/period missing - skipped this entry\'s childcare block (should not happen if the app UI validation ran correctly)');
     }
@@ -660,7 +740,7 @@ function buildUnterhalt(data) {
   inner += tag(fm.ESt1A_U.name, u.personName);
   inner += tag(fm.ESt1A_U.profession, u.profession);
   inner += tag(fm.ESt1A_U.personBirthDate, formatDateDE(u.personBirthDate));
-  if (u.personIdnr) inner += tag(fm.ESt1A_U.idnr, u.personIdnr.replace(/\s/g, '')); // confirmed optional - only sent when actually available
+  if (u.personIdnr) inner += tag(fm.ESt1A_U.idnr, u.personIdnr.replace(/\s/g, '')); // CORRECTED understanding: required for DOMESTIC (confirmed via the multi-year regression test - my earlier "genuinely not required" finding was tested only in a foreign scenario and wrongly generalized to domestic too); genuinely optional only when foreign. See the skippedSections warning below for the corrected domestic-only check.
   inner += tag(fm.ESt1A_U.relationship, u.relationship);
   inner += '</Persoenl><U_Berecht>\n';
   inner += tag(fm.ESt1A_U.cohabitation, yn(u.cohabitation));
@@ -677,8 +757,16 @@ function buildUnterhalt(data) {
   inner += `<Ek_Bez_u_P><Allg>\n${tag(fm.ESt1A_U.hasOwnIncome, yn(u.hasOwnIncome))}</Allg></Ek_Bez_u_P>\n`;
   inner += '</Ang_Unt_Pers>\n';
   inner += '<AW_U><U_Ztr>\n';
-  inner += wholeEuroTag(fm.ESt1A_U.amount, u.betrag);
   if (u.von && u.bis) inner += tag(fm.ESt1A_U.period, formatDateRangeDE(u.von, u.bis));
+  /* CORRECTED: real bug found via the multi-year regression test - the
+     amount and E0120104 (payment period) must be given TOGETHER (Regel
+     300010, FelderNichtGemeinsamAngegeben). Our app collects a single
+     support period (von/bis) that serves as both the "support covered"
+     period (E0120109) and the "payments made" period (E0120104) - a
+     reasonable simplification for the common case where support was
+     paid steadily across the same period it covers. */
+  if (u.von && u.bis) inner += tag(fm.ESt1A_U.paymentPeriod, formatDateRangeDE(u.von, u.bis));
+  inner += wholeEuroTag(fm.ESt1A_U.amount, u.betrag);
   inner += '</U_Ztr></AW_U>\n';
 
   return useWrapper
@@ -840,8 +928,18 @@ function buildEStXML(data, opts = {}) {
     skippedSections.push('anlageV Werbungskosten (rental deduction costs - real schema needs itemized categories, our simple total cannot be honestly mapped)');
   if ((data.anlageKind || []).some(k => k.betreuungskosten > 0 && (!k.betreuungAnbieter || !k.betreuungVon || !k.betreuungBis)))
     skippedSections.push('anlageKind childcare amount present without provider/period for at least one child - that entry\'s childcare block was skipped (should not happen if the app UI validation ran, worth checking why it was bypassed)');
+  if ((data.anlageKind || []).some(k => k.vorname && k.geburtsdatum && !k.familienkasse))
+    skippedSections.push('anlageKind present without the Familienkasse (responsible child-benefit office) for at least one child - confirmed required alongside name/birthdate (Regel 5021). This is genuinely case-specific data (which office is responsible) that cannot be safely defaulted - needs to come from the user.');
   if (data.anlageUnterhalt?.betrag > 0 && (!data.anlageUnterhalt.personName || !data.anlageUnterhalt.householdAddress || !data.anlageUnterhalt.profession || !data.anlageUnterhalt.personBirthDate))
-    skippedSections.push('anlageUnterhalt support payment present but missing one or more required fields (confirmed via a real empirical ERiC test, not just documentation): the supported person\'s name, profession/marital status, birthdate, and household address are all required together (Regel 100120001). Note: the person\'s IdNr is genuinely NOT required, confirmed via the same empirical test - do not block on that field.');
+    skippedSections.push('anlageUnterhalt support payment present but missing one or more required fields (confirmed via a real empirical ERiC test, not just documentation): the supported person\'s name, profession/marital status, birthdate, and household address are all required together (Regel 100120001).');
+  if (data.anlageUnterhalt?.betrag > 0 && !(data.anlageUnterhalt.country && data.anlageUnterhalt.country !== 'Deutschland') && !data.anlageUnterhalt.personIdnr)
+    /* CORRECTED: an earlier round's empirical test found IdNr "not
+       required" - but that test only covered a FOREIGN scenario and was
+       wrongly generalized to domestic too. The real multi-year
+       regression test proved domestic genuinely DOES require it (Regel
+       100120098, "Voraussetzung für den Abzug"). Only foreign is
+       genuinely exempt. */
+    skippedSections.push('anlageUnterhalt support payment for a domestic household present but missing the supported person\'s IdNr - confirmed required for domestic cases (Regel 100120098); only exempt when the household is genuinely foreign.');
   if (data.anlageUnterhalt?.betrag > 0 && data.anlageUnterhalt.country && data.anlageUnterhalt.country !== 'Deutschland' && data.anlageUnterhalt.foreignNeedConfirmed !== true)
     skippedSections.push('anlageUnterhalt support payment for a foreign household - confirmed via real ERiC validation (Regel 32) that the home-country-authority confirmation (foreignNeedConfirmed) is required for foreign households.');
   if (data.weitereAngaben?.realsplittingAnlageU && !data.weitereAngaben.realsplitIdnr) {
@@ -857,6 +955,8 @@ function buildEStXML(data, opts = {}) {
     const rsYear = data.meta?.taxYear || 2025;
     skippedSections.push(`Realsplitting (Anlage U) sent without the ex-spouse's IdNr - confirmed required ${rsYear <= 2023 ? 'unconditionally for tax year ' + rsYear + ' (no foreign-residence exception exists that year)' : 'for a domestic residence, and the app does not yet collect residence country for this specific field to know otherwise'}. A real submission with this data would likely be rejected until this field is filled in.`);
   }
+  if (data.weitereAngaben?.realsplittingAnlageU && !data.weitereAngaben.realsplitName)
+    skippedSections.push('Realsplitting (Anlage U) sent without the ex-spouse\'s name - confirmed required together with the amount via real ERiC validation (Regel 101180025). The app does not yet collect this field.');
   if (skippedSections.length) {
     console.warn('[eric xml-builder] Sections present in data but not mapped, SKIPPED (not silently guessed):');
     skippedSections.forEach(s => console.warn('  - ' + s));

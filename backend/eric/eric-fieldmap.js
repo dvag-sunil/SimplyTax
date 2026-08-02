@@ -110,7 +110,7 @@ const SA = {
   realsplittingAmount: 'E0104408', // "tatsächlich erbracht" - amount actually paid
   realsplittingInland: 'E0183001', // domestic residence Ja/Nein - Pflichtangabe whenever this context is used at all
   realsplittingIdNr: 'E0104305', // ex-spouse's IdNr - required unconditionally for 2023 (Regel 66, no country exception exists that year); required only for domestic residence from 2024 onward (once the country/foreign-exception concept was introduced)
-  realsplittingNameGeburt: 'E0183101', // combined Name+Geburtsdatum text field - recommended, not hard-required
+  realsplittingNameGeburt: 'E0183101', // combined Name+Geburtsdatum text field - CORRECTED: confirmed hard-required together with the amount via real ERiC validation (Regel 101180025, FelderNichtGemeinsamAngegeben) - an earlier reading of this rule type as "soft/optional" was wrong
   donationsEuEwr: 'E0105502',
   donationsBasis: 'E0105902',
 };
@@ -121,7 +121,18 @@ const Kind = {
   firstName:   { kennzahlen: ['E0500107'], required: true, note: 'Vorname - Pflichtfeld=Ja in the real schema' },
   birthDate:   { kennzahlen: ['E0500701'], required: true, note: 'Geburtsdatum - Pflichtfeld=Ja in the real schema' },
   altSurname:  'E0500108', // ggf. abweichender Familienname (only if different from parent)
-  kinshipType: { kennzahlen: ['E0500807', 'E0500808'], note: 'Art des Kindschaftsverhaeltnisses - multi-child repeat pattern (same field reused per <Kind> block, up to 14 children), not different kinship values' },
+  /* CORRECTED: E0500807/E0500808 were previously grouped under one key
+     with an incorrect comment claiming they're a "multi-child repeat
+     pattern" - real research (the multi-year regression test surfacing
+     "andere Elternteil" errors) confirmed these are for the TWO
+     PARENTS' relationship to the child (K_Verh_A, K_Verh_B), not a
+     per-child repeat. Split into separate keys. */
+  kinshipTypeA: { kennzahlen: ['E0500807'], note: 'Art des Kindschaftsverhaeltnisses - parent A (K_Verh_A)' },
+  kinshipTypeB: { kennzahlen: ['E0500808'], note: 'Art des Kindschaftsverhaeltnisses - parent B / the child\'s other parent, confirmed required alongside A regardless of whether that person is a co-filer on this return (K_Verh_B)' },
+  kinshipPeriodB: 'E0500805', // K_Verh_B - Kindschaftsverhältnis bestand vom - bis (DatumBereich)
+  familienkasse: 'E0500706', // Ang_Kind/Allg - für die Kindergeldfestsetzung zuständige Familienkasse (free text)
+  residenceInl: 'E0500703',  // Ang_Kind/WS/Inl - vom - bis (residence duration in Germany, DatumBereich)
+  gemHhElt: 'E0504807',      // KBK/Ang_HH/Gem_HH_Elt - shared parental household period (DatumBereich)
   kindergeld:  { kennzahlen: ['E0500702', 'E0503802'] },
   schoolFees:  'E0504505',
   schoolFeesSum: 'E0505607', // required companion total - confirmed via real ERiC validation
@@ -212,6 +223,7 @@ const ESt1A_U = {
   hasOwnIncome: 'E0123313',       // Ang_Unt_Pers/Ek_Bez_u_P/Allg - JaNein12BaseCType (2=Nein skips the entire 40+ field income sub-tree)
   amount: 'E0120103',             // AW_U/U_Ztr - Höhe der Unterhaltszahlung (Ganzzahl)
   period: 'E0120109',             // AW_U/U_Ztr - Unterstützungszeitraum (DatumBereichTTpMMbTTpMMBaseCType - "TT.MM-TT.MM", same format as childcare's period)
+  paymentPeriod: 'E0120104',      // AW_U/U_Ztr - Zeitraum der tatsächlichen Zahlungen (real bug found via multi-year regression test - confirmed required TOGETHER with the amount via Regel 300010 "FelderNichtGemeinsamAngegeben(E0120103, E0120104)" - a genuinely separate field from E0120109, not a duplicate)
   /* CORRECTED (found via user's own re-check request): confirmed via the
      real Regeln sheet that BOTH domestic (Regel 46) AND foreign (Regel
      48) branches require the supported person's IdNr - the foreign case

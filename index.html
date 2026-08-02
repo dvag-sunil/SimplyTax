@@ -493,6 +493,7 @@ en: {
  unt_idnr:"Their Tax ID (Steuer-IdNr)",
  unt_idnr_hint:"Optional - not required by the tax authority, but useful to have on file if available.",
  realsplit_idnr:"Ex-spouse's Tax ID (Steuer-IdNr)",
+ realsplit_name:"Ex-spouse's full name", realsplit_name_ph:"e.g. Max Mustermann",
  realsplit_idnr_hint:"Generally required by the tax authority for this deduction.",
  realsplit_idnr_hint_2023:"Required for this tax year - 2023's filing rules have no exception for those living abroad (that exception starts in 2024).",
  unt_profession:"Their profession and marital status", unt_profession_ph:"e.g. retired, widowed",
@@ -629,6 +630,8 @@ en: {
  kinship:"Relationship to child", kin_leib:"Biological (leiblich)", kin_adopt:"Adopted (adoptiert)",
  kin_pflege:"Foster child (Pflegekind)", kin_stief:"Step-/grandchild in household (Stiefkind/Enkelkind)",
  kinship_hint:"Biological and adopted children receive the FULL child allowance / Kindergeld - no difference in amount. Foster and step-/grandchildren qualify only under conditions (see notes below).",
+ familienkasse:"Responsible Familienkasse (child-benefit office)", familienkasse_ph:"e.g. Familienkasse München",
+ familienkasse_hint:"The specific office that pays/administers Kindergeld for this child - usually shown on the Kindergeld award notice.",
  kin_pflege_hint:"Counts as your child only if a genuine family-like bond exists (Obhuts- und Pflegeverhältnis) on a long-term basis, not for profit, and the bond to the birth parents is essentially severed.",
  kin_stief_hint:"Counts only for as long as the child actually lives in your household.",
  marital_hint:"Separated or in a divorce? Each spouse then files their OWN return - choose 'separate assessment' (§ 26a, individual tariff; spouse identity is still recorded). In the YEAR of separation, joint assessment is usually still allowed. After the separation year or divorce, choose 'Single'.",
@@ -782,6 +785,7 @@ de: {
  unt_idnr:"Deren Steuer-Identifikationsnummer",
  unt_idnr_hint:"Optional - vom Finanzamt nicht verlangt, aber nützlich, falls bekannt.",
  realsplit_idnr:"Steuer-ID des Ex-Ehegatten",
+ realsplit_name:"Vollständiger Name des Ex-Ehegatten", realsplit_name_ph:"z. B. Max Mustermann",
  realsplit_idnr_hint:"Vom Finanzamt für diesen Abzug in der Regel erforderlich.",
  realsplit_idnr_hint_2023:"Für dieses Steuerjahr erforderlich - die Regeln für 2023 kennen keine Ausnahme für Personen im Ausland (diese Ausnahme gilt erst ab 2024).",
  unt_profession:"Deren Beruf und Familienstand", unt_profession_ph:"z. B. Rentnerin, verwitwet",
@@ -918,6 +922,8 @@ de: {
  kinship:"Verwandtschaftsverhältnis zum Kind", kin_leib:"Leiblich", kin_adopt:"Adoptiert",
  kin_pflege:"Pflegekind", kin_stief:"Stiefkind/Enkelkind im Haushalt",
  kinship_hint:"Leibliche und adoptierte Kinder erhalten den VOLLEN Kinderfreibetrag / das volle Kindergeld - kein Unterschied im Betrag. Pflege- und Stief-/Enkelkinder zählen nur unter Voraussetzungen (siehe Hinweise unten).",
+ familienkasse:"Zuständige Familienkasse", familienkasse_ph:"z. B. Familienkasse München",
+ familienkasse_hint:"Die Stelle, die für dieses Kind das Kindergeld zahlt/verwaltet - meist auf dem Kindergeldbescheid vermerkt.",
  kin_pflege_hint:"Zählt nur als Ihr Kind, wenn ein echtes familienähnliches Band besteht (Obhuts- und Pflegeverhältnis) auf Dauer angelegt, nicht zu Erwerbszwecken, und das Verhältnis zu den leiblichen Eltern im Wesentlichen aufgehoben ist.",
  kin_stief_hint:"Zählt nur, solange das Kind tatsächlich in Ihrem Haushalt lebt.",
  marital_hint:"Getrennt lebend oder in Scheidung? Dann gibt jeder Ehegatte eine EIGENE Erklärung ab - 'Einzelveranlagung' wählen (§ 26a, Grundtarif; die Daten des Ehegatten werden trotzdem erfasst). Im Trennungsjahr ist die Zusammenveranlagung meist noch möglich. Nach dem Trennungsjahr bzw. der Scheidung: 'Ledig'.",
@@ -1139,7 +1145,7 @@ function newClient(f,l,year,marital){
  inc:{ employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:'' },
  emps:[], kap:[], props:[], privIns:[], wkItems:[], rente:[],
  oth:{ ersatz:'', gdbA:'', gdbB:'', fahrtA:'', fahrtB:'', pflegeA:'', pflegeB:'', kidTransfer:'',
- realsplitting:'', realsplitIdnr:'', lossCarry:'', soGain:'', soUnterhalt:'', energCost:'', energStage:'' },
+ realsplitting:'', realsplitIdnr:'', realsplitName:'', lossCarry:'', soGain:'', soUnterhalt:'', energCost:'', energStage:'' },
  ins:{ rv:'',kv:'',pv:'',av:'',other:'' },
  wk:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',
  dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
@@ -1220,7 +1226,7 @@ function migrateClient(c){
  c.props = Array.isArray(c.props)?c.props:[];
  c.privIns = Array.isArray(c.privIns)?c.privIns:[];
  c.oth = Object.assign({ersatz:'',gdbA:'',gdbB:'',fahrtA:'',fahrtB:'',pflegeA:'',pflegeB:'',kidTransfer:'',
- realsplitting:'',realsplitIdnr:'',lossCarry:'',soGain:'',soUnterhalt:'',energCost:'',energStage:''}, c.oth||{});
+ realsplitting:'',realsplitIdnr:'',realsplitName:'',lossCarry:'',soGain:'',soUnterhalt:'',energCost:'',energStage:''}, c.oth||{});
  c.rente = Array.isArray(c.rente)?c.rente:[];
  c.rente.forEach(r=>{ if(r.person!=='B') r.person='A'; });
  c.wkItems = Array.isArray(c.wkItems)?c.wkItems:[];
@@ -2669,7 +2675,7 @@ function CF(kid,field,label,opts={}){
  <input data-tabkey="${tk}" type="${type}" value="${type==='date'?(esc(kid[field])||dateMax()):esc(kid[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
  onchange="updChild('${kid.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
-function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',kindergeld:'',childcare:'',ccProvider:'',ccPeriodFrom:'',ccPeriodTo:'',schoolFees:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
+function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',familienkasse:'',kindergeld:'',childcare:'',ccProvider:'',ccPeriodFrom:'',ccPeriodTo:'',schoolFees:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function delChild(id){ const c=cur(); c.fam.children=(c.fam.children||[]).filter(k=>k.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function updChild(id,f,v,fmt){ v = validAmount(v, fmt); const c=cur(); const k=(c.fam.children||[]).find(x=>x.id===id); if(!k) return;
  if(fmt && String(v).trim()!=='') v=formatDE(N(v)); k[f]=v; c.updatedAt=Date.now(); scheduleSave(); render(); }
@@ -2687,6 +2693,7 @@ function stepFamily(c){
  </div>
  <div class="grid2">
  ${CF(k,'kinship',t('kinship'),{select:[['leiblich',t('kin_leib')],['adoptiert',t('kin_adopt')],['pflegekind',t('kin_pflege')],['stiefkind',t('kin_stief')]],hint:i===0?t('kinship_hint'):''})}
+ ${CF(k,'familienkasse',t('familienkasse')+' *',{ph:t('familienkasse_ph'),hint:t('familienkasse_hint')})}
  </div>
  ${k.kinship==='pflegekind'?`<div class="auth-err" style="background:var(--amber-soft);color:var(--amber);border:none">ℹ️ ${t('kin_pflege_hint')}</div>`:''}
  ${k.kinship==='stiefkind'?`<div class="auth-err" style="background:var(--amber-soft);color:var(--amber);border:none">ℹ️ ${t('kin_stief_hint')}</div>`:''}
@@ -2759,6 +2766,7 @@ function stepSpecial(c){
  ${F('oth','lossCarry',t('loss_carry'),{euro:true,ph:'0,00 €',hint:t('loss_hint')})}
  </div>
  ${N(c.oth.realsplitting)>0?`<div class="grid2">
+ ${F('oth','realsplitName',t('realsplit_name')+' *',{ph:t('realsplit_name_ph')})}
  ${F('oth','realsplitIdnr',t('realsplit_idnr')+' *',{ph:'12 345 678 901',hint: c.taxYear<=2023 ? t('realsplit_idnr_hint_2023') : t('realsplit_idnr_hint')})}
  </div>`:''}
  ${N(c.oth.realsplitting)>0 && YEAR_LIMITATIONS[c.taxYear]?.noRealsplittingCountry?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
@@ -2906,7 +2914,7 @@ function submitElster(){
  if(N(c0.fam.support)>0 && c0.fam.untCountry && c0.fam.untCountry!=='Deutschland' && c0.fam.untForeignConfirmed!=='ja'){
  alert(t('err_unt_foreign_required')); S.step=3; render(); return;
  }
- if(N(c0.oth.realsplitting)>0 && !c0.oth.realsplitIdnr){
+ if(N(c0.oth.realsplitting)>0 && (!c0.oth.realsplitIdnr || !c0.oth.realsplitName)){
  alert(t('err_realsplit_idnr_required')); S.step=5; render(); return;
  }
  if(ERIC.enabled){ submitElsterReal(c0); return; }
@@ -3120,7 +3128,7 @@ function buildElsterDataset(c){
  kategorie:INS_CAT[x.type]||'', beitrag:N(x.beitrag), erstattung:N(x.erstattung),
  netto:Math.max(0,N(x.beitrag)-N(x.erstattung)) })), sonstigeVersicherungen:N(c.ins.other) },
  anlageKind:(c.fam.children||[]).map(k=>({ vorname:k.name, geburtsdatum:k.birth, idnr:(k.taxId||'').replace(/\s/g,''),
- kinship:k.kinship||'leiblich',
+ kinship:k.kinship||'leiblich', familienkasse:k.familienkasse||'',
  kindergeld:N(k.kindergeld), betreuungskosten:N(k.childcare),
  betreuungAnbieter:k.ccProvider||'', betreuungVon:k.ccPeriodFrom||'', betreuungBis:k.ccPeriodTo||'',
  schulgeld:N(k.schoolFees) })),
@@ -3157,7 +3165,7 @@ function buildElsterDataset(c){
  ertragsanteilProzent:(r.type||'gesetzlich')==='gesetzlich'?rentePct(r.startYear):null })),
  par35cEnergetisch:{ aufwendungen:N(c.oth.energCost), foerderjahr:c.oth.energStage||'' },
  weitereAngaben:{ ersatzleistungen:N(c.oth.ersatz), verlustvortrag:N(c.oth.lossCarry),
- realsplittingAnlageU:Math.min(N(c.oth.realsplitting),13805), realsplitIdnr:(c.oth.realsplitIdnr||'').replace(/\s/g,''),
+ realsplittingAnlageU:Math.min(N(c.oth.realsplitting),13805), realsplitIdnr:(c.oth.realsplitIdnr||'').replace(/\s/g,''), realsplitName:c.oth.realsplitName||'',
  behinderung:{ gdbA:c.oth.gdbA||'', gdbB:c.oth.gdbB||'', fahrtA:N(c.oth.fahrtA), fahrtB:N(c.oth.fahrtB),
  pflegeA:N(c.oth.pflegeA), pflegeB:N(c.oth.pflegeB), uebertragKind:N(c.oth.kidTransfer) },
  anlageSO:{ privateVeraeusserungsgeschaefte:N(c.oth.soGain), erhaltenerUnterhalt:N(c.oth.soUnterhalt) } },
