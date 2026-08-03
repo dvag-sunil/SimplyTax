@@ -671,9 +671,13 @@ function buildLegacyUnterhalt(data) {
   const u = data.anlageUnterhalt;
   if (!u || !(u.betrag > 0)) return '';
   const x = (v) => (v ? 'X' : ''); // JaXBaseCType: "X" asserts the statement, omitted otherwise
+  const isForeign = u.country && u.country !== 'Deutschland';
 
   let hhUntP = '<HH_unt_P>\n';
   hhUntP += tag(fm.ESt1A_U.legacyHouseholdAddress, u.householdAddress);
+  /* Foreign household - confirmed correct position (between address and
+     household size) via the real Felder sheet row order for 2021/2022. */
+  if (isForeign) hhUntP += tag(fm.ESt1A_U.legacyCountry, u.country);
   hhUntP += wholeEuroTag(fm.ESt1A_U.legacyHouseholdSize, u.householdSize || 2);
   hhUntP += '</HH_unt_P>\n';
 
@@ -691,6 +695,12 @@ function buildLegacyUnterhalt(data) {
   angUntPers += tag(fm.ESt1A_U.legacyBirthDate, formatDateDE(u.personBirthDate));
   angUntPers += tag(fm.ESt1A_U.legacyProfession, u.profession);
   angUntPers += tag(fm.ESt1A_U.legacyRelationship, u.relationship);
+  /* Foreign household confirmation - confirmed correct position (right
+     after relationship) via the real Felder sheet row order. A
+     mutually exclusive Yes/No pair (Regel: both given together is an
+     error) - maps directly onto the same foreignNeedConfirmed boolean
+     already collected in the UI for 2023+. */
+  if (isForeign) angUntPers += tag(u.foreignNeedConfirmed ? fm.ESt1A_U.legacyForeignConfirmedYes : fm.ESt1A_U.legacyForeignConfirmedNo, 'X');
   angUntPers += '</Persoenl>\n';
   /* Kindergeld: mutually exclusive pair, confirmed via Regel 32
      (AlleFelderAngegeben(E0120401,E0120402) is itself an error - only
@@ -1125,13 +1135,13 @@ function buildEStXML(data, opts = {}) {
          (E0120201,E0120202,E0120203)"), confirmed via the same
          completeness-group pattern, plus IdNr confirmed unconditionally
          required (Regel 28/29) - not just domestic-conditional the way
-         2023+ turned out to be. Foreign households are not implemented
-         for legacy years (would need dedicated research), so no
-         separate foreign-path warning here. */
+         2023+ turned out to be. Foreign households ARE implemented for
+         legacy years (second research pass) - maps onto the same
+         foreignNeedConfirmed boolean already collected for 2023+. */
       if (!data.anlageUnterhalt.personName || !data.anlageUnterhalt.profession || !data.anlageUnterhalt.personBirthDate || !data.anlageUnterhalt.householdAddress || !data.anlageUnterhalt.personIdnr)
         skippedSections.push(`anlageUnterhalt (legacy structure, tax year ${uYear}) support payment present but missing one or more required fields: the supported person's name, profession/marital status, birthdate, IdNr, and household address are all required (confirmed via real Regeln 27-29 for the 2021/2022 structure).`);
-      if (data.anlageUnterhalt.country && data.anlageUnterhalt.country !== 'Deutschland')
-        skippedSections.push(`anlageUnterhalt (legacy structure, tax year ${uYear}) - a foreign household was indicated, but foreign-household support is not implemented for 2021/2022 (would need its own dedicated research pass, same as any other real scope boundary in this project). Only domestic households are currently supported for these years.`);
+      if (data.anlageUnterhalt.country && data.anlageUnterhalt.country !== 'Deutschland' && data.anlageUnterhalt.foreignNeedConfirmed == null)
+        skippedSections.push(`anlageUnterhalt (legacy structure, tax year ${uYear}) - a foreign household was indicated but the home-country confirmation (foreignNeedConfirmed) was not set - required together (Regel 30/31 for the 2021/2022 structure).`);
     } else if (!data.anlageUnterhalt.personName || !data.anlageUnterhalt.householdAddress || !data.anlageUnterhalt.profession || !data.anlageUnterhalt.personBirthDate) {
       skippedSections.push('anlageUnterhalt support payment present but missing one or more required fields (confirmed via a real empirical ERiC test, not just documentation): the supported person\'s name, profession/marital status, birthdate, and household address are all required together (Regel 100120001).');
     }

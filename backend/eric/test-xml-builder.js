@@ -482,12 +482,34 @@ check('Anlage Unterhalt (legacy structure) uses the confirmed correct amount con
   const xml = buildEStXML(y2022).xml;
   return xml.includes('<U_Ztr>') && xml.includes('<U_Zlg>') && xml.includes('<E0120103>6000</E0120103>');
 })());
-check('Anlage Unterhalt correctly warns (not silently sends wrong) when a foreign household is indicated for a legacy year, since that path is not implemented', (() => {
+check('Anlage Unterhalt (legacy structure) correctly implements foreign households - country field and Yes-confirmed flag both present, no warnings, when foreignNeedConfirmed is true', (() => {
   const y2022foreign = JSON.parse(JSON.stringify(sample));
   y2022foreign.meta.taxYear = 2022;
-  y2022foreign.anlageUnterhalt = { betrag: 6000, personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', householdAddress: 'Test', country: 'Türkei' };
+  y2022foreign.anlageUnterhalt = { betrag: 6000, von: '2022-01-01', bis: '2022-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Test', country: 'Türkei', foreignNeedConfirmed: true };
   const result = buildEStXML(y2022foreign);
-  return result.skippedSections.some(s => s.includes('anlageUnterhalt') && s.includes('not implemented for 2021/2022'));
+  const uXml = result.xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
+  return uXml.includes('<E0120102>Türkei</E0120102>') && uXml.includes('<E0120209>X</E0120209>') && !uXml.includes('E0120210') && !result.skippedSections.some(s => s.includes('anlageUnterhalt'));
+})());
+check('Anlage Unterhalt (legacy structure) foreign household correctly uses the "not confirmed" field (E0120210) when foreignNeedConfirmed is false', (() => {
+  const y2021foreign = JSON.parse(JSON.stringify(sample));
+  y2021foreign.meta.taxYear = 2021;
+  y2021foreign.anlageUnterhalt = { betrag: 6000, von: '2021-01-01', bis: '2021-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Test', country: 'Türkei', foreignNeedConfirmed: false };
+  const xml = buildEStXML(y2021foreign).xml;
+  return xml.includes('<E0120210>X</E0120210>') && !xml.includes('E0120209');
+})());
+check('Anlage Unterhalt (legacy structure) warns when a foreign household is indicated but foreignNeedConfirmed was never set, since that specific detail cannot be safely defaulted', (() => {
+  const y2022noConfirm = JSON.parse(JSON.stringify(sample));
+  y2022noConfirm.meta.taxYear = 2022;
+  y2022noConfirm.anlageUnterhalt = { betrag: 6000, personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', householdAddress: 'Test', country: 'Türkei' };
+  const result = buildEStXML(y2022noConfirm);
+  return result.skippedSections.some(s => s.includes('anlageUnterhalt') && s.includes('foreignNeedConfirmed'));
+})());
+check('Anlage Unterhalt (legacy structure) country field is correctly OMITTED for domestic households - only sent when genuinely foreign', (() => {
+  const y2022domestic = JSON.parse(JSON.stringify(sample));
+  y2022domestic.meta.taxYear = 2022;
+  y2022domestic.anlageUnterhalt = { betrag: 6000, von: '2022-01-01', bis: '2022-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Test' };
+  const xml = buildEStXML(y2022domestic).xml;
+  return !xml.includes('E0120102') && !xml.includes('E0120209') && !xml.includes('E0120210');
 })());
 check('Anlage Unterhalt: 2023+ behavior remains completely unaffected by the new legacy implementation', (() => {
   const y2023 = JSON.parse(JSON.stringify(sample));

@@ -340,6 +340,20 @@ const ESt1A_U = {
   legacyAmount: 'E0120103',              // AW_U/U_Zlg - Höhe der Unterhaltszahlung
   legacyPaymentPeriod: 'E0120104',       // AW_U/U_Zlg - Zeitraum der Zahlung
 
+  /* Foreign household - implemented after full research (not deferred
+     this time): confirmed via the real XSD and Jahresdokumentation that
+     this maps directly onto the same concept already collected in the
+     UI for 2023+ (foreignNeedConfirmed) - a mutually exclusive Yes/No
+     pair (JaXBaseCType, "X"), not a more complex structure. Country
+     list confirmed byte-identical between 2021 and 2022 (232 entries),
+     extracted directly from the real XSD documentation string rather
+     than assumed compatible with the 2023+ country list (some entries
+     genuinely differ, e.g. "Tschechien" here vs "Tschechische
+     Republik" in the 2023+ list). */
+  legacyCountry: 'E0120102',             // HH_unt_P - Wohnsitzstaat, wenn Ausland
+  legacyForeignConfirmedYes: 'E0120209', // Persoenl - "Die...Unterhaltserklärung...liegt mir vor"
+  legacyForeignConfirmedNo: 'E0120210',  // Persoenl - "...liegt mir nicht vor"
+
   /* CORRECTED (found via user's own re-check request): confirmed via the
      real Regeln sheet that BOTH domestic (Regel 46) AND foreign (Regel
      48) branches require the supported person's IdNr - the foreign case
@@ -532,7 +546,14 @@ const SECTION_YEAR_SUPPORT = {
      opposite-polarity JaXBaseCType statement flags. Implemented as a
      completely separate function, buildLegacyUnterhalt() in
      xml-builder.js, gated to years < 2023 - the confirmed-working
-     2023+ path (buildUnterhalt()) is untouched. */
+     2023+ path (buildUnterhalt()) is untouched.
+
+     Foreign households for 2021/2022 RESOLVED too (second research
+     pass): maps directly onto the same foreignNeedConfirmed concept
+     already collected for 2023+, just a different field
+     (E0120209/E0120210 mutually-exclusive pair instead of a single
+     Ja/Nein). Country list confirmed identical between 2021 and 2022,
+     extracted directly from the real XSD. */
 };
 
 /* FIELD_YEAR_SUPPORT: individual fields whose CODE is genuinely

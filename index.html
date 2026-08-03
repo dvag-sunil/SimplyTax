@@ -482,7 +482,6 @@ en: {
  err_unt_foreign_required:"Because the supported household is abroad, please confirm you have the home-country authority's confirmation of need (required in addition to the Tax ID for foreign households).",
  err_realsplit_idnr_required:"Please fill in the ex-spouse's Tax ID for the Realsplitting amount you entered - required by the tax authority for this deduction.",
  year_warn_no_schema:"⚠ The tax authority has not published this tax year's forms yet - returns for this year cannot be validated or submitted until they do.",
- year_warn_no_foreign_unterhalt:"Support payments to a person living abroad are not yet supported for this tax year - domestic support payments work normally.",
  year_warn_no_realsplit_country:"For this tax year, the ex-spouse's Tax ID is required regardless of where they live - there's no exception for a foreign residence yet (that exception starts in 2024).",
  school_hint:"30% deductible, max. €5,000.",
  support_h:"Support for parents / relatives", support_amount:"Support paid (per year)", support_where:"Where does the supported person live?",
@@ -776,7 +775,6 @@ de: {
  err_unt_foreign_required:"Da der unterstützte Haushalt im Ausland liegt, bestätigen Sie bitte, dass Ihnen die Unterhaltserklärung der Heimatbehörde vorliegt (zusätzlich zur Steuer-ID bei ausländischen Haushalten erforderlich).",
  err_realsplit_idnr_required:"Bitte geben Sie die Steuer-ID des Ex-Ehegatten für den eingetragenen Realsplitting-Betrag an - vom Finanzamt für diesen Abzug erforderlich.",
  year_warn_no_schema:"⚠ Das Finanzamt hat die Formulare für dieses Steuerjahr noch nicht veröffentlicht - Erklärungen für dieses Jahr können noch nicht geprüft oder übermittelt werden.",
- year_warn_no_foreign_unterhalt:"Unterhaltszahlungen an eine im Ausland lebende Person werden für dieses Steuerjahr noch nicht unterstützt - Unterhalt im Inland funktioniert normal.",
  year_warn_no_realsplit_country:"Für dieses Steuerjahr ist die Steuer-ID des Ex-Ehegatten unabhängig vom Wohnsitz erforderlich - eine Ausnahme für Wohnsitz im Ausland gibt es noch nicht (diese Ausnahme gilt erst ab 2024).",
  school_hint:"30 % absetzbar, max. 5.000 €.",
  support_h:"Unterhalt für Eltern / Angehörige", support_amount:"Gezahlter Unterhalt (pro Jahr)", support_where:"Wo lebt die unterstützte Person?",
@@ -1027,8 +1025,8 @@ function taxYearOptions(){
 }
 const YEAR_LIMITATIONS = {
   2023: { noRealsplittingCountry:true },   // confirmed via real research: this field genuinely didn't exist until 2024
-  2022: { noForeignUnterhalt:true },       // Anlage Unterhalt now supported for domestic households (confirmed via full research); foreign households not yet implemented for this year
-  2021: { noForeignUnterhalt:true },       // same as 2022
+  2022: { legacyUnterhalt:true },          // Anlage Unterhalt uses the confirmed different 2021/2022 structure (domestic AND foreign both supported, second research pass)
+  2021: { legacyUnterhalt:true },          // same as 2022
 };
 function yearWarning(year){
   /* Dynamic check: the currently running year never has a published
@@ -1039,11 +1037,11 @@ function yearWarning(year){
   const lim = YEAR_LIMITATIONS[year];
   if(!lim) return '';
   const parts=[];
-  if(lim.noForeignUnterhalt) parts.push(t('year_warn_no_foreign_unterhalt'));
   if(lim.noRealsplittingCountry) parts.push(t('year_warn_no_realsplit_country'));
   return parts.join(' ');
 }
 const UNT_COUNTRIES=['Afghanistan','Ägypten','Albanien','Algerien','Amerikanisch-Samoa','Amerikanische Jungferninseln','Andorra','Angola','Antigua und Barbuda','Äquatorialguinea','Argentinien','Armenien','Aruba','Aserbaidschan','Äthiopien','Australien','Bahamas','Bahrain','Bangladesch','Barbados','Belarus','Belgien','Belize','Benin','Bermuda','Bhutan','Bolivien','Plurinationaler Staat','Bosnien und Herzegowina','Botsuana','Brasilien','Britische Jungferninseln','Brunei Darussalam','Bulgarien','Burkina Faso','Burundi','Cabo Verde','Chile','China','Cookinseln','Costa Rica','Cote d Ivoire','Curacao','Dänemark','Deutschland','Dominica','Dominikanische Republik','Dschibuti','Ecuador','El Salvador','Eritrea','Estland','Eswatini','Färöer','Fidschi','Finnland','Frankreich','Französisch-Polynesien','Gabun','Gambia','Georgien','Ghana','Gibraltar','Grenada','Griechenland','Grönland','Guam','Guatemala','Guinea','Guinea-Bissau','Guyana','Haiti','Honduras','Hongkong','Indien','Indonesien','Insel Man','Irak','Iran','Islamische Republik','Irland','Island','Israel','Italien','Jamaika','Japan','Jemen','Jordanien','Kaimaninseln','Kambodscha','Kamerun','Kanada','Kanalinseln','Kasachstan','Katar','Kenia','Kirgisistan','Kiribati','Kolumbien','Komoren','Kongo','Kongo','Demokratische Republik','Korea','Demokratische Volksrepublik','Korea','Republik','Kosovo','Kroatien','Kuba','Kuwait','Laos','Demokratische Volksrepublik','Lesotho','Lettland','Libanon','Liberia','Libyen','Liechtenstein','Litauen','Luxemburg','Macau','Madagaskar','Malawi','Malaysia','Malediven','Mali','Malta','Marokko (einschl. Westsahara)','Marshallinseln','Mauretanien','Mauritius','Mexiko','Mikronesien','Föderierte Staaten von','Moldau','Republik','Monaco','Mongolei','Montenegro','Mosambik','Myanmar','Namibia','Nauru','Nepal','Neukaledonien','Neuseeland','Nicaragua','Niederlande','Niger','Nigeria','Niue','Nördliche Marianen','Nordmazedonien','Norwegen','Oman','Österreich','Pakistan','Palästinensische Gebiete','Palau','Panama','Papua Neuguinea','Paraguay','Peru','Philippinen','Polen','Portugal','Puerto Rico','Ruanda','Rumänien','Russische Föderation','Salomonen','Sambia','Samoa','San Marino','Sao Tome und Principe','Saudi-Arabien','Schweden','Schweiz','Senegal','Serbien','Seychellen','Sierra Leone','Simbabwe','Singapur','Slowakei','Slowenien','Somalia','Spanien','Sri Lanka','St. Kitts und Nevis','St. Lucia','St. Martin (französischer Teil)','St. Martin (niederländischer Teil)','St. Vincent und die Grenadinen','Südafrika','Sudan','Südsudan','Suriname','Syrien','Arabische Republik','Tadschikistan','Taiwan','Tansania','Vereinigte Republik','Thailand','Timor-Leste','Togo','Tonga','Trinidad und Tobago','Tschad','Tschechien','Tunesien','Türkei','Turkmenistan','Turks- und Caicosinseln','Tuvalu','Uganda','Ukraine','Ungarn','Uruguay','Usbekistan','Vanuatu','Vatikanstadt','Venezuela','Bolivarische Republik','Vereinigte Arabische Emirate','Vereinigte Staaten','Vereinigtes Königreich','Vietnam','Zentralafrikanische Republik','Zypern'];
+const UNT_COUNTRIES_LEGACY=["Afghanistan","Ägypten","Albanien","Algerien","Amerikanische Junferninseln","Amerikanisch-Samoa","Andorra","Angola","Antigua und Barbuda","Äquatorialguinea","Argentinien","Armenien","Aruba","Aserbaidschan","Äthiopien","Australien","Bahamas","Bahrain","Bangladesch","Barbados","Belgien","Belize","Benin","Bermuda","Bhutan","Bolivien","Plurinationaler Staat","Bosnien und Herzegowina","Botsuana","Brasilien","Britische Jungferninseln","Brunei Darussalam","Bulgarien","Burkina Faso","Burundi","Cabo Verde","Chile","China","Cookinseln","Costa Rica","Cote d Ivoire","Curacao","Dänemark","Deutschland","Dominica","Dominikanische Republik","Dschibuti","Ecuador","El Salvador","Eritrea","Estland","Eswatini","Färöer","Fidschi","Finnland","Frankreich","Französisch-Polynesien","Gabun","Gambia","Georgien","Ghana","Gibraltar","Grenada","Griechenland","Grönland","Guam","Guatemala","Guinea","Guinea-Bissau","Guyana","Haiti","Honduras","Hongkong","Indien","Indonesien","Insel Man","Irak","Iran","Islamische Republik","Irland","Island","Israel","Italien","Jamaika","Japan","Jemen","Jordanien","Kaimaninseln","Kambodscha","Kamerun","Kanada","Kanalinseln","Kasachstan","Katar","Kenia","Kirgisistan","Kiribati","Kolumbien","Komoren","Kongo","Kongo","Demokratische Republik","Korea","Demokratische Volksrepublik","Korea","Republik","Kosovo","Kroatien","Kuba","Kuwait","Laos","Demokratische Volksrepublik","Lesotho","Lettland","Libanon","Liberia","Libyen","Liechtenstein","Litauen","Luxemburg","Macau","Madagaskar","Malawi","Malaysia","Malediven","Mali","Malta","Marokko","Marshallinseln","Mauretanien","Mauritius","Mexiko","Mikronesien","Föderierte Staaten von","Moldau","Republik","Monaco","Mongolei","Montenegro","Mosambik","Myanmar","Namibia","Nauru","Nepal","Neukaledonien","Neuseeland","Nicaragua","Niederlande","Niger","Nigeria","Niue","Nördliche Marianen","Nordmazedonien","Norwegen","Oman","Österreich","Pakistan","Palästinensische Gebiete","Palau","Panama","Papua Neuguinea","Paraguay","Peru","Philippinen","Polen","Portugal","Puerto Rico","Ruanda","Rumänien","Russische Föderation","Salomonen","Sambia","Samoa","San Marino","Sao Tome und Principe","Saudi-Arabien","Schweden","Schweiz","Senegal","Serbien","Seychellen","Sierra Leone","Simbabwe","Singapur","Slowakei","Slowenien","Somalia","Spanien","Sri Lanka","St. Kitts und Nevis","St. Lucia","St. Martin (französischer Teil)","St. Martin (niederländischer Teil)","St. Vincent und die Grenadinen","Südafrika","Sudan","Südsudan","Suriname","Syrien","Arabische Republik","Tadschikistan","Taiwan","Tansania","Vereinigte Republik","Thailand","Timor-Leste","Togo","Tonga","Trinidad und Tobago","Tschad","Tschechien","Tunesien","Türkei","Turkmenistan","Turks- und Caicos-Inseln","Tuvalu","Uganda","Ukraine","Ungarn","Uruguay","Usbekistan","Vanuatu","Vatikanstadt","Venezuela","Bolivarische Republik","Vereinigte Arabische Emirate","Vereinigtes Königreich","Vereinigte Staaten","Vietnam","Weißrussland/Belarus","Zentralafrikanische Republik","Zypern"]; // confirmed byte-identical for 2021 and 2022, extracted directly from the real XSD documentation string (NAEnum_LAENDERGR_2021_1) - genuinely different list from UNT_COUNTRIES above (used for 2023+), not assumed compatible
 
 /* German insurance market catalog, grouped by tax treatment:
  basis = Basisabsicherung KV/PV (fully deductible) · alters = Altersvorsorge §10 Abs.1 Nr.2 (fully)
@@ -2768,18 +2766,15 @@ function stepFamily(c){
  ${F('fam','untHasIncome',t('unt_has_income')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
  </div>
  <div class="grid2">
- ${F('fam','untCountry',t('unt_country'),{select:[['Deutschland',t('unt_country_de')],...UNT_COUNTRIES.filter(c=>c!=='Deutschland').map(c=>[c,c])]})}
+ ${F('fam','untCountry',t('unt_country'),{select:[['Deutschland',t('unt_country_de')],...(YEAR_LIMITATIONS[c.taxYear]?.legacyUnterhalt?UNT_COUNTRIES_LEGACY:UNT_COUNTRIES).filter(c=>c!=='Deutschland').map(c=>[c,c])]})}
  </div>
- ${c.fam.untCountry && c.fam.untCountry!=='Deutschland' && YEAR_LIMITATIONS[c.taxYear]?.noForeignUnterhalt?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
- ⚠ ${t('year_warn_no_foreign_unterhalt')}
- </div>`:''}
- ${c.fam.untCountry && c.fam.untCountry!=='Deutschland' && !YEAR_LIMITATIONS[c.taxYear]?.noForeignUnterhalt?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
+ ${c.fam.untCountry && c.fam.untCountry!=='Deutschland'?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
  ⚠ ${t('unt_foreign_hint')}
  </div>
  <div class="grid2">
  ${F('fam','untForeignConfirmed',t('unt_foreign_confirmed')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
- </div>`:''}`:''}
- ${docSection('fam')}
+ </div>`:''}
+ ${docSection('fam')}`:''}
  ${navRow()}`;
 }
 
@@ -2940,17 +2935,15 @@ function submitElster(){
  if(N(c0.fam.support)>0 && (!c0.fam.untName||!c0.fam.untProfession||!c0.fam.untBirthDate||!c0.fam.untAddress)){
  alert(t('err_unt_required')); S.step=3; render(); return;
  }
- if(N(c0.fam.support)>0 && YEAR_LIMITATIONS[c0.taxYear]?.noForeignUnterhalt){
- if(c0.fam.untCountry && c0.fam.untCountry!=='Deutschland'){
- alert(t('year_warn_no_foreign_unterhalt')); S.step=3; render(); return;
- }
- /* legacy years (2021/2022) confirmed via real research to require the
+ /* Legacy years (2021/2022) confirmed via real research to require the
  supported person's IdNr unconditionally, not just for domestic cases
- the way 2023+ does */
- if(!c0.fam.untIdnr){
+ the way 2023+ does. Foreign households are fully supported for these
+ years too (second research pass) - same foreignNeedConfirmed field,
+ just a different underlying Kennzahl pair, handled in the backend. */
+ if(N(c0.fam.support)>0 && YEAR_LIMITATIONS[c0.taxYear]?.legacyUnterhalt && !c0.fam.untIdnr){
  alert(t('err_unt_required')); S.step=3; render(); return;
  }
- } else if(N(c0.fam.support)>0 && c0.fam.untCountry && c0.fam.untCountry!=='Deutschland' && c0.fam.untForeignConfirmed!=='ja'){
+ if(N(c0.fam.support)>0 && c0.fam.untCountry && c0.fam.untCountry!=='Deutschland' && c0.fam.untForeignConfirmed!=='ja'){
  alert(t('err_unt_foreign_required')); S.step=3; render(); return;
  }
  if(N(c0.oth.realsplitting)>0 && (!c0.oth.realsplitIdnr || !c0.oth.realsplitName)){
