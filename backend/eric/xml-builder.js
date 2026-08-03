@@ -262,7 +262,21 @@ function buildAnlageN(data) {
     if (N(first.zeile16_dbaAte) > 0) xml += `<Stfr_NAUS>${wholeEuroTag(fm.N.dba16.kennzahlen[0], first.zeile16_dbaAte)}</Stfr_NAUS>\n`;
     xml += wholeEuroTag(fm.N.fahrt17.kennzahlen[0], first.zeile17_agLeistungenEntfernung);
     xml += wholeEuroTag(fm.N.pausch18.kennzahlen[0], first.zeile18_pauschal15);
-    xml += wholeEuroTag(fm.N.verpf20.kennzahlen[0], first.zeile20_verpflegung);
+    /* CORRECTED: real bug found via testing against a genuine client file
+       ("feldUnbekannt" for /N/ArbL/E0205630). Same bug class as dba16
+       above (wrong parent context), but with a deeper problem behind it:
+       E0205630's real context is Wk/VMA/Ausl/Sum - the SUM OF CLAIMED
+       foreign-travel meal expenses, a Werbungskosten figure, NOT the
+       tax-free employer reimbursement from Lohnsteuerbescheinigung
+       Zeile 20 that this app actually collects. Genuinely different
+       concepts, so this was never just a misplaced tag.
+       The correct home for Zeile 20 is E0205108 (Wk/VMA/VMA_Ersatz,
+       "Vom Arbeitgeber steuerfrei ersetzt") - but that field only makes
+       sense alongside the corresponding travel-expense claim (days away,
+       countries, per-diem rates), none of which this app collects.
+       Sending a lone reimbursement figure with no matching expenses
+       would be an incomplete and likely rejected declaration. Correctly
+       surfaced via skippedSections instead of guessed. */
     xml += wholeEuroTag(fm.N.bmg29.kennzahlen[0], first.zeile29_bmgVersorgungsfreibetrag);
     if (first.zeile30_versorgungsbeginn) xml += tag(fm.N.vbJahr30.kennzahlen[0], first.zeile30_versorgungsbeginn);
     /* NOTE: taxClass (Steuerklasse, E0200002) deliberately NOT written here.
@@ -492,38 +506,144 @@ function buildR(data) {
    confirmed Kennzahlen sheet paths (Allg/Lage for address,
    Einn/Mieteinn/Whg/Einz+Sum for income).
 ============================================================================= */
+/* A property counts as foreign when a country is set to anything other
+   than Germany - this routes it to Anlage AUS instead of Anlage V. */
+function isForeignProperty(p) {
+  return !!(p && p.land && String(p.land).trim() && String(p.land).trim() !== 'Deutschland');
+}
+
+/* Anlage V requires street+number, postcode and city as SEPARATE fields
+   (Regel 3149). The app stores a single free-text address, so this
+   splits the common "Street 1, 12345 City" shape. Anything it cannot
+   split confidently is reported via skippedSections rather than guessed. */
+function splitPropertyAddress(objekt) {
+  const out = { street: '', plz: '', ort: '' };
+  if (!objekt) return out;
+  const parts = String(objekt).split(',').map(s => s.trim()).filter(Boolean);
+  if (parts.length) out.street = parts[0];
+  const rest = parts.slice(1).join(', ');
+  const m = rest.match(/(\d{5})\s+(.+)/);
+  if (m) { out.plz = m[1]; out.ort = m[2].trim(); }
+  return out;
+}
+
 function buildV(data) {
-  const entries = data.anlageV || [];
+  const entries = (data.anlageV || []).filter(p => !isForeignProperty(p));
   if (!entries.length) return '';
   let xml = '';
   let idx = 0;
   entries.forEach((p) => {
-    /* CORRECTED: real bug found via testing against a genuine client
-       file (FachlicheFehlerId "solitaryIndex", "...außer der Angabe im
-       Feld Laufende_Nummer_V keine weiteren Angaben getätigt") - this
-       was mistakenly cleared as "safe" in an earlier round because it
-       always writes the sequence number, but ERiC does not consider the
-       sequence number ALONE to be valid content - same empty-wrapper
-       bug class as VOR/KAP/R, just missed here specifically. Only
-       emits an entry (and only increments the sequence number) when
-       there's genuine property content. */
+    /* Only emits an entry (and only increments the sequence number) when
+       there is genuine property content - ERiC rejects a lone sequence
+       number as "solitaryIndex". */
     if (!p.objekt && !(N(p.mieteinnahmen) > 0)) return;
     idx++;
+    const addr = splitPropertyAddress(p.objekt);
     xml += '<V>\n';
     xml += tag('Laufende_Nummer_V', String(idx));
-    if (p.objekt) {
-      const parts = String(p.objekt).split(',');
-      if (parts[0]) xml += `<Allg><Lage>${tag(fm.V.street, parts[0].trim())}</Lage></Allg>\n`;
+
+    /* Allg - Lage then Nutzung, confirmed element order. All three
+       Nutzung declarations are required whenever property data is
+       given (Regeln 100700068 / 100700069 / 100750004). They are real
+       yes/no facts about the property, so they are taken from the data
+       and only defaulted to "Nein" ("2") when explicitly answered as
+       such by the UI - never silently guessed for an unanswered
+       property (see the skippedSections check for that case). */
+    let allg = '';
+    if (addr.street || addr.plz || addr.ort) {
+      allg += '<Lage>\n';
+      if (addr.street) allg += tag(fm.V.street, addr.street);
+      if (addr.plz) allg += tag(fm.V.plz, addr.plz);
+      if (addr.ort) allg += tag(fm.V.ort, addr.ort);
+      allg += '</Lage>\n';
     }
+    allg += '<Nutzung>\n';
+    allg += tag(fm.V.nutzFerienwohnung, p.ferienwohnung ? '1' : '2');
+    allg += tag(fm.V.nutzKurzfristig, p.kurzfristig ? '1' : '2');
+    allg += tag(fm.V.nutzAngehoerige, p.angehoerige ? '1' : '2');
+    allg += '</Nutzung>\n';
+    xml += `<Allg>\n${allg}</Allg>\n`;
+
+    /* Einn - Mieteinn, then Uml, then Sum (confirmed order). Each unit
+       needs a label paired with its amount (Regel 100750262). */
     if (N(p.mieteinnahmen) > 0) {
-      xml += '<Einn><Mieteinn><Whg>\n';
-      xml += `<Einz>${wholeEuroTag(fm.V.mieteinnahmen, p.mieteinnahmen)}</Einz>\n`;
-      xml += `<Sum>${wholeEuroTag(fm.V.mieteinnahmenSum, p.mieteinnahmen)}</Sum>\n`;
-      xml += '</Whg></Mieteinn></Einn>\n';
+      const label = p.wohneinheit || 'Wohneinheit 1';
+      xml += '<Einn>\n<Mieteinn><Whg>\n';
+      xml += `<Einz>\n${tag(fm.V.wohneinheit, label)}${wholeEuroTag(fm.V.mieteinnahmen, p.mieteinnahmen)}</Einz>\n`;
+      xml += `<Sum>\n${wholeEuroTag(fm.V.mieteinnahmenSum, p.mieteinnahmen)}</Sum>\n`;
+      xml += '</Whg></Mieteinn>\n';
+      /* Regel 100750265: either an amount, or an explicit declaration
+         that service charges were not separately agreed. */
+      if (N(p.nebenkosten) > 0) {
+        xml += `<Uml>\n${wholeEuroTag(fm.V.nebenkosten, p.nebenkosten)}</Uml>\n`;
+      } else {
+        xml += `<Uml>\n${tag(fm.V.nebenkostenNichtVereinbart, '1')}</Uml>\n`;
+      }
+      /* Regel 100700004: the overall income total. Service charges are
+         themselves income, so they are included in the sum. */
+      const totalIncome = N(p.mieteinnahmen) + N(p.nebenkosten);
+      xml += `<Sum>\n${wholeEuroTag(fm.V.einnahmenSum, totalIncome)}</Sum>\n`;
+      xml += '</Einn>\n';
+
+      /* CORRECTED (second pass) - real bug found via the actual client
+         file returning "feldUnbekannt": the previous version wrapped
+         this in a fabricated <Ek_b_Gst> element and duplicated the
+         income sum into it. Verified directly against the raw XSD this
+         time, not just the documentation sheet: Erm_Zuord_Ek is a
+         direct sibling of Einn within <V>, confirmed field order right
+         after Einn (Wk, which we skip, sits between them in the real
+         sequence but that is fine since optional elements may be
+         omitted). Its only real content here is the Überschuss - see
+         eric-fieldmap.js for why no other field is needed. */
+      /* CORRECTED (third pass) - real bug found via the actual client
+         file: Regel confirms the Überschuss requires an attribution to
+         at least one of taxpayer/spouse. No ownership-split data is
+         collected, so the full amount is attributed to Person A - the
+         correct behaviour for sole ownership, which is the common
+         case this app supports. */
+      xml += '<Erm_Zuord_Ek>\n';
+      xml += wholeEuroTag(fm.V.ueberschuss, totalIncome);
+      xml += wholeEuroTag(fm.V.ueberschussZuordA, totalIncome);
+      xml += '</Erm_Zuord_Ek>\n';
     }
     xml += '</V>\n';
   });
   return xml;
+}
+
+/* =============================================================================
+   Anlage AUS - foreign rental income (Progressionsvorbehalt)
+   =============================================================================
+   Confirmed via direct research that Anlage V is structurally
+   domestic-only (its Allg/Lage block has no country field at all), and
+   that Anlage V-Sonstige covers something different entirely
+   (partnership shares, sublets, undeveloped land). Foreign rental income
+   under a double-taxation agreement is normally exempt in Germany but
+   still raises the rate applied to German income, and is declared as
+   "steuerfreie Einkünfte mit Progressionsvorbehalt".
+
+   IMPORTANT SCOPE NOTE: this reports the NET result the user supplies.
+   Whether a given country's DBA actually exempts the income (rather than
+   crediting foreign tax against German tax) is a genuine per-treaty legal
+   question this app does not attempt to decide - the credit method needs
+   a different section entirely and is not implemented.
+============================================================================= */
+function buildAUS(data) {
+  const foreign = (data.anlageV || []).filter(isForeignProperty);
+  if (!foreign.length) return '';
+  let inner = '';
+  foreign.forEach((p) => {
+    const net = N(p.mieteinnahmen) + N(p.nebenkosten) - N(p.werbungskosten);
+    if (!p.land || !(N(p.mieteinnahmen) > 0)) return;
+    inner += '<Einz>\n';
+    inner += tag(fm.AUS.progStaat, p.land);
+    inner += tag(fm.AUS.progQuelle, p.objekt || 'Vermietung');
+    inner += tag(fm.AUS.progEinkunftsart, 'Vermietung und Verpachtung');
+    inner += wholeEuroTag(fm.AUS.progEinkuenfte, net);
+    inner += '</Einz>\n';
+  });
+  if (!inner) return '';
+  return `<AUS>\n<Stfr_Ek_ProgV><P32b><Mitt>\n${inner}</Mitt></P32b></Stfr_Ek_ProgV>\n</AUS>\n`;
 }
 
 /* =============================================================================
@@ -1126,6 +1246,36 @@ function buildEStXML(data, opts = {}) {
     skippedSections.push('anlageKind present without the Familienkasse (responsible child-benefit office) for at least one child - confirmed required alongside name/birthdate (Regel 5021). This is genuinely case-specific data (which office is responsible) that cannot be safely defaulted - needs to come from the user.');
   if (!data.hauptvordruck?.personB && (data.anlageKind || []).some(k => k.vorname && k.geburtsdatum && !k.otherParentName))
     skippedSections.push('anlageKind present for a single filer without the other parent\'s name for at least one child - confirmed required (Regel 100500048/25). This is genuinely case-specific data that cannot be safely defaulted - needs to come from the user.');
+  if ((data.anlageN || []).some(n => N(n.zeile20_verpflegung) > 0))
+    skippedSections.push('Anlage N Zeile 20 (tax-free employer meal allowances) present but NOT transmitted - real bug found via testing against a genuine client file. It was previously sent to the wrong XML context (ArbL) under a field that actually means something different (the sum of CLAIMED foreign-travel meal expenses). Its correct home is E0205108 "vom Arbeitgeber steuerfrei ersetzt", which only makes sense alongside the travel-expense claim itself (days away, countries, per-diem rates) - none of which this app collects. Sending it alone would be an incomplete declaration, so it is honestly omitted rather than guessed.');
+  (data.anlageV || []).forEach((p, i) => {
+    const label = `anlageV property ${i + 1}`;
+    if (isForeignProperty(p)) {
+      /* Foreign rental is routed to Anlage AUS as exempt income with
+         Progressionsvorbehalt. Flagged so the user knows the treaty
+         question was NOT decided for them. */
+      if (!(N(p.mieteinnahmen) > 0)) {
+        skippedSections.push(`${label}: a foreign country is set but no rental income was entered - nothing was transmitted for this property.`);
+      } else {
+        skippedSections.push(`${label}: foreign rental income was declared on Anlage AUS as tax-exempt income with Progressionsvorbehalt (the standard treatment under most double-taxation agreements). Whether the relevant treaty actually exempts this income rather than crediting foreign tax against German tax is a per-country legal question this app does not decide - worth confirming for the specific country before filing.`);
+      }
+      if (N(p.werbungskosten) > 0)
+        skippedSections.push(`${label}: foreign rental expenses were subtracted to report a net figure, since Anlage AUS asks for net income rather than itemised costs.`);
+      return;
+    }
+    if (!p.objekt && !(N(p.mieteinnahmen) > 0)) return;
+    const addr = splitPropertyAddress(p.objekt);
+    if (!addr.street || !addr.plz || !addr.ort)
+      skippedSections.push(`${label}: Anlage V requires the street with house number, the postcode AND the city as separate entries (Regel 3149). The address on file could not be split into all three, so the return will be rejected until it is entered in the form "Musterstr. 1, 12345 Musterstadt".`);
+    if (p.ferienwohnung == null || p.kurzfristig == null || p.angehoerige == null)
+      skippedSections.push(`${label}: the three required usage declarations (holiday let / short-term letting / rented to relatives) were not all answered - unanswered ones were sent as "Nein", which is the common case but is a real declaration and should be confirmed by the taxpayer.`);
+    if (!(N(p.nebenkosten) > 0))
+      skippedSections.push(`${label}: no service charges (Neben-/Betriebskosten) were entered, so the return declares that these were not separately agreed (Regel 100750265). If the tenant does pay service charges, that amount must be entered instead.`);
+    if (N(p.werbungskosten) > 0)
+      skippedSections.push(`${label}: rental expenses (Werbungskosten) were entered but NOT transmitted - the real schema needs itemised categories (depreciation, loan interest, maintenance and so on) which the app does not yet collect. The declared income is therefore gross, and the tax result will be too high until this is added.`);
+    if (N(p.mieteinnahmen) > 0 && data.hauptvordruck?.personB)
+      skippedSections.push(`${label}: the full surplus was attributed to the primary filer (Person A). The app does not collect a per-property ownership split, so if this property is jointly owned with the spouse, the attribution should be reviewed and may need splitting between E0701801 and E0701802.`);
+  });
   if (data.anlageUnterhalt?.betrag > 0) {
     const uYear = data.meta?.taxYear || 2025;
     const isLegacyYear = uYear < 2023;
@@ -1208,6 +1358,7 @@ function buildEStXML(data, opts = {}) {
   nutzdaten += buildAnlageN(data); // N
   nutzdaten += buildNAUS(data); // N_AUS
   nutzdaten += buildKAP(data);
+  nutzdaten += buildAUS(data); // foreign rental - confirmed position: after KAP, before R
   nutzdaten += buildR(data);
   nutzdaten += buildV(data);
   nutzdaten += buildVOR(data);

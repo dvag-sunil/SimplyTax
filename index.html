@@ -653,6 +653,15 @@ en: {
  m_kap:"Capital gains tax (est.)",
  step_prop:"Rental property", s_prop_lead:"Rental income (Anlage V) - one entry per property. Costs (loan interest, maintenance, depreciation, service charges...) count as expenses; a loss reduces the taxable income.",
  prop_address:"Property (address)", prop_rent:"Rental income (per year)", prop_costs:"Costs / expenses (per year)", add_prop:"Add property", prop_net:"Net result",
+ prop_country:"Country the property is in", prop_country_de:"Germany",
+ prop_country_hint:"Property abroad is reported differently - usually tax-free in Germany, but it still raises the tax rate on your German income.",
+ prop_address_hint:"Please enter it as \u0022Street 1, 12345 City\u0022 - the tax office needs the street, postcode and city as separate entries.",
+ prop_unit:"Unit description", prop_unit_ph:"e.g. Ground floor left",
+ prop_unit_hint:"The tax office needs a label for each rented unit alongside its rent. Leave blank for a single-unit property.",
+ prop_nebenkosten:"Service charges paid by tenant (per year)",
+ prop_nebenkosten_hint:"If left empty, the return declares that no service charges were separately agreed.",
+ prop_ferien:"Used as a holiday let?", prop_kurzfristig:"Let short-term?", prop_angehoerige:"Rented to relatives?",
+ prop_foreign_hint:"For a property abroad, only the country, rental income and costs are needed here - it is reported as tax-free income with Progressionsvorbehalt. Please confirm the tax treaty with that country before filing.",
  sec_sv:"Social insurance (lines 22-28)", sec_more:"More fields (lines 8-21, 29-34)",
  kfb:"Child allowances (Kinderfreibeträge)",
  z7:"Church tax spouse (line 7)", z8:"Pension payments in line 3 (Versorgungsbezüge, line 8)",
@@ -946,6 +955,15 @@ de: {
  m_kap:"Kapitalertragsteuer (ca.)",
  step_prop:"Vermietung", s_prop_lead:"Einkünfte aus Vermietung (Anlage V) - ein Eintrag je Immobilie. Kosten (Darlehenszinsen, Instandhaltung, AfA, Nebenkosten...) zählen als Werbungskosten; ein Verlust mindert das zu versteuernde Einkommen.",
  prop_address:"Immobilie (Adresse)", prop_rent:"Mieteinnahmen (pro Jahr)", prop_costs:"Kosten / Aufwendungen (pro Jahr)", add_prop:"Immobilie hinzufügen", prop_net:"Ergebnis",
+ prop_country:"Belegenheitsstaat der Immobilie", prop_country_de:"Deutschland",
+ prop_country_hint:"Auslandsimmobilien werden anders erklärt - meist in Deutschland steuerfrei, erhöhen aber den Steuersatz auf Ihre inländischen Einkünfte.",
+ prop_address_hint:"Bitte in der Form \u0022Musterstraße 1, 12345 Musterstadt\u0022 eingeben - das Finanzamt benötigt Straße, PLZ und Ort getrennt.",
+ prop_unit:"Bezeichnung der Wohneinheit", prop_unit_ph:"z. B. EG links",
+ prop_unit_hint:"Das Finanzamt benötigt zu jeder vermieteten Einheit eine Bezeichnung samt Miete. Bei nur einer Einheit kann das Feld leer bleiben.",
+ prop_nebenkosten:"Umlagen / Nebenkosten vom Mieter (pro Jahr)",
+ prop_nebenkosten_hint:"Bleibt das Feld leer, wird erklärt, dass Neben-/Betriebskosten nicht gesondert vereinbart wurden.",
+ prop_ferien:"Als Ferienwohnung genutzt?", prop_kurzfristig:"Kurzfristig vermietet?", prop_angehoerige:"An Angehörige vermietet?",
+ prop_foreign_hint:"Bei einer Auslandsimmobilie werden hier nur Staat, Mieteinnahmen und Kosten benötigt - die Erklärung erfolgt als steuerfreie Einkünfte mit Progressionsvorbehalt. Bitte prüfen Sie vorab das Doppelbesteuerungsabkommen mit dem betreffenden Staat.",
  sec_sv:"Sozialversicherung (Zeilen 22-28)", sec_more:"Weitere Felder (Zeilen 8-21, 29-34)",
  kfb:"Zahl der Kinderfreibeträge",
  z7:"Kirchensteuer Ehegatte (Zeile 7)", z8:"In Zeile 3 enthaltene Versorgungsbezüge (Zeile 8)",
@@ -2576,15 +2594,29 @@ function stepProp(c){
  <span class="chip ${net>=0?'submitted':'review'}" style="margin-left:8px">${t('prop_net')}: ${eur(net)}</span></span>
  <span class="edit" onclick="delItem('props','${p.id}')">🗑 ${t('remove')}</span></div>
  <div style="padding:14px 16px">
- ${LF('props',p,'address',t('prop_address'),{ph:'Musterstraße 1, 63065 Offenbach'})}
+ ${LF('props',p,'country',t('prop_country'),{select:[['Deutschland',t('prop_country_de')],...UNT_COUNTRIES.filter(x=>x!=='Deutschland').map(x=>[x,x])],hint:i===0?t('prop_country_hint'):''})}
+ ${LF('props',p,'address',t('prop_address')+' *',{ph:'Musterstraße 1, 63065 Offenbach',hint:i===0?t('prop_address_hint'):''})}
  <div class="grid2">
  ${LF('props',p,'rent',t('prop_rent'),{euro:true,ph:'0,00 €'})}
  ${LF('props',p,'costs',t('prop_costs'),{euro:true,ph:'0,00 €'})}
  </div>
+ ${(!p.country||p.country==='Deutschland')?`
+ <div class="grid2">
+ ${LF('props',p,'unit',t('prop_unit'),{ph:t('prop_unit_ph'),hint:i===0?t('prop_unit_hint'):''})}
+ ${LF('props',p,'nebenkosten',t('prop_nebenkosten'),{euro:true,ph:'0,00 €',hint:i===0?t('prop_nebenkosten_hint'):''})}
+ </div>
+ <div class="grid3">
+ ${LF('props',p,'ferienwohnung',t('prop_ferien')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
+ ${LF('props',p,'kurzfristig',t('prop_kurzfristig')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
+ ${LF('props',p,'angehoerige',t('prop_angehoerige')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
+ </div>`:`
+ <div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
+ ⚠ ${t('prop_foreign_hint')}
+ </div>`}
  </div></div>`;}).join('');
  return `<h2>${t('step_prop')}</h2><p class="lead">${t('s_prop_lead')}</p>
  ${rows}
- <button class="btn btn-ghost btn-sm" onclick="addItem('props',{address:'',rent:'',costs:''})">＋ ${t('add_prop')}</button>
+ <button class="btn btn-ghost btn-sm" onclick="addItem('props',{country:'Deutschland',address:'',rent:'',costs:'',unit:'',nebenkosten:'',ferienwohnung:'nein',kurzfristig:'nein',angehoerige:'nein'})">＋ ${t('add_prop')}</button>
  ${docSection('props')}
  ${navRow()}`;
 }
@@ -3183,8 +3215,10 @@ function buildElsterDataset(c){
  zeile20_aktiengewinne:N(k.k20), zeile21_stillhalterTermingeschaefte:N(k.k21),
  zeile22_verlusteOhneAktien:N(k.k22), zeile23_verlusteAktien:N(k.k23),
  zeile43_kapitalertragsteuer:N(k.k43)+N(k.taxPaid), zeile44_soli:N(k.k44)+N(k.soliPaid), zeile45_kirchensteuer:N(k.k45) })),
- anlageV:(c.props||[]).map(p=>({ objekt:p.address, mieteinnahmen:N(p.rent), werbungskosten:N(p.costs),
- ergebnis:N(p.rent)-N(p.costs) })),
+ anlageV:(c.props||[]).map(p=>({ objekt:p.address, land:p.country||'Deutschland',
+ mieteinnahmen:N(p.rent), werbungskosten:N(p.costs), nebenkosten:N(p.nebenkosten),
+ wohneinheit:p.unit||'', ferienwohnung:p.ferienwohnung==='ja', kurzfristig:p.kurzfristig==='ja',
+ angehoerige:p.angehoerige==='ja', ergebnis:N(p.rent)-N(p.costs) })),
  anlageR:(c.rente||[]).map(r=>({ person:r.person==='B'?'B':'A', art:r.type||'gesetzlich',
  jahresbetrag:N(r.amount), rentenbeginn:r.startYear||'',
  /* FIXED: was backwards (sent percentage only for privat). The real ERiC

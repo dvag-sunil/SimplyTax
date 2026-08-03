@@ -53,7 +53,7 @@ const N = {
   vb9:          { line: 9,  kennzahlen: ['E0201606'], slotResolved: true },
   ersatz15:     { line: 15, kennzahlen: ['E0202001'], slotResolved: true },
   fahrt17:      { line: 17, kennzahlen: ['E0205003'], slotResolved: true },
-  verpf20:      { line: 20, kennzahlen: ['E0205630'], slotResolved: true },
+  verpf20:      { line: 20, kennzahlen: ['E0205630'], slotResolved: false, note: 'MISMAPPED - do not use. E0205630 is Wk/VMA/Ausl/Sum (sum of CLAIMED foreign-travel meal expenses, a Werbungskosten figure), NOT the tax-free employer reimbursement from Lohnsteuerbescheinigung Zeile 20 that the app collects. Confirmed via real ERiC validation (feldUnbekannt) against a genuine client file. Correct home would be E0205108 (Wk/VMA/VMA_Ersatz), but it requires the accompanying travel-expense claim the app does not collect - so this value is deliberately not transmitted, and is reported via skippedSections instead.' },
   vbJahr30:     { line: 30, kennzahlen: ['E0201307'], slotResolved: true },
   vbMon31First: { line: 31, kennzahlen: ['E0201003'], slotResolved: true },
   vbMon31Last:  { line: 31, kennzahlen: ['E0201203'], slotResolved: true },
@@ -484,10 +484,83 @@ const R = {
    kosten and scope rental income to informational/calculation use only
    until (a) is done - a product decision, not something to guess around. */
 const V = {
+  /* Anlage V - DOMESTIC rental property only. Confirmed via direct
+     research against the real 2023 Felder/Kontexte sheets that Allg/Lage
+     has NO country field: Anlage V is structurally domestic-only.
+     Foreign rental income goes to Anlage AUS instead (see AUS below). */
   street: 'E0700407', plz: 'E0700503', ort: 'E0700504',
+
+  /* Allg/Nutzung - three usage declarations, ALL confirmed required
+     whenever any property data is given (real ERiC Regeln 100700068,
+     100700069, 100750004 against a genuine client file).
+     JaNein12BaseCType: "1" = Ja, "2" = Nein. Confirmed row order in the
+     real Felder sheet is 703, 705, 704 - NOT numeric order. */
+  nutzFerienwohnung: 'E0700703',   // als Ferienwohnung genutzt
+  nutzKurzfristig:   'E0700705',   // kurzfristig vermietet
+  nutzAngehoerige:   'E0700704',   // an Angehörige zu Wohnzwecken vermietet
+
+  /* Einn/Mieteinn/Whg - each unit needs a LABEL paired with its amount
+     (Regel 100750262: "Bezeichnung der Wohneinheit und der zugehörige
+     Betrag nicht gemeinsam angegeben"), plus a Sum companion. */
+  wohneinheit: 'E0701202',         // Bezeichnung der Wohneinheit
   mieteinnahmen: 'E0700201',       // Zeile 15 Mieteinnahmen
-  mieteinnahmenSum: 'E0700206',    // Summe (Einz/Sum pattern, same as Anlage N)
-  // werbungskosten / ergebnis: DELIBERATELY NOT MAPPED - see note above
+  mieteinnahmenSum: 'E0700206',    // Summe der Mieteinnahmen
+
+  /* Einn/Uml - service charges. Regel 100750265 requires EITHER an
+     amount OR an explicit "not separately agreed" declaration. The
+     latter is Ja1BaseCType ("1"), a different convention from the
+     JaNein12 fields above - confirmed via the real XSD. */
+  nebenkosten: 'E0700501',         // laufende Neben-/Betriebskosten
+  nebenkostenNichtVereinbart: 'E0702404', // Ja1: "nicht gesondert vereinbart"
+
+  /* Einn/Sum - overall income total (Regel 100700004). */
+  einnahmenSum: 'E0701401',
+
+  /* CORRECTED (real mistake, found and fixed via the actual client file
+     returning "feldUnbekannt" - not just a Regel violation this time):
+     an earlier pass wrongly nested this under a fabricated <Ek_b_Gst>
+     wrapper and duplicated the income sum into it. Verified directly
+     against the raw 2023 XSD (V_67907_CType, the single definition
+     actually used by the <V> element - no ambiguity): Erm_Zuord_Ek is
+     a DIRECT child of <V>, a sibling of Allg/Einn/Wk, and its ONLY
+     children are E0701601 (Überschuss), E0701801 and E0701802
+     (ownership-split attribution for a Gemeinschaft/Gesellschaft).
+     E0701401 (income sum) does NOT belong here at all - that field
+     lives only under Einn/Sum, which is already correctly emitted
+     elsewhere. Confirmed via real Regeln (198, 13) that E0701601 alone
+     satisfies both required checks - the attribution fields are not
+     needed for a single taxpayer. Since Werbungskosten total is not
+     mapped (see note above), Überschuss honestly equals the income
+     sum - consistent with the existing "declared income is gross"
+     warning given elsewhere for this same limitation. */
+  ueberschuss: 'E0701601', // V/Erm_Zuord_Ek - Überschuss (Einnahmen abzüglich Werbungskosten)
+  /* Real bug found via testing against a genuine client file (Regel:
+     "FeldAngegeben(E0701601) Und FeldNichtAngegeben(E0701801) Und
+     FeldNichtAngegeben(E0701802)" -> error): the Überschuss requires an
+     attribution to at least one of taxpayer/spouse. Confirmed field
+     order via the raw XSD: 601, 801, 802. The app does not collect a
+     per-property ownership split, so the full amount is honestly
+     attributed to the primary filer (Person A) - correct for the
+     common sole-ownership case. When Person B exists on the return, a
+     real co-ownership split may apply and is flagged rather than
+     guessed (see skippedSections). */
+  ueberschussZuordA: 'E0701801', // V/Erm_Zuord_Ek - Zurechnung an steuerpflichtige Person / Person A
+  ueberschussZuordB: 'E0701802', // V/Erm_Zuord_Ek - Zurechnung an Ehefrau / Person B
+  // werbungskosten (itemised categories) / Ergebnis details: DELIBERATELY NOT MAPPED - see note above
+};
+
+/* ---------- Anlage AUS - foreign income (Progressionsvorbehalt) ----------
+   Confirmed via direct research: foreign rental income does NOT belong on
+   Anlage V (no country field exists there) and NOT on Anlage V-Sonstige
+   (that sheet covers partnership shares, sublets and undeveloped land).
+   Under a DBA it is normally exempt in Germany but raises the tax rate on
+   German income - declared as "steuerfreie Einkünfte mit
+   Progressionsvorbehalt" at /AUS/Stfr_Ek_ProgV/P32b/Mitt/Einz. */
+const AUS = {
+  progStaat: 'E0603901',        // aus dem Staat
+  progQuelle: 'E0603902',       // aus der Einkunftsquelle
+  progEinkunftsart: 'E0603903', // Einkunftsart
+  progEinkuenfte: 'E0603904',   // Einkünfte (net result)
 };
 
 function routeToVOR(empField) {
@@ -576,7 +649,7 @@ function isFieldSupportedForYear(code, year) {
 }
 
 module.exports = {
-  ESt1A, N, VOR, SA, Kind, N_DHH, HA_35a, KAP, Sonst, ESt1A_U, N_AUS, AgB, EM_35c, ESt1A_Ersatz, R, V,
+  ESt1A, N, VOR, SA, Kind, N_DHH, HA_35a, KAP, Sonst, ESt1A_U, N_AUS, AgB, EM_35c, ESt1A_Ersatz, R, V, AUS,
   isSlotResolved, unresolvedFields, sumEmployerField, routeToVOR, computeAusTaxFree, amountToPflegegrad,
   SECTION_YEAR_SUPPORT, FIELD_YEAR_SUPPORT, isSectionSupportedForYear, isFieldSupportedForYear,
 };

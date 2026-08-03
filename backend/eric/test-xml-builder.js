@@ -98,8 +98,8 @@ check('privat pension does NOT get a percentage field (correct - none exists in 
 // Anlage V - address/income mapped, Werbungskosten honestly skipped
 check('rental street address written', xml.includes('<E0700407>Musterstr. 5</E0700407>'));
 check('rental income written (Einz and Sum)', xml.includes('<E0700201>12000</E0700201>') && xml.includes('<E0700206>12000</E0700206>'));
-check('V uses Einn/Mieteinn/Whg wrapper', xml.includes('<Einn><Mieteinn><Whg>'));
-check('V uses Allg/Lage wrapper for address', xml.includes('<Allg><Lage>'));
+check('V uses Einn/Mieteinn/Whg wrapper', /<Einn>\s*<Mieteinn><Whg>/.test(xml));
+check('V uses Allg/Lage wrapper for address', /<Allg>\s*<Lage>/.test(xml));
 check('rental Werbungskosten NOT written (documented scope gap, not a bug)', !xml.includes('4000,00'));
 check('skippedSections reports the rental costs gap', skippedSections.some(s => s.includes('Werbungskosten')));
 
@@ -423,6 +423,123 @@ check('N/vb9 (E0201606) IS present for tax year 2025, matching its confirmed rea
   y2025.anlageN[0].zeile9_versorgungMehrjaehrig = 500;
   const xml2025 = buildEStXML(y2025).xml;
   return xml2025.includes('E0201606');
+})());
+check('Anlage N Zeile 20 is NOT emitted as E0205630 - real bug found via a genuine client file (feldUnbekannt); that Kennzahl means claimed foreign-travel expenses, not the employer reimbursement the app collects', (() => {
+  const withZ20 = JSON.parse(JSON.stringify(sample));
+  withZ20.anlageN[0].zeile20_verpflegung = 500;
+  const result = buildEStXML(withZ20);
+  return !result.xml.includes('E0205630')
+    && result.skippedSections.some(s => s.includes('Zeile 20'));
+})());
+// Anlage V - full implementation (domestic) + foreign routing to AUS
+check('V emits full address as three separate fields (Regel 3149)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0700407>Musterstr. 1</E0700407>')
+    && x.includes('<E0700503>12345</E0700503>')
+    && x.includes('<E0700504>Musterstadt</E0700504>');
+})());
+check('V emits all three required Nutzung declarations in confirmed order 703,705,704', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000 }];
+  const x = buildEStXML(d).xml;
+  const a = x.indexOf('E0700703'), b = x.indexOf('E0700705'), c = x.indexOf('E0700704');
+  return a > -1 && a < b && b < c;
+})());
+check('V pairs the unit label with its amount (Regel 100750262)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000, wohneinheit: 'EG links' }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0701202>EG links</E0701202>') && x.includes('<E0700201>9000</E0700201>');
+})());
+check('V declares service charges not separately agreed when none entered (Regel 100750265)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000 }];
+  return buildEStXML(d).xml.includes('<E0702404>1</E0702404>');
+})());
+check('V sends the service-charge amount when one IS entered, not the not-agreed flag', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000, nebenkosten: 1200 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0700501>1200</E0700501>') && !x.includes('E0702404');
+})());
+check('V emits the income total including service charges (Regel 100700004)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000, nebenkosten: 1200 }];
+  return buildEStXML(d).xml.includes('<E0701401>10200</E0701401>');
+})());
+check('V warns when the address cannot be split into all three required parts', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ objekt: 'Irgendwo', mieteinnahmen: 9000 }];
+  return buildEStXML(d).skippedSections.some(s => s.includes('Regel 3149'));
+})());
+check('V includes the required Erm_Zuord_Ek/Überschuss whenever income is declared - CORRECTED (second pass): the fabricated Ek_b_Gst wrapper from the first attempt caused "feldUnbekannt" against a genuine client file; verified directly against the raw XSD this time (Erm_Zuord_Ek is a direct child of V, not nested under anything)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<Erm_Zuord_Ek>\n<E0701601>9000</E0701601>') && !x.includes('Ek_b_Gst') && !x.includes('E0701401>9000</E0701401>\n<E0701601');
+})());
+check('V places Erm_Zuord_Ek as a direct sibling of Einn within V, not duplicated into a second <V> block', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000 }];
+  const x = buildEStXML(d).xml;
+  return (x.match(/<V>/g) || []).length === 1 && (x.match(/<\/V>/g) || []).length === 1
+    && x.indexOf('</Einn>') < x.indexOf('<Erm_Zuord_Ek>') && x.indexOf('<Erm_Zuord_Ek>') < x.indexOf('</V>');
+})());
+check('V Erm_Zuord_Ek Überschuss equals the income total, since Werbungskosten total is honestly not mapped (consistent with the existing gross-income warning)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000, nebenkosten: 1200 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0701601>10200</E0701601>');
+})());
+check('V includes the required Überschuss attribution (E0701801) alongside E0701601 - real bug found via testing against a genuine client file (Regel: Überschuss given without any attribution is an error)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0701601>9000</E0701601>\n<E0701801>9000</E0701801>');
+})());
+check('V attributes the full surplus to Person A and warns (rather than guesses a split) when Person B exists on the return', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Erika', geburtsdatum: '1987-05-20' };
+  d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000 }];
+  const result = buildEStXML(d);
+  return result.xml.includes('<E0701801>9000</E0701801>') && !result.xml.includes('E0701802')
+    && result.skippedSections.some(s => s.includes('ownership split'));
+})());
+check('V does not emit E0701401 anywhere except Einn/Sum - the fabricated duplicate is gone', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000 }];
+  const x = buildEStXML(d).xml;
+  return (x.match(/<E0701401>/g) || []).length === 1;
+})());
+check('foreign rental goes to Anlage AUS, NOT Anlage V (V has no country field at all)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ objekt: 'Via Roma 5, Milano', land: 'Italien', mieteinnahmen: 12000, werbungskosten: 2000 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<AUS>') && x.includes('<E0603901>Italien</E0603901>')
+    && x.includes('<E0603904>10000</E0603904>') && !x.includes('<V>');
+})());
+check('AUS sits between KAP and R in the confirmed top-level order', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ objekt: 'Via Roma 5, Milano', land: 'Italien', mieteinnahmen: 12000 }];
+  d.anlageR = [{ art: 'gesetzlich', jahresbetrag: 5000, rentenbeginn: '2015' }];
+  const x = buildEStXML(d).xml;
+  return x.indexOf('<KAP>') < x.indexOf('<AUS>') && x.indexOf('<AUS>') < x.indexOf('<R>');
+})());
+check('domestic and foreign properties coexist - each routed to its own section', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [
+    { objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000 },
+    { objekt: 'Via Roma 5, Milano', land: 'Italien', mieteinnahmen: 12000 },
+  ];
+  const x = buildEStXML(d).xml;
+  return x.includes('<V>') && x.includes('<AUS>') && x.includes('<E0603901>Italien</E0603901>');
+})());
+check('foreign rental flags the treaty question rather than deciding it', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ objekt: 'Via Roma 5, Milano', land: 'Italien', mieteinnahmen: 12000 }];
+  return buildEStXML(d).skippedSections.some(s => s.includes('double-taxation'));
 })());
 check('buildR includes the required Person tag - real bug found via the multi-year regression test (mandatoryField, "/R[1]/Person[1]")', (() => {
   const withR = JSON.parse(JSON.stringify(sample));
