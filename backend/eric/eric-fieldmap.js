@@ -155,8 +155,19 @@ const Kind = {
   gemHhElt: 'E0504807',      // KBK/Ang_HH/Gem_HH_Elt - shared parental household period (DatumBereich)
   gemHhEltKind: 'E0504808', // KBK/Ang_HH/Gem_HH_Elt - "Das Kind gehörte zu unserem Haushalt im Zeitraum" - confirmed required TOGETHER with gemHhElt via real ERiC validation (Regel 514120, FelderNichtGemeinsamAngegeben-style pairing)
   kindergeld:  { kennzahlen: ['E0500702', 'E0503802'] },
-  schoolFees:  'E0504505',
-  schoolFeesSum: 'E0505607', // required companion total - confirmed via real ERiC validation
+  /* CORRECTED: real bug found via testing against a genuine client file
+     (not synthetic test data) - E0504505 (Elt_k_ZV) is NOT the itemized
+     entry that Sum needs to pair with at all. It's a genuinely
+     different, conditional field (the non-joint-assessment cost-split
+     amount, same "Elt_k_ZV" concept as childcare's Elt_k_ZV/Kosten).
+     The REAL itemized entry Sum requires is a separate context,
+     Schulgeld/Einz, with its own school-name and amount fields - never
+     implemented before, which is exactly why Sum kept appearing without
+     its required companion. */
+  schoolFeesEinzName: 'E0505606', // Schulgeld/Einz - Bezeichnung der Schule oder deren Träger
+  schoolFeesEinzAmount: 'E0504405', // Schulgeld/Einz - Einzelbetrag
+  schoolFeesSum: 'E0505607', // Schulgeld/Sum - required companion total
+  schoolFeesEltKZv: 'E0504505', // Schulgeld/Elt_k_ZV - only relevant for non-joint assessment cost-splitting, NOT the itemized entry
   kidTransfer: 'E0504301',
 
   /* RESOLVED. Found via the Kind - Regeln sheet (validation rule for
@@ -294,6 +305,41 @@ const ESt1A_U = {
   amount: 'E0120103',             // AW_U/U_Ztr - Höhe der Unterhaltszahlung (Ganzzahl)
   period: 'E0120109',             // AW_U/U_Ztr - Unterstützungszeitraum (DatumBereichTTpMMbTTpMMBaseCType - "TT.MM-TT.MM", same format as childcare's period)
   paymentPeriod: 'E0120104',      // AW_U/U_Ztr - Zeitraum der tatsächlichen Zahlungen (real bug found via multi-year regression test - confirmed required TOGETHER with the amount via Regel 300010 "FelderNichtGemeinsamAngegeben(E0120103, E0120104)" - a genuinely separate field from E0120109, not a duplicate)
+
+  /* =========================================================================
+     LEGACY (2021/2022) - a genuinely SEPARATE, isolated field group.
+     Confirmed via full research (not assumed) that Anlage Unterhalt's
+     structure for 2021/2022 is substantially different from 2023+:
+       - The amount lives under a DIFFERENT context, AW_U/U_Zlg (not
+         AW_U/U_Ztr like 2023+ uses for the period alone) - AND both
+         contexts are needed together (Regel 5).
+       - The Yes/No pattern fields (2023+'s JaNein12, "1"/"2") are
+         replaced with STATEMENT-style JaXBaseCType flags ("X") -
+         confirmed via the real XSD, a genuinely different value
+         convention, not just different Kennzahl numbers.
+       - Cohabitation, other-contributor, assets, and Kindergeld are all
+         phrased as opposite-polarity statements compared to 2023+ (e.g.
+         "had NO assets" instead of "had assets: yes/no").
+     Confirmed identical between 2021 and 2022 specifically (same codes,
+     same structure) - a single implementation covers both years. These
+     names are intentionally prefixed "legacy" and kept completely
+     separate from the fields above, so nothing here can accidentally
+     affect the confirmed-working 2023+ logic. */
+  legacyHouseholdAddress: 'E0120101',
+  legacyHouseholdSize: 'E0120108',
+  legacyIdnr: 'E0120211',
+  legacyName: 'E0120201',
+  legacyBirthDate: 'E0120203',
+  legacyProfession: 'E0120202',
+  legacyRelationship: 'E0120701',
+  legacyNoKindergeldAllYear: 'E0120401', // JaXBaseCType - "nobody had a Kindergeld claim the whole year" (the simple/default case)
+  legacyNoOrLowAssets: 'E0120301',       // JaXBaseCType - "had no or only minor assets"
+  legacyNoOtherContributor: 'E0120860',  // JaXBaseCType - "no other person contributed"
+  legacyNoIncome: 'E0120901',            // JaXBaseCType - "no income/benefits"
+  legacyPeriod: 'E0120109',              // AW_U/U_Ztr - Unterstützungszeitraum
+  legacyAmount: 'E0120103',              // AW_U/U_Zlg - Höhe der Unterhaltszahlung
+  legacyPaymentPeriod: 'E0120104',       // AW_U/U_Zlg - Zeitraum der Zahlung
+
   /* CORRECTED (found via user's own re-check request): confirmed via the
      real Regeln sheet that BOTH domestic (Regel 46) AND foreign (Regel
      48) branches require the supported person's IdNr - the foreign case
@@ -458,15 +504,35 @@ function routeToVOR(empField) {
    XML for an older year.
 ============================================================================= */
 const SECTION_YEAR_SUPPORT = {
-  /* ESt1A_U previously listed here as 2025-only. RESOLVED after direct
-     research: confirmed via a full field-by-field and Regel-by-Regel
-     comparison of the real 2023/2024/2025 Jahresdokumentation that every
-     Kennzahl code and validation rule is identical across all three
-     years - only the XML wrapper differs (2025 added a
-     <Ang_HH_unt_P_Unt_Leist> level). buildUnterhalt() in xml-builder.js
-     now handles this directly with a year-conditional wrapper, so no
-     section-level block is needed here anymore. This registry stays in
-     place for any future section that turns out to need one. */
+  /* ESt1A_U previously listed here as 2025-only. RESOLVED (for
+     2023-2025) after direct research: confirmed via a full
+     field-by-field and Regel-by-Regel comparison of the real
+     2023/2024/2025 Jahresdokumentation that every Kennzahl code and
+     validation rule is identical across those three years - only the
+     XML wrapper differs (2025 added a <Ang_HH_unt_P_Unt_Leist> level).
+     buildUnterhalt() in xml-builder.js handles this directly with a
+     year-conditional wrapper.
+
+     STILL GATED for 2021/2022, confirmed via direct research (not
+     assumed): every one of the 8 Kennzahl codes this section relies on
+     (cohabitation, Kindergeld entitlement, other contributor, assets,
+     own-income declaration, foreign confirmation) is genuinely MISSING
+     from the real 2021 and 2022 XSDs - not just a different wrapper,
+     the codes themselves don't exist under these numbers. ESt1A_U
+     itself does exist for those years (77-80 fields), so the deduction
+     category isn't unsupported by ELSTER - our specific implementation
+     just hasn't been researched against whatever the era-correct field
+     set was. That's real, separate research work, not attempted here
+     rather than guessed at.
+
+     RESOLVED for 2021/2022 too: full research completed (65 real
+     Regeln analyzed), confirming a genuinely separate structure - the
+     amount lives under a different context (AW_U/U_Zlg, needed
+     alongside AW_U/U_Ztr), and the Yes/No pattern is replaced with
+     opposite-polarity JaXBaseCType statement flags. Implemented as a
+     completely separate function, buildLegacyUnterhalt() in
+     xml-builder.js, gated to years < 2023 - the confirmed-working
+     2023+ path (buildUnterhalt()) is untouched. */
 };
 
 /* FIELD_YEAR_SUPPORT: individual fields whose CODE is genuinely

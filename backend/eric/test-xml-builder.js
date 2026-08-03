@@ -271,6 +271,38 @@ check('Anlage Unterhalt transmits correctly with complete data - all empirically
     .every(code => uXml.includes(code));
   return hasAllFields && !result.skippedSections.some(s => s.includes('anlageUnterhalt'));
 })());
+
+// Real element-ORDER regression (ERIC_IO_READER_SCHEMA_VALIDIERUNGSFEHLER,
+// 610301200) found via actual ERiC schema validation against a genuine
+// client file - passed every prior presence-only test silently. These
+// tests check actual position at all three levels that were wrong,
+// confirmed identical for both the 2023 and 2025 structures.
+check('Anlage Unterhalt: top-level order is HH_unt_P, AW_U, Ang_Unt_Pers (confirmed identical for both years, real regression found via schema validation)', (() => {
+  const withU = JSON.parse(JSON.stringify(sample));
+  withU.anlageUnterhalt = { betrag: 6000, von: '2025-01-01', bis: '2025-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Test' };
+  const uXml = buildEStXML(withU).xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
+  const posHH = uXml.indexOf('<HH_unt_P>');
+  const posAW = uXml.indexOf('<AW_U>');
+  const posAngP = uXml.indexOf('<Ang_Unt_Pers>');
+  return posHH !== -1 && posHH < posAW && posAW < posAngP;
+})());
+check('Anlage Unterhalt: Ang_Unt_Pers children order is Allg, Ek_Bez_u_P, Weit_beitr_P (real regression - these two were swapped)', (() => {
+  const withU = JSON.parse(JSON.stringify(sample));
+  withU.anlageUnterhalt = { betrag: 6000, von: '2025-01-01', bis: '2025-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Test' };
+  const uXml = buildEStXML(withU).xml;
+  const posAllg = uXml.indexOf('<Allg><Persoenl>');
+  const posEk = uXml.indexOf('<Ek_Bez_u_P>');
+  const posWeit = uXml.indexOf('<Weit_beitr_P>');
+  return posAllg !== -1 && posAllg < posEk && posEk < posWeit;
+})());
+check('Anlage Unterhalt: Persoenl field order is IdNr, Name, Birthdate, Profession, Relationship (real regression - was Name, Profession, Birthdate, IdNr)', (() => {
+  const withU = JSON.parse(JSON.stringify(sample));
+  withU.anlageUnterhalt = { betrag: 6000, von: '2025-01-01', bis: '2025-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Test' };
+  const uXml = buildEStXML(withU).xml;
+  const order = ['E0120211', 'E0120201', 'E0120203', 'E0120202', 'E0120701'];
+  const positions = order.map(code => uXml.indexOf(code));
+  return positions.every(p => p !== -1) && positions.every((p, i) => i === 0 || p > positions[i - 1]);
+})());
 check('Anlage Unterhalt correctly uses "2" (Nein) for hasOwnIncome, legally skipping the entire income sub-tree (JaNein12BaseCType, confirmed via real XSD)', (() => {
   const withU = JSON.parse(JSON.stringify(sample));
   withU.anlageUnterhalt = { betrag: 6000, personName: 'Maria', householdAddress: 'Test', hasOwnIncome: false };
@@ -405,6 +437,73 @@ check('buildR formats a year-only rentenbeginn into a full TT.MM.JJJJ date - rea
   const xml = buildEStXML(withR).xml;
   return xml.includes('<E1800501>01.01.2015</E1800501>');
 })());
+check('Eink_Ers (wage-replacement benefits) includes the required Person tag - real bug found via testing against another genuine client file (mandatoryField)', (() => {
+  const withErsatz = JSON.parse(JSON.stringify(sample));
+  withErsatz.weitereAngaben = { ersatzleistungen: 500 };
+  const xml = buildEStXML(withErsatz).xml;
+  return xml.includes('<Eink_Ers><Person>PersonA</Person>');
+})());
+check('buildV produces nothing for an entry with no genuine content (no address, no income) - real bug found via testing against another genuine client file (solitaryIndex) - was mistakenly cleared as "safe" in an earlier round', (() => {
+  const emptyV = JSON.parse(JSON.stringify(sample));
+  emptyV.anlageV = [{ objekt: '', mieteinnahmen: 0 }];
+  const xml = buildEStXML(emptyV).xml;
+  return !xml.includes('<V>');
+})());
+check('buildV correctly numbers sequential entries starting from 1 when an earlier empty entry is skipped, not leaving a gap', (() => {
+  const mixedV = JSON.parse(JSON.stringify(sample));
+  mixedV.anlageV = [{ objekt: '', mieteinnahmen: 0 }, { objekt: 'Teststr. 5, 12345 Berlin', mieteinnahmen: 8000 }];
+  const xml = buildEStXML(mixedV).xml;
+  return xml.includes('<Laufende_Nummer_V>1</Laufende_Nummer_V>') && !xml.includes('<Laufende_Nummer_V>2</Laufende_Nummer_V>');
+})());
+
+// Multi-year extension to 2021/2022 - confirmed via direct research
+// (not assumed) that Anlage Unterhalt's specific fields are missing for
+// those years, while everything else checked out compatible.
+check('Anlage Unterhalt (legacy structure) works correctly for tax year 2022 with complete data - no warnings, correct field set present', (() => {
+  const y2022 = JSON.parse(JSON.stringify(sample));
+  y2022.meta.taxYear = 2022;
+  y2022.anlageUnterhalt = { betrag: 6000, von: '2022-01-01', bis: '2022-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Test' };
+  const result = buildEStXML(y2022);
+  const uXml = result.xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
+  const hasCore = ['E0120101', 'E0120108', 'E0120211', 'E0120201', 'E0120203', 'E0120202', 'E0120701', 'E0120401', 'E0120301', 'E0120860', 'E0120901', 'E0120109', 'E0120103', 'E0120104'].every(c => uXml.includes(c));
+  return hasCore && !uXml.includes('Ang_HH_unt_P_Unt_Leist') && !result.skippedSections.some(s => s.includes('anlageUnterhalt'));
+})());
+check('Anlage Unterhalt (legacy structure) uses JaXBaseCType "X" values, not the 2023+ JaNein12 "1"/"2" convention - confirmed via the real XSD types', (() => {
+  const y2021 = JSON.parse(JSON.stringify(sample));
+  y2021.meta.taxYear = 2021;
+  y2021.anlageUnterhalt = { betrag: 6000, von: '2021-01-01', bis: '2021-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Test' };
+  const xml = buildEStXML(y2021).xml;
+  return xml.includes('<E0120401>X</E0120401>') && xml.includes('<E0120301>X</E0120301>') && !xml.includes('E0122505');
+})());
+check('Anlage Unterhalt (legacy structure) uses the confirmed correct amount context (AW_U/U_Zlg alongside AW_U/U_Ztr), a genuinely different structure from 2023+', (() => {
+  const y2022 = JSON.parse(JSON.stringify(sample));
+  y2022.meta.taxYear = 2022;
+  y2022.anlageUnterhalt = { betrag: 6000, von: '2022-01-01', bis: '2022-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Test' };
+  const xml = buildEStXML(y2022).xml;
+  return xml.includes('<U_Ztr>') && xml.includes('<U_Zlg>') && xml.includes('<E0120103>6000</E0120103>');
+})());
+check('Anlage Unterhalt correctly warns (not silently sends wrong) when a foreign household is indicated for a legacy year, since that path is not implemented', (() => {
+  const y2022foreign = JSON.parse(JSON.stringify(sample));
+  y2022foreign.meta.taxYear = 2022;
+  y2022foreign.anlageUnterhalt = { betrag: 6000, personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', householdAddress: 'Test', country: 'Türkei' };
+  const result = buildEStXML(y2022foreign);
+  return result.skippedSections.some(s => s.includes('anlageUnterhalt') && s.includes('not implemented for 2021/2022'));
+})());
+check('Anlage Unterhalt: 2023+ behavior remains completely unaffected by the new legacy implementation', (() => {
+  const y2023 = JSON.parse(JSON.stringify(sample));
+  y2023.meta.taxYear = 2023;
+  y2023.anlageUnterhalt = { betrag: 6000, von: '2023-01-01', bis: '2023-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Test' };
+  const result = buildEStXML(y2023);
+  const uXml = result.xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
+  return uXml.includes('E0122505') && uXml.includes('E0122613') && !result.skippedSections.some(s => s.includes('anlageUnterhalt'));
+})());
+check('Anlage Unterhalt still works normally for tax year 2023 - the new 2021/2022 gate does not affect the already-confirmed-working years', (() => {
+  const y2023 = JSON.parse(JSON.stringify(sample));
+  y2023.meta.taxYear = 2023;
+  y2023.anlageUnterhalt = { betrag: 6000, von: '2023-01-01', bis: '2023-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Test' };
+  const result = buildEStXML(y2023);
+  return result.xml.includes('<ESt1A_U>') && !result.skippedSections.some(s => s.includes('anlageUnterhalt'));
+})());
 
 // Kind (child) - four gaps closed after the multi-year regression test:
 // Familienkasse, residence duration, second parent's relationship
@@ -499,6 +598,19 @@ check('Kind K_Verh_and_P includes the required duration and relationship-type fi
   const xml = buildEStXML(singleFiler).xml;
   return xml.includes('<E0501903>01.01-31.12</E0501903>') && xml.includes('<E0501106>1</E0501106>');
 })());
+check('Kind Schulgeld includes the required Einz (itemized) block, not just Sum - real bug found via testing against a genuine client file (E0504505/Elt_k_ZV was wrongly treated as the itemized entry)', (() => {
+  const withSchool = JSON.parse(JSON.stringify(sample));
+  withSchool.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich', familienkasse: 'Test', otherParentName: 'Max', schulgeld: 200 }];
+  const xml = buildEStXML(withSchool).xml;
+  return xml.includes('<Einz>\n<E0505606>') && xml.includes('<E0504405>200</E0504405>') && xml.includes('<E0505607>200</E0505607>');
+})());
+check('AgB Krankheitskosten includes the required reimbursement fields (explicitly 0), not just Art/Höhe - real bug found via testing against a genuine client file (fields were already mapped but never used)', (() => {
+  const withMed = JSON.parse(JSON.stringify(sample));
+  withMed.aussergewoehnlicheBelastungen = { krankheitskosten: 500 };
+  const xml = buildEStXML(withMed).xml;
+  const agbBlock = xml.match(/<AgB>[\s\S]*?<\/AgB>/)?.[0] || '';
+  return agbBlock.includes('<E0161303>0</E0161303>') && agbBlock.includes('<E0161305>0</E0161305>');
+})());
 check('Kind warns when other parent\'s name is missing for a single filer, since it cannot be safely defaulted', (() => {
   const singleFilerNoParent = JSON.parse(JSON.stringify(sample));
   singleFilerNoParent.hauptvordruck.personB = null;
@@ -524,7 +636,7 @@ check('Kind childcare correctly OMITS Elt_k_ZV/Kosten when jointly assessed (Per
 })());
 check('Anlage Unterhalt includes the required paymentPeriod field (E0120104) alongside amount - real bug found via the multi-year regression test (Regel 300010, FelderNichtGemeinsamAngegeben)', (() => {
   const withU = JSON.parse(JSON.stringify(sample));
-  withU.anlageUnterhalt = { betrag: 6000, von: '2025-01-01', bis: '2025-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', householdAddress: 'Test' };
+  withU.anlageUnterhalt = { betrag: 6000, von: '2025-01-01', bis: '2025-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Test' };
   const uXml = buildEStXML(withU).xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
   return uXml.includes('<E0120104>01.01-31.12</E0120104>') && uXml.includes('<E0120109>01.01-31.12</E0120109>');
 })());

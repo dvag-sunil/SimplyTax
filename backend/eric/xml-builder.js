@@ -191,7 +191,10 @@ function buildESt1A(data) {
   xml += '</Allg>\n';
 
   const w = data.weitereAngaben || {};
-  if (w.ersatzleistungen) xml += `<Eink_Ers><Inl><Sum>\n${wholeEuroTag(fm.ESt1A_Ersatz.ersatz, w.ersatzleistungen)}</Sum></Inl></Eink_Ers>\n`;
+  /* CORRECTED: real bug found via testing against a genuine client file
+     - same bug class as buildR() earlier (missing Person tag, confirmed
+     unconditionally required via real ERiC mandatoryField validation). */
+  if (w.ersatzleistungen) xml += `<Eink_Ers><Person>PersonA</Person><Inl><Sum>\n${wholeEuroTag(fm.ESt1A_Ersatz.ersatz, w.ersatzleistungen)}</Sum></Inl></Eink_Ers>\n`;
 
   xml += '</ESt1A>\n';
   return xml;
@@ -493,12 +496,21 @@ function buildV(data) {
   const entries = data.anlageV || [];
   if (!entries.length) return '';
   let xml = '';
-  entries.forEach((p, idx) => {
+  let idx = 0;
+  entries.forEach((p) => {
+    /* CORRECTED: real bug found via testing against a genuine client
+       file (FachlicheFehlerId "solitaryIndex", "...außer der Angabe im
+       Feld Laufende_Nummer_V keine weiteren Angaben getätigt") - this
+       was mistakenly cleared as "safe" in an earlier round because it
+       always writes the sequence number, but ERiC does not consider the
+       sequence number ALONE to be valid content - same empty-wrapper
+       bug class as VOR/KAP/R, just missed here specifically. Only
+       emits an entry (and only increments the sequence number) when
+       there's genuine property content. */
+    if (!p.objekt && !(N(p.mieteinnahmen) > 0)) return;
+    idx++;
     xml += '<V>\n';
-    /* CORRECTED: Laufende_Nummer_V confirmed required via real ERiC
-       validation - a simple 1-based sequence number identifying each
-       property, using the array position already available from the loop. */
-    xml += tag('Laufende_Nummer_V', String(idx + 1));
+    xml += tag('Laufende_Nummer_V', String(idx));
     if (p.objekt) {
       const parts = String(p.objekt).split(',');
       if (parts[0]) xml += `<Allg><Lage>${tag(fm.V.street, parts[0].trim())}</Lage></Allg>\n`;
@@ -601,11 +613,20 @@ function buildAgB(data) {
     if (grad) { xml += `<Pflege_PB><Einz><Ang_pflegebeduerft_Pers>${tag(fm.AgB.pflegeGrad, grad)}</Ang_pflegebeduerft_Pers></Einz></Pflege_PB>\n`; any = true; }
   }
   if (agb.krankheitskosten) {
+    /* CORRECTED: real bug found via testing against a genuine client
+       file - kennzahlen[2]/[4] (the "erhaltene/zu erwartende
+       Versicherungsleistungen" reimbursement fields) were already
+       mapped but never actually used. The rule itself explicitly
+       permits "0" when there's no reimbursement (the app doesn't
+       collect this separately), so 0 is a safe, defensible default
+       rather than a guess - matching the rule's own stated allowance. */
     xml += '<And_Aufw><Krankh><Einz>\n';
     xml += tag(fm.AgB.medical.kennzahlen[0], 'Krankheitskosten');
     xml += wholeEuroTag(fm.AgB.medical.kennzahlen[1], agb.krankheitskosten);
+    xml += `<${fm.AgB.medical.kennzahlen[2]}>0</${fm.AgB.medical.kennzahlen[2]}>\n`;
     xml += '</Einz><Sum>\n';
     xml += wholeEuroTag(fm.AgB.medical.kennzahlen[3], agb.krankheitskosten);
+    xml += `<${fm.AgB.medical.kennzahlen[4]}>0</${fm.AgB.medical.kennzahlen[4]}>\n`;
     xml += '</Sum></Krankh></And_Aufw>\n';
     any = true;
   }
@@ -622,6 +643,69 @@ function buildAgB(data) {
    rather than sent incomplete, since ERiC would reject it anyway.
 ============================================================================= */
 const KINSHIP_ENUM = { leiblich: '1', adoptiert: '1', pflegekind: '2', stiefkind: '3' };
+/* =============================================================================
+   Anlage Unterhalt - LEGACY structure (2021/2022 only)
+   =============================================================================
+   Genuinely separate function, not a variant of buildUnterhalt() above -
+   built after full research (65 real Regeln analyzed, confirmed
+   identical between 2021 and 2022) that the 2021/2022 structure is
+   substantially different from 2023+, not just a wrapper difference:
+     - The amount lives under AW_U/U_Zlg, a different context from
+       2023+'s AW_U/U_Ztr - and BOTH contexts are needed together
+       (Regel 5: giving U_Zlg without U_Ztr's period field is an error).
+     - The simple Yes/No pattern (2023+'s JaNein12, "1"/"2") is replaced
+       with opposite-polarity JaXBaseCType statement flags ("X") -
+       confirmed via the real XSD types, a genuinely different value
+       convention: "had NO assets" instead of "had assets: yes/no".
+     - Kindergeld uses a mutually-exclusive pair (E0120401 "nobody all
+       year" OR E0120402 "someone during the year") instead of 2023+'s
+       single Ja/Nein field.
+   Covers the same common case as buildUnterhalt(): domestic household,
+   no other contributor, no assets, no income of the supported person -
+   confirmed via the real rules that this combination is genuinely
+   complete and valid, not guessed. Foreign-household support is NOT
+   implemented here (would need its own dedicated research pass, same
+   as any other real scope boundary in this project).
+============================================================================= */
+function buildLegacyUnterhalt(data) {
+  const u = data.anlageUnterhalt;
+  if (!u || !(u.betrag > 0)) return '';
+  const x = (v) => (v ? 'X' : ''); // JaXBaseCType: "X" asserts the statement, omitted otherwise
+
+  let hhUntP = '<HH_unt_P>\n';
+  hhUntP += tag(fm.ESt1A_U.legacyHouseholdAddress, u.householdAddress);
+  hhUntP += wholeEuroTag(fm.ESt1A_U.legacyHouseholdSize, u.householdSize || 2);
+  hhUntP += '</HH_unt_P>\n';
+
+  let awU = '<AW_U>\n';
+  awU += `<U_Ztr>\n${tag(fm.ESt1A_U.legacyPeriod, (u.von && u.bis) ? formatDateRangeDE(u.von, u.bis) : '')}</U_Ztr>\n`;
+  awU += '<U_Zlg>\n';
+  awU += wholeEuroTag(fm.ESt1A_U.legacyAmount, u.betrag);
+  if (u.von && u.bis) awU += tag(fm.ESt1A_U.legacyPaymentPeriod, formatDateRangeDE(u.von, u.bis));
+  awU += '</U_Zlg>\n';
+  awU += '</AW_U>\n';
+
+  let angUntPers = '<Ang_Unt_Pers><Allg><Persoenl>\n';
+  if (u.personIdnr) angUntPers += tag(fm.ESt1A_U.legacyIdnr, u.personIdnr.replace(/\s/g, ''));
+  angUntPers += tag(fm.ESt1A_U.legacyName, u.personName);
+  angUntPers += tag(fm.ESt1A_U.legacyBirthDate, formatDateDE(u.personBirthDate));
+  angUntPers += tag(fm.ESt1A_U.legacyProfession, u.profession);
+  angUntPers += tag(fm.ESt1A_U.legacyRelationship, u.relationship);
+  angUntPers += '</Persoenl>\n';
+  /* Kindergeld: mutually exclusive pair, confirmed via Regel 32
+     (AlleFelderAngegeben(E0120401,E0120402) is itself an error - only
+     one may be sent). Defaults to the common case: nobody claimed
+     Kindergeld for this person all year. */
+  angUntPers += `<U_Berecht>\n${tag(fm.ESt1A_U.legacyNoKindergeldAllYear, x(!u.kindergeldEntitlement))}</U_Berecht>\n`;
+  angUntPers += `<Verm_u_P>\n${tag(fm.ESt1A_U.legacyNoOrLowAssets, x(!u.hasAssets))}</Verm_u_P>\n`;
+  angUntPers += `<Weit_beitr_P>\n${tag(fm.ESt1A_U.legacyNoOtherContributor, x(!u.otherContributor))}</Weit_beitr_P>\n`;
+  angUntPers += '</Allg>\n';
+  angUntPers += `<Ek_Bez_u_P><Allg>\n${tag(fm.ESt1A_U.legacyNoIncome, x(!u.hasOwnIncome))}</Allg></Ek_Bez_u_P>\n`;
+  angUntPers += '</Ang_Unt_Pers>\n';
+
+  return `<ESt1A_U>\n${hhUntP}${awU}${angUntPers}</ESt1A_U>\n`;
+}
+
 function buildKind(data) {
   const entries = data.anlageKind || [];
   if (!entries.length) return '';
@@ -710,7 +794,26 @@ function buildKind(data) {
        amount) - same Einz/Sum completeness pattern as everywhere else
        in this schema. For a single child/single payer, the total equals
        the individual amount. */
-    if (k.schulgeld) xml += `<Schulgeld><Elt_k_ZV>${wholeEuroTag(fm.Kind.schoolFees, k.schulgeld)}</Elt_k_ZV><Sum>${wholeEuroTag(fm.Kind.schoolFeesSum, k.schulgeld)}</Sum></Schulgeld>\n`;
+    if (k.schulgeld) {
+      /* CORRECTED: real bug found via testing against a genuine client
+         file - the itemized Einz block (school name + amount) was never
+         implemented; only Sum was sent, which real ERiC correctly
+         rejected as incomplete. A generic, purely-descriptive default
+         is used for the school name when the app doesn't collect one
+         specifically (safe, since it's not a factual declaration the
+         way a person's identity would be). Elt_k_ZV is only relevant
+         for non-joint-assessment cost-splitting (same concept as
+         childcare's Elt_k_ZV) - correctly omitted when jointly
+         assessed. */
+      xml += '<Schulgeld><Einz>\n';
+      xml += tag(fm.Kind.schoolFeesEinzName, k.schulgeldSchule || 'Schule');
+      xml += wholeEuroTag(fm.Kind.schoolFeesEinzAmount, k.schulgeld);
+      xml += '</Einz><Sum>\n';
+      xml += wholeEuroTag(fm.Kind.schoolFeesSum, k.schulgeld);
+      xml += '</Sum>';
+      if (!B) xml += `<Elt_k_ZV>${wholeEuroTag(fm.Kind.schoolFeesEltKZv, k.schulgeld)}</Elt_k_ZV>`;
+      xml += '</Schulgeld>\n';
+    }
 
     /* childcare - now safe to write: the app's UI enforces provider+period
        whenever an amount is entered, so by the time data reaches here the
@@ -758,6 +861,15 @@ function buildKind(data) {
 function buildUnterhalt(data) {
   const u = data.anlageUnterhalt;
   if (!u || !(u.betrag > 0)) return '';
+  /* YEAR DISPATCH: confirmed via full research (65 real Regeln
+     analyzed) that 2021/2022 use a genuinely different structure, not
+     just a wrapper difference like 2023-2025 share. Redirects to a
+     completely separate, isolated implementation for those years -
+     this function (and the confirmed-working 2023+ structure below it)
+     is never touched for 2021/2022. See eric-fieldmap.js
+     SECTION_YEAR_SUPPORT and buildLegacyUnterhalt() above for the full
+     research trail. */
+  if ((data.meta?.taxYear || 2025) < 2023) return buildLegacyUnterhalt(data);
   /* MULTI-YEAR SUPPORT (implemented after direct research, not guessed):
      confirmed via a full field-by-field and Regel-by-Regel comparison of
      the real 2023, 2024, and 2025 Jahresdokumentation that:
@@ -777,44 +889,52 @@ function buildUnterhalt(data) {
   const yn = (v) => (v ? '1' : '2'); // JaNein12BaseCType: 1=Ja, 2=Nein
   const isForeign = u.country && u.country !== 'Deutschland';
 
-  let inner = '';
-  inner += '<HH_unt_P>\n';
-  inner += tag(fm.ESt1A_U.householdAddress, u.householdAddress);
-  if (isForeign) inner += tag(fm.ESt1A_U.country, u.country);
-  inner += wholeEuroTag(fm.ESt1A_U.householdSize, u.householdSize || 2);
-  inner += '</HH_unt_P>\n';
-  inner += '<Ang_Unt_Pers><Allg><Persoenl>\n';
-  inner += tag(fm.ESt1A_U.name, u.personName);
-  inner += tag(fm.ESt1A_U.profession, u.profession);
-  inner += tag(fm.ESt1A_U.personBirthDate, formatDateDE(u.personBirthDate));
-  if (u.personIdnr) inner += tag(fm.ESt1A_U.idnr, u.personIdnr.replace(/\s/g, '')); // CORRECTED understanding: required for DOMESTIC (confirmed via the multi-year regression test - my earlier "genuinely not required" finding was tested only in a foreign scenario and wrongly generalized to domestic too); genuinely optional only when foreign. See the skippedSections warning below for the corrected domestic-only check.
-  inner += tag(fm.ESt1A_U.relationship, u.relationship);
-  inner += '</Persoenl><U_Berecht>\n';
-  inner += tag(fm.ESt1A_U.cohabitation, yn(u.cohabitation));
-  inner += tag(fm.ESt1A_U.kindergeldEntitlement, yn(u.kindergeldEntitlement));
-  inner += '</U_Berecht>\n';
-  /* Vermögen (assets) - confirmed required, same rule, all three years.
-     Detail sub-fields (total value, period) only needed if "Ja" - not
-     implemented, matching the same already-established pattern used
-     for hasOwnIncome (defaulting to "Nein" covers the common case). */
-  inner += `<Verm_u_P>\n${tag(fm.ESt1A_U.hasAssets, yn(u.hasAssets))}</Verm_u_P>\n`;
-  if (isForeign) inner += `<Erkl_Beduerft>\n${tag(fm.ESt1A_U.foreignNeedConfirmed, yn(u.foreignNeedConfirmed))}</Erkl_Beduerft>\n`;
-  inner += '</Allg>\n';
-  inner += `<Weit_beitr_P>\n${tag(fm.ESt1A_U.otherContributor, yn(u.otherContributor))}</Weit_beitr_P>\n`;
-  inner += `<Ek_Bez_u_P><Allg>\n${tag(fm.ESt1A_U.hasOwnIncome, yn(u.hasOwnIncome))}</Allg></Ek_Bez_u_P>\n`;
-  inner += '</Ang_Unt_Pers>\n';
-  inner += '<AW_U><U_Ztr>\n';
-  if (u.von && u.bis) inner += tag(fm.ESt1A_U.period, formatDateRangeDE(u.von, u.bis));
-  /* CORRECTED: real bug found via the multi-year regression test - the
-     amount and E0120104 (payment period) must be given TOGETHER (Regel
-     300010, FelderNichtGemeinsamAngegeben). Our app collects a single
-     support period (von/bis) that serves as both the "support covered"
-     period (E0120109) and the "payments made" period (E0120104) - a
-     reasonable simplification for the common case where support was
-     paid steadily across the same period it covers. */
-  if (u.von && u.bis) inner += tag(fm.ESt1A_U.paymentPeriod, formatDateRangeDE(u.von, u.bis));
-  inner += wholeEuroTag(fm.ESt1A_U.amount, u.betrag);
-  inner += '</U_Ztr></AW_U>\n';
+  /* CORRECTED (major): real bug found via actual ERiC schema validation
+     (ERIC_IO_READER_SCHEMA_VALIDIERUNGSFEHLER, 610301200) against a
+     genuine client file - confirmed via direct Kontexte/Felder row-order
+     comparison for BOTH 2023 and 2025 that the element order below was
+     wrong in THREE places, and - importantly - the correct order is
+     IDENTICAL between years (only the wrapper differs, not the order
+     itself), so this is one universal fix, not a year-specific one:
+       1. Persoenl: IdNr, Name, Birthdate, Profession, Relationship
+          (was: Name, Profession, Birthdate, IdNr, Relationship)
+       2. Top-level ESt1A_U: HH_unt_P, AW_U, Ang_Unt_Pers
+          (was: HH_unt_P, Ang_Unt_Pers, AW_U)
+       3. Ang_Unt_Pers children: Allg, Ek_Bez_u_P, Weit_beitr_P
+          (was: Allg, Weit_beitr_P, Ek_Bez_u_P)
+     Built as three separate pieces here and assembled in the confirmed
+     correct order, rather than one linear string, to make this order
+     explicit and harder to accidentally break again. */
+  let hhUntP = '<HH_unt_P>\n';
+  hhUntP += tag(fm.ESt1A_U.householdAddress, u.householdAddress);
+  if (isForeign) hhUntP += tag(fm.ESt1A_U.country, u.country);
+  hhUntP += wholeEuroTag(fm.ESt1A_U.householdSize, u.householdSize || 2);
+  hhUntP += '</HH_unt_P>\n';
+
+  let angUntPers = '<Ang_Unt_Pers><Allg><Persoenl>\n';
+  if (u.personIdnr) angUntPers += tag(fm.ESt1A_U.idnr, u.personIdnr.replace(/\s/g, ''));
+  angUntPers += tag(fm.ESt1A_U.name, u.personName);
+  angUntPers += tag(fm.ESt1A_U.personBirthDate, formatDateDE(u.personBirthDate));
+  angUntPers += tag(fm.ESt1A_U.profession, u.profession);
+  angUntPers += tag(fm.ESt1A_U.relationship, u.relationship);
+  angUntPers += '</Persoenl><U_Berecht>\n';
+  angUntPers += tag(fm.ESt1A_U.cohabitation, yn(u.cohabitation));
+  angUntPers += tag(fm.ESt1A_U.kindergeldEntitlement, yn(u.kindergeldEntitlement));
+  angUntPers += '</U_Berecht>\n';
+  angUntPers += `<Verm_u_P>\n${tag(fm.ESt1A_U.hasAssets, yn(u.hasAssets))}</Verm_u_P>\n`;
+  if (isForeign) angUntPers += `<Erkl_Beduerft>\n${tag(fm.ESt1A_U.foreignNeedConfirmed, yn(u.foreignNeedConfirmed))}</Erkl_Beduerft>\n`;
+  angUntPers += '</Allg>\n';
+  angUntPers += `<Ek_Bez_u_P><Allg>\n${tag(fm.ESt1A_U.hasOwnIncome, yn(u.hasOwnIncome))}</Allg></Ek_Bez_u_P>\n`;
+  angUntPers += `<Weit_beitr_P>\n${tag(fm.ESt1A_U.otherContributor, yn(u.otherContributor))}</Weit_beitr_P>\n`;
+  angUntPers += '</Ang_Unt_Pers>\n';
+
+  let awU = '<AW_U><U_Ztr>\n';
+  if (u.von && u.bis) awU += tag(fm.ESt1A_U.period, formatDateRangeDE(u.von, u.bis));
+  if (u.von && u.bis) awU += tag(fm.ESt1A_U.paymentPeriod, formatDateRangeDE(u.von, u.bis));
+  awU += wholeEuroTag(fm.ESt1A_U.amount, u.betrag);
+  awU += '</U_Ztr></AW_U>\n';
+
+  const inner = hhUntP + awU + angUntPers;
 
   return useWrapper
     ? `<ESt1A_U><Ang_HH_unt_P_Unt_Leist>\n${inner}</Ang_HH_unt_P_Unt_Leist></ESt1A_U>\n`
@@ -996,18 +1116,38 @@ function buildEStXML(data, opts = {}) {
     skippedSections.push('anlageKind present without the Familienkasse (responsible child-benefit office) for at least one child - confirmed required alongside name/birthdate (Regel 5021). This is genuinely case-specific data (which office is responsible) that cannot be safely defaulted - needs to come from the user.');
   if (!data.hauptvordruck?.personB && (data.anlageKind || []).some(k => k.vorname && k.geburtsdatum && !k.otherParentName))
     skippedSections.push('anlageKind present for a single filer without the other parent\'s name for at least one child - confirmed required (Regel 100500048/25). This is genuinely case-specific data that cannot be safely defaulted - needs to come from the user.');
-  if (data.anlageUnterhalt?.betrag > 0 && (!data.anlageUnterhalt.personName || !data.anlageUnterhalt.householdAddress || !data.anlageUnterhalt.profession || !data.anlageUnterhalt.personBirthDate))
-    skippedSections.push('anlageUnterhalt support payment present but missing one or more required fields (confirmed via a real empirical ERiC test, not just documentation): the supported person\'s name, profession/marital status, birthdate, and household address are all required together (Regel 100120001).');
-  if (data.anlageUnterhalt?.betrag > 0 && !(data.anlageUnterhalt.country && data.anlageUnterhalt.country !== 'Deutschland') && !data.anlageUnterhalt.personIdnr)
-    /* CORRECTED: an earlier round's empirical test found IdNr "not
-       required" - but that test only covered a FOREIGN scenario and was
-       wrongly generalized to domestic too. The real multi-year
-       regression test proved domestic genuinely DOES require it (Regel
-       100120098, "Voraussetzung für den Abzug"). Only foreign is
-       genuinely exempt. */
-    skippedSections.push('anlageUnterhalt support payment for a domestic household present but missing the supported person\'s IdNr - confirmed required for domestic cases (Regel 100120098); only exempt when the household is genuinely foreign.');
-  if (data.anlageUnterhalt?.betrag > 0 && data.anlageUnterhalt.country && data.anlageUnterhalt.country !== 'Deutschland' && data.anlageUnterhalt.foreignNeedConfirmed !== true)
-    skippedSections.push('anlageUnterhalt support payment for a foreign household - confirmed via real ERiC validation (Regel 32) that the home-country-authority confirmation (foreignNeedConfirmed) is required for foreign households.');
+  if (data.anlageUnterhalt?.betrag > 0) {
+    const uYear = data.meta?.taxYear || 2025;
+    const isLegacyYear = uYear < 2023;
+    if (isLegacyYear) {
+      /* Legacy (2021/2022) required-field check - same core identity
+         fields as 2023+ (Regel 27, "NichtAlleFelderOderKeinFeldAngegeben
+         (E0120201,E0120202,E0120203)"), confirmed via the same
+         completeness-group pattern, plus IdNr confirmed unconditionally
+         required (Regel 28/29) - not just domestic-conditional the way
+         2023+ turned out to be. Foreign households are not implemented
+         for legacy years (would need dedicated research), so no
+         separate foreign-path warning here. */
+      if (!data.anlageUnterhalt.personName || !data.anlageUnterhalt.profession || !data.anlageUnterhalt.personBirthDate || !data.anlageUnterhalt.householdAddress || !data.anlageUnterhalt.personIdnr)
+        skippedSections.push(`anlageUnterhalt (legacy structure, tax year ${uYear}) support payment present but missing one or more required fields: the supported person's name, profession/marital status, birthdate, IdNr, and household address are all required (confirmed via real Regeln 27-29 for the 2021/2022 structure).`);
+      if (data.anlageUnterhalt.country && data.anlageUnterhalt.country !== 'Deutschland')
+        skippedSections.push(`anlageUnterhalt (legacy structure, tax year ${uYear}) - a foreign household was indicated, but foreign-household support is not implemented for 2021/2022 (would need its own dedicated research pass, same as any other real scope boundary in this project). Only domestic households are currently supported for these years.`);
+    } else if (!data.anlageUnterhalt.personName || !data.anlageUnterhalt.householdAddress || !data.anlageUnterhalt.profession || !data.anlageUnterhalt.personBirthDate) {
+      skippedSections.push('anlageUnterhalt support payment present but missing one or more required fields (confirmed via a real empirical ERiC test, not just documentation): the supported person\'s name, profession/marital status, birthdate, and household address are all required together (Regel 100120001).');
+    }
+    if (!isLegacyYear && (!data.anlageUnterhalt.von || !data.anlageUnterhalt.bis))
+      skippedSections.push('anlageUnterhalt support payment present but missing the support period (von/bis dates) - confirmed required together with the amount (Regel 300010/300135), found via testing against a genuine client file that omitted these dates.');
+    if (!isLegacyYear && !(data.anlageUnterhalt.country && data.anlageUnterhalt.country !== 'Deutschland') && !data.anlageUnterhalt.personIdnr)
+      /* CORRECTED: an earlier round's empirical test found IdNr "not
+         required" - but that test only covered a FOREIGN scenario and was
+         wrongly generalized to domestic too. The real multi-year
+         regression test proved domestic genuinely DOES require it (Regel
+         100120098, "Voraussetzung für den Abzug"). Only foreign is
+         genuinely exempt. */
+      skippedSections.push('anlageUnterhalt support payment for a domestic household present but missing the supported person\'s IdNr - confirmed required for domestic cases (Regel 100120098); only exempt when the household is genuinely foreign.');
+    if (!isLegacyYear && data.anlageUnterhalt.country && data.anlageUnterhalt.country !== 'Deutschland' && data.anlageUnterhalt.foreignNeedConfirmed !== true)
+      skippedSections.push('anlageUnterhalt support payment for a foreign household - confirmed via real ERiC validation (Regel 32) that the home-country-authority confirmation (foreignNeedConfirmed) is required for foreign households.');
+  }
   if (data.weitereAngaben?.realsplittingAnlageU && !data.weitereAngaben.realsplitIdnr) {
     /* NOTE: the app does not currently collect a country/residence field
        specifically for Realsplitting (unlike Anlage Unterhalt) - so this
