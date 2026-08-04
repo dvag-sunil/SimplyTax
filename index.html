@@ -547,6 +547,7 @@ en: {
  dup_idnr_found:"This tax ID is entered twice for two different people - each person's ID must be unique.",
  dup_idnr_filer:"your own ID", dup_idnr_spouse:"spouse's ID", dup_idnr_unt:"supported person's ID", dup_idnr_realsplit:"ex-spouse's ID (Realsplitting)",
  spouse_incomplete_warning:"First name, birthdate, and religion must all be given together for the spouse - some are missing.",
+ em35c_age_warning:"Based on these two dates, the building is under 10 years old at renovation start - §35c requires it to be older. Double-check the dates, since ERiC will reject this otherwise.",
  taxid_valid_checksum:"Valid Steuer-ID",
  street:"Street", house_no:"No.", plz:"Postal code", city:"City",
  religion:"Church tax (religion)", rel_none:"None (no church tax)", rel_ev:"Protestant (EV)", rel_rk:"Catholic (RK)", rel_other:"Other",
@@ -885,6 +886,7 @@ de: {
  dup_idnr_found:"Diese Steuer-ID ist zweimal für unterschiedliche Personen eingetragen - jede ID muss eindeutig sein.",
  dup_idnr_filer:"eigene ID", dup_idnr_spouse:"ID des Ehepartners", dup_idnr_unt:"ID der unterstützten Person", dup_idnr_realsplit:"ID des Ex-Partners (Realsplitting)",
  spouse_incomplete_warning:"Vorname, Geburtsdatum und Religion müssen beim Ehepartner gemeinsam angegeben werden - einige fehlen noch.",
+ em35c_age_warning:"Nach diesen beiden Daten ist das Gebäude bei Baubeginn der Sanierung unter 10 Jahre alt - §35c setzt ein höheres Alter voraus. Bitte die Daten prüfen, sonst wird dies von ERiC abgelehnt.",
  taxid_valid_checksum:"Gültige Steuer-ID",
  street:"Straße", house_no:"Nr.", plz:"PLZ", city:"Ort",
  religion:"Kirchensteuer (Religion)", rel_none:"Keine (keine Kirchensteuer)", rel_ev:"Evangelisch (EV)", rel_rk:"Katholisch (RK)", rel_other:"Andere",
@@ -2347,6 +2349,7 @@ function upd(group,key,val,fmt){
  if(group==='oth' && key==='realsplitIdnr') checkTaxIdChecksum(val, 'realsplitidnr-check-msg');
  if(group==='fam' && key==='untIdnr') checkTaxIdChecksum(val, 'untidnr-check-msg');
  if(group==='p' && key==='taxId' || group==='p' && key==='spouseTaxId' || group==='oth' && key==='realsplitIdnr' || group==='fam' && key==='untIdnr') checkDuplicateIdNrs();
+ if(group==='oth' && (key==='emBuildDate'||key==='emMeasureStart')) checkEm35cAge();
 }
 /* Real IBAN checksum validation via ERiC's EricMtPruefeIBAN (through
  /api/eric/validate-fields) - same pattern and same safety properties as
@@ -2444,6 +2447,24 @@ function checkDuplicateIdNrs(){
  }
  }
  el.innerHTML='';
+}
+/* Real gap: the 10-year building-age rule (Regel 102240003) already
+   had a static hint, but no live check - it only ever surfaced as an
+   error at the very end via the Freigabe warning, same blind spot as
+   the ID issues above. This computes the same real rule the backend
+   already checks, but as soon as both dates are entered, not after
+   the fact. */
+function checkEm35cAge(){
+ const c=cur(); if(!c) return;
+ const el=document.getElementById('em35c-age-check-msg'); if(!el) return;
+ const bd=c.oth?.emBuildDate, ms=c.oth?.emMeasureStart;
+ if(!bd || !ms){ el.innerHTML=''; return; }
+ const years=(new Date(ms)-new Date(bd))/(365.25*24*3600*1000);
+ if(years<10){
+ el.innerHTML=`<div class="hint" style="color:var(--red)">⚠ ${t('em35c_age_warning')}</div>`;
+ } else {
+ el.innerHTML='';
+ }
 }
 /* --- generic list items (employments, capital gains, properties) --- */
 function LF(list,item,field,label,opts={}){
@@ -3105,6 +3126,7 @@ function stepHousehold(c){
  ${F('oth','emBuildDate',t('energ_builddate'),{type:'date',hint:t('energ_builddate_hint')})}
  ${F('oth','emMeasureStart',t('energ_measurestart'),{type:'date'})}
  </div>
+ <div id="em35c-age-check-msg"></div>
  <div class="grid2">
  ${F('oth','emAreaTotal',t('energ_areatotal'),{ph:'150'})}
  ${F('oth','emAreaOwn',t('energ_areaown'),{ph:'150'})}
