@@ -537,6 +537,8 @@ en: {
  submitting_to:"Receiving tax office",
  freigabe_title:"Release for transmission", freigabe_sub:"Please review the figures below carefully. Once you release this return, it is transmitted to the Finanzamt through the official electronic filing system.",
  freigabe_validate_failed:"ERiC could not confirm this return is ready to send yet.",
+ freigabe_warnings_title:"Please review before sending",
+ freigabe_warnings_sub:"ERiC accepted this return, but the following items were sent using a safe default or were left out because the app cannot honestly determine them yet. Please double-check they are correct for this client before proceeding.",
  freigabe_checkbox:"I have reviewed this data and release it for transmission to the tax office.",
  freigabe_submit:"Release & submit", freigabe_not_sent:"Not transmitted",
  freigabe_not_sent_hint:"The tax office did not confirm receipt. This is expected while ERiC setup is still in progress; nothing was lost, your data is saved and you can try again later.",
@@ -839,6 +841,8 @@ de: {
  submitting_to:"Empfangendes Finanzamt",
  freigabe_title:"Zur Übermittlung freigeben", freigabe_sub:"Bitte prüfen Sie die folgenden Angaben sorgfältig. Mit der Freigabe wird diese Erklärung über die offizielle elektronische Schnittstelle an das Finanzamt übermittelt.",
  freigabe_validate_failed:"ERiC konnte noch nicht bestätigen, dass diese Erklärung versandbereit ist.",
+ freigabe_warnings_title:"Bitte vor dem Versand prüfen",
+ freigabe_warnings_sub:"ERiC hat diese Erklärung angenommen, die folgenden Punkte wurden jedoch mit einem sicheren Standardwert übermittelt oder ausgelassen, da die App sie derzeit nicht zuverlässig ermitteln kann. Bitte prüfen Sie vor dem Fortfahren, ob dies für diesen Mandanten zutrifft.",
  freigabe_checkbox:"Ich habe diese Daten geprüft und gebe sie zur Übermittlung an das Finanzamt frei.",
  freigabe_submit:"Freigeben & übermitteln", freigabe_not_sent:"Nicht übermittelt",
  freigabe_not_sent_hint:"Das Finanzamt hat den Eingang nicht bestätigt. Das ist erwartbar, solange die ERiC-Einrichtung noch läuft; es geht nichts verloren, Ihre Daten sind gespeichert und Sie können es später erneut versuchen.",
@@ -3025,11 +3029,19 @@ function showFreigabeModal(c, data, validateResult){
  const e=computeEstimate(c);
  const slot=document.getElementById('modal-slot'); if(!slot) return;
  const valid = validateResult && validateResult.ok;
+ const warnings = (validateResult && Array.isArray(validateResult.skippedSections)) ? validateResult.skippedSections : [];
  slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal">
  <h2>🔏 ${t('freigabe_title')}</h2>
  <p style="color:var(--ink-soft);font-size:13.5px;margin:6px 0 16px">${t('freigabe_sub')}</p>
  ${!valid?`<div class="infobox" style="background:var(--red-soft);border-color:var(--red);margin-bottom:14px">
  ⚠ ${t('freigabe_validate_failed')} (${t('eric_code')}: ${validateResult?validateResult.rc:'?'})
+ </div>`:''}
+ ${warnings.length?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin-bottom:14px">
+ <div style="font-weight:600;margin-bottom:6px">⚠ ${t('freigabe_warnings_title')} (${warnings.length})</div>
+ <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px">${t('freigabe_warnings_sub')}</div>
+ <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.5">
+ ${warnings.map(w=>`<li style="margin-bottom:4px">${esc(w)}</li>`).join('')}
+ </ul>
  </div>`:''}
  <div class="sum-group" style="margin-bottom:14px">
  <div class="row"><span>${t('client')}</span><b>${esc(c.p.firstName)} ${esc(c.p.lastName)}</b></div>
