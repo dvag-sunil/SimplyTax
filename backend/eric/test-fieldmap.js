@@ -33,11 +33,11 @@ for (const [section, obj] of Object.entries({
   }
 }
 
-check('total mapped fields = 199', Object.values({
+check('total mapped fields = 212', Object.values({
   ESt1A: fm.ESt1A, N: fm.N, VOR: fm.VOR, SA: fm.SA, Kind: fm.Kind, N_DHH: fm.N_DHH,
   KAP: fm.KAP, HA_35a: fm.HA_35a, Sonst: fm.Sonst, ESt1A_U: fm.ESt1A_U, N_AUS: fm.N_AUS,
   AgB: fm.AgB, EM_35c: fm.EM_35c, ESt1A_Ersatz: fm.ESt1A_Ersatz, R: fm.R, V: fm.V,
-}).reduce((sum, o) => sum + Object.keys(o).length, 0) === 199);
+}).reduce((sum, o) => sum + Object.keys(o).length, 0) === 212);
 
 check('gross einz/sum correct', fm.N.gross.einz === 'E0200204' && fm.N.gross.sum === 'E0200201');
 check('taxClass corrected to Steuerklasse', fm.N.taxClass.kennzahlen[0] === 'E0200002');
@@ -49,7 +49,7 @@ check('isSlotResolved false for verpf20 - deliberately unresolved after the mism
 check('isSlotResolved true for vb8', fm.isSlotResolved(fm.N, 'vb8') === true);
 check('routeToVOR agRV -> rv', fm.routeToVOR('agRV') === 'rv');
 check('routeToVOR unknown -> null', fm.routeToVOR('doesNotExist') === null);
-check('computeAusTaxFree formula', fm.computeAusTaxFree(60000, 90, 220) === 24545.45);
+check('computeAusTaxFree formula (CORRECTED: confirmed via real Regel 52 that the input is REMAINING wage, not total wage as first assumed, and the field type requires a whole integer result)', fm.computeAusTaxFree(35455, 90, 220) === 14504);
 check('computeAusTaxFree zero-days safe', fm.computeAusTaxFree(60000, 0, 0) === 0);
 check('amountToPflegegrad 600->2', fm.amountToPflegegrad('600') === '2');
 check('amountToPflegegrad 1800->4', fm.amountToPflegegrad('1800') === '4');

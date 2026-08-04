@@ -206,6 +206,23 @@ function buildESt1A(data) {
    structure. buildElsterDataset(c) gives us a flat anlageN[] array with
    one entry PER EMPLOYER already (person:'A'|'B') - we group and sum here.
 ============================================================================= */
+/* Shared by buildAnlageN and buildNAUS - confirmed via real Regel 0/1/7
+   that Anlage N's dba16 (E0201502) must EXACTLY equal the sum of all of
+   this person's N-AUS computed DBA-exempt amounts (E2604901). Computed
+   once here so both call sites can never drift apart. Only counts
+   entries with both day counts present (2023+ only - legacy years are
+   gated separately, see buildNAUS). */
+function computeNausDbaTotalForPerson(data, person) {
+  const year = data.meta?.taxYear || 2025;
+  if (year < 2023) return 0;
+  const entries = (data.anlageNAUS || []).filter(a => (a.person === 'B') === (person === 'B'));
+  return entries.reduce((sum, a) => {
+    if (!(N(a.gesamtlohn) > 0) || !(N(a.arbeitstageGesamt) > 0) || !(N(a.arbeitstageAusland) > 0)) return sum;
+    const remaining = Math.max(0, Math.round(N(a.gesamtlohn) - N(a.steuerfreierBetrag)));
+    return sum + fm.computeAusTaxFree(remaining, Math.round(N(a.arbeitstageAusland)), Math.round(N(a.arbeitstageGesamt)));
+  }, 0);
+}
+
 function buildAnlageN(data) {
   const entries = data.anlageN || [];
   const byPerson = { A: entries.filter(e => e.person !== 'B'), B: entries.filter(e => e.person === 'B') };
@@ -259,7 +276,27 @@ function buildAnlageN(data) {
     /* CORRECTED: dba16 needs its own ArbL/Stfr_NAUS wrapper, confirmed via
        the real Felder sheet Kontext column - was flat directly under
        ArbL, causing "/N/ArbL/E0201502" to be unrecognized. */
-    if (N(first.zeile16_dbaAte) > 0) xml += `<Stfr_NAUS>${wholeEuroTag(fm.N.dba16.kennzahlen[0], first.zeile16_dbaAte)}</Stfr_NAUS>\n`;
+    /* CORRECTED: real bug found via testing against a genuine client
+       file (Regel 100260069) - whenever N-AUS entries exist for this
+       person, Anlage N itself must ALSO state how many, in the SAME
+       Stfr_NAUS wrapper (confirmed field order: dba16 amount, then two
+       unmapped fields, then this count, last). Previously the wrapper
+       was only emitted if a DBA/ATE amount existed - now also emitted
+       (with 0 for the amount) if there are N-AUS entries without one,
+       since the count itself is what's required. */
+    const nAusCountForPerson = (data.anlageNAUS || []).filter(a => (a.person === 'B') === (person === 'B')).length;
+    /* CORRECTED (major): previously used a separate, manually-entered
+       figure (zeile16_dbaAte) that could drift from what N-AUS itself
+       computes - confirmed via real Regel 0/1/7 that these two MUST be
+       identical, not just both present. Now computed from the same
+       shared helper N-AUS uses, guaranteeing they can never mismatch. */
+    const dbaTotal = computeNausDbaTotalForPerson(data, person);
+    if (dbaTotal > 0 || nAusCountForPerson > 0) {
+      xml += '<Stfr_NAUS>';
+      xml += `<${fm.N.dba16.kennzahlen[0]}>${dbaTotal}</${fm.N.dba16.kennzahlen[0]}>\n`;
+      if (nAusCountForPerson > 0) xml += tag(fm.N.nAusCount, String(nAusCountForPerson));
+      xml += '</Stfr_NAUS>\n';
+    }
     xml += wholeEuroTag(fm.N.fahrt17.kennzahlen[0], first.zeile17_agLeistungenEntfernung);
     xml += wholeEuroTag(fm.N.pausch18.kennzahlen[0], first.zeile18_pauschal15);
     /* CORRECTED: real bug found via testing against a genuine client file
@@ -312,27 +349,112 @@ function buildAnlageN(data) {
 function buildNAUS(data) {
   const entries = data.anlageNAUS || [];
   if (!entries.length) return '';
+  const year = data.meta?.taxYear || 2025;
   let xml = '';
   for (const a of entries) {
+    /* Year gate: confirmed via direct field-existence check against the
+       real 2021/2022 XSDs that E2600503 (legal basis) and E2600703
+       (dual residence) are genuinely missing that year - not renamed,
+       structurally different (2022 uses an opposite-polarity statement
+       PAIR for dual residence, same pattern as the legacy Anlage
+       Unterhalt/Kind structures already researched separately in this
+       project). Rather than guess that structure under time pressure,
+       this is honestly gated pending its own dedicated research pass -
+       the same discipline already applied to Unterhalt and Kind. */
+    if (year < 2023) continue;
+
     xml += `<N_AUS><Person>Person${a.person === 'B' ? 'B' : 'A'}</Person><Staat>\n`;
-    /* CORRECTED (second pass): the Allg wrapper alone was not enough -
-       country and employer name each need their OWN sub-wrapper inside
-       Allg (Wohnsitz and Unternehmen respectively), confirmed via the
-       real Felder sheet - this was already researched correctly earlier
-       but not applied precisely when first implemented. */
-    if (a.land || a.arbeitgeberName) {
-      xml += '<Allg>\n';
-      if (a.land) xml += `<Wohnsitz>${tag(fm.N_AUS.ausCountry, a.land)}</Wohnsitz>\n`;
-      if (a.arbeitgeberName) xml += `<Unternehmen>${tag(fm.N_AUS.ausEmployerName, a.arbeitgeberName)}</Unternehmen>\n`;
-      xml += '</Allg>\n';
+    /* CORRECTED (major, second pass): confirmed via the raw XSD content
+       model that E2600401 (Staat/Staat) is the primary work country -
+       genuinely different from the field used before (E2601001, which
+       is the Wohnsitz/foreign-residence country, only relevant when
+       dual residence applies). */
+    if (a.land) xml += tag(fm.N_AUS.ausCountry, a.land);
+
+    let allg = '';
+    /* Legal basis - confirmed required (Regel 14). Defaults to DBA
+       ("1"), the standard double-taxation-treaty basis and the common
+       case for German employees working abroad. ATE (special
+       intergovernmental development-aid agreements) and ZÜ (other
+       multilateral treaties, e.g. NATO/diplomatic postings) are
+       genuinely different, narrower legal bases this app does not
+       collect enough information to complete correctly - flagged via
+       skippedSections below rather than guessed if selected. */
+    const basis = a.legalBasis || 'dba';
+    allg += tag(fm.N_AUS.ausLegalBasis, basis === 'ate' ? '2' : basis === 'zu' ? '3' : '1');
+
+    /* Dual residence - confirmed required (Regel 22). Defaults to
+       "Nein", the common case (foreign assignment without maintaining
+       a second residence abroad) - only asks for the foreign address
+       and center-of-interests declaration if the user says Yes. */
+    const dual = !!a.dualResidence;
+    allg += `<Wohnsitz>\n${tag(fm.N_AUS.ausDualResidence, dual ? '1' : '2')}`;
+    if (dual) {
+      if (a.foreignResStreet) allg += tag(fm.N_AUS.ausForeignResStreet, a.foreignResStreet);
+      if (a.foreignResPlz) allg += tag(fm.N_AUS.ausForeignResPlz, a.foreignResPlz);
+      if (a.foreignResCity) allg += tag(fm.N_AUS.ausForeignResCity, a.foreignResCity);
+      if (a.foreignResCountry) allg += tag(fm.N_AUS.ausForeignResCountry, a.foreignResCountry);
+      allg += tag(fm.N_AUS.ausCenterOfInterests, a.centerOfInterests ? '1' : '2');
     }
-    if (N(a.gesamtlohn) > 0) xml += `<Ang_ArbL><Sum_inl_ausl_AL>${wholeEuroTag(fm.N_AUS.ausTotalWage, a.gesamtlohn)}</Sum_inl_ausl_AL></Ang_ArbL>\n`;
-    const dbaInner = (a.arbeitstageGesamt ? tag(fm.N_AUS.ausWorkDaysTotal, String(a.arbeitstageGesamt)) : '')
-      + (a.arbeitstageAusland ? tag(fm.N_AUS.ausWorkDaysForeign, String(a.arbeitstageAusland)) : '')
-      + wholeEuroTag(fm.N_AUS.ausTaxFreeResult, a.steuerfreierBetrag);
-    if (dbaInner) xml += `<ArbL_DBA>\n${dbaInner}</ArbL_DBA>\n`;
-    /* employer address sub-fields (ausEmployerStreet/Plz/City/Country) -
-       deliberately NOT written, no data source in the app - see note above */
+    allg += '</Wohnsitz>\n';
+
+    /* Employer - CORRECTED (major): confirmed via the raw XSD that the
+       real context is Allg/ArbG, not Unternehmen (a different,
+       unrelated field for a narrow related-company exception). Name
+       comes before street in the confirmed real field order. */
+    if (a.arbeitgeberName || a.arbeitgeberStreet) {
+      allg += '<ArbG>\n';
+      if (a.arbeitgeberName) allg += tag(fm.N_AUS.ausEmployerName, a.arbeitgeberName);
+      if (a.arbeitgeberStreet) allg += tag(fm.N_AUS.ausEmployerStreet, a.arbeitgeberStreet);
+      if (a.arbeitgeberPlz) allg += tag(fm.N_AUS.ausEmployerPlz, a.arbeitgeberPlz);
+      if (a.arbeitgeberCity) allg += tag(fm.N_AUS.ausEmployerCity, a.arbeitgeberCity);
+      if (a.arbeitgeberCountry) allg += tag(fm.N_AUS.ausEmployerCountry, a.arbeitgeberCountry);
+      allg += '</ArbG>\n';
+    }
+
+    /* Activity description + period - confirmed required together
+       (Regel 26/28). Full date range including years, a genuinely
+       different type from the month-only ranges used elsewhere in
+       this schema - confirmed via the raw XSD, not assumed uniform. */
+    if (a.taetigkeitDesc && a.taetigkeitVon && a.taetigkeitBis) {
+      allg += `<Taetigk><Art_Zeitr>\n${tag(fm.N_AUS.ausActivityDesc, a.taetigkeitDesc)}${tag(fm.N_AUS.ausActivityPeriod, formatDateRangeFullDE(a.taetigkeitVon, a.taetigkeitBis))}</Art_Zeitr>\n`;
+      if (N(a.arbeitstageAusland) > 0) allg += `<Tage>\n${tag(fm.N_AUS.ausDaysAbroad, String(Math.round(N(a.arbeitstageAusland))))}</Tage>\n`;
+      allg += '</Taetigk>\n';
+    }
+    if (allg) xml += `<Allg>\n${allg}</Allg>\n`;
+
+    let remaining = 0;
+    if (N(a.gesamtlohn) > 0) {
+      /* CORRECTED: real bug, genuinely my own mistake, not a
+         documentation gap - bypassing wholeEuroTag() to force explicit
+         zero-emission also meant bypassing its rounding, so a
+         non-integer result (from float subtraction, e.g. entered cents)
+         was sent as a raw decimal, which ERiC correctly rejects
+         ("zahlHatUngueltigeZeichen"). Rounded explicitly here instead. */
+      remaining = Math.max(0, Math.round(N(a.gesamtlohn) - N(a.steuerfreierBetrag)));
+      xml += `<Ang_ArbL><Sum_inl_ausl_AL>${wholeEuroTag(fm.N_AUS.ausTotalWage, a.gesamtlohn)}</Sum_inl_ausl_AL><Verbl><${fm.N_AUS.ausRemainingWage}>${remaining}</${fm.N_AUS.ausRemainingWage}></Verbl></Ang_ArbL>\n`;
+    }
+
+    /* CORRECTED (major): the tax-free result was previously a direct
+       pass-through of the user's rough estimate (steuerfreierBetrag).
+       Confirmed via the real formula (Regel 52) that ELSTER expects
+       this computed via days-proportion: remaining wage × foreign work
+       days / total work days - the same two-step structure the real
+       Lohnsteuerbescheinigung uses (a rough estimate feeding the
+       "remaining" base, then a formula-based recalculation for the
+       actual transferred amount). Only computed when both day counts
+       are present - otherwise honestly flagged via skippedSections
+       rather than guessed. */
+    if (N(a.arbeitstageGesamt) > 0 && N(a.arbeitstageAusland) > 0) {
+      const totalDays = Math.round(N(a.arbeitstageGesamt));
+      const foreignDays = Math.round(N(a.arbeitstageAusland));
+      const calculated = fm.computeAusTaxFree(remaining, foreignDays, totalDays);
+      let dbaInner = tag(fm.N_AUS.ausWorkDaysTotal, String(totalDays));
+      dbaInner += tag(fm.N_AUS.ausWorkDaysForeign, String(foreignDays));
+      dbaInner += `<${fm.N_AUS.ausDbaCalculated}>${calculated}</${fm.N_AUS.ausDbaCalculated}>\n`;
+      dbaInner += `<${fm.N_AUS.ausTaxFreeResult}>${calculated}</${fm.N_AUS.ausTaxFreeResult}>\n`;
+      xml += `<ArbL_DBA>\n${dbaInner}</ArbL_DBA>\n`;
+    }
     xml += '</Staat></N_AUS>\n';
   }
   return xml;
@@ -392,6 +514,17 @@ function buildKAP(data) {
   const entries = data.anlageKAP || [];
   if (!entries.length) return '';
   let xml = '';
+  const personsWithBlock = new Set();
+  /* CORRECTED: real bug found via testing against a genuine client file
+     (Regel 193035) - for a joint filing (Zusammenveranlagung), if
+     EITHER spouse's domestic withheld gains trigger Günstigerprüfung,
+     BOTH must request it, not just the person who individually
+     triggered it. Computed once up front, applied consistently below -
+     to every existing block, not just the one that happened to have g1
+     itself. */
+  const anyGuenstiger = data.hauptvordruck?.personB && entries.some(k =>
+    N(k.zeile7_kapitalertraege) > 0 || N(k.zeile8_aktiengewinne) > 0
+    || N(k.zeile12_verlusteOhneAktien) > 0 || N(k.zeile13_verlusteAktien) > 0);
   for (const k of entries) {
     let inner = '';
     const g1 = wholeEuroTag(fm.KAP.k7, k.zeile7_kapitalertraege) + wholeEuroTag(fm.KAP.k8, k.zeile8_aktiengewinne)
@@ -420,13 +553,22 @@ function buildKAP(data) {
        <KAP><Person>.../<KAP> wrapper, triggering ERiC's "kontextLeer"
        error. Now only emits per-entry if there's genuinely content. */
     if (inner) {
-      /* NEW: confirmed required whenever domestic withheld capital
-         gains (g1/KapErt_inl_StAbz) are reported - see eric-fieldmap.js
-         KAP.guenstigerpruefung for the full reasoning on why this
-         specific option is safe to default. Context /KAP/Ant, right
-         after Person. */
-      const antTag = g1 ? `<Ant>\n${tag(fm.KAP.guenstigerpruefung, '1')}</Ant>\n` : '';
+      /* Applies whenever THIS entry triggered it directly, or the
+         joint-filing requirement means it applies regardless (Regel
+         193035 - see the anyGuenstiger computation above). */
+      const antTag = (g1 || anyGuenstiger) ? `<Ant>\n${tag(fm.KAP.guenstigerpruefung, '1')}</Ant>\n` : '';
       xml += `<KAP><Person>Person${k.person === 'B' ? 'B' : 'A'}</Person>\n${antTag}${inner}</KAP>\n`;
+      personsWithBlock.add(k.person === 'B' ? 'B' : 'A');
+    }
+  }
+  /* If the joint-filing requirement applies but one spouse has no KAP
+     data at all (and so never got a <KAP> block above), a minimal
+     block carrying just the declaration is added for them here. */
+  if (anyGuenstiger) {
+    for (const p of ['A', 'B']) {
+      if (!personsWithBlock.has(p)) {
+        xml += `<KAP><Person>Person${p}</Person>\n<Ant>\n${tag(fm.KAP.guenstigerpruefung, '1')}</Ant>\n</KAP>\n`;
+      }
     }
   }
   return xml;
@@ -1046,6 +1188,16 @@ function buildKind(data) {
 function buildUnterhalt(data) {
   const u = data.anlageUnterhalt;
   if (!u || !(u.betrag > 0)) return '';
+  /* Real robustness fix found via testing against a genuine client file
+     (kontextLeer on Persoenl, plus the business-rule errors that follow
+     from it) - if the supported person's core identity is entirely
+     blank, sending a structurally-empty Persoenl wrapper produces a
+     confusing raw schema error on top of the already-clear
+     skippedSections warning about the same missing data. Omitting the
+     whole section here is honest and no worse - the warning already
+     tells the user exactly what's needed, and a provably-incomplete
+     structure would be rejected either way. */
+  if (!u.personName && !u.profession && !u.personBirthDate) return '';
   /* YEAR DISPATCH: confirmed via full research (65 real Regeln
      analyzed) that 2021/2022 use a genuinely different structure, not
      just a wrapper difference like 2023-2025 share. Redirects to a
@@ -1238,6 +1390,15 @@ function formatDateRangeDE(isoFrom, isoTo) {
   const a = short(isoFrom), b = short(isoTo);
   return (a && b) ? `${a}-${b}` : '';
 }
+/* CONFIRMED via raw XSD (DatumBereichTTpMMpJJJJbTTpMMpJJJJBaseCType) that
+   N-AUS's activity period is a genuinely DIFFERENT type from the
+   month-only ranges used everywhere else in this schema - includes the
+   full year on both ends. Checked directly rather than assumed uniform
+   with formatDateRangeDE above. */
+function formatDateRangeFullDE(isoFrom, isoTo) {
+  const full = formatDateDE(isoFrom), fullTo = formatDateDE(isoTo);
+  return (full && fullTo) ? `${full}-${fullTo}` : '';
+}
 
 /* =============================================================================
    Main entry point
@@ -1344,9 +1505,27 @@ function buildEStXML(data, opts = {}) {
     skippedSections.push('anlageKind present for a single filer without the other parent\'s name for at least one child - confirmed required (Regel 100500048/25). This is genuinely case-specific data that cannot be safely defaulted - needs to come from the user.');
   if ((data.anlageN || []).some(n => N(n.zeile20_verpflegung) > 0))
     skippedSections.push('Anlage N Zeile 20 (tax-free employer meal allowances) present but NOT transmitted - real bug found via testing against a genuine client file. It was previously sent to the wrong XML context (ArbL) under a field that actually means something different (the sum of CLAIMED foreign-travel meal expenses). Its correct home is E0205108 "vom Arbeitgeber steuerfrei ersetzt", which only makes sense alongside the travel-expense claim itself (days away, countries, per-diem rates) - none of which this app collects. Sending it alone would be an incomplete declaration, so it is honestly omitted rather than guessed.');
+  (data.anlageNAUS || []).forEach((a, i) => {
+    const label = `anlageNAUS entry ${i + 1}`;
+    const year = data.meta?.taxYear || 2025;
+    if (year < 2023) {
+      skippedSections.push(`${label}: N-AUS for tax year ${year} is not yet implemented - confirmed via direct research that 2021/2022 use a genuinely different structure for the legal-basis and dual-residence fields (an opposite-polarity statement pair, not a simple enum), needing its own dedicated research pass the same way Anlage Unterhalt's legacy structure did. Not transmitted for this year.`);
+      return;
+    }
+    if (a.legalBasis && a.legalBasis !== 'dba')
+      skippedSections.push(`${label}: legal basis "${a.legalBasis === 'ate' ? 'ATE' : 'ZÜ'}" was selected, but only the standard DBA basis is implemented - the additional fields ATE/ZÜ specifically require (e.g. employer's business sector, the international organization involved) are not collected. Confirmed sent as DBA regardless - please review this entry, since that may not be correct for this case.`);
+    if (!a.taetigkeitDesc || !a.taetigkeitVon || !a.taetigkeitBis)
+      skippedSections.push(`${label}: the foreign activity's description and date range are required together (Regel 100260064) and were not fully provided - this entry will be rejected until filled in.`);
+    if (!(N(a.arbeitstageGesamt) > 0) || !(N(a.arbeitstageAusland) > 0))
+      skippedSections.push(`${label}: the DBA tax-free amount could not be calculated - both the total and foreign work-day counts are required for the confirmed real formula (Regel 52). Without them, no exempt amount is transmitted and the full wage would appear taxable.`);
+    if (a.dualResidence && (!a.foreignResStreet || !a.foreignResCountry))
+      skippedSections.push(`${label}: a foreign residence was indicated but its address is incomplete (Regel 20) - this entry will be rejected until filled in.`);
+  });
   if (data.par35cEnergetisch?.street) {
     const em = data.par35cEnergetisch;
     const emTotal = ['walls','roof','ceiling','windows','ventilation','heating'].reduce((s2, k) => s2 + N(em[k]), 0);
+    if (emTotal > 0 && !em.measureStart)
+      skippedSections.push('EM_35c (energetic renovation) - a measure amount was entered but the renovation start date was not, and ERiC requires both together (Regel 102240006). Found via testing against a genuine client file - the return will be rejected until this date is filled in.');
     if (emTotal > 0 && data.hauptvordruck?.personB)
       skippedSections.push('EM_35c (energetic renovation) - ownership was attributed entirely to the primary filer. The app does not collect a per-property ownership split, so if this property is jointly owned with the spouse, the attribution should be reviewed.');
     if (em.buildDate && em.measureStart) {

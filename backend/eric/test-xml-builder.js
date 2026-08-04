@@ -119,10 +119,10 @@ check('support payment is deliberately NOT transmitted (E0125007 was mapped to t
 check('skippedSections reports the support payment scope limitation clearly', skippedSections.some(s => s.includes('anlageUnterhalt')));
 
 // Anlage N-AUS - newly wired, was collected by the calculator but never exported before
-check('N-AUS country written', xml.includes('<E2601001>Schweiz</E2601001>'));
-check('N-AUS employer name written', xml.includes('<E2603101>Muster GmbH</E2603101>'));
-check('N-AUS final tax-free result matches the confirmed formula (60000, 90/220 -> 24545.45)', xml.includes('<E2604901>24545</E2604901>'));
-check('N-AUS employer address sub-fields correctly NOT written (no data source in the app)', !xml.includes('E2603201') && !xml.includes('E2603301'));
+check('N-AUS country written (CORRECTED: was E2601001, the wrong field - real primary country is E2600401, confirmed via raw XSD)', xml.includes('<E2600401>Schweiz</E2600401>'));
+check('N-AUS employer name written (CORRECTED: was E2603101/Unternehmen, a different unrelated field - real employer context is ArbG/E2601202, confirmed via raw XSD)', xml.includes('<E2601202>Muster GmbH</E2601202>'));
+check('N-AUS final tax-free result matches the confirmed real formula (remaining wage × foreign days / total days, not total wage as first assumed)', xml.includes('<E2604901>14504</E2604901>'));
+check('N-AUS does not write employer address when not provided in the source data (this fixture only sets the name)', !xml.includes('E2601201') && !xml.includes('E2601301'));
 
 // Vorsatz - confirmed via ELSTER official developer forum. E0100081/E0100082
 // are "interne ERiC Felder" and must NEVER be submitted directly - this was
@@ -649,6 +649,125 @@ check('EM_35c works identically across all supported years - confirmed via raw X
     return buildEStXML(d).xml.includes('<EM_35c>') && buildEStXML(d).xml.includes('<E0241901>5000</E0241901>');
   });
   return results.every(Boolean);
+})());
+
+// Married-couple test file findings
+check('N-AUS count (E0202400) is added to Anlage N whenever N-AUS entries exist for that person - real bug found via testing against a genuine client file (Regel 100260069)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Erika', geburtsdatum: '1987-05-20' };
+  d.anlageN = [{ person: 'B', zeile3_bruttoarbeitslohn: 50000 }];
+  d.anlageNAUS = [{ person: 'B', land: 'Schweiz', gesamtlohn: 20000 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0202400>1</E0202400>');
+})());
+check('KAP Günstigerprüfung applies to both spouses in a joint filing when only one triggers it, including a minimal fallback block for the spouse with no KAP data at all - real bug found via a genuine client file (Regel 193035)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Erika', geburtsdatum: '1987-05-20' };
+  d.anlageKAP = [{ person: 'B', zeile7_kapitalertraege: 1000 }];
+  const x = buildEStXML(d).xml;
+  const blocks = x.match(/<KAP>[\s\S]*?<\/KAP>/g);
+  return blocks.length === 2 && blocks.every(b => b.includes('<E1900401>1</E1900401>'));
+})());
+check('KAP Günstigerprüfung does NOT apply to the spouse for a single filer (no personB) - the joint-filing fix does not affect single filers', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.personB = null;
+  d.anlageKAP = [{ person: 'A', zeile7_kapitalertraege: 1000 }];
+  const x = buildEStXML(d).xml;
+  return (x.match(/<KAP>/g) || []).length === 1;
+})());
+check('EM_35c warns when a measure amount is entered but the renovation start date is missing - real bug found via a genuine client file (Regel 102240006)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.par35cEnergetisch = { street: 'Musterstr. 1', buildDate: '2005-01-01', plzOrt: '12345 Musterstadt', areaTotal: 100, areaOwn: 100, heating: 5000 };
+  const result = buildEStXML(d);
+  return result.skippedSections.some(s => s.includes('EM_35c') && s.includes('start date'));
+})());
+check('Anlage Unterhalt with an amount but a completely blank supported person is omitted entirely, not sent as a structurally-empty block - real robustness fix found via a genuine client file (kontextLeer)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageUnterhalt = { betrag: 5000 };
+  const result = buildEStXML(d);
+  return !result.xml.includes('<ESt1A_U>') && result.skippedSections.some(s => s.includes('anlageUnterhalt'));
+})());
+
+check('N-AUS includes the required remaining-wage field (Verbl/E2604401), computed from total wage minus the tax-exempt portion - real bug found via a genuine client file (Regel 100260026)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [{ person: 'A', land: 'Schweiz', gesamtlohn: 60000, steuerfreierBetrag: 20000 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E2604401>40000</E2604401>');
+})());
+check('N-AUS remaining-wage field is explicitly sent as 0 (not omitted) when the entire wage is tax-exempt - same zero-omission fix pattern as KAP Sp_PB', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [{ person: 'A', land: 'Schweiz', gesamtlohn: 60000, steuerfreierBetrag: 60000 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E2604401>0</E2604401>');
+})());
+
+check('N-AUS remaining-wage field is a clean integer even with decimal input - real bug found via a genuine client file (zahlHatUngueltigeZeichen), genuinely my own mistake: bypassing wholeEuroTag to force zero-emission also bypassed its rounding', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [{ person: 'A', land: 'Schweiz', gesamtlohn: 60000.5, steuerfreierBetrag: 20000.3 }];
+  const x = buildEStXML(d).xml;
+  const m = x.match(/<E2604401>([^<]*)<\/E2604401>/);
+  return m && /^\d+$/.test(m[1]);
+})());
+
+// N-AUS complete rewrite - full research-based implementation
+check('N-AUS consistency: Anlage N dba16 (E0201502) EXACTLY equals the N-AUS computed total - confirmed required via real Regel 0/1/7, computed via a shared function to guarantee they cannot drift apart', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [{ person: 'A', land: 'Schweiz', arbeitgeberName: 'Muster AG', taetigkeitDesc: 'Beratung', taetigkeitVon: '2025-01-01', taetigkeitBis: '2025-12-31', gesamtlohn: 60000, steuerfreierBetrag: 20000, arbeitstageGesamt: 220, arbeitstageAusland: 180 }];
+  const x = buildEStXML(d).xml;
+  const nAusResult = x.match(/<E2604901>(\d+)<\/E2604901>/)[1];
+  const nResult = x.match(/<E0201502>(\d+)<\/E0201502>/)[1];
+  return nAusResult === nResult && Number(nAusResult) > 0;
+})());
+check('N-AUS legal basis defaults to DBA ("1") for the common case, confirmed required via real Regel 14', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [{ person: 'A', land: 'Schweiz', arbeitgeberName: 'Muster AG', gesamtlohn: 60000, arbeitstageGesamt: 220, arbeitstageAusland: 180 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E2600503>1</E2600503>');
+})());
+check('N-AUS dual residence defaults to "Nein" and correctly omits the foreign-address sub-fields for the common case', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [{ person: 'A', land: 'Schweiz', arbeitgeberName: 'Muster AG', gesamtlohn: 60000, arbeitstageGesamt: 220, arbeitstageAusland: 180 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E2600703>2</E2600703>') && !x.includes('E2600801');
+})());
+check('N-AUS dual residence "Ja" correctly includes the foreign address when provided', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [{ person: 'A', land: 'Schweiz', arbeitgeberName: 'Muster AG', gesamtlohn: 60000, arbeitstageGesamt: 220, arbeitstageAusland: 180,
+    dualResidence: true, foreignResStreet: 'Seestr. 1', foreignResPlz: '8001', foreignResCity: 'Zürich', foreignResCountry: 'Schweiz', centerOfInterests: true }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E2600703>1</E2600703>') && x.includes('<E2600801>Seestr. 1</E2600801>') && x.includes('<E2601104>1</E2601104>');
+})());
+check('N-AUS employer full address is written when provided, in the confirmed real field order (name, street, plz, city, country)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [{ person: 'A', land: 'Schweiz', arbeitgeberName: 'Muster AG', arbeitgeberStreet: 'Bahnhofstr. 1', arbeitgeberPlz: '8001', arbeitgeberCity: 'Zürich', arbeitgeberCountry: 'Schweiz', gesamtlohn: 60000, arbeitstageGesamt: 220, arbeitstageAusland: 180 }];
+  const x = buildEStXML(d).xml;
+  const arbG = x.match(/<ArbG>[\s\S]*?<\/ArbG>/)[0];
+  return arbG.indexOf('E2601202') < arbG.indexOf('E2601201') && arbG.indexOf('E2601201') < arbG.indexOf('E2601401');
+})());
+check('N-AUS activity description and full date range (with years, a genuinely different type from other date ranges in this schema) are written together', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [{ person: 'A', land: 'Schweiz', arbeitgeberName: 'Muster AG', taetigkeitDesc: 'Softwareentwicklung', taetigkeitVon: '2025-03-01', taetigkeitBis: '2025-11-30', gesamtlohn: 60000, arbeitstageGesamt: 220, arbeitstageAusland: 180 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E2601701>Softwareentwicklung</E2601701>') && x.includes('<E2601702>01.03.2025-30.11.2025</E2601702>');
+})());
+check('N-AUS for 2021/2022 is correctly NOT transmitted (genuinely different legacy structure, honestly gated pending its own research pass rather than guessed)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2022;
+  d.anlageNAUS = [{ person: 'A', land: 'Schweiz', arbeitgeberName: 'Muster AG', gesamtlohn: 60000, arbeitstageGesamt: 220, arbeitstageAusland: 180 }];
+  const result = buildEStXML(d);
+  return !result.xml.includes('<N_AUS>') && result.skippedSections.some(s => s.includes('N-AUS') && s.includes('2022'));
+})());
+check('N-AUS warns (does not silently guess) when a non-DBA legal basis is selected, since ATE/ZÜ-specific fields are not implemented', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [{ person: 'A', land: 'Schweiz', arbeitgeberName: 'Muster AG', legalBasis: 'ate', gesamtlohn: 60000, arbeitstageGesamt: 220, arbeitstageAusland: 180 }];
+  const result = buildEStXML(d);
+  return result.skippedSections.some(s => s.includes('ATE'));
+})());
+check('N-AUS warns when work-day counts are missing, since the tax-free amount cannot be calculated without them', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [{ person: 'A', land: 'Schweiz', arbeitgeberName: 'Muster AG', gesamtlohn: 60000 }];
+  const result = buildEStXML(d);
+  return !result.xml.includes('ArbL_DBA') && result.skippedSections.some(s => s.includes('work-day'));
 })());
 check('buildR includes the required Person tag - real bug found via the multi-year regression test (mandatoryField, "/R[1]/Person[1]")', (() => {
   const withR = JSON.parse(JSON.stringify(sample));

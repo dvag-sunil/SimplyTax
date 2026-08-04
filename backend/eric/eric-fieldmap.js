@@ -61,6 +61,12 @@ const N = {
   bmg29:        { line: 29, kennzahlen: ['E0200902'], slotResolved: true },
   pausch18:     { line: 18, kennzahlen: ['E0203901'], slotResolved: true },
   dba16:        { line: 16, kennzahlen: ['E0201502'], slotResolved: true },
+  /* Real bug found via testing against a genuine client file (Regel
+     100260069) - required whenever N-AUS entries exist for this
+     person, confirmed via the real Felder sheet as the last field in
+     ArbL/Stfr_NAUS. Not app-user-visible data - computed directly from
+     the count of anlageNAUS entries for the person. */
+  nAusCount: 'E0202400',
   ml10:         { line: 10, kennzahlen: ['E0201806'], slotResolved: true },
   sterbe32:     { line: 32, kennzahlen: ['E0201205', 'E0201210'], slotResolved: false,
                   note: 'likely einz/sum pair by pattern (same description on both numbers), not yet XML-confirmed' },
@@ -411,26 +417,58 @@ const ESt1A_U = {
    exemption - not ATE-specific codes, multi-country splits, or deferred
    compensation. See computeAusTaxFree() for the official formula. */
 const N_AUS = {
-  ausCountry: 'E2601001',
-  ausEmployerName: 'E2603101',
-  ausEmployerStreet: 'E2603201',
-  ausEmployerPlz: 'E2603301',
-  ausEmployerCity: 'E2603302',
-  ausEmployerCountry: 'E2603401',
+  /* CORRECTED (major): real bug found via full research prompted by
+     repeated real client-file errors - the PREVIOUS mapping used
+     entirely the wrong fields. E2601001/E2603xxx are NOT the primary
+     employer/country - they belong to Wohnsitz (foreign residence,
+     only relevant if dual-residence applies) and Unternehmen (a
+     DIFFERENT related-company field for a narrow 183-day exception),
+     respectively. Confirmed via the raw XSD content model directly,
+     not the summary sheet - the real primary fields are Staat/Staat
+     (country) and Staat/Allg/ArbG (employer), genuinely different
+     Kennzahlen from what was there before. Gated to 2023-2025 (2021/22
+     use structurally different fields, e.g. a Ja/Nein statement PAIR
+     for dual-residence instead of one enum - confirmed missing, not
+     just renamed - needs its own dedicated research pass the same way
+     Anlage Unterhalt's legacy structure did, not guessed under time
+     pressure). Confirmed identical across 2023/2024/2025. */
+  ausCountry: 'E2600401',              // Staat/Staat - primary work country
+  ausLegalBasis: 'E2600503',           // Staat/Allg - 1=DBA, 2=ATE, 3=ZÜ (enum)
+  ausDualResidence: 'E2600703',        // Staat/Allg/Wohnsitz - JaNein12
+  ausForeignResStreet: 'E2600801',     // only if dual residence = Ja
+  ausForeignResPlz: 'E2600901',
+  ausForeignResCity: 'E2600902',
+  ausForeignResCountry: 'E2601001',
+  ausCenterOfInterests: 'E2601104',    // JaNein12 - only if dual residence = Ja
+  ausEmployerName: 'E2601202',         // Staat/Allg/ArbG - confirmed correct context (was Unternehmen before)
+  ausEmployerStreet: 'E2601201',
+  ausEmployerPlz: 'E2601301',
+  ausEmployerCity: 'E2601302',
+  ausEmployerCountry: 'E2601401',
+  ausActivityDesc: 'E2601701',         // Staat/Allg/Taetigk/Art_Zeitr - free text
+  ausActivityPeriod: 'E2601702',       // full TT.MM.JJJJ-TT.MM.JJJJ range (confirmed different type from other DatumBereich fields - includes the year)
+  ausDaysAbroad: 'E2602001',           // Staat/Allg/Taetigk/Tage
   ausGross: 'E2603501',
   ausGrossNoWithholding: 'E2603601',
   ausTaxFreeAlready: 'E2603701',
   ausTotalWage: 'E2604101',
-  ausWorkDaysTotal: 'E2604501',
+  ausRemainingWage: 'E2604401',        // real bug found earlier this project (Regel 100260026) - see prior note in xml-builder.js
+  ausWorkDaysTotal: 'E2604501',        // Ang_ArbL/ArbL_DBA - confirmed correct context (was previously right, kept)
   ausWorkDaysForeign: 'E2604601',
-  ausTaxFreeResult: 'E2604901',
+  ausDbaCalculated: 'E2604701',        // computed: remaining wage × foreign days / total days (confirmed formula via real Regel 52)
+  ausTaxFreeResult: 'E2604901',        // final DBA-exempt wage - MUST equal Anlage N's E0201502 (Regel 0/1/7), computed automatically, not user-entered
 };
-function computeAusTaxFree(totalWage, workDaysForeign, workDaysTotal) {
-  const w = parseFloat(String(totalWage||'0').replace(',','.')) || 0;
+/* Confirmed formula via real Regel 52: "verbleibender Arbeitslohn ×
+   Auslandsarbeitstage / tatsächliche Arbeitstage = verbleibender
+   ausländischer Arbeitslohn" - takes the REMAINING wage (post
+   tax-exempt-portion-already-subtracted), not the raw total, as
+   confirmed by the field name in the formula description itself. */
+function computeAusTaxFree(remainingWage, workDaysForeign, workDaysTotal) {
+  const w = parseFloat(String(remainingWage||'0').replace(',','.')) || 0;
   const foreign = parseFloat(String(workDaysForeign||'0')) || 0;
   const total = parseFloat(String(workDaysTotal||'0')) || 0;
   if (total <= 0) return 0;
-  return Math.round(w * foreign / total * 100) / 100;
+  return Math.round(w * foreign / total);
 }
 
 /* ---------- 12. Disability/care allowance - AgB context ---------- */

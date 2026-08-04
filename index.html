@@ -257,26 +257,82 @@ const ERIC = { enabled:false };
 function showAusCalc(empId){
  const c=cur(); const slot=document.getElementById('modal-slot'); if(!c||!slot) return;
  const emp = (c.emps||[]).find(e=>e.id===empId); if(!emp) return;
- c.aus = c.aus || {}; c.aus[empId] = c.aus[empId] || {country:'', totalWage:emp.gross||'', workDaysTotal:'220', workDaysForeign:''};
+ c.aus = c.aus || {};
+ c.aus[empId] = c.aus[empId] || {country:'', legalBasis:'dba', totalWage:emp.gross||'', workDaysTotal:'220', workDaysForeign:'',
+   employerName:emp.employer||'', employerStreet:'', employerPlz:'', employerCity:'', employerCountry:'',
+   activityDesc:'', activityFrom:'', activityTo:'', dualResidence:false,
+   foreignResStreet:'', foreignResPlz:'', foreignResCity:'', foreignResCountry:'', centerOfInterests:false};
  const a = c.aus[empId];
- slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal">
+ slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal" style="max-width:560px">
  <h2>🌍 ${t('aus_calc_title')}</h2>
  <p style="color:var(--ink-soft);font-size:13.5px;margin:6px 0 16px">${t('aus_calc_sub')}</p>
- <div class="field"><label>${t('aus_country')}</label><input id="aus-country" value="${esc(a.country)}" placeholder="${t('aus_country_ph')}"></div>
+ <div class="field"><label>${t('aus_country')} *</label><select id="aus-country">${NAUS_COUNTRIES.map(x=>`<option ${a.country===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
+ <div class="field"><label>${t('aus_legalbasis')} *</label><select id="aus-legalbasis">
+ <option value="dba" ${a.legalBasis!=='ate'&&a.legalBasis!=='zu'?'selected':''}>${t('aus_basis_dba')}</option>
+ <option value="ate" ${a.legalBasis==='ate'?'selected':''}>${t('aus_basis_ate')}</option>
+ <option value="zu" ${a.legalBasis==='zu'?'selected':''}>${t('aus_basis_zu')}</option>
+ </select>
+ <div class="hint">${t('aus_legalbasis_hint')}</div></div>
+ <div style="margin:10px 0 6px;font-size:13px;font-weight:600">${t('aus_employer_label')}</div>
  <div class="grid2">
- <div class="field"><label>${t('aus_total_wage')}</label><input id="aus-wage" value="${esc(a.totalWage)}" placeholder="0,00 €" onblur="this.value=formatDE(N(this.value))"></div>
- <div class="field"><label>${t('aus_days_total')}</label><input id="aus-days-total" type="number" value="${esc(a.workDaysTotal)}" placeholder="220"></div>
+ <div class="field"><label>${t('aus_employer_name')} *</label><input id="aus-emp-name" value="${esc(a.employerName)}"></div>
+ <div class="field"><label>${t('aus_employer_street')}</label><input id="aus-emp-street" value="${esc(a.employerStreet)}"></div>
  </div>
- <div class="field"><label>${t('aus_days_foreign')}</label><input id="aus-days-foreign" type="number" value="${esc(a.workDaysForeign)}" placeholder="0"></div>
+ <div class="grid3">
+ <div class="field"><label>${t('aus_employer_plz')}</label><input id="aus-emp-plz" value="${esc(a.employerPlz)}"></div>
+ <div class="field"><label>${t('aus_employer_city')}</label><input id="aus-emp-city" value="${esc(a.employerCity)}"></div>
+ <div class="field"><label>${t('aus_employer_country')}</label><select id="aus-emp-country"><option value="">-</option>${NAUS_COUNTRIES.map(x=>`<option ${a.employerCountry===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
+ </div>
+ <div style="margin:10px 0 6px;font-size:13px;font-weight:600">${t('aus_activity_label')}</div>
+ <div class="field"><label>${t('aus_activity_desc')} *</label><input id="aus-activity-desc" value="${esc(a.activityDesc)}" placeholder="${t('aus_activity_desc_ph')}"></div>
+ <div class="grid2">
+ <div class="field"><label>${t('aus_activity_from')} *</label><input id="aus-activity-from" type="date" value="${esc(a.activityFrom)}"></div>
+ <div class="field"><label>${t('aus_activity_to')} *</label><input id="aus-activity-to" type="date" value="${esc(a.activityTo)}"></div>
+ </div>
+ <div class="grid2">
+ <div class="field"><label>${t('aus_total_wage')} *</label><input id="aus-wage" value="${esc(a.totalWage)}" placeholder="0,00 €" onblur="this.value=formatDE(N(this.value))"></div>
+ <div class="field"><label>${t('aus_days_total')} *</label><input id="aus-days-total" type="number" value="${esc(a.workDaysTotal)}" placeholder="220"></div>
+ </div>
+ <div class="field"><label>${t('aus_days_foreign')} *</label><input id="aus-days-foreign" type="number" value="${esc(a.workDaysForeign)}" placeholder="0"></div>
  <div class="hint" style="margin:10px 0">${t('aus_formula_hint')}</div>
  <div id="aus-result" class="infobox" style="background:var(--teal-soft);border-color:var(--teal);text-align:center;font-size:15px;font-weight:700"></div>
+ <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer;margin-top:12px">
+ <input type="checkbox" id="aus-dual" ${a.dualResidence?'checked':''} onchange="renderAusDualFields('${empId}')">
+ ${t('aus_dual_residence')}
+ </label>
+ <div id="aus-dual-fields"></div>
  <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
  <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
  <button class="btn btn-primary" onclick="applyAusCalc('${empId}')">✓ ${t('aus_apply')}</button>
  </div></div></div>`;
- ['aus-country','aus-wage','aus-days-total','aus-days-foreign'].forEach(id=>{
+ ['aus-country','aus-legalbasis','aus-emp-name','aus-emp-street','aus-emp-plz','aus-emp-city','aus-emp-country',
+  'aus-activity-desc','aus-activity-from','aus-activity-to','aus-wage','aus-days-total','aus-days-foreign'].forEach(id=>{
  document.getElementById(id).addEventListener('input', ()=>updateAusResult(empId));
+ document.getElementById(id).addEventListener('change', ()=>updateAusResult(empId));
  });
+ renderAusDualFields(empId);
+ updateAusResult(empId);
+}
+function renderAusDualFields(empId){
+ const c=cur(); const a=c.aus[empId]; const slot=document.getElementById('aus-dual-fields'); if(!slot) return;
+ const checked = document.getElementById('aus-dual')?.checked;
+ slot.innerHTML = checked ? `<div class="grid2" style="margin-top:8px">
+ <div class="field"><label>${t('aus_foreignres_street')} *</label><input id="aus-fr-street" value="${esc(a.foreignResStreet)}"></div>
+ <div class="field"><label>${t('aus_foreignres_plz')} *</label><input id="aus-fr-plz" value="${esc(a.foreignResPlz)}"></div>
+ </div>
+ <div class="grid2">
+ <div class="field"><label>${t('aus_foreignres_city')} *</label><input id="aus-fr-city" value="${esc(a.foreignResCity)}"></div>
+ <div class="field"><label>${t('aus_foreignres_country')} *</label><select id="aus-fr-country"><option value="">-</option>${NAUS_COUNTRIES.map(x=>`<option ${a.foreignResCountry===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
+ </div>
+ <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+ <input type="checkbox" id="aus-center" ${a.centerOfInterests?'checked':''}>
+ ${t('aus_center_of_interests')}
+ </label>` : '';
+ if(checked){
+ ['aus-fr-street','aus-fr-plz','aus-fr-city','aus-fr-country','aus-center'].forEach(id=>{
+ const el=document.getElementById(id); if(el){ el.addEventListener('input', ()=>updateAusResult(empId)); el.addEventListener('change', ()=>updateAusResult(empId)); }
+ });
+ }
  updateAusResult(empId);
 }
 function updateAusResult(empId){
@@ -284,18 +340,36 @@ function updateAusResult(empId){
  const wage=N(document.getElementById('aus-wage')?.value);
  const daysTotal=parseInt(document.getElementById('aus-days-total')?.value)||0;
  const daysForeign=parseInt(document.getElementById('aus-days-foreign')?.value)||0;
- const result = daysTotal>0 ? Math.round(wage*daysForeign/daysTotal*100)/100 : 0;
+ /* Matches the confirmed real formula the backend uses (Regel 52) -
+    the app does not ask the user to pre-estimate a tax-free amount at
+    all, since the real day-proportion calculation is now done
+    correctly, on the full wage (no separate "already known exempt
+    portion" is collected, so remaining = full wage here). */
+ const result = daysTotal>0 ? Math.round(wage*daysForeign/daysTotal) : 0;
  const el=document.getElementById('aus-result');
  if(el) el.textContent = t('aus_result_label')+' '+eur(result);
- c.aus = c.aus||{}; c.aus[empId] = { country: document.getElementById('aus-country')?.value||'',
- totalWage: document.getElementById('aus-wage')?.value||'', workDaysTotal: String(daysTotal), workDaysForeign: String(daysForeign) };
+ const dual = document.getElementById('aus-dual')?.checked || false;
+ c.aus[empId] = {
+ country: document.getElementById('aus-country')?.value||'',
+ legalBasis: document.getElementById('aus-legalbasis')?.value||'dba',
+ totalWage: document.getElementById('aus-wage')?.value||'', workDaysTotal: String(daysTotal), workDaysForeign: String(daysForeign),
+ employerName: document.getElementById('aus-emp-name')?.value||'', employerStreet: document.getElementById('aus-emp-street')?.value||'',
+ employerPlz: document.getElementById('aus-emp-plz')?.value||'', employerCity: document.getElementById('aus-emp-city')?.value||'',
+ employerCountry: document.getElementById('aus-emp-country')?.value||'',
+ activityDesc: document.getElementById('aus-activity-desc')?.value||'', activityFrom: document.getElementById('aus-activity-from')?.value||'',
+ activityTo: document.getElementById('aus-activity-to')?.value||'',
+ dualResidence: dual,
+ foreignResStreet: dual?(document.getElementById('aus-fr-street')?.value||''):'', foreignResPlz: dual?(document.getElementById('aus-fr-plz')?.value||''):'',
+ foreignResCity: dual?(document.getElementById('aus-fr-city')?.value||''):'', foreignResCountry: dual?(document.getElementById('aus-fr-country')?.value||''):'',
+ centerOfInterests: dual?(document.getElementById('aus-center')?.checked||false):false,
+ };
 }
 function applyAusCalc(empId){
  const c=cur(); const emp=(c.emps||[]).find(e=>e.id===empId); if(!emp) return;
- const wage=N(document.getElementById('aus-wage')?.value);
- const daysTotal=parseInt(document.getElementById('aus-days-total')?.value)||0;
- const daysForeign=parseInt(document.getElementById('aus-days-foreign')?.value)||0;
- const result = daysTotal>0 ? Math.round(wage*daysForeign/daysTotal*100)/100 : 0;
+ updateAusResult(empId);
+ const a=c.aus[empId];
+ const wage=N(a.totalWage), daysTotal=parseInt(a.workDaysTotal)||0, daysForeign=parseInt(a.workDaysForeign)||0;
+ const result = daysTotal>0 ? Math.round(wage*daysForeign/daysTotal) : 0;
  emp.dba16 = formatDE(result);
  c.updatedAt=Date.now(); scheduleSave();
  const m=document.querySelector('.modal-bg'); if(m) m.remove();
@@ -688,6 +762,16 @@ en: {
  aus_total_wage:"Total wage for the year (domestic + foreign)", aus_days_total:"Actual working days in the year",
  aus_days_foreign:"Of those, days worked abroad", aus_formula_hint:"Formula: total wage x foreign days / total working days",
  aus_result_label:"Tax-free amount:", aus_apply:"Use this amount",
+ aus_legalbasis:"Legal basis for the exemption", aus_basis_dba:"Double taxation agreement (DBA) - standard case",
+ aus_basis_ate:"ATE (special development-aid agreement)", aus_basis_zu:"ZÜ (other intergovernmental agreement)",
+ aus_legalbasis_hint:"Most foreign postings fall under DBA. Only choose ATE or ZÜ if you know that applies - these need extra details a tax advisor can help complete.",
+ aus_employer_label:"Foreign employer", aus_employer_name:"Employer name", aus_employer_street:"Street, number",
+ aus_employer_plz:"Postcode", aus_employer_city:"City", aus_employer_country:"Country",
+ aus_activity_label:"The foreign activity itself", aus_activity_desc:"What kind of work was it?", aus_activity_desc_ph:"e.g. Software development",
+ aus_activity_from:"From", aus_activity_to:"To",
+ aus_dual_residence:"Did you also keep a residence abroad (in addition to Germany)?",
+ aus_foreignres_street:"Foreign residence - street, number", aus_foreignres_plz:"Postcode", aus_foreignres_city:"City", aus_foreignres_country:"Country",
+ aus_center_of_interests:"Was your center of personal and economic life in that country?",
  z17:"Employer benefits credited against the commuting allowance (line 17)",
  z18:"15% flat-taxed employer commuting benefits (line 18)",
  z17_hint:"Lines 17/18 reduce the deductible commuting allowance - applied automatically.",
@@ -1001,6 +1085,16 @@ de: {
  aus_total_wage:"Gesamtlohn im Jahr (Inland + Ausland)", aus_days_total:"Tatsächliche Arbeitstage im Jahr",
  aus_days_foreign:"Davon Arbeitstage im Ausland", aus_formula_hint:"Formel: Gesamtlohn x Auslandstage / Gesamtarbeitstage",
  aus_result_label:"Steuerfreier Betrag:", aus_apply:"Betrag übernehmen",
+ aus_legalbasis:"Rechtsgrundlage der Steuerfreistellung", aus_basis_dba:"Doppelbesteuerungsabkommen (DBA) - Regelfall",
+ aus_basis_ate:"ATE (besonderes Entwicklungshilfe-Abkommen)", aus_basis_zu:"ZÜ (sonstiges zwischenstaatliches Übereinkommen)",
+ aus_legalbasis_hint:"Die meisten Auslandseinsätze fallen unter DBA. ATE oder ZÜ nur wählen, wenn dies bekanntermaßen zutrifft - dafür sind zusätzliche Angaben nötig, bei denen ein Steuerberater helfen kann.",
+ aus_employer_label:"Ausländischer Arbeitgeber", aus_employer_name:"Name des Arbeitgebers", aus_employer_street:"Straße, Hausnummer",
+ aus_employer_plz:"Postleitzahl", aus_employer_city:"Ort", aus_employer_country:"Staat",
+ aus_activity_label:"Die Auslandstätigkeit selbst", aus_activity_desc:"Um welche Art von Tätigkeit handelte es sich?", aus_activity_desc_ph:"z. B. Softwareentwicklung",
+ aus_activity_from:"Von", aus_activity_to:"Bis",
+ aus_dual_residence:"Bestand neben dem Wohnsitz in Deutschland auch ein Wohnsitz im Ausland?",
+ aus_foreignres_street:"Wohnsitz im Ausland - Straße, Hausnummer", aus_foreignres_plz:"Postleitzahl", aus_foreignres_city:"Ort", aus_foreignres_country:"Staat",
+ aus_center_of_interests:"Lag der Mittelpunkt Ihrer persönlichen und wirtschaftlichen Lebensinteressen in diesem Staat?",
  z17:"Steuerfreie Arbeitgeberleistungen, auf Entfernungspauschale anzurechnen (Zeile 17)",
  z18:"Pauschal mit 15 % besteuerte Fahrtkosten-Arbeitgeberleistungen (Zeile 18)",
  z17_hint:"Zeilen 17/18 mindern die absetzbare Entfernungspauschale - wird automatisch angerechnet.",
@@ -1081,6 +1175,7 @@ function yearWarning(year){
   return parts.join(' ');
 }
 const EM35C_MEASURES=[{key:'Walls'},{key:'Roof'},{key:'Ceiling'},{key:'Windows'},{key:'Ventilation'},{key:'Heating'}];
+const NAUS_COUNTRIES=["Afghanistan","Ägypten","Albanien","Algerien","Andorra","Angola","Antigua und Barbuda","Äquatorialguinea","Argentinien","Armenien","Aserbaidschan","Äthiopien","Australien","Bahamas","Bahrain","Bangladesch","Barbados","Belgien","Belize","Benin","Bhutan","Bolivien","Bosnien und Herzegowina","Botsuana","Brasilien","Brunei Darussalam","Bulgarien","Burkina Faso","Burundi","Chile","China","Cookinseln","Costa Rica","Cote d&apos;Ivoire","Dänemark","Deutschland","Dominica","Dominikanische Republik","Dschibuti","Ecuador","El Salvador","Eritrea","Estland","Eswatini","Fidschi","Finnland","Frankreich","Gabun","Gambia","Georgien","Ghana","Grenada","Griechenland","Guatemala","Guinea","Guinea-Bissau","Guyana","Haiti","Honduras","Indien","Indonesien","Irak","Iran","Irland","Island","Israel","Italien","Jamaika","Japan","Jemen","Jordanien","Kambodscha","Kamerun","Kanada","Kap Verde","Kasachstan","Katar","Kenia","Kirgisistan","Kiribati","Kolumbien","Komoren","Kongo","Kongo","Demokratische Republik","Korea","Demokratische Volksrepublik","Korea","Republik","Kosovo","Kroatien","Kuba","Kuwait","Laos","Lesotho","Lettland","Libanon","Liberia","Libyen","Liechtenstein","Litauen","Luxemburg","Madagaskar","Malawi","Malaysia","Malediven","Mali","Malta","Marokko","Marshallinseln","Mauretanien","Mauritius","Mexiko","Föderierte Staaten von Mikronesien","Moldau","Monaco","Mongolei","Montenegro","Mosambik","Myanmar","Namibia","Nauru","Nepal","Neuseeland","Nicaragua","Niederlande","Niger","Nigeria","Niue","Nordmazedonien","Norwegen","Oman","Österreich","Pakistan","Palau","Panama","Papua-Neuguinea","Paraguay","Peru","Philippinen","Polen","Portugal","Ruanda","Rumänien","Russische Föderation","Salomonen","Sambia","Samoa","San Marino","Sao Tome und Principe","Saudi-Arabien","Schweden","Schweiz","Senegal","Serbien","Seychellen","Sierra Leone","Simbabwe","Singapur","Slowakei","Slowenien","Somalia","Spanien","Sri Lanka","St. Kitts und Nevis","St. Lucia","St. Vincent und die Grenadinen","Südafrika","Sudan","Südsudan","Surinam","Syrien","Tadschikistan","Tansania","Thailand","Timor-Leste","Togo","Tonga","Trinidad und Tobago","Tschad","Tschechische Republik","Tunesien","Türkei","Turkmenistan","Tuvalu","Uganda","Ukraine","Ungarn","Uruguay","USA","Usbekistan","Vanuatu","Vatikanstadt","Venezuela","Vereinigte Arabische Emirate","Vereinigtes Königreich","Vietnam","Weißrussland","Zentralafrikanische Republik","Zypern"]; // confirmed via raw XSD (NAEnum_LAND_OF_WORLD_2020_1) - genuinely different list from UNT_COUNTRIES and UNT_COUNTRIES_LEGACY, not assumed compatible
 const UNT_COUNTRIES=['Afghanistan','Ägypten','Albanien','Algerien','Amerikanisch-Samoa','Amerikanische Jungferninseln','Andorra','Angola','Antigua und Barbuda','Äquatorialguinea','Argentinien','Armenien','Aruba','Aserbaidschan','Äthiopien','Australien','Bahamas','Bahrain','Bangladesch','Barbados','Belarus','Belgien','Belize','Benin','Bermuda','Bhutan','Bolivien','Plurinationaler Staat','Bosnien und Herzegowina','Botsuana','Brasilien','Britische Jungferninseln','Brunei Darussalam','Bulgarien','Burkina Faso','Burundi','Cabo Verde','Chile','China','Cookinseln','Costa Rica','Cote d Ivoire','Curacao','Dänemark','Deutschland','Dominica','Dominikanische Republik','Dschibuti','Ecuador','El Salvador','Eritrea','Estland','Eswatini','Färöer','Fidschi','Finnland','Frankreich','Französisch-Polynesien','Gabun','Gambia','Georgien','Ghana','Gibraltar','Grenada','Griechenland','Grönland','Guam','Guatemala','Guinea','Guinea-Bissau','Guyana','Haiti','Honduras','Hongkong','Indien','Indonesien','Insel Man','Irak','Iran','Islamische Republik','Irland','Island','Israel','Italien','Jamaika','Japan','Jemen','Jordanien','Kaimaninseln','Kambodscha','Kamerun','Kanada','Kanalinseln','Kasachstan','Katar','Kenia','Kirgisistan','Kiribati','Kolumbien','Komoren','Kongo','Kongo','Demokratische Republik','Korea','Demokratische Volksrepublik','Korea','Republik','Kosovo','Kroatien','Kuba','Kuwait','Laos','Demokratische Volksrepublik','Lesotho','Lettland','Libanon','Liberia','Libyen','Liechtenstein','Litauen','Luxemburg','Macau','Madagaskar','Malawi','Malaysia','Malediven','Mali','Malta','Marokko (einschl. Westsahara)','Marshallinseln','Mauretanien','Mauritius','Mexiko','Mikronesien','Föderierte Staaten von','Moldau','Republik','Monaco','Mongolei','Montenegro','Mosambik','Myanmar','Namibia','Nauru','Nepal','Neukaledonien','Neuseeland','Nicaragua','Niederlande','Niger','Nigeria','Niue','Nördliche Marianen','Nordmazedonien','Norwegen','Oman','Österreich','Pakistan','Palästinensische Gebiete','Palau','Panama','Papua Neuguinea','Paraguay','Peru','Philippinen','Polen','Portugal','Puerto Rico','Ruanda','Rumänien','Russische Föderation','Salomonen','Sambia','Samoa','San Marino','Sao Tome und Principe','Saudi-Arabien','Schweden','Schweiz','Senegal','Serbien','Seychellen','Sierra Leone','Simbabwe','Singapur','Slowakei','Slowenien','Somalia','Spanien','Sri Lanka','St. Kitts und Nevis','St. Lucia','St. Martin (französischer Teil)','St. Martin (niederländischer Teil)','St. Vincent und die Grenadinen','Südafrika','Sudan','Südsudan','Suriname','Syrien','Arabische Republik','Tadschikistan','Taiwan','Tansania','Vereinigte Republik','Thailand','Timor-Leste','Togo','Tonga','Trinidad und Tobago','Tschad','Tschechien','Tunesien','Türkei','Turkmenistan','Turks- und Caicosinseln','Tuvalu','Uganda','Ukraine','Ungarn','Uruguay','Usbekistan','Vanuatu','Vatikanstadt','Venezuela','Bolivarische Republik','Vereinigte Arabische Emirate','Vereinigte Staaten','Vereinigtes Königreich','Vietnam','Zentralafrikanische Republik','Zypern'];
 const UNT_COUNTRIES_LEGACY=["Afghanistan","Ägypten","Albanien","Algerien","Amerikanische Junferninseln","Amerikanisch-Samoa","Andorra","Angola","Antigua und Barbuda","Äquatorialguinea","Argentinien","Armenien","Aruba","Aserbaidschan","Äthiopien","Australien","Bahamas","Bahrain","Bangladesch","Barbados","Belgien","Belize","Benin","Bermuda","Bhutan","Bolivien","Plurinationaler Staat","Bosnien und Herzegowina","Botsuana","Brasilien","Britische Jungferninseln","Brunei Darussalam","Bulgarien","Burkina Faso","Burundi","Cabo Verde","Chile","China","Cookinseln","Costa Rica","Cote d Ivoire","Curacao","Dänemark","Deutschland","Dominica","Dominikanische Republik","Dschibuti","Ecuador","El Salvador","Eritrea","Estland","Eswatini","Färöer","Fidschi","Finnland","Frankreich","Französisch-Polynesien","Gabun","Gambia","Georgien","Ghana","Gibraltar","Grenada","Griechenland","Grönland","Guam","Guatemala","Guinea","Guinea-Bissau","Guyana","Haiti","Honduras","Hongkong","Indien","Indonesien","Insel Man","Irak","Iran","Islamische Republik","Irland","Island","Israel","Italien","Jamaika","Japan","Jemen","Jordanien","Kaimaninseln","Kambodscha","Kamerun","Kanada","Kanalinseln","Kasachstan","Katar","Kenia","Kirgisistan","Kiribati","Kolumbien","Komoren","Kongo","Kongo","Demokratische Republik","Korea","Demokratische Volksrepublik","Korea","Republik","Kosovo","Kroatien","Kuba","Kuwait","Laos","Demokratische Volksrepublik","Lesotho","Lettland","Libanon","Liberia","Libyen","Liechtenstein","Litauen","Luxemburg","Macau","Madagaskar","Malawi","Malaysia","Malediven","Mali","Malta","Marokko","Marshallinseln","Mauretanien","Mauritius","Mexiko","Mikronesien","Föderierte Staaten von","Moldau","Republik","Monaco","Mongolei","Montenegro","Mosambik","Myanmar","Namibia","Nauru","Nepal","Neukaledonien","Neuseeland","Nicaragua","Niederlande","Niger","Nigeria","Niue","Nördliche Marianen","Nordmazedonien","Norwegen","Oman","Österreich","Pakistan","Palästinensische Gebiete","Palau","Panama","Papua Neuguinea","Paraguay","Peru","Philippinen","Polen","Portugal","Puerto Rico","Ruanda","Rumänien","Russische Föderation","Salomonen","Sambia","Samoa","San Marino","Sao Tome und Principe","Saudi-Arabien","Schweden","Schweiz","Senegal","Serbien","Seychellen","Sierra Leone","Simbabwe","Singapur","Slowakei","Slowenien","Somalia","Spanien","Sri Lanka","St. Kitts und Nevis","St. Lucia","St. Martin (französischer Teil)","St. Martin (niederländischer Teil)","St. Vincent und die Grenadinen","Südafrika","Sudan","Südsudan","Suriname","Syrien","Arabische Republik","Tadschikistan","Taiwan","Tansania","Vereinigte Republik","Thailand","Timor-Leste","Togo","Tonga","Trinidad und Tobago","Tschad","Tschechien","Tunesien","Türkei","Turkmenistan","Turks- und Caicos-Inseln","Tuvalu","Uganda","Ukraine","Ungarn","Uruguay","Usbekistan","Vanuatu","Vatikanstadt","Venezuela","Bolivarische Republik","Vereinigte Arabische Emirate","Vereinigtes Königreich","Vereinigte Staaten","Vietnam","Weißrussland/Belarus","Zentralafrikanische Republik","Zypern"]; // confirmed byte-identical for 2021 and 2022, extracted directly from the real XSD documentation string (NAEnum_LAENDERGR_2021_1) - genuinely different list from UNT_COUNTRIES above (used for 2023+), not assumed compatible
 
@@ -3248,10 +3343,15 @@ function buildElsterDataset(c){
  and are deliberately NOT invented here. */
  anlageNAUS:(c.emps||[]).filter(k=>c.aus && c.aus[k.id] && (N(c.aus[k.id].totalWage)>0)).map(k=>{
  const a=c.aus[k.id];
- return { person:k.person==='B'?'B':'A', arbeitgeberName:k.employer||'',
- land:a.country||'', gesamtlohn:N(a.totalWage),
+ return { person:k.person==='B'?'B':'A',
+ land:a.country||'', legalBasis:a.legalBasis||'dba',
+ arbeitgeberName:a.employerName||k.employer||'', arbeitgeberStreet:a.employerStreet||'', arbeitgeberPlz:a.employerPlz||'',
+ arbeitgeberCity:a.employerCity||'', arbeitgeberCountry:a.employerCountry||'',
+ taetigkeitDesc:a.activityDesc||'', taetigkeitVon:a.activityFrom||'', taetigkeitBis:a.activityTo||'',
+ gesamtlohn:N(a.totalWage), steuerfreierBetrag:0,
  arbeitstageGesamt:parseInt(a.workDaysTotal)||0, arbeitstageAusland:parseInt(a.workDaysForeign)||0,
- steuerfreierBetrag: (parseInt(a.workDaysTotal)>0) ? Math.round(N(a.totalWage)*(parseInt(a.workDaysForeign)||0)/parseInt(a.workDaysTotal)*100)/100 : 0 };
+ dualResidence:!!a.dualResidence, foreignResStreet:a.foreignResStreet||'', foreignResPlz:a.foreignResPlz||'',
+ foreignResCity:a.foreignResCity||'', foreignResCountry:a.foreignResCountry||'', centerOfInterests:!!a.centerOfInterests };
  }),
  werbungskosten:{
  personA:{ entfernungspauschale:{ arbeitstage:N(c.wk.commuteDays), einfacheEntfernungKm:N(c.wk.commuteKm) },
