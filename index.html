@@ -544,6 +544,9 @@ en: {
  s1_lead:"Basic data for the main form (Hauptvordruck ESt 1 A).",
  birth_date:"Date of birth", tax_id:"Tax ID (IdNr, 11 digits)", tax_id_hint:"The personal Steuer-Identifikationsnummer.",
  taxid_invalid_checksum:"This doesn't look like a valid Steuer-ID - please double-check the digits.",
+ dup_idnr_found:"This tax ID is entered twice for two different people - each person's ID must be unique.",
+ dup_idnr_filer:"your own ID", dup_idnr_spouse:"spouse's ID", dup_idnr_unt:"supported person's ID", dup_idnr_realsplit:"ex-spouse's ID (Realsplitting)",
+ spouse_incomplete_warning:"First name, birthdate, and religion must all be given together for the spouse - some are missing.",
  taxid_valid_checksum:"Valid Steuer-ID",
  street:"Street", house_no:"No.", plz:"Postal code", city:"City",
  religion:"Church tax (religion)", rel_none:"None (no church tax)", rel_ev:"Protestant (EV)", rel_rk:"Catholic (RK)", rel_other:"Other",
@@ -879,6 +882,9 @@ de: {
  s1_lead:"Grunddaten für den Hauptvordruck ESt 1 A.",
  birth_date:"Geburtsdatum", tax_id:"Steuer-ID (IdNr, 11 Ziffern)", tax_id_hint:"Die persönliche Steuer-Identifikationsnummer.",
  taxid_invalid_checksum:"Das sieht nicht nach einer gültigen Steuer-ID aus - bitte die Ziffern noch einmal prüfen.",
+ dup_idnr_found:"Diese Steuer-ID ist zweimal für unterschiedliche Personen eingetragen - jede ID muss eindeutig sein.",
+ dup_idnr_filer:"eigene ID", dup_idnr_spouse:"ID des Ehepartners", dup_idnr_unt:"ID der unterstützten Person", dup_idnr_realsplit:"ID des Ex-Partners (Realsplitting)",
+ spouse_incomplete_warning:"Vorname, Geburtsdatum und Religion müssen beim Ehepartner gemeinsam angegeben werden - einige fehlen noch.",
  taxid_valid_checksum:"Gültige Steuer-ID",
  street:"Straße", house_no:"Nr.", plz:"PLZ", city:"Ort",
  religion:"Kirchensteuer (Religion)", rel_none:"Keine (keine Kirchensteuer)", rel_ev:"Evangelisch (EV)", rel_rk:"Katholisch (RK)", rel_other:"Andere",
@@ -2335,8 +2341,12 @@ function upd(group,key,val,fmt){
  if(group==='p' && key==='bundesland'){ c.p.finanzamt=''; c.p.faNumber=''; }
  scheduleSave(); render();
  if(group==='p' && key==='taxId') checkTaxIdChecksum(val);
+ if(group==='p' && key==='spouseTaxId') checkTaxIdChecksum(val, 'spousetaxid-check-msg');
  if(group==='p' && key==='iban') checkIbanChecksum(val);
  if(group==='p' && (key==='steuernummer'||key==='faNumber')) checkSteuernummerChecksum();
+ if(group==='oth' && key==='realsplitIdnr') checkTaxIdChecksum(val, 'realsplitidnr-check-msg');
+ if(group==='fam' && key==='untIdnr') checkTaxIdChecksum(val, 'untidnr-check-msg');
+ if(group==='p' && key==='taxId' || group==='p' && key==='spouseTaxId' || group==='oth' && key==='realsplitIdnr' || group==='fam' && key==='untIdnr') checkDuplicateIdNrs();
 }
 /* Real IBAN checksum validation via ERiC's EricMtPruefeIBAN (through
  /api/eric/validate-fields) - same pattern and same safety properties as
@@ -2392,9 +2402,10 @@ async function checkSteuernummerChecksum(){
  (ERIC_HOME not set on the backend) - this is a nice-to-have improvement,
  never a hard requirement, so its absence must never block the wizard. */
 let _taxIdCheckSeq = 0;
-async function checkTaxIdChecksum(val){
+async function checkTaxIdChecksum(val, msgId){
+ msgId = msgId || 'taxid-check-msg';
  const digits=(val||'').replace(/\s/g,'');
- const msgEl=()=>document.getElementById('taxid-check-msg');
+ const msgEl=()=>document.getElementById(msgId);
  if(!/^\d{11}$/.test(digits)){ const el=msgEl(); if(el) el.innerHTML=''; return; }
  const seq = ++_taxIdCheckSeq;
  try{
@@ -2407,6 +2418,32 @@ async function checkTaxIdChecksum(val){
  el.innerHTML = `<div class="hint" style="color:var(--teal)">✓ ${t('taxid_valid_checksum')}</div>`;
  }
  } catch(e){ /* service unavailable - degrade silently, never block the wizard */ }
+}
+/* Real gap found via testing against a genuine client file (Regel
+   101100155) - ELSTER rejects an IdNr that's reused across different
+   people, since IDs are uniquely assigned per person. The app never
+   checked this client-side before, so it only surfaced as a raw ERiC
+   rejection after submission. Compares every ID actually collected:
+   the filer's own, the spouse's, the Unterhalt supported person's, and
+   the Realsplitting ex-spouse's - any two matching (and non-blank) is
+   always wrong, regardless of which specific pair. */
+function checkDuplicateIdNrs(){
+ const c=cur(); if(!c) return;
+ const clean=v=>(v||'').replace(/\s/g,'');
+ const ids=[
+ {key:'taxId', label:t('dup_idnr_filer'), val:clean(c.p.taxId)},
+ {key:'spouseTaxId', label:t('dup_idnr_spouse'), val:clean(c.p.spouseTaxId)},
+ {key:'untIdnr', label:t('dup_idnr_unt'), val:clean(c.fam?.untIdnr)},
+ {key:'realsplitIdnr', label:t('dup_idnr_realsplit'), val:clean(c.oth?.realsplitIdnr)},
+ ].filter(x=>x.val.length===11);
+ const el=document.getElementById('dup-idnr-check-msg'); if(!el) return;
+ for(let i=0;i<ids.length;i++) for(let j=i+1;j<ids.length;j++){
+ if(ids[i].val===ids[j].val){
+ el.innerHTML = `<div class="hint" style="color:var(--red)">⚠ ${t('dup_idnr_found')} (${ids[i].label} / ${ids[j].label})</div>`;
+ return;
+ }
+ }
+ el.innerHTML='';
 }
 /* --- generic list items (employments, capital gains, properties) --- */
 function LF(list,item,field,label,opts={}){
@@ -2573,8 +2610,15 @@ function stepPersonal(c){
  <div class="grid2">
  ${F('p','spouseFirst',t('first_name')+' *')} ${F('p','spouseLast',t('last_name')+' *')}
  ${F('p','spouseBirth',t('birth_date')+' *',{type:'date'})} ${F('p','spouseTaxId',t('tax_id')+' *')}
+ <div id="spousetaxid-check-msg"></div>
  ${F('p','spouseReligion',t('religion'),{select:[['none',t('rel_none')],['ev',t('rel_ev')],['rk',t('rel_rk')],['other',t('rel_other')]]})}
- </div>`:''}
+ </div>
+ <div id="dup-idnr-check-msg"></div>
+ ${(()=>{ const s=c.p; const has=s.spouseFirst||s.spouseLast||s.spouseBirth||s.spouseTaxId;
+   if(has && !(s.spouseFirst && s.spouseBirth))
+     return `<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin-top:6px;padding:8px 10px;font-size:12.5px">⚠ ${t('spouse_incomplete_warning')}</div>`;
+   return '';
+ })()}`:''}
  ${navRow()}`;
 }
 
@@ -2995,6 +3039,7 @@ function stepFamily(c){
  ${F('fam','untProfession',t('unt_profession')+' *',{ph:t('unt_profession_ph')})}
  ${F('fam','untBirthDate',t('unt_birthdate')+' *',{type:'date'})}
  ${F('fam','untIdnr',t('unt_idnr'),{ph:'12 345 678 901',hint:t('unt_idnr_hint')})}
+ <div id="untidnr-check-msg"></div>
  ${F('fam','untRelationship',t('unt_relationship')+' *',{ph:t('unt_relationship_ph')})}
  ${F('fam','untAddress',t('unt_address')+' *',{ph:t('unt_address_ph')})}
  ${F('fam','untHouseholdSize',t('unt_household_size')+' *',{ph:'1'})}
@@ -3035,6 +3080,7 @@ function stepSpecial(c){
  ${N(c.oth.realsplitting)>0?`<div class="grid2">
  ${F('oth','realsplitName',t('realsplit_name')+' *',{ph:t('realsplit_name_ph')})}
  ${F('oth','realsplitIdnr',t('realsplit_idnr')+' *',{ph:'12 345 678 901',hint: c.taxYear<=2023 ? t('realsplit_idnr_hint_2023') : t('realsplit_idnr_hint')})}
+ <div id="realsplitidnr-check-msg"></div>
  </div>`:''}
  ${N(c.oth.realsplitting)>0 && YEAR_LIMITATIONS[c.taxYear]?.noRealsplittingCountry?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
  ⚠ ${t('year_warn_no_realsplit_country')}
