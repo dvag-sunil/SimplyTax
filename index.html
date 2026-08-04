@@ -593,9 +593,18 @@ en: {
  rente_hint:"The taxable share is derived automatically from the start year (2005 = 50%, rising to 83.5% for 2025 starts; § 22 EStG incl. Wachstumschancengesetz). €102 expenses lump sum per person is applied automatically.",
  rente_pct_hint:"Typical values: start at age 60 → 22%, 63 → 20%, 65 → 18%, 67 → 17%.",
  sec_energ:"Energetic renovation of your own home (§ 35c)",
- energ_cost:"Eligible renovation costs (insulation, windows, heating...)",
- energ_stage:"Installment year", energ_s1:"1st year (7%)", energ_s2:"2nd year (7%)", energ_s3:"3rd year (6%)",
- energ_hint:"20% of up to €200,000 credited directly against the tax over 3 years (7% + 7% + 6%). Requirements: self-used home older than 10 years and a Fachunternehmer certificate. The SAME invoice must not additionally be claimed under § 35a (Handwerker).",
+ energ_intro:"For a renovation improving the energy efficiency of a home you live in yourself (§35c EStG) - not for a rented property, see rental expenses instead.",
+ energ_street:"Building street, number", energ_plzort:"Postcode, city",
+ energ_builddate:"Building constructed on/around", energ_builddate_hint:"Must be over 10 years old when the renovation starts.",
+ energ_measurestart:"Renovation start date",
+ energ_areatotal:"Total floor area (m²)", energ_areaown:"Of that, used by you (m²)",
+ energ_priorclaim:"Already claimed §35c for this property before?", energ_otherfunding:"Other public funding applied for (e.g. KfW)?",
+ energ_measures_label:"Which measures apply? (select all that apply)",
+ energ_m_Walls:"Wall insulation", energ_m_Roof:"Roof insulation", energ_m_Ceiling:"Floor/ceiling insulation",
+ energ_m_Windows:"New windows or exterior doors", energ_m_Ventilation:"Ventilation system", energ_m_Heating:"New heating system",
+ energ_credit_note:"20% is credited over 3 tax years (7% + 7% + 6%), capped at €40,000 total.",
+ energ_has_prior_years:"Already claimed this in a previous year? (enter the recognized amounts below)",
+ energ_prioryear1:"Amount recognized last year", energ_prioryear2:"Amount recognized 2 years ago",
  loss_hint:"The amount from your last loss-assessment notice (Verlustfeststellungsbescheid).",
  warn_dup_dhh:"Double household is entered BOTH in the structured fields AND as an itemized entry - the amounts would count twice. Please keep only one of the two.",
  warn_dup_umzug:"Relocation costs are entered BOTH in the structured field AND as an itemized entry - please keep only one.",
@@ -897,9 +906,18 @@ de: {
  rente_hint:"Der Besteuerungsanteil wird automatisch aus dem Beginnjahr abgeleitet (2005 = 50 %, steigend bis 83,5 % bei Beginn 2025; § 22 EStG inkl. Wachstumschancengesetz). Der Werbungskosten-Pauschbetrag von 102 € je Person wird automatisch angesetzt.",
  rente_pct_hint:"Typische Werte: Beginn mit 60 → 22 %, 63 → 20 %, 65 → 18 %, 67 → 17 %.",
  sec_energ:"Energetische Sanierung der eigenen Wohnung (§ 35c)",
- energ_cost:"Begünstigte Sanierungskosten (Dämmung, Fenster, Heizung...)",
- energ_stage:"Förderjahr", energ_s1:"1. Jahr (7 %)", energ_s2:"2. Jahr (7 %)", energ_s3:"3. Jahr (6 %)",
- energ_hint:"20 % von bis zu 200.000 € werden über 3 Jahre direkt von der Steuer abgezogen (7 % + 7 % + 6 %). Voraussetzung: selbst genutztes Wohneigentum älter als 10 Jahre und Bescheinigung des Fachunternehmens. Dieselbe Rechnung darf nicht zusätzlich bei § 35a (Handwerker) angesetzt werden.",
+ energ_intro:"Für eine energetische Sanierung an einer selbst genutzten Immobilie (§35c EStG) - nicht für eine vermietete Immobilie, dafür siehe Werbungskosten Vermietung.",
+ energ_street:"Straße, Hausnummer des Gebäudes", energ_plzort:"Postleitzahl, Ort",
+ energ_builddate:"Baujahr / Herstellungsbeginn des Gebäudes", energ_builddate_hint:"Muss zu Beginn der Sanierung älter als 10 Jahre sein.",
+ energ_measurestart:"Baubeginn der Sanierungsmaßnahme",
+ energ_areatotal:"Gesamtfläche (m²)", energ_areaown:"Davon selbst genutzt (m²)",
+ energ_priorclaim:"§35c für dieses Objekt schon früher genutzt?", energ_otherfunding:"Andere öffentliche Förderung beantragt (z. B. KfW)?",
+ energ_measures_label:"Welche Maßnahmen treffen zu? (Mehrfachauswahl möglich)",
+ energ_m_Walls:"Wärmedämmung Wände", energ_m_Roof:"Wärmedämmung Dach", energ_m_Ceiling:"Wärmedämmung Geschossdecken",
+ energ_m_Windows:"Neue Fenster oder Außentüren", energ_m_Ventilation:"Lüftungsanlage", energ_m_Heating:"Neue Heizungsanlage",
+ energ_credit_note:"20 % werden über 3 Steuerjahre verteilt angerechnet (7 % + 7 % + 6 %), maximal 40.000 € insgesamt.",
+ energ_has_prior_years:"Bereits in einem Vorjahr geltend gemacht? (unten anerkannte Beträge eintragen)",
+ energ_prioryear1:"Anerkannter Betrag Vorjahr", energ_prioryear2:"Anerkannter Betrag vor 2 Jahren",
  loss_hint:"Der Betrag aus dem letzten Verlustfeststellungsbescheid.",
  warn_dup_dhh:"Die doppelte Haushaltsführung ist SOWOHL in den strukturierten Feldern ALS AUCH als Einzelposten erfasst - die Beträge würden doppelt zählen. Bitte nur eine der beiden Eingaben behalten.",
  warn_dup_umzug:"Umzugskosten sind SOWOHL im strukturierten Feld ALS AUCH als Einzelposten erfasst - bitte nur eine Eingabe behalten.",
@@ -1062,6 +1080,7 @@ function yearWarning(year){
   if(lim.noRealsplittingCountry) parts.push(t('year_warn_no_realsplit_country'));
   return parts.join(' ');
 }
+const EM35C_MEASURES=[{key:'Walls'},{key:'Roof'},{key:'Ceiling'},{key:'Windows'},{key:'Ventilation'},{key:'Heating'}];
 const UNT_COUNTRIES=['Afghanistan','Ägypten','Albanien','Algerien','Amerikanisch-Samoa','Amerikanische Jungferninseln','Andorra','Angola','Antigua und Barbuda','Äquatorialguinea','Argentinien','Armenien','Aruba','Aserbaidschan','Äthiopien','Australien','Bahamas','Bahrain','Bangladesch','Barbados','Belarus','Belgien','Belize','Benin','Bermuda','Bhutan','Bolivien','Plurinationaler Staat','Bosnien und Herzegowina','Botsuana','Brasilien','Britische Jungferninseln','Brunei Darussalam','Bulgarien','Burkina Faso','Burundi','Cabo Verde','Chile','China','Cookinseln','Costa Rica','Cote d Ivoire','Curacao','Dänemark','Deutschland','Dominica','Dominikanische Republik','Dschibuti','Ecuador','El Salvador','Eritrea','Estland','Eswatini','Färöer','Fidschi','Finnland','Frankreich','Französisch-Polynesien','Gabun','Gambia','Georgien','Ghana','Gibraltar','Grenada','Griechenland','Grönland','Guam','Guatemala','Guinea','Guinea-Bissau','Guyana','Haiti','Honduras','Hongkong','Indien','Indonesien','Insel Man','Irak','Iran','Islamische Republik','Irland','Island','Israel','Italien','Jamaika','Japan','Jemen','Jordanien','Kaimaninseln','Kambodscha','Kamerun','Kanada','Kanalinseln','Kasachstan','Katar','Kenia','Kirgisistan','Kiribati','Kolumbien','Komoren','Kongo','Kongo','Demokratische Republik','Korea','Demokratische Volksrepublik','Korea','Republik','Kosovo','Kroatien','Kuba','Kuwait','Laos','Demokratische Volksrepublik','Lesotho','Lettland','Libanon','Liberia','Libyen','Liechtenstein','Litauen','Luxemburg','Macau','Madagaskar','Malawi','Malaysia','Malediven','Mali','Malta','Marokko (einschl. Westsahara)','Marshallinseln','Mauretanien','Mauritius','Mexiko','Mikronesien','Föderierte Staaten von','Moldau','Republik','Monaco','Mongolei','Montenegro','Mosambik','Myanmar','Namibia','Nauru','Nepal','Neukaledonien','Neuseeland','Nicaragua','Niederlande','Niger','Nigeria','Niue','Nördliche Marianen','Nordmazedonien','Norwegen','Oman','Österreich','Pakistan','Palästinensische Gebiete','Palau','Panama','Papua Neuguinea','Paraguay','Peru','Philippinen','Polen','Portugal','Puerto Rico','Ruanda','Rumänien','Russische Föderation','Salomonen','Sambia','Samoa','San Marino','Sao Tome und Principe','Saudi-Arabien','Schweden','Schweiz','Senegal','Serbien','Seychellen','Sierra Leone','Simbabwe','Singapur','Slowakei','Slowenien','Somalia','Spanien','Sri Lanka','St. Kitts und Nevis','St. Lucia','St. Martin (französischer Teil)','St. Martin (niederländischer Teil)','St. Vincent und die Grenadinen','Südafrika','Sudan','Südsudan','Suriname','Syrien','Arabische Republik','Tadschikistan','Taiwan','Tansania','Vereinigte Republik','Thailand','Timor-Leste','Togo','Tonga','Trinidad und Tobago','Tschad','Tschechien','Tunesien','Türkei','Turkmenistan','Turks- und Caicosinseln','Tuvalu','Uganda','Ukraine','Ungarn','Uruguay','Usbekistan','Vanuatu','Vatikanstadt','Venezuela','Bolivarische Republik','Vereinigte Arabische Emirate','Vereinigte Staaten','Vereinigtes Königreich','Vietnam','Zentralafrikanische Republik','Zypern'];
 const UNT_COUNTRIES_LEGACY=["Afghanistan","Ägypten","Albanien","Algerien","Amerikanische Junferninseln","Amerikanisch-Samoa","Andorra","Angola","Antigua und Barbuda","Äquatorialguinea","Argentinien","Armenien","Aruba","Aserbaidschan","Äthiopien","Australien","Bahamas","Bahrain","Bangladesch","Barbados","Belgien","Belize","Benin","Bermuda","Bhutan","Bolivien","Plurinationaler Staat","Bosnien und Herzegowina","Botsuana","Brasilien","Britische Jungferninseln","Brunei Darussalam","Bulgarien","Burkina Faso","Burundi","Cabo Verde","Chile","China","Cookinseln","Costa Rica","Cote d Ivoire","Curacao","Dänemark","Deutschland","Dominica","Dominikanische Republik","Dschibuti","Ecuador","El Salvador","Eritrea","Estland","Eswatini","Färöer","Fidschi","Finnland","Frankreich","Französisch-Polynesien","Gabun","Gambia","Georgien","Ghana","Gibraltar","Grenada","Griechenland","Grönland","Guam","Guatemala","Guinea","Guinea-Bissau","Guyana","Haiti","Honduras","Hongkong","Indien","Indonesien","Insel Man","Irak","Iran","Islamische Republik","Irland","Island","Israel","Italien","Jamaika","Japan","Jemen","Jordanien","Kaimaninseln","Kambodscha","Kamerun","Kanada","Kanalinseln","Kasachstan","Katar","Kenia","Kirgisistan","Kiribati","Kolumbien","Komoren","Kongo","Kongo","Demokratische Republik","Korea","Demokratische Volksrepublik","Korea","Republik","Kosovo","Kroatien","Kuba","Kuwait","Laos","Demokratische Volksrepublik","Lesotho","Lettland","Libanon","Liberia","Libyen","Liechtenstein","Litauen","Luxemburg","Macau","Madagaskar","Malawi","Malaysia","Malediven","Mali","Malta","Marokko","Marshallinseln","Mauretanien","Mauritius","Mexiko","Mikronesien","Föderierte Staaten von","Moldau","Republik","Monaco","Mongolei","Montenegro","Mosambik","Myanmar","Namibia","Nauru","Nepal","Neukaledonien","Neuseeland","Nicaragua","Niederlande","Niger","Nigeria","Niue","Nördliche Marianen","Nordmazedonien","Norwegen","Oman","Österreich","Pakistan","Palästinensische Gebiete","Palau","Panama","Papua Neuguinea","Paraguay","Peru","Philippinen","Polen","Portugal","Puerto Rico","Ruanda","Rumänien","Russische Föderation","Salomonen","Sambia","Samoa","San Marino","Sao Tome und Principe","Saudi-Arabien","Schweden","Schweiz","Senegal","Serbien","Seychellen","Sierra Leone","Simbabwe","Singapur","Slowakei","Slowenien","Somalia","Spanien","Sri Lanka","St. Kitts und Nevis","St. Lucia","St. Martin (französischer Teil)","St. Martin (niederländischer Teil)","St. Vincent und die Grenadinen","Südafrika","Sudan","Südsudan","Suriname","Syrien","Arabische Republik","Tadschikistan","Taiwan","Tansania","Vereinigte Republik","Thailand","Timor-Leste","Togo","Tonga","Trinidad und Tobago","Tschad","Tschechien","Tunesien","Türkei","Turkmenistan","Turks- und Caicos-Inseln","Tuvalu","Uganda","Ukraine","Ungarn","Uruguay","Usbekistan","Vanuatu","Vatikanstadt","Venezuela","Bolivarische Republik","Vereinigte Arabische Emirate","Vereinigtes Königreich","Vereinigte Staaten","Vietnam","Weißrussland/Belarus","Zentralafrikanische Republik","Zypern"]; // confirmed byte-identical for 2021 and 2022, extracted directly from the real XSD documentation string (NAEnum_LAENDERGR_2021_1) - genuinely different list from UNT_COUNTRIES above (used for 2023+), not assumed compatible
 
@@ -1640,10 +1659,12 @@ function computeEstimate(c){
  if(tax - taxKfb > kgAnspruch){ tax = taxKfb; kgHinzu = kgAnspruch; } // allowance wins -> entitlement added back
  }
  // §35a credits
- // § 35c energetic renovation: 7% / 7% / 6% of max €200,000, capped 14k/14k/12k per installment year
- const energPct = {'1':0.07,'2':0.07,'3':0.06}[c.oth.energStage]||0;
- const energCap = {'1':14000,'2':14000,'3':12000}[c.oth.energStage]||0;
- const energ = Math.min(Math.min(N(c.oth.energCost),200000)*energPct, energCap);
+ // § 35c energetic renovation: 7% in year 1 and 2, 6% in year 3, of max
+ // €200,000 total spend - this rough estimate always uses the 7% rate
+ // since it's a client-facing approximation, not the actual filing
+ // calculation (which the Finanzamt performs from the real declaration)
+ const energTotal = ['Walls','Roof','Ceiling','Windows','Ventilation','Heating'].reduce((s,k)=>s+N(c.oth['em'+k]),0);
+ const energ = Math.min(Math.min(energTotal,200000)*0.07, 14000);
  const credit = Math.min(N(c.ex.household)*0.20, 4000) + Math.min(N(c.ex.handwerker)*0.20, 1200) + energ;
  const taxAfter = Math.max(0, tax - credit);
  // Soli: Freigrenze per year + Milderungszone 11.9% (§§ 3, 4 SolZG); Abgeltungsteuer keeps flat 5.5%
@@ -1981,7 +2002,17 @@ function meter(c){
 }
 
 /* --- field helper: binds to c[group][key] --- */
-const dateMax = () => new Date().toISOString().slice(0,10);
+/* Bounded to the client's own tax year, not always "today" - filling in
+   a 2021 return should never show a date picker reaching up to 2026.
+   Still capped at the real current date too, since a date genuinely
+   cannot be in the future regardless of which year is being filed. */
+const dateMax = () => {
+  const c = cur();
+  const today = new Date().toISOString().slice(0,10);
+  if (!c || !c.taxYear) return today;
+  const yearEnd = c.taxYear + '-12-31';
+  return yearEnd < today ? yearEnd : today;
+};
 const marLbl = m => m==='married' ? t('married') : m==='married_sep' ? t('married_sep')
  : m==='verwitwet' ? t('widowed') : m==='getrennt_lebend' ? t('separated_living') : t('single');
 /* Full-screen blocking overlay: freezes all clicks while an auth request is in flight,
@@ -2843,10 +2874,44 @@ function stepHousehold(c){
  ${F('ex','handwerker',t('handwerker'),{euro:true,ph:'0,00 €'})}
  </div>
  <div class="section-label">${t('sec_energ')}</div>
+ <p style="font-size:12.5px;color:var(--ink-soft);margin:-4px 0 12px">${t('energ_intro')}</p>
  <div class="grid2">
- ${F('oth','energCost',t('energ_cost'),{euro:true,ph:'0,00 €',hint:t('energ_hint')})}
- ${F('oth','energStage',t('energ_stage'),{select:[['',t('select')],['1',t('energ_s1')],['2',t('energ_s2')],['3',t('energ_s3')]]})}
+ ${F('oth','emStreet',t('energ_street'),{ph:'Musterstraße 1'})}
+ ${F('oth','emPlzOrt',t('energ_plzort'),{ph:'12345 Musterstadt'})}
  </div>
+ <div class="grid2">
+ ${F('oth','emBuildDate',t('energ_builddate'),{type:'date',hint:t('energ_builddate_hint')})}
+ ${F('oth','emMeasureStart',t('energ_measurestart'),{type:'date'})}
+ </div>
+ <div class="grid2">
+ ${F('oth','emAreaTotal',t('energ_areatotal'),{ph:'150'})}
+ ${F('oth','emAreaOwn',t('energ_areaown'),{ph:'150'})}
+ </div>
+ <div class="grid2">
+ ${F('oth','emPriorClaim',t('energ_priorclaim'),{select:[['nein',t('no')],['ja',t('yes')]]})}
+ ${F('oth','emOtherFunding',t('energ_otherfunding'),{select:[['nein',t('no')],['ja',t('yes')]]})}
+ </div>
+ <div style="margin:10px 0 6px;font-size:13px;font-weight:600">${t('energ_measures_label')}</div>
+ ${EM35C_MEASURES.map(m=>`<div style="margin-bottom:8px">
+ <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer">
+ <input type="checkbox" ${c.oth['em'+m.key+'Sel']?'checked':''} onchange="upd('oth','em${m.key}Sel',this.checked?'1':''); render();">
+ ${t('energ_m_'+m.key)}
+ </label>
+ ${c.oth['em'+m.key+'Sel']?`<div style="margin-top:6px">${F('oth','em'+m.key,'',{euro:true,ph:'0,00 €'})}</div>`:''}
+ </div>`).join('')}
+ ${EM35C_MEASURES.some(m=>N(c.oth['em'+m.key])>0)?`<div class="infobox" style="margin:8px 0;font-size:12px;padding:8px 10px">
+ ℹ ${t('energ_credit_note')}
+ </div>`:''}
+ <div style="margin:12px 0 6px">
+ <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer">
+ <input type="checkbox" ${c.oth.emHasPriorYears?'checked':''} onchange="upd('oth','emHasPriorYears',this.checked?'1':''); render();">
+ ${t('energ_has_prior_years')}
+ </label>
+ </div>
+ ${c.oth.emHasPriorYears?`<div class="grid2">
+ ${F('oth','emPriorYear1',t('energ_prioryear1'),{euro:true,ph:'0,00 €'})}
+ ${F('oth','emPriorYear2',t('energ_prioryear2'),{euro:true,ph:'0,00 €'})}
+ </div>`:''}
  <div class="section-label">${t('sec_disab')}</div>
  <p style="font-size:12.5px;color:var(--ink-soft);margin:-4px 0 12px">${t('disab_hint')}</p>
  <div class="grid3">
@@ -3241,7 +3306,11 @@ function buildElsterDataset(c){
  (rentePct, now shared at top level) - not a separately user-entered
  figure, since the wizard never asks for one for gesetzlich. */
  ertragsanteilProzent:(r.type||'gesetzlich')==='gesetzlich'?rentePct(r.startYear):null })),
- par35cEnergetisch:{ aufwendungen:N(c.oth.energCost), foerderjahr:c.oth.energStage||'' },
+ par35cEnergetisch:{ street:c.oth.emStreet||'', buildDate:c.oth.emBuildDate||'', plzOrt:c.oth.emPlzOrt||'',
+ areaTotal:N(c.oth.emAreaTotal), areaOwn:N(c.oth.emAreaOwn), priorClaim:c.oth.emPriorClaim==='ja', otherFunding:c.oth.emOtherFunding==='ja',
+ measureStart:c.oth.emMeasureStart||'', walls:N(c.oth.emWalls), roof:N(c.oth.emRoof), ceiling:N(c.oth.emCeiling),
+ windows:N(c.oth.emWindows), ventilation:N(c.oth.emVentilation), heating:N(c.oth.emHeating),
+ priorYear1:N(c.oth.emPriorYear1), priorYear2:N(c.oth.emPriorYear2) },
  weitereAngaben:{ ersatzleistungen:N(c.oth.ersatz), verlustvortrag:N(c.oth.lossCarry),
  realsplittingAnlageU:Math.min(N(c.oth.realsplitting),13805), realsplitIdnr:(c.oth.realsplitIdnr||'').replace(/\s/g,''), realsplitName:c.oth.realsplitName||'',
  behinderung:{ gdbA:c.oth.gdbA||'', gdbB:c.oth.gdbB||'', fahrtA:N(c.oth.fahrtA), fahrtB:N(c.oth.fahrtB),

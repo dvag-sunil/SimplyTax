@@ -176,7 +176,7 @@ check('Top-level section order matches the authoritative content model confirmed
     weitereAngaben: { verlustvortrag: 1000, behinderung: { gdbA: '30' } },
     aussergewoehnlicheBelastungen: {},
     haushaltsnaheLeistungen: { handwerkerleistungen: 300 },
-    par35cEnergetisch: { aufwendungen: 500 },
+    par35cEnergetisch: { street: 'Teststr. 2', buildDate: '2005-01-01', plzOrt: '12345 Musterstadt', areaTotal: 100, areaOwn: 100, measureStart: '2025-01-01', heating: 500 },
     anlageR: [{ person: 'A', art: 'gesetzlich', jahresbetrag: 12000, rentenbeginn: '2020' }],
     anlageV: [{ objekt: 'Teststr. 1', mieteinnahmen: 8000 }],
     anlageKind: [{ vorname: 'Lena', geburtsdatum: '2015-01-01', kinship: 'leiblich' }],
@@ -527,6 +527,68 @@ check('AUS sits between KAP and R in the confirmed top-level order', (() => {
   const x = buildEStXML(d).xml;
   return x.indexOf('<KAP>') < x.indexOf('<AUS>') && x.indexOf('<AUS>') < x.indexOf('<R>');
 })());
+
+// 2022 real-client-file fixes: Kind K_Verh legacy restructuring, the
+// childcare provider/type field split, and the Unterstuetzte_Person
+// wrapper - all confirmed via the raw XSD, not the summary sheet.
+check('Kind K_Verh (legacy years) has NO <K_Verh> wrapper and wraps content in <KV> - real bug found via a genuine 2022 client file (feldUnbekannt)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2022;
+  d.hauptvordruck.personB = null;
+  d.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich', familienkasse: 'Test', otherParentName: 'Max' }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<K_Verh_A><KV>') && !x.includes('<K_Verh>');
+})());
+check('Kind K_Verh (2023+) still uses the <K_Verh> wrapper - the legacy branch does not affect it', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2025;
+  d.hauptvordruck.personB = null;
+  d.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich', familienkasse: 'Test', otherParentName: 'Max' }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<K_Verh><K_Verh_A>') && !x.includes('<KV>');
+})());
+check('Kind K_Verh_B (legacy, married) uses E0500805 for its period, verified separately rather than assumed symmetric with K_Verh_A', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2022;
+  d.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Erika', geburtsdatum: '1987-05-20' };
+  d.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich', familienkasse: 'Test' }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<K_Verh_B><KV>') && x.includes('E0500805');
+})());
+check('Kind childcare (legacy years) splits service type and provider into E0506101/E0506102 - real bug found via a genuine 2022 client file (Regel 514001)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2022;
+  d.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich', familienkasse: 'Test', otherParentName: 'Max',
+    betreuungskosten: 1400, betreuungAnbieter: 'Kita Sonnenschein', betreuungVon: '2022-01-01', betreuungBis: '2022-12-31' }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0506101>Kinderbetreuung</E0506101>') && x.includes('<E0506102>Kita Sonnenschein</E0506102>');
+})());
+check('Kind childcare (2023+) still uses the single combined E0506101 field - confirmed via the real per-year field description, not assumed', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2025;
+  d.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich', familienkasse: 'Test', otherParentName: 'Max',
+    betreuungskosten: 1400, betreuungAnbieter: 'Kita Sonnenschein', betreuungVon: '2025-01-01', betreuungBis: '2025-12-31' }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0506101>Kita Sonnenschein</E0506101>') && !x.includes('E0506102');
+})());
+check('Anlage Unterhalt (legacy) includes Unterstuetzte_Person as a SIBLING index value ("Person1"), not a wrapper - CORRECTED (second pass): first attempt wrongly wrapped Allg/Ek_Bez_u_P inside it, which made things worse; verified directly against the raw XSD sequence this time', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2022;
+  d.anlageUnterhalt = { betrag: 5000, von: '2022-01-01', bis: '2022-12-31', personName: 'Hans', personIdnr: '02476291358', profession: 'Rentner', personBirthDate: '1948-01-01', relationship: 'Vater', householdAddress: 'Test', householdSize: 1 };
+  const x = buildEStXML(d).xml;
+  const uBlock = x.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)[0];
+  return uBlock.includes('<Unterstuetzte_Person>Person1</Unterstuetzte_Person>')
+    && uBlock.indexOf('<Unterstuetzte_Person>') < uBlock.indexOf('<Allg>')
+    && !uBlock.includes('<Unterstuetzte_Person><Allg>')
+    && !uBlock.includes('</Unterstuetzte_Person></Ang_Unt_Pers>');
+})());
+check('Anlage Unterhalt (2023+) does NOT have the Unterstuetzte_Person field at all - the legacy fix does not affect it', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2025;
+  d.anlageUnterhalt = { betrag: 5000, von: '2025-01-01', bis: '2025-12-31', personName: 'Hans', personIdnr: '02476291358', profession: 'Rentner', personBirthDate: '1948-01-01', relationship: 'Vater', householdAddress: 'Test', householdSize: 1 };
+  const x = buildEStXML(d).xml;
+  return !x.includes('Unterstuetzte_Person');
+})());
 check('domestic and foreign properties coexist - each routed to its own section', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.anlageV = [
@@ -540,6 +602,53 @@ check('foreign rental flags the treaty question rather than deciding it', (() =>
   const d = JSON.parse(JSON.stringify(sample));
   d.anlageV = [{ objekt: 'Via Roma 5, Milano', land: 'Italien', mieteinnahmen: 12000 }];
   return buildEStXML(d).skippedSections.some(s => s.includes('double-taxation'));
+})());
+
+// EM_35c (energetic renovation) - full implementation
+check('EM_35c requires a genuine measure amount before emitting anything - address alone with no cost is not a real declaration', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.par35cEnergetisch = { street: 'Musterstr. 1', buildDate: '2005-01-01', plzOrt: '12345 Musterstadt', areaTotal: 100, areaOwn: 100, measureStart: '2025-01-01' };
+  const x = buildEStXML(d).xml;
+  return !x.includes('<EM_35c>');
+})());
+check('EM_35c emits only the measure categories with a real amount, progressive-disclosure style - unused categories are absent, not sent as zero', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.par35cEnergetisch = { street: 'Musterstr. 1', buildDate: '2005-01-01', plzOrt: '12345 Musterstadt', areaTotal: 100, areaOwn: 100, measureStart: '2025-01-01', windows: 5000 };
+  const x = buildEStXML(d).xml;
+  return x.includes('<Fenst_Tuer>') && !x.includes('<Heizung>') && !x.includes('<Waende>');
+})());
+check('EM_35c Sum equals the total of all entered measure categories', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.par35cEnergetisch = { street: 'Musterstr. 1', buildDate: '2005-01-01', plzOrt: '12345 Musterstadt', areaTotal: 100, areaOwn: 100, measureStart: '2025-01-01', windows: 5000, heating: 12000 };
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0241901>17000</E0241901>');
+})());
+check('EM_35c omits EM_Vorj entirely when no prior-year amounts are given - not sent as zeros', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.par35cEnergetisch = { street: 'Musterstr. 1', buildDate: '2005-01-01', plzOrt: '12345 Musterstadt', areaTotal: 100, areaOwn: 100, measureStart: '2025-01-01', heating: 5000 };
+  const x = buildEStXML(d).xml;
+  return !x.includes('EM_Vorj');
+})());
+check('EM_35c includes EM_Vorj with the user-entered prior-year amounts when provided - simple entry, not app-tracked state', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.par35cEnergetisch = { street: 'Musterstr. 1', buildDate: '2005-01-01', plzOrt: '12345 Musterstadt', areaTotal: 100, areaOwn: 100, measureStart: '2025-01-01', heating: 5000, priorYear1: 1400 };
+  const x = buildEStXML(d).xml;
+  return x.includes('<EM_Vorj>') && x.includes('<E0242501>1400</E0242501>') && !x.includes('E0243401');
+})());
+check('EM_35c warns when the building appears under 10 years old at renovation start - a real §35c eligibility rule, not silently allowed through', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.par35cEnergetisch = { street: 'Musterstr. 1', buildDate: '2020-01-01', plzOrt: '12345 Musterstadt', areaTotal: 100, areaOwn: 100, measureStart: '2025-01-01', heating: 5000 };
+  const result = buildEStXML(d);
+  return result.skippedSections.some(s => s.includes('EM_35c') && s.includes('10 years'));
+})());
+check('EM_35c works identically across all supported years - confirmed via raw XSD that the structure (not just fields) is unchanged 2021-2025', (() => {
+  const results = [2021, 2022, 2023, 2024, 2025].map(y => {
+    const d = JSON.parse(JSON.stringify(sample));
+    d.meta.taxYear = y;
+    d.par35cEnergetisch = { street: 'Musterstr. 1', buildDate: '2005-01-01', plzOrt: '12345 Musterstadt', areaTotal: 100, areaOwn: 100, measureStart: y + '-01-01', heating: 5000 };
+    return buildEStXML(d).xml.includes('<EM_35c>') && buildEStXML(d).xml.includes('<E0241901>5000</E0241901>');
+  });
+  return results.every(Boolean);
 })());
 check('buildR includes the required Person tag - real bug found via the multi-year regression test (mandatoryField, "/R[1]/Person[1]")', (() => {
   const withR = JSON.parse(JSON.stringify(sample));

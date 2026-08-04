@@ -809,7 +809,19 @@ function buildLegacyUnterhalt(data) {
   awU += '</U_Zlg>\n';
   awU += '</AW_U>\n';
 
-  let angUntPers = '<Ang_Unt_Pers><Allg><Persoenl>\n';
+  /* CORRECTED (second pass) - real bug found via testing against a
+     genuine 2022 client file. My first attempt wrongly treated
+     Unterstuetzte_Person as a wrapper AROUND Allg/Ek_Bez_u_P - that
+     was wrong and made things worse (everything inside it became
+     unrecognized). Verified directly against the raw XSD sequence
+     this time: Unterstuetzte_Person is a SIBLING of Allg/Ek_Bez_u_P,
+     not their parent - a simple index value ("Person1" for the first
+     supported person, confirmed via the real enum), required first in
+     sequence. This app only supports declaring one supported person,
+     so "Person1" is always correct here. */
+  let angUntPers = '<Ang_Unt_Pers>';
+  angUntPers += tag(fm.ESt1A_U.legacyPersonIndex, 'Person1');
+  angUntPers += '<Allg><Persoenl>\n';
   if (u.personIdnr) angUntPers += tag(fm.ESt1A_U.legacyIdnr, u.personIdnr.replace(/\s/g, ''));
   angUntPers += tag(fm.ESt1A_U.legacyName, u.personName);
   angUntPers += tag(fm.ESt1A_U.legacyBirthDate, formatDateDE(u.personBirthDate));
@@ -902,7 +914,40 @@ function buildKind(data) {
        reasonable-looking default) is itself the error, not just an
        incomplete one. */
     const kinCode = KINSHIP_ENUM[k.kinship] || '1';
-    if (B) {
+    if (taxYear < 2023) {
+      /* LEGACY (2021/2022) ONLY - genuinely different structure,
+         confirmed via the raw 2022 XSD content model, not the
+         documentation summary sheet (which already misled once this
+         session on a different section). Real bug found via testing
+         against a genuine 2022 client file (feldUnbekannt on K_Verh_A
+         and every K_Verh_and_P field):
+           - K_Verh_A/K_Verh_B/K_Verh_and_P are DIRECT children of
+             <Kind> - there is no <K_Verh> wrapper grouping them, unlike
+             2023+.
+           - K_Verh_A/K_Verh_B each wrap their content one level deeper,
+             inside a <KV> element, with a sibling relationship-period
+             field (E0500601) alongside the type code.
+         K_Verh_and_P's own internal shape (Ang_Pers with name, period,
+         type) is confirmed IDENTICAL to 2023+ - only the missing outer
+         <K_Verh> wrapper and K_Verh_A's <KV> nesting differ. This
+         branch is completely isolated from the 2023+ code below -
+         changing it can only affect years before 2023. */
+      if (B) {
+        const kinCodeB = KINSHIP_ENUM[k.kinshipB] || kinCode;
+        xml += `<K_Verh_A><KV>${tag(fm.Kind.kinshipTypeA.kennzahlen[0], kinCode)}${tag(fm.Kind.kinshipPeriodLegacy, formatDateRangeDE(wsVon, wsBis))}</KV></K_Verh_A>\n`;
+        /* K_Verh_B/KV verified SEPARATELY (not assumed symmetric with
+           K_Verh_A) - confirmed via the real 2022 Felder sheet that its
+           period field is E0500805, the SAME code already mapped as
+           kinshipPeriodB for 2023+ (a genuine coincidence confirmed by
+           checking, not assumed). */
+        xml += `<K_Verh_B><KV>${tag(fm.Kind.kinshipTypeB.kennzahlen[0], kinCodeB)}${tag(fm.Kind.kinshipPeriodB, formatDateRangeDE(wsVon, wsBis))}</KV></K_Verh_B>\n`;
+      } else if (k.otherParentName) {
+        xml += `<K_Verh_A><KV>${tag(fm.Kind.kinshipTypeA.kennzahlen[0], kinCode)}${tag(fm.Kind.kinshipPeriodLegacy, formatDateRangeDE(wsVon, wsBis))}</KV></K_Verh_A>\n`;
+        xml += `<K_Verh_and_P><Ang_Pers>${tag(fm.Kind.otherParentName, k.otherParentName)}${tag(fm.Kind.otherParentPeriod, formatDateRangeDE(wsVon, wsBis))}${tag(fm.Kind.otherParentKinType, kinCode)}</Ang_Pers></K_Verh_and_P>\n`;
+      } else {
+        xml += `<K_Verh_A><KV>${tag(fm.Kind.kinshipTypeA.kennzahlen[0], kinCode)}${tag(fm.Kind.kinshipPeriodLegacy, formatDateRangeDE(wsVon, wsBis))}</KV></K_Verh_A>\n`;
+      }
+    } else if (B) {
       const kinCodeB = KINSHIP_ENUM[k.kinshipB] || kinCode;
       xml += `<K_Verh><K_Verh_A>${tag(fm.Kind.kinshipTypeA.kennzahlen[0], kinCode)}</K_Verh_A>`;
       xml += `<K_Verh_B>${tag(fm.Kind.kinshipTypeB.kennzahlen[0], kinCodeB)}`;
@@ -951,7 +996,17 @@ function buildKind(data) {
        defensively anyway rather than trust the frontend blindly. */
     if (k.betreuungskosten > 0 && k.betreuungAnbieter && k.betreuungVon && k.betreuungBis) {
       xml += '<KBK><Art><Einz>\n';
-      xml += tag(fm.Kind.childcareProvider.kennzahlen[0], k.betreuungAnbieter);
+      if (taxYear < 2023) {
+        /* LEGACY (2021/2022) ONLY - real bug found via testing against
+           a genuine 2022 client file. See eric-fieldmap.js
+           childcareServiceTypeLegacy/childcareProviderLegacy for the
+           full research. Isolated to this branch only - the 2023+
+           path below is completely untouched. */
+        xml += tag(fm.Kind.childcareServiceTypeLegacy, 'Kinderbetreuung');
+        xml += tag(fm.Kind.childcareProviderLegacy, k.betreuungAnbieter);
+      } else {
+        xml += tag(fm.Kind.childcareProvider.kennzahlen[0], k.betreuungAnbieter);
+      }
       xml += tag(fm.Kind.childcarePeriod.kennzahlen[0], formatDateRangeDE(k.betreuungVon, k.betreuungBis));
       xml += wholeEuroTag(fm.Kind.childcareAmount.kennzahlen[0], k.betreuungskosten);
       xml += '</Einz><Sum>\n';
@@ -1106,8 +1161,49 @@ function buildHA35a(data) {
 ============================================================================= */
 function buildEM35c(data) {
   const e = data.par35cEnergetisch;
-  if (!e || !e.aufwendungen) return '';
-  return `<EM_35c><Obj><Aufw><Massn><Sum>\n${wholeEuroTag(fm.EM_35c.energCost, e.aufwendungen)}</Sum></Massn></Aufw></Obj></EM_35c>\n`;
+  if (!e || !e.street) return '';
+  /* Confirmed exact sequence via the raw XSD, not the summary sheet
+     (which has misled twice elsewhere in this project):
+       Obj > Allg (address/building/area/prior-claim)
+       Obj > Aufw > E0240902, Massn (start date, measure categories, Sum)
+       Obj > EM_Vorj (prior-year amounts, optional)
+     Ownership split (Eigent) and community/partnership shares
+     (Ant_35c) are NOT implemented - defaults to sole ownership, the
+     common case for this app, matching the same scoping used for
+     Anlage V's Erm_Zuord_Ek attribution. */
+  let allg = '<Allg>\n';
+  allg += tag(fm.EM_35c.street, e.street);
+  allg += tag(fm.EM_35c.buildDate, formatDateDE(e.buildDate));
+  allg += tag(fm.EM_35c.plzOrt, e.plzOrt);
+  allg += wholeEuroTag(fm.EM_35c.areaTotal, e.areaTotal);
+  allg += wholeEuroTag(fm.EM_35c.areaOwn, e.areaOwn);
+  allg += tag(fm.EM_35c.priorClaim, e.priorClaim ? '1' : '2');
+  allg += '</Allg>\n';
+
+  const categories = [
+    ['measureWalls', 'Waende', e.walls], ['measureRoof', 'Dach', e.roof], ['measureCeiling', 'Geschossd', e.ceiling],
+    ['measureWindows', 'Fenst_Tuer', e.windows], ['measureVentilation', 'Lueftung', e.ventilation], ['measureHeating', 'Heizung', e.heating],
+  ];
+  const total = categories.reduce((sum, [, , v]) => sum + N(v), 0);
+  if (total <= 0) return ''; // no measure amount entered - nothing genuinely to declare
+
+  let massn = tag(fm.EM_35c.measureStart, formatDateDE(e.measureStart));
+  for (const [key, elName, val] of categories) {
+    if (N(val) > 0) massn += `<${elName}>${wholeEuroTag(fm.EM_35c[key], val)}</${elName}>\n`;
+  }
+  massn += `<Sum>\n${wholeEuroTag(fm.EM_35c.measureSum, total)}</Sum>\n`;
+
+  let aufw = `<Aufw>\n${tag(fm.EM_35c.otherFunding, e.otherFunding ? '1' : '2')}<Massn>\n${massn}</Massn>\n</Aufw>\n`;
+
+  let vorj = '';
+  if (N(e.priorYear1) > 0 || N(e.priorYear2) > 0) {
+    vorj = '<EM_Vorj>\n';
+    if (N(e.priorYear1) > 0) vorj += wholeEuroTag(fm.EM_35c.priorYear1, e.priorYear1);
+    if (N(e.priorYear2) > 0) vorj += wholeEuroTag(fm.EM_35c.priorYear2, e.priorYear2);
+    vorj += '</EM_Vorj>\n';
+  }
+
+  return `<EM_35c><Obj>\n${allg}${aufw}${vorj}</Obj></EM_35c>\n`;
 }
 function buildSonst(data) {
   const w = data.weitereAngaben || {};
@@ -1248,6 +1344,17 @@ function buildEStXML(data, opts = {}) {
     skippedSections.push('anlageKind present for a single filer without the other parent\'s name for at least one child - confirmed required (Regel 100500048/25). This is genuinely case-specific data that cannot be safely defaulted - needs to come from the user.');
   if ((data.anlageN || []).some(n => N(n.zeile20_verpflegung) > 0))
     skippedSections.push('Anlage N Zeile 20 (tax-free employer meal allowances) present but NOT transmitted - real bug found via testing against a genuine client file. It was previously sent to the wrong XML context (ArbL) under a field that actually means something different (the sum of CLAIMED foreign-travel meal expenses). Its correct home is E0205108 "vom Arbeitgeber steuerfrei ersetzt", which only makes sense alongside the travel-expense claim itself (days away, countries, per-diem rates) - none of which this app collects. Sending it alone would be an incomplete declaration, so it is honestly omitted rather than guessed.');
+  if (data.par35cEnergetisch?.street) {
+    const em = data.par35cEnergetisch;
+    const emTotal = ['walls','roof','ceiling','windows','ventilation','heating'].reduce((s2, k) => s2 + N(em[k]), 0);
+    if (emTotal > 0 && data.hauptvordruck?.personB)
+      skippedSections.push('EM_35c (energetic renovation) - ownership was attributed entirely to the primary filer. The app does not collect a per-property ownership split, so if this property is jointly owned with the spouse, the attribution should be reviewed.');
+    if (em.buildDate && em.measureStart) {
+      const years = (new Date(em.measureStart) - new Date(em.buildDate)) / (365.25 * 24 * 3600 * 1000);
+      if (years < 10)
+        skippedSections.push('EM_35c (energetic renovation) - the building appears to be less than 10 years old at the start of the renovation. §35c EStG requires the building to be over 10 years old to qualify - please double-check this is correct before filing, since ERiC will reject it otherwise.');
+    }
+  }
   (data.anlageV || []).forEach((p, i) => {
     const label = `anlageV property ${i + 1}`;
     if (isForeignProperty(p)) {

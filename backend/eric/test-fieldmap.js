@@ -5,6 +5,12 @@ let pass = 0, fail = 0;
 function check(label, cond) { if (cond) pass++; else { fail++; console.log('FAIL: ' + label); } }
 
 const KZ = /^E\d{7}$/;
+/* Unterstuetzte_Person is a real, deliberate exception: confirmed via
+   the raw 2022 XSD that this is an XML ELEMENT NAME whose value is a
+   literal enum string ("Person1".."Person6"), not a numbered Kennzahl
+   like everything else in this map. Not a bug - excluded explicitly
+   rather than weakening the general check for everything else. */
+const KZ_EXCEPTIONS = new Set(['Unterstuetzte_Person']);
 function allKennzahlen(val) {
   if (typeof val === 'string') return [val];
   if (Array.isArray(val)) return val;
@@ -21,16 +27,17 @@ for (const [section, obj] of Object.entries({
 })) {
   for (const [field, val] of Object.entries(obj)) {
     for (const kz of allKennzahlen(val)) {
+      if (KZ_EXCEPTIONS.has(kz)) continue;
       check(`${section}.${field} "${kz}" looks like a real Kennzahl`, KZ.test(kz));
     }
   }
 }
 
-check('total mapped fields = 180', Object.values({
+check('total mapped fields = 199', Object.values({
   ESt1A: fm.ESt1A, N: fm.N, VOR: fm.VOR, SA: fm.SA, Kind: fm.Kind, N_DHH: fm.N_DHH,
   KAP: fm.KAP, HA_35a: fm.HA_35a, Sonst: fm.Sonst, ESt1A_U: fm.ESt1A_U, N_AUS: fm.N_AUS,
   AgB: fm.AgB, EM_35c: fm.EM_35c, ESt1A_Ersatz: fm.ESt1A_Ersatz, R: fm.R, V: fm.V,
-}).reduce((sum, o) => sum + Object.keys(o).length, 0) === 180);
+}).reduce((sum, o) => sum + Object.keys(o).length, 0) === 199);
 
 check('gross einz/sum correct', fm.N.gross.einz === 'E0200204' && fm.N.gross.sum === 'E0200201');
 check('taxClass corrected to Steuerklasse', fm.N.taxClass.kennzahlen[0] === 'E0200002');

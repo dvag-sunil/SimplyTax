@@ -130,6 +130,16 @@ const Kind = {
   kinshipTypeA: { kennzahlen: ['E0500807'], note: 'Art des Kindschaftsverhaeltnisses - parent A (K_Verh_A)' },
   kinshipTypeB: { kennzahlen: ['E0500808'], note: 'Art des Kindschaftsverhaeltnisses - parent B / the child\'s other parent, confirmed required alongside A regardless of whether that person is a co-filer on this return (K_Verh_B)' },
   kinshipPeriodB: 'E0500805', // K_Verh_B - Kindschaftsverhältnis bestand vom - bis (DatumBereich)
+  /* LEGACY (2021/2022) ONLY - real bug found via testing against a
+     genuine 2022 client file. Confirmed via the raw 2022 XSD that
+     K_Verh_A wraps its content in a <KV> element not present in 2023+,
+     with this period field as KV's sibling to the type code
+     (E0500807). Confirmed A-specific via the real Felder sheet -
+     K_Verh_B/KV uses a DIFFERENT code (E0500805, verified separately,
+     coincidentally the same code already mapped as kinshipPeriodB for
+     2023+). Used only by the taxYear<2023 branch in buildKind() - never
+     referenced by the 2023+ code path. */
+  kinshipPeriodLegacy: 'E0500601',
   /* NEW: real bug found via the multi-year regression test - discovered
      that K_Verh_B (above) is just ONE of five ways to satisfy the
      "second parent" completeness rule (Regel 100500048/25) - and it's
@@ -192,7 +202,25 @@ const Kind = {
   eltKZvPeriod: 'E0506606', // KBK/Elt_k_ZV/Kosten/Einz - Zeitraum (vom - bis)
   eltKZvAmount: 'E0506605', // KBK/Elt_k_ZV/Kosten/Einz - Betrag
   eltKZvSum: 'E0506604',    // KBK/Elt_k_ZV/Kosten/Sum - berücksichtigungsfähige Aufwendungen
-  childcareProvider:{ kennzahlen: ['E0506101'], note: 'Art der Dienstleistung, Name und Anschrift des Dienstleisters - service type + provider name + address, REQUIRED together, see rule below' },
+  childcareProvider:{ kennzahlen: ['E0506101'], note: 'Art der Dienstleistung, Name und Anschrift des Dienstleisters - service type + provider name + address, REQUIRED together, see rule below. CONFIRMED 2023+ ONLY (verified per-year via the real Beschreibung text) - a single combined free-text field for those years. Do not reuse for 2021/2022, see childcareServiceTypeLegacy/childcareProviderLegacy below.' },
+  /* LEGACY (2021/2022) ONLY - real bug found via testing against a
+     genuine 2022 client file (Regel 514001, "Art der Dienstleistung,
+     Name und Anschrift...nicht gemeinsam angegeben"). Confirmed via the
+     real per-year Beschreibung text (not assumed) that E0506101 means
+     something NARROWER for 2021/2022 than 2023+ - just "Art der
+     Dienstleistung" (service type), with a genuinely SEPARATE field,
+     E0506102, for the provider's name/address that 2023+ does not have
+     at all (it folds both into the single E0506101). The app was
+     sending the provider name into E0506101 for every year, which is
+     correct for 2023+ but wrong for 2021/2022 - it needs a real service
+     TYPE there instead, with the name going to E0506102. Since the app
+     does not collect a specific service category (Kita/Tagesmutter/
+     Hort/etc.), a generic, honest description is used - true for any
+     childcare arrangement, not a guess at specifics the app cannot
+     know. Used only by the taxYear<2023 branch in buildKind() - never
+     referenced by the 2023+ code path. */
+  childcareServiceTypeLegacy: 'E0506101',
+  childcareProviderLegacy: 'E0506102',
   childcarePeriod:  { kennzahlen: ['E0506103'], note: 'vom - bis (service period)' },
   childcareReimbursement: { kennzahlen: ['E0506505', 'E0506506', 'E0506504'], note: 'Steuerfreier Ersatz (z.B. vom Arbeitgeber), Erstattungen' },
   /* CRITICAL: real ERiC validation rule, Fehlercode 514139, Regelart
@@ -339,6 +367,18 @@ const ESt1A_U = {
   legacyPeriod: 'E0120109',              // AW_U/U_Ztr - Unterstützungszeitraum
   legacyAmount: 'E0120103',              // AW_U/U_Zlg - Höhe der Unterhaltszahlung
   legacyPaymentPeriod: 'E0120104',       // AW_U/U_Zlg - Zeitraum der Zahlung
+  /* CORRECTED (second pass) - real bug found via testing against a
+     genuine 2022 client file. First attempt wrongly treated this as a
+     structural wrapper AROUND Allg/Ek_Bez_u_P (based on a
+     misinterpretation of the documentation summary sheet, the same
+     class of mistake as the Anlage V Ek_b_Gst error last session).
+     Verified directly against the raw XSD sequence this time:
+     Ang_Unt_Pers's real children are Unterstuetzte_Person (an index
+     value), then Allg, then Ek_Bez_u_P - three SIBLINGS, not nested.
+     Value is a literal enum string ("Person1".."Person6" for the
+     Nth supported person) - this app only supports one, so "Person1"
+     is always correct. Used only by the taxYear<2023 branch. */
+  legacyPersonIndex: 'Unterstuetzte_Person',
 
   /* Foreign household - implemented after full research (not deferred
      this time): confirmed via the real XSD and Jahresdokumentation that
@@ -407,8 +447,42 @@ function amountToPflegegrad(amount) {
 
 /* ---------- 13. Energetic renovation - Section 35c (EM_35c context) ---------- */
 const EM_35c = {
-  energCost: 'E0241901',
-  energStage: { kennzahlen: ['E0242501', 'E0243401'], note: 'prior-year (VZ-1) / two-years-prior (VZ-2) installment tracking for the 3-year (7%/7%/6%) credit' },
+  /* Confirmed via the raw XSD content model directly (not the summary
+     sheet, which has misled twice elsewhere in this project) - the
+     structure is identical across 2021-2025, only the number of
+     measure categories grew over time. All fields below confirmed
+     present in every year 2021-2025. */
+  street: 'E0240401',           // Obj/Allg - Straße, Hausnummer
+  buildDate: 'E0240402',        // Obj/Allg - Herstellungsbeginn des Gebäudes (full date)
+  plzOrt: 'E0240501',           // Obj/Allg - Postleitzahl, Ort
+  areaTotal: 'E0240801',        // Obj/Allg - Gesamtfläche in m²
+  areaOwn: 'E0240802',          // Obj/Allg - davon eigene Wohnzwecke in m²
+  priorClaim: 'E0240803',       // Obj/Allg - Steuerermäßigung für dieses Objekt bereits früher genutzt (JaNein12)
+  otherFunding: 'E0240902',     // Obj/Aufw - andere Förderung beantragt/genutzt (JaNein12)
+  measureStart: 'E0240901',     // Obj/Aufw/Massn - Baubeginn der energetischen Maßnahme (full date)
+  /* Measure categories - each wraps a single amount field. Confirmed
+     via the raw XSD (Waende/Dach/Geschossd/Fenst_Tuer/Lueftung/Heizung
+     each contain exactly one child). Covers the common renovation
+     types; the rarer categories (summer heat protection, digital
+     monitoring, heating-system optimization, hybrid pre-wiring,
+     certification costs, energy consultant fees) are not implemented -
+     same "common case first" scoping used throughout this project. */
+  measureWalls: 'E0241001',     // Wärmedämmung Wände
+  measureRoof: 'E0241101',      // Wärmedämmung Dach
+  measureCeiling: 'E0241201',   // Wärmedämmung Geschossdecken
+  measureWindows: 'E0241301',   // Fenster/Außentüren
+  measureVentilation: 'E0241401', // Lüftungsanlage
+  measureHeating: 'E0241501',   // Heizungsanlage
+  measureSum: 'E0241901',       // Obj/Aufw/Massn/Sum - Summe aller Maßnahmen
+  /* Prior-year recognized amounts - simple user-entered figures from
+     their own prior tax notice (Steuerbescheid), NOT something this
+     app tracks or computes itself. The §35c credit is legally spread
+     over 3 years (7%/7%/6%); ELSTER expects the taxpayer to state what
+     was already recognized in years 1 and 2 when filing for a later
+     year - the app's job is just to collect those two numbers if the
+     user has them, not to remember state across separate tax years. */
+  priorYear1: 'E0242501',       // Obj/EM_Vorj - anerkannte Aufwendungen VZ-1
+  priorYear2: 'E0243401',       // Obj/EM_Vorj - anerkannte Aufwendungen VZ-2
 };
 
 /* ---------- 14. Wage-replacement benefits under Progressionsvorbehalt ---------- */
