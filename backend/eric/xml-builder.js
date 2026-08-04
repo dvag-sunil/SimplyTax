@@ -851,12 +851,14 @@ function buildSA(data) {
        Kontexte sheet). Confirmed genuinely required set (Regeln 58, 64,
        65): amount + domestic-residence flag always, plus the ex-spouse's
        IdNr specifically when residence is domestic.
-       SCOPE NOTE: the app currently only collects the amount - not the
-       ex-spouse's IdNr or name/birthdate. Domestic residence defaults to
+       CORRECTED: the app now collects both the ex-spouse's IdNr and
+       name via the UI (realsplitIdnr, realsplitName - both required
+       fields in the Anlage U section). Domestic residence defaults to
        "Wahr" (true), the overwhelmingly common case for this app's
-       German-resident user base. Without the ex-spouse's IdNr, this
-       submission would fail Regel 65 for domestic cases - that gap is
-       surfaced via skippedSections below, not silently sent incomplete. */
+       German-resident user base. If either is still blank when this
+       runs, that reflects the specific record's data, not a missing
+       app feature - surfaced honestly via skippedSections either way,
+       never guessed. */
     /* CONFIRMED via the real XSD: E0183001 is JaNein12BaseCType (the same
        type family as Vorsatz/Rueckuebermittlung/Bescheid, where "1"=Ja
        was already confirmed) - NOT a simple "X" checkbox.
@@ -871,11 +873,13 @@ function buildSA(data) {
        Name (E0183101) was originally read as "optional/soft" based on a
        misunderstanding of the FelderNichtGemeinsamAngegeben rule type -
        the real multi-year regression test proved it's genuinely
-       required TOGETHER with the amount (Regel 101180025). The app does
-       not yet collect the ex-spouse's name - built here from whatever
-       is available (falls back to a generic placeholder is NOT done;
-       if no name is available, this is correctly surfaced as a
-       skippedSections warning instead of guessed). */
+       required TOGETHER with the amount (Regel 101180025). CORRECTED:
+       the app now does collect the ex-spouse's name via the UI
+       (realsplitName, required field) - if it's still blank here, that
+       means the specific record being processed hasn't had it filled
+       in yet, not that the app lacks the field. No placeholder is ever
+       guessed - a blank value is honestly surfaced as a skippedSections
+       warning either way. */
     const nameTag = w.realsplitName ? tag(fm.SA.realsplittingNameGeburt, w.realsplitName) : '';
     const idnrTag = w.realsplitIdnr ? tag(fm.SA.realsplittingIdNr, w.realsplitIdnr.replace(/\s/g, '')) : '';
     inner += `<Weit_Aufw><U_Leist><Einz>\n${nameTag}${wholeEuroTag(fm.SA.realsplittingAmount, w.realsplittingAnlageU)}${idnrTag}${inlandTag}</Einz></U_Leist></Weit_Aufw>\n`;
@@ -1637,7 +1641,7 @@ function buildEStXML(data, opts = {}) {
     skippedSections.push(`Realsplitting (Anlage U) sent without the ex-spouse's IdNr - confirmed required ${rsYear <= 2023 ? 'unconditionally for tax year ' + rsYear + ' (no foreign-residence exception exists that year)' : 'for a domestic residence, and the app does not yet collect residence country for this specific field to know otherwise'}. A real submission with this data would likely be rejected until this field is filled in.`);
   }
   if (data.weitereAngaben?.realsplittingAnlageU && !data.weitereAngaben.realsplitName)
-    skippedSections.push('Realsplitting (Anlage U) sent without the ex-spouse\'s name - confirmed required together with the amount via real ERiC validation (Regel 101180025). The app does not yet collect this field.');
+    skippedSections.push('Realsplitting (Anlage U) sent without the ex-spouse\'s name - confirmed required together with the amount via real ERiC validation (Regel 101180025). This is a required field in the app (Anlage U section) - it appears to be blank for this specific record rather than something the app cannot collect.');
   if (skippedSections.length) {
     console.warn('[eric xml-builder] Sections present in data but not mapped, SKIPPED (not silently guessed):');
     skippedSections.forEach(s => console.warn('  - ' + s));
