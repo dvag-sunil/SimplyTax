@@ -400,12 +400,25 @@ function applyAusCalc(empId){
  const c=cur(); const emp=(c.emps||[]).find(e=>e.id===empId); if(!emp) return;
  updateAusResult(empId);
  const a=c.aus[empId];
+ a.enabled = true; // applying always (re-)includes it - matches the person's clear intent
  const wage=N(a.totalWage), daysTotal=parseInt(a.workDaysTotal)||0, daysForeign=parseInt(a.workDaysForeign)||0;
  const result = daysTotal>0 ? Math.round(wage*daysForeign/daysTotal) : 0;
  emp.dba16 = formatDE(result);
  c.updatedAt=Date.now(); scheduleSave();
  const m=document.querySelector('.modal-bg'); if(m) m.remove();
  render();
+}
+/* Confirmed real gap: previously, once foreign-income values were
+   calculated and applied, there was no way to exclude them later
+   without deleting everything entered - a genuine problem if someone
+   fills this in and later decides not to claim it for this year, or
+   wants to double-check something before it's actually included. This
+   toggle keeps every entered value intact and only controls whether
+   it's transmitted - re-enabling later needs no re-entry at all. */
+function toggleAusEnabled(empId){
+ const c=cur(); if(!c || !c.aus || !c.aus[empId]) return;
+ c.aus[empId].enabled = c.aus[empId].enabled===false ? true : false;
+ c.updatedAt=Date.now(); scheduleSave(); render();
 }
 
 
@@ -813,6 +826,9 @@ en: {
  aus_shortstay_ForeignEmployer:"For a genuinely separate foreign employer",
  aus_shortstay_Other:"Other (please specify)",
  aus_shortstay_other_label:"Please specify",
+ aus_status_included:"Foreign work income included in this filing:", aus_status_excluded:"Foreign work income entered but NOT included in this filing:",
+ aus_edit:"Edit", aus_exclude:"Exclude from filing", aus_include:"Include in filing",
+ aus_excluded_hint:"All details are still saved - nothing is sent to the tax office while excluded. Click \"Include in filing\" any time to add it back in, no re-entry needed.",
  z17:"Employer benefits credited against the commuting allowance (line 17)",
  z18:"15% flat-taxed employer commuting benefits (line 18)",
  z17_hint:"Lines 17/18 reduce the deductible commuting allowance - applied automatically.",
@@ -1145,6 +1161,9 @@ de: {
  aus_shortstay_ForeignEmployer:"Für einen tatsächlich eigenständigen ausländischen Arbeitgeber",
  aus_shortstay_Other:"Sonstiges (bitte angeben)",
  aus_shortstay_other_label:"Bitte angeben",
+ aus_status_included:"Auslandseinkommen in dieser Erklärung enthalten:", aus_status_excluded:"Auslandseinkommen erfasst, aber NICHT in dieser Erklärung enthalten:",
+ aus_edit:"Bearbeiten", aus_exclude:"Aus Erklärung ausschließen", aus_include:"In Erklärung aufnehmen",
+ aus_excluded_hint:"Alle Angaben bleiben gespeichert - solange ausgeschlossen, wird nichts ans Finanzamt übermittelt. Mit \"In Erklärung aufnehmen\" jederzeit wieder aufnehmen, ohne erneute Eingabe.",
  z17:"Steuerfreie Arbeitgeberleistungen, auf Entfernungspauschale anzurechnen (Zeile 17)",
  z18:"Pauschal mit 15 % besteuerte Fahrtkosten-Arbeitgeberleistungen (Zeile 18)",
  z17_hint:"Zeilen 17/18 mindern die absetzbare Entfernungspauschale - wird automatisch angerechnet.",
@@ -2603,7 +2622,19 @@ function stepIncome(c){
  ${LF('emps',emp,'kug15a',t('z15a'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'dba16',t('z16'),{euro:true,ph:'0,00 €'})}
  <div style="grid-column:1/-1;margin-top:-10px;margin-bottom:6px">
- <button class="link-btn" style="padding:4px 0;font-size:12.5px" onclick="showAusCalc('${emp.id}')">🌍 ${t('aus_calc_link')}</button>
+ ${(()=>{ const a=c.aus&&c.aus[emp.id]; const hasData=a&&N(a.totalWage)>0;
+   if(!hasData) return `<button class="link-btn" style="padding:4px 0;font-size:12.5px" onclick="showAusCalc('${emp.id}')">🌍 ${t('aus_calc_link')}</button>`;
+   const on=a.enabled!==false;
+   return `<div class="infobox" style="padding:8px 10px;margin:0;background:${on?'var(--teal-soft)':'var(--paper-soft)'};border-color:${on?'var(--teal)':'var(--border)'}">
+   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+   <span style="font-size:12.5px">🌍 ${on?t('aus_status_included'):t('aus_status_excluded')} <b>${eur(N(emp.dba16))}</b></span>
+   <span style="display:flex;gap:10px">
+   <button class="link-btn" style="padding:0;font-size:12px" onclick="showAusCalc('${emp.id}')">${t('aus_edit')}</button>
+   <button class="link-btn" style="padding:0;font-size:12px" onclick="toggleAusEnabled('${emp.id}')">${on?t('aus_exclude'):t('aus_include')}</button>
+   </span></div>
+   ${!on?`<div class="hint" style="margin-top:4px">${t('aus_excluded_hint')}</div>`:''}
+   </div>`;
+ })()}
  </div>
  ${LF('emps',emp,'fahrt17',t('z17'),{euro:true,ph:'0,00 €',hint:t('z17_hint')})}
  ${LF('emps',emp,'pausch18',t('z18'),{euro:true,ph:'0,00 €'})}
@@ -3391,7 +3422,7 @@ function buildElsterDataset(c){
  employer address sub-fields have no data source anywhere in the app
  (employer is a single free-text name field, no street/plz/city split)
  and are deliberately NOT invented here. */
- anlageNAUS:(c.emps||[]).filter(k=>c.aus && c.aus[k.id] && (N(c.aus[k.id].totalWage)>0)).map(k=>{
+ anlageNAUS:(c.emps||[]).filter(k=>c.aus && c.aus[k.id] && (N(c.aus[k.id].totalWage)>0) && c.aus[k.id].enabled!==false).map(k=>{
  const a=c.aus[k.id];
  return { person:k.person==='B'?'B':'A',
  land:a.country||'', legalBasis:a.legalBasis||'dba',
