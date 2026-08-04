@@ -448,6 +448,19 @@ const N_AUS = {
   ausActivityDesc: 'E2601701',         // Staat/Allg/Taetigk/Art_Zeitr - free text
   ausActivityPeriod: 'E2601702',       // full TT.MM.JJJJ-TT.MM.JJJJ range (confirmed different type from other DatumBereich fields - includes the year)
   ausDaysAbroad: 'E2602001',           // Staat/Allg/Taetigk/Tage
+  /* Real requirement found via testing against a genuine client file
+     (Regel 30, confirmed): whenever DBA is the legal basis and days
+     abroad is under 184, the standard 183-day exemption does not
+     automatically apply - at least one of these six mutually exclusive
+     legal/contractual bases must be stated, or the entry is rejected.
+     Confirmed stable across 2023-2025. First five are simple flags
+     (only one should be sent); the sixth is free text for "other". */
+  ausShortStayWerkvertrag: 'E2602301',      // under a works/service contract with the employer
+  ausShortStayLeasing: 'E2602401',          // commercial employee leasing (Arbeitnehmerüberlassung)
+  ausShortStayAffiliated: 'E2602501',       // at a company affiliated with the employer
+  ausShortStayPermanentEstab: 'E2602601',   // for a DBA permanent establishment of the employer
+  ausShortStayForeignEmployer: 'E2602701',  // for a genuinely separate foreign employer
+  ausShortStayOther: 'E2602801',            // free text, "other, specify:"
   ausGross: 'E2603501',
   ausGrossNoWithholding: 'E2603601',
   ausTaxFreeAlready: 'E2603701',

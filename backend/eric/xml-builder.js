@@ -425,8 +425,25 @@ function buildNAUS(data) {
        this schema - confirmed via the raw XSD, not assumed uniform. */
     if (a.taetigkeitDesc && a.taetigkeitVon && a.taetigkeitBis) {
       allg += `<Taetigk><Art_Zeitr>\n${tag(fm.N_AUS.ausActivityDesc, a.taetigkeitDesc)}${tag(fm.N_AUS.ausActivityPeriod, formatDateRangeFullDE(a.taetigkeitVon, a.taetigkeitBis))}</Art_Zeitr>\n`;
-      if (N(a.arbeitstageAusland) > 0) allg += `<Tage>\n${tag(fm.N_AUS.ausDaysAbroad, String(Math.round(N(a.arbeitstageAusland))))}</Tage>\n`;
+      const daysAbroad = Math.round(N(a.arbeitstageAusland));
+      if (daysAbroad > 0) allg += `<Tage>\n${tag(fm.N_AUS.ausDaysAbroad, String(daysAbroad))}</Tage>\n`;
       allg += '</Taetigk>\n';
+      /* Real requirement found via testing against a genuine client
+         file (Regel 30) - confirmed sibling of Taetigk, not nested
+         inside it. Only relevant/required under 184 days abroad;
+         above that, the standard 183-day exemption applies without
+         needing this. This is a genuine legal distinction the app
+         cannot safely guess - if the days are short and no basis is
+         given, this is flagged via skippedSections rather than
+         defaulted to any of the six options. */
+      if (daysAbroad > 0 && daysAbroad < 184 && a.shortStayBasis) {
+        const key = 'ausShortStay' + a.shortStayBasis;
+        if (a.shortStayBasis === 'Other') {
+          if (a.shortStayBasisText) allg += `<Taetigk_Vertr>\n${tag(fm.N_AUS.ausShortStayOther, a.shortStayBasisText)}</Taetigk_Vertr>\n`;
+        } else if (fm.N_AUS[key]) {
+          allg += `<Taetigk_Vertr>\n${tag(fm.N_AUS[key], 'X')}</Taetigk_Vertr>\n`;
+        }
+      }
     }
     if (allg) xml += `<Allg>\n${allg}</Allg>\n`;
 
@@ -1525,6 +1542,8 @@ function buildEStXML(data, opts = {}) {
       skippedSections.push(`${label}: the foreign activity's description and date range are required together (Regel 100260064) and were not fully provided - this entry will be rejected until filled in.`);
     if (!(N(a.arbeitstageGesamt) > 0) || !(N(a.arbeitstageAusland) > 0))
       skippedSections.push(`${label}: work-day counts are required whenever DBA is the legal basis (Regel 100260013 - ERiC rejects the entry outright without either a real day count or an explicit "not required" declaration for the narrow seafarer/aircrew exception, which this app does not offer). Not just an inaccuracy - this entry will be rejected until both counts are filled in.`);
+    if (N(a.arbeitstageAusland) > 0 && N(a.arbeitstageAusland) < 184 && !a.shortStayBasis)
+      skippedSections.push(`${label}: fewer than 184 days were spent abroad, so the standard 183-day exemption does not automatically apply (Regel 30). At least one of six legal/contractual bases must be stated for the exemption to be valid - this is a real distinction that needs to come from the user, not something the app can safely guess. This entry will be rejected until one is selected.`);
     if ((a.arbeitgeberName || a.arbeitgeberStreet || a.arbeitgeberPlz || a.arbeitgeberCity || a.arbeitgeberCountry)
       && !(a.arbeitgeberName && a.arbeitgeberStreet && a.arbeitgeberPlz && a.arbeitgeberCity && a.arbeitgeberCountry))
       skippedSections.push(`${label}: the employer's name, street, postcode, city and country must all be given together or not at all (Regel 24, confirmed) - some but not all were provided, so none were transmitted rather than sending an incomplete address ERiC would reject anyway. Please complete all five fields.`);

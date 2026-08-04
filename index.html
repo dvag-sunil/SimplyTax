@@ -294,6 +294,7 @@ function showAusCalc(empId){
  <div class="field"><label>${t('aus_days_total')} *</label><input id="aus-days-total" type="number" value="${esc(a.workDaysTotal)}" placeholder="220"></div>
  </div>
  <div class="field"><label>${t('aus_days_foreign')} *</label><input id="aus-days-foreign" type="number" value="${esc(a.workDaysForeign)}" placeholder="0"></div>
+ <div id="aus-shortstay-fields"></div>
  <div class="hint" style="margin:10px 0">${t('aus_formula_hint')}</div>
  <div id="aus-result" class="infobox" style="background:var(--teal-soft);border-color:var(--teal);text-align:center;font-size:15px;font-weight:700"></div>
  <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer;margin-top:12px">
@@ -310,8 +311,37 @@ function showAusCalc(empId){
  document.getElementById(id).addEventListener('input', ()=>updateAusResult(empId));
  document.getElementById(id).addEventListener('change', ()=>updateAusResult(empId));
  });
+ ['aus-days-total','aus-days-foreign'].forEach(id=>{
+ document.getElementById(id).addEventListener('input', ()=>renderAusShortStayFields(empId));
+ });
+ renderAusShortStayFields(empId);
  renderAusDualFields(empId);
  updateAusResult(empId);
+}
+const AUS_SHORTSTAY_OPTIONS=['Werkvertrag','Leasing','Affiliated','PermanentEstab','ForeignEmployer'];
+function renderAusShortStayFields(empId){
+ const c=cur(); const a=c.aus[empId]; const slot=document.getElementById('aus-shortstay-fields'); if(!slot) return;
+ const total=parseInt(document.getElementById('aus-days-total')?.value)||0;
+ const foreign=parseInt(document.getElementById('aus-days-foreign')?.value)||0;
+ /* Confirmed real requirement (Regel 30) - only relevant under 184
+    days abroad, since the standard 183-day exemption applies without
+    this above that threshold. A genuine legal distinction the user
+    must actually know, not something the app can safely guess. */
+ if(!(foreign>0) || foreign>=184){ slot.innerHTML=''; return; }
+ slot.innerHTML=`<div class="field" style="margin-top:8px">
+ <label>${t('aus_shortstay_label')} *</label>
+ <div class="hint" style="margin-bottom:6px">${t('aus_shortstay_hint')}</div>
+ <select id="aus-shortstay-basis">
+ <option value="">${t('select')}</option>
+ ${AUS_SHORTSTAY_OPTIONS.map(k=>`<option value="${k}" ${a.shortStayBasis===k?'selected':''}>${t('aus_shortstay_'+k)}</option>`).join('')}
+ <option value="Other" ${a.shortStayBasis==='Other'?'selected':''}>${t('aus_shortstay_Other')}</option>
+ </select>
+ </div>
+ ${a.shortStayBasis==='Other'?`<div class="field"><label>${t('aus_shortstay_other_label')}</label><input id="aus-shortstay-other-text" value="${esc(a.shortStayBasisText||'')}"></div>`:''}`;
+ const sel=document.getElementById('aus-shortstay-basis');
+ if(sel) sel.addEventListener('change', ()=>{ updateAusResult(empId); renderAusShortStayFields(empId); });
+ const otherTxt=document.getElementById('aus-shortstay-other-text');
+ if(otherTxt) otherTxt.addEventListener('input', ()=>updateAusResult(empId));
 }
 function renderAusDualFields(empId){
  const c=cur(); const a=c.aus[empId]; const slot=document.getElementById('aus-dual-fields'); if(!slot) return;
@@ -361,6 +391,8 @@ function updateAusResult(empId){
  dualResidence: dual,
  foreignResStreet: dual?(document.getElementById('aus-fr-street')?.value||''):'', foreignResPlz: dual?(document.getElementById('aus-fr-plz')?.value||''):'',
  foreignResCity: dual?(document.getElementById('aus-fr-city')?.value||''):'', foreignResCountry: dual?(document.getElementById('aus-fr-country')?.value||''):'',
+ shortStayBasis: document.getElementById('aus-shortstay-basis')?.value||'',
+ shortStayBasisText: document.getElementById('aus-shortstay-other-text')?.value||'',
  centerOfInterests: dual?(document.getElementById('aus-center')?.checked||false):false,
  };
 }
@@ -772,6 +804,15 @@ en: {
  aus_dual_residence:"Did you also keep a residence abroad (in addition to Germany)?",
  aus_foreignres_street:"Foreign residence - street, number", aus_foreignres_plz:"Postcode", aus_foreignres_city:"City", aus_foreignres_country:"Country",
  aus_center_of_interests:"Was your center of personal and economic life in that country?",
+ aus_shortstay_label:"Under 184 days abroad - on what legal basis does the exemption apply?",
+ aus_shortstay_hint:"Below 184 days, the standard exemption doesn't automatically apply - it needs one of these specific bases to be valid. If you're not sure which applies, a tax advisor can help confirm this.",
+ aus_shortstay_Werkvertrag:"Under a works/service contract with the employer",
+ aus_shortstay_Leasing:"Commercial employee leasing (Arbeitnehmerüberlassung)",
+ aus_shortstay_Affiliated:"At a company affiliated with the employer",
+ aus_shortstay_PermanentEstab:"For a permanent establishment of the employer abroad",
+ aus_shortstay_ForeignEmployer:"For a genuinely separate foreign employer",
+ aus_shortstay_Other:"Other (please specify)",
+ aus_shortstay_other_label:"Please specify",
  z17:"Employer benefits credited against the commuting allowance (line 17)",
  z18:"15% flat-taxed employer commuting benefits (line 18)",
  z17_hint:"Lines 17/18 reduce the deductible commuting allowance - applied automatically.",
@@ -1095,6 +1136,15 @@ de: {
  aus_dual_residence:"Bestand neben dem Wohnsitz in Deutschland auch ein Wohnsitz im Ausland?",
  aus_foreignres_street:"Wohnsitz im Ausland - Straße, Hausnummer", aus_foreignres_plz:"Postleitzahl", aus_foreignres_city:"Ort", aus_foreignres_country:"Staat",
  aus_center_of_interests:"Lag der Mittelpunkt Ihrer persönlichen und wirtschaftlichen Lebensinteressen in diesem Staat?",
+ aus_shortstay_label:"Unter 184 Tage im Ausland - auf welcher rechtlichen Grundlage gilt die Freistellung?",
+ aus_shortstay_hint:"Unter 184 Tagen gilt die übliche Freistellung nicht automatisch - eine dieser Grundlagen muss zutreffen. Bei Unsicherheit kann ein Steuerberater dies prüfen.",
+ aus_shortstay_Werkvertrag:"Im Rahmen eines Werkvertrags mit dem Arbeitgeber",
+ aus_shortstay_Leasing:"Gewerbliche Arbeitnehmerüberlassung",
+ aus_shortstay_Affiliated:"Bei einem mit dem Arbeitgeber verbundenen Unternehmen",
+ aus_shortstay_PermanentEstab:"Für eine Betriebsstätte des Arbeitgebers im Ausland",
+ aus_shortstay_ForeignEmployer:"Für einen tatsächlich eigenständigen ausländischen Arbeitgeber",
+ aus_shortstay_Other:"Sonstiges (bitte angeben)",
+ aus_shortstay_other_label:"Bitte angeben",
  z17:"Steuerfreie Arbeitgeberleistungen, auf Entfernungspauschale anzurechnen (Zeile 17)",
  z18:"Pauschal mit 15 % besteuerte Fahrtkosten-Arbeitgeberleistungen (Zeile 18)",
  z17_hint:"Zeilen 17/18 mindern die absetzbare Entfernungspauschale - wird automatisch angerechnet.",
@@ -3351,7 +3401,8 @@ function buildElsterDataset(c){
  gesamtlohn:N(a.totalWage), steuerfreierBetrag:0,
  arbeitstageGesamt:parseInt(a.workDaysTotal)||0, arbeitstageAusland:parseInt(a.workDaysForeign)||0,
  dualResidence:!!a.dualResidence, foreignResStreet:a.foreignResStreet||'', foreignResPlz:a.foreignResPlz||'',
- foreignResCity:a.foreignResCity||'', foreignResCountry:a.foreignResCountry||'', centerOfInterests:!!a.centerOfInterests };
+ foreignResCity:a.foreignResCity||'', foreignResCountry:a.foreignResCountry||'', centerOfInterests:!!a.centerOfInterests,
+ shortStayBasis:a.shortStayBasis||'', shortStayBasisText:a.shortStayBasisText||'' };
  }),
  werbungskosten:{
  personA:{ entfernungspauschale:{ arbeitstage:N(c.wk.commuteDays), einfacheEntfernungKm:N(c.wk.commuteKm) },

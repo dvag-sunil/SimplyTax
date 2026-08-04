@@ -782,6 +782,35 @@ check('N-AUS employer address IS written when genuinely complete (all five field
   const x = buildEStXML(d).xml;
   return x.includes('<ArbG>') && x.includes('<E2601202>Muster AG</E2601202>');
 })());
+
+check('N-AUS includes the 183-day-rule legal basis (Taetigk_Vertr) when days abroad is under 184 and a basis is provided - real requirement found via testing against a genuine client file (Regel 30)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [{ person: 'A', land: 'Indonesien', arbeitgeberName: 'X', arbeitgeberStreet: 'Y', arbeitgeberPlz: '1', arbeitgeberCity: 'Z', arbeitgeberCountry: 'Indonesien',
+    taetigkeitDesc: 'Beratung', taetigkeitVon: '2025-01-01', taetigkeitBis: '2025-12-31', gesamtlohn: 65000, arbeitstageGesamt: 220, arbeitstageAusland: 50, shortStayBasis: 'PermanentEstab' }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<Taetigk_Vertr>\n<E2602601>X</E2602601>');
+})());
+check('N-AUS warns (does not silently guess) when days abroad is under 184 and no legal basis was given - a real, rejectable gap', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [{ person: 'A', land: 'Indonesien', arbeitgeberName: 'X', arbeitgeberStreet: 'Y', arbeitgeberPlz: '1', arbeitgeberCity: 'Z', arbeitgeberCountry: 'Indonesien',
+    taetigkeitDesc: 'Beratung', taetigkeitVon: '2025-01-01', taetigkeitBis: '2025-12-31', gesamtlohn: 65000, arbeitstageGesamt: 220, arbeitstageAusland: 50 }];
+  const result = buildEStXML(d);
+  return !result.xml.includes('Taetigk_Vertr') && result.skippedSections.some(s => s.includes('184'));
+})());
+check('N-AUS does NOT require the 183-day basis when days abroad is 184 or more - the standard exemption applies without it', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [{ person: 'A', land: 'Indonesien', arbeitgeberName: 'X', arbeitgeberStreet: 'Y', arbeitgeberPlz: '1', arbeitgeberCity: 'Z', arbeitgeberCountry: 'Indonesien',
+    taetigkeitDesc: 'Beratung', taetigkeitVon: '2025-01-01', taetigkeitBis: '2025-12-31', gesamtlohn: 65000, arbeitstageGesamt: 220, arbeitstageAusland: 200 }];
+  const result = buildEStXML(d);
+  return !result.skippedSections.some(s => s.includes('184'));
+})());
+check('N-AUS 183-day basis "Other" uses the free-text field instead of a flag', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [{ person: 'A', land: 'Indonesien', arbeitgeberName: 'X', arbeitgeberStreet: 'Y', arbeitgeberPlz: '1', arbeitgeberCity: 'Z', arbeitgeberCountry: 'Indonesien',
+    taetigkeitDesc: 'Beratung', taetigkeitVon: '2025-01-01', taetigkeitBis: '2025-12-31', gesamtlohn: 65000, arbeitstageGesamt: 220, arbeitstageAusland: 50, shortStayBasis: 'Other', shortStayBasisText: 'Sonderfall laut Vertrag' }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E2602801>Sonderfall laut Vertrag</E2602801>');
+})());
 check('buildR includes the required Person tag - real bug found via the multi-year regression test (mandatoryField, "/R[1]/Person[1]")', (() => {
   const withR = JSON.parse(JSON.stringify(sample));
   withR.anlageR = [{ art: 'gesetzlich', jahresbetrag: 12000, rentenbeginn: '2020' }];
