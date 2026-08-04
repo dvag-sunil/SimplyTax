@@ -420,6 +420,15 @@ function toggleAusEnabled(empId){
  c.aus[empId].enabled = c.aus[empId].enabled===false ? true : false;
  c.updatedAt=Date.now(); scheduleSave(); render();
 }
+/* Same fix as toggleAusEnabled above, requested for EM_35c (energetic
+   renovation) for the same reason - once calculated, someone may later
+   decide not to claim it this year, or want to hold it back while
+   double-checking something, without losing everything they entered. */
+function toggleEm35cEnabled(){
+ const c=cur(); if(!c || !c.oth) return;
+ c.oth.emEnabled = c.oth.emEnabled===false ? true : false;
+ c.updatedAt=Date.now(); scheduleSave(); render();
+}
 
 
 function showPayModal(){
@@ -548,6 +557,9 @@ en: {
  dup_idnr_filer:"your own ID", dup_idnr_spouse:"spouse's ID", dup_idnr_unt:"supported person's ID", dup_idnr_realsplit:"ex-spouse's ID (Realsplitting)",
  spouse_incomplete_warning:"First name, birthdate, and religion must all be given together for the spouse - some are missing.",
  em35c_age_warning:"Based on these two dates, the building is under 10 years old at renovation start - §35c requires it to be older. Double-check the dates, since ERiC will reject this otherwise.",
+ energ_status_included:"Renovation costs included in this filing:", energ_status_excluded:"Renovation costs entered but NOT included in this filing:",
+ energ_exclude:"Exclude from filing", energ_include:"Include in filing",
+ energ_excluded_hint:"All details are still saved - nothing is sent to the tax office while excluded. Click \"Include in filing\" any time to add it back in, no re-entry needed.",
  taxid_valid_checksum:"Valid Steuer-ID",
  street:"Street", house_no:"No.", plz:"Postal code", city:"City",
  religion:"Church tax (religion)", rel_none:"None (no church tax)", rel_ev:"Protestant (EV)", rel_rk:"Catholic (RK)", rel_other:"Other",
@@ -887,6 +899,9 @@ de: {
  dup_idnr_filer:"eigene ID", dup_idnr_spouse:"ID des Ehepartners", dup_idnr_unt:"ID der unterstützten Person", dup_idnr_realsplit:"ID des Ex-Partners (Realsplitting)",
  spouse_incomplete_warning:"Vorname, Geburtsdatum und Religion müssen beim Ehepartner gemeinsam angegeben werden - einige fehlen noch.",
  em35c_age_warning:"Nach diesen beiden Daten ist das Gebäude bei Baubeginn der Sanierung unter 10 Jahre alt - §35c setzt ein höheres Alter voraus. Bitte die Daten prüfen, sonst wird dies von ERiC abgelehnt.",
+ energ_status_included:"Sanierungskosten in dieser Erklärung enthalten:", energ_status_excluded:"Sanierungskosten erfasst, aber NICHT in dieser Erklärung enthalten:",
+ energ_exclude:"Aus Erklärung ausschließen", energ_include:"In Erklärung aufnehmen",
+ energ_excluded_hint:"Alle Angaben bleiben gespeichert - solange ausgeschlossen, wird nichts ans Finanzamt übermittelt. Mit \"In Erklärung aufnehmen\" jederzeit wieder aufnehmen, ohne erneute Eingabe.",
  taxid_valid_checksum:"Gültige Steuer-ID",
  street:"Straße", house_no:"Nr.", plz:"PLZ", city:"Ort",
  religion:"Kirchensteuer (Religion)", rel_none:"Keine (keine Kirchensteuer)", rel_ev:"Evangelisch (EV)", rel_rk:"Katholisch (RK)", rel_other:"Andere",
@@ -3118,6 +3133,17 @@ function stepHousehold(c){
  </div>
  <div class="section-label">${t('sec_energ')}</div>
  <p style="font-size:12.5px;color:var(--ink-soft);margin:-4px 0 12px">${t('energ_intro')}</p>
+ ${(()=>{ const total=EM35C_MEASURES.reduce((s,m)=>s+N(c.oth['em'+m.key]),0);
+   if(!(total>0)) return '';
+   const on=c.oth.emEnabled!==false;
+   return `<div class="infobox" style="padding:8px 10px;margin:0 0 12px;background:${on?'var(--teal-soft)':'var(--paper-soft)'};border-color:${on?'var(--teal)':'var(--border)'}">
+   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+   <span style="font-size:12.5px">🏠 ${on?t('energ_status_included'):t('energ_status_excluded')} <b>${eur(total)}</b></span>
+   <button class="link-btn" style="padding:0;font-size:12px" onclick="toggleEm35cEnabled()">${on?t('energ_exclude'):t('energ_include')}</button>
+   </div>
+   ${!on?`<div class="hint" style="margin-top:4px">${t('energ_excluded_hint')}</div>`:''}
+   </div>`;
+ })()}
  <div class="grid2">
  ${F('oth','emStreet',t('energ_street'),{ph:'Musterstraße 1'})}
  ${F('oth','emPlzOrt',t('energ_plzort'),{ph:'12345 Musterstadt'})}
@@ -3556,7 +3582,7 @@ function buildElsterDataset(c){
  (rentePct, now shared at top level) - not a separately user-entered
  figure, since the wizard never asks for one for gesetzlich. */
  ertragsanteilProzent:(r.type||'gesetzlich')==='gesetzlich'?rentePct(r.startYear):null })),
- par35cEnergetisch:{ street:c.oth.emStreet||'', buildDate:c.oth.emBuildDate||'', plzOrt:c.oth.emPlzOrt||'',
+ par35cEnergetisch: c.oth.emEnabled===false ? {} : { street:c.oth.emStreet||'', buildDate:c.oth.emBuildDate||'', plzOrt:c.oth.emPlzOrt||'',
  areaTotal:N(c.oth.emAreaTotal), areaOwn:N(c.oth.emAreaOwn), priorClaim:c.oth.emPriorClaim==='ja', otherFunding:c.oth.emOtherFunding==='ja',
  measureStart:c.oth.emMeasureStart||'', walls:N(c.oth.emWalls), roof:N(c.oth.emRoof), ceiling:N(c.oth.emCeiling),
  windows:N(c.oth.emWindows), ventilation:N(c.oth.emVentilation), heating:N(c.oth.emHeating),
