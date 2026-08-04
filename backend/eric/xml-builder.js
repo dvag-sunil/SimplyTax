@@ -401,14 +401,21 @@ function buildNAUS(data) {
     /* Employer - CORRECTED (major): confirmed via the raw XSD that the
        real context is Allg/ArbG, not Unternehmen (a different,
        unrelated field for a narrow related-company exception). Name
-       comes before street in the confirmed real field order. */
-    if (a.arbeitgeberName || a.arbeitgeberStreet) {
+       comes before street in the confirmed real field order.
+       CORRECTED (second pass): confirmed via the real Regel 24
+       (FelderNichtGemeinsamAngegeben across all five fields) that this
+       is genuinely all-or-nothing - sending name without a complete
+       address (or vice versa) is rejected the same as sending nothing,
+       so a partial set is now honestly omitted with a clear warning
+       rather than sent and rejected. */
+    const employerComplete = a.arbeitgeberName && a.arbeitgeberStreet && a.arbeitgeberPlz && a.arbeitgeberCity && a.arbeitgeberCountry;
+    if (employerComplete) {
       allg += '<ArbG>\n';
-      if (a.arbeitgeberName) allg += tag(fm.N_AUS.ausEmployerName, a.arbeitgeberName);
-      if (a.arbeitgeberStreet) allg += tag(fm.N_AUS.ausEmployerStreet, a.arbeitgeberStreet);
-      if (a.arbeitgeberPlz) allg += tag(fm.N_AUS.ausEmployerPlz, a.arbeitgeberPlz);
-      if (a.arbeitgeberCity) allg += tag(fm.N_AUS.ausEmployerCity, a.arbeitgeberCity);
-      if (a.arbeitgeberCountry) allg += tag(fm.N_AUS.ausEmployerCountry, a.arbeitgeberCountry);
+      allg += tag(fm.N_AUS.ausEmployerName, a.arbeitgeberName);
+      allg += tag(fm.N_AUS.ausEmployerStreet, a.arbeitgeberStreet);
+      allg += tag(fm.N_AUS.ausEmployerPlz, a.arbeitgeberPlz);
+      allg += tag(fm.N_AUS.ausEmployerCity, a.arbeitgeberCity);
+      allg += tag(fm.N_AUS.ausEmployerCountry, a.arbeitgeberCountry);
       allg += '</ArbG>\n';
     }
 
@@ -1517,7 +1524,10 @@ function buildEStXML(data, opts = {}) {
     if (!a.taetigkeitDesc || !a.taetigkeitVon || !a.taetigkeitBis)
       skippedSections.push(`${label}: the foreign activity's description and date range are required together (Regel 100260064) and were not fully provided - this entry will be rejected until filled in.`);
     if (!(N(a.arbeitstageGesamt) > 0) || !(N(a.arbeitstageAusland) > 0))
-      skippedSections.push(`${label}: the DBA tax-free amount could not be calculated - both the total and foreign work-day counts are required for the confirmed real formula (Regel 52). Without them, no exempt amount is transmitted and the full wage would appear taxable.`);
+      skippedSections.push(`${label}: work-day counts are required whenever DBA is the legal basis (Regel 100260013 - ERiC rejects the entry outright without either a real day count or an explicit "not required" declaration for the narrow seafarer/aircrew exception, which this app does not offer). Not just an inaccuracy - this entry will be rejected until both counts are filled in.`);
+    if ((a.arbeitgeberName || a.arbeitgeberStreet || a.arbeitgeberPlz || a.arbeitgeberCity || a.arbeitgeberCountry)
+      && !(a.arbeitgeberName && a.arbeitgeberStreet && a.arbeitgeberPlz && a.arbeitgeberCity && a.arbeitgeberCountry))
+      skippedSections.push(`${label}: the employer's name, street, postcode, city and country must all be given together or not at all (Regel 24, confirmed) - some but not all were provided, so none were transmitted rather than sending an incomplete address ERiC would reject anyway. Please complete all five fields.`);
     if (a.dualResidence && (!a.foreignResStreet || !a.foreignResCountry))
       skippedSections.push(`${label}: a foreign residence was indicated but its address is incomplete (Regel 20) - this entry will be rejected until filled in.`);
   });

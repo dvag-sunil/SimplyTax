@@ -45,7 +45,7 @@ const sample = {
   ],
   anlageUnterhalt: { betrag: 3600, laendergruppe: '1' },
   anlageNAUS: [
-    { person: 'A', arbeitgeberName: 'Muster GmbH', land: 'Schweiz', gesamtlohn: 60000, arbeitstageGesamt: 220, arbeitstageAusland: 90, steuerfreierBetrag: 24545.45 },
+    { person: 'A', arbeitgeberName: 'Muster GmbH', arbeitgeberStreet: 'Bahnhofstr. 1', arbeitgeberPlz: '8001', arbeitgeberCity: 'Zürich', arbeitgeberCountry: 'Schweiz', land: 'Schweiz', gesamtlohn: 60000, arbeitstageGesamt: 220, arbeitstageAusland: 90, steuerfreierBetrag: 24545.45 },
   ],
 };
 
@@ -122,7 +122,7 @@ check('skippedSections reports the support payment scope limitation clearly', sk
 check('N-AUS country written (CORRECTED: was E2601001, the wrong field - real primary country is E2600401, confirmed via raw XSD)', xml.includes('<E2600401>Schweiz</E2600401>'));
 check('N-AUS employer name written (CORRECTED: was E2603101/Unternehmen, a different unrelated field - real employer context is ArbG/E2601202, confirmed via raw XSD)', xml.includes('<E2601202>Muster GmbH</E2601202>'));
 check('N-AUS final tax-free result matches the confirmed real formula (remaining wage × foreign days / total days, not total wage as first assumed)', xml.includes('<E2604901>14504</E2604901>'));
-check('N-AUS does not write employer address when not provided in the source data (this fixture only sets the name)', !xml.includes('E2601201') && !xml.includes('E2601301'));
+check('N-AUS employer address is written in full when the source data provides a complete address', xml.includes('<E2601201>Bahnhofstr. 1</E2601201>') && xml.includes('<E2601301>8001</E2601301>'));
 
 // Vorsatz - confirmed via ELSTER official developer forum. E0100081/E0100082
 // are "interne ERiC Felder" and must NEVER be submitted directly - this was
@@ -768,6 +768,19 @@ check('N-AUS warns when work-day counts are missing, since the tax-free amount c
   d.anlageNAUS = [{ person: 'A', land: 'Schweiz', arbeitgeberName: 'Muster AG', gesamtlohn: 60000 }];
   const result = buildEStXML(d);
   return !result.xml.includes('ArbL_DBA') && result.skippedSections.some(s => s.includes('work-day'));
+})());
+
+check('N-AUS employer address is genuinely all-or-nothing - a partial address (name only) is omitted entirely and warned about, real bug found via a genuine client file confirming Regel 24', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [{ person: 'A', land: 'Schweiz', arbeitgeberName: 'Muster AG', gesamtlohn: 60000, arbeitstageGesamt: 220, arbeitstageAusland: 180 }];
+  const result = buildEStXML(d);
+  return !result.xml.includes('<ArbG>') && result.skippedSections.some(s => s.includes('given together or not at all'));
+})());
+check('N-AUS employer address IS written when genuinely complete (all five fields)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [{ person: 'A', land: 'Schweiz', arbeitgeberName: 'Muster AG', arbeitgeberStreet: 'Bahnhofstr. 1', arbeitgeberPlz: '8001', arbeitgeberCity: 'Zürich', arbeitgeberCountry: 'Schweiz', gesamtlohn: 60000, arbeitstageGesamt: 220, arbeitstageAusland: 180 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<ArbG>') && x.includes('<E2601202>Muster AG</E2601202>');
 })());
 check('buildR includes the required Person tag - real bug found via the multi-year regression test (mandatoryField, "/R[1]/Person[1]")', (() => {
   const withR = JSON.parse(JSON.stringify(sample));
