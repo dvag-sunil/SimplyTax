@@ -3304,7 +3304,7 @@ function stepSpecial(c){
  </div>
  ${N(c.oth.realsplitting)>0?`<div class="grid2">
  ${F('oth','realsplitName',t('realsplit_name')+' *',{ph:t('realsplit_name_ph')})}
- ${F('oth','realsplitIdnr',t('realsplit_idnr')+' *',{ph:'12 345 678 901',hint: c.taxYear<=2023 ? t('realsplit_idnr_hint_2023') : t('realsplit_idnr_hint')})}
+ ${F('oth','realsplitIdnr',t('realsplit_idnr')+' *',{ph:'12 345 678 901',hint: c.taxYear<=2023 ? t('realsplit_idnr_hint_2023') : t('realsplit_idnr_hint'),maxlength:13,inputmode:'numeric'})}
  <div id="realsplitidnr-check-msg"></div>
  </div>`:''}
  ${N(c.oth.realsplitting)>0 && YEAR_LIMITATIONS[c.taxYear]?.noRealsplittingCountry?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
