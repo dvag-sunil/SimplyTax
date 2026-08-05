@@ -603,6 +603,9 @@ en: {
  no_results:"No clients match your search.",
  manual_hint:"No document? Enter the values manually - all fields stay editable.",
  step_fam:"Children & family support",
+ step_kind:"Children", step_unt:"Family support",
+ s_kind_lead:"Each child with its own tax ID, relationship (biological/adopted - same allowance; foster/step child - conditions apply), Kindergeld received, childcare costs and school fees.",
+ s_unt_lead:"Support payments to needy relatives (§ 33a EStG) - amount, the supported person's details, and household information.",
  s4b:"Double household (doppelte Haushaltsführung) - for a work-related second home. Rent is deductible up to €1,000 per month; weekly family home trips count with the commuting allowance.",
  dhh_h:"Double household", dhh_rent:"Monthly rent, second home", dhh_months:"Months", dhh_trips:"Family home trips per year", dhh_km:"Distance to family home (km)",
  relocation:"Work-related relocation costs",
@@ -809,6 +812,9 @@ en: {
  prop_ferien:"Used as a holiday let?", prop_kurzfristig:"Let short-term?", prop_angehoerige:"Rented to relatives?",
  prop_foreign_hint:"For a property abroad, only the country, rental income and costs are needed here - it is reported as tax-free income with Progressionsvorbehalt. Please confirm the tax treaty with that country before filing.",
  sec_sv:"Social insurance (lines 22-28)", sec_more:"More fields (lines 8-21, 29-34)",
+ sec_more_8_21:"More wage tax fields (lines 8-21)",
+ sec_more_22_28:"Social insurance contributions (lines 22a-28)",
+ sec_more_29_34:"Further fields (lines 29-34)",
  kfb:"Child allowances (Kinderfreibeträge)",
  z7:"Church tax spouse (line 7)", z8:"Pension payments in line 3 (Versorgungsbezüge, line 8)",
  z9:"Reduced-taxed pension payments, multi-year (line 9)", z10:"Multi-year wages / severance (line 10)",
@@ -945,6 +951,9 @@ de: {
  no_results:"Keine Mandanten gefunden.",
  manual_hint:"Kein Dokument? Werte einfach manuell eintragen - alle Felder bleiben editierbar.",
  step_fam:"Kinder & Unterhalt",
+ step_kind:"Kinder", step_unt:"Unterhalt",
+ s_kind_lead:"Jedes Kind mit eigener Steuer-ID, Verwandtschaftsverhältnis (leiblich/adoptiert - gleicher Freibetrag; Pflege-/Stiefkind - Voraussetzungen gelten), erhaltenem Kindergeld, Betreuungskosten und Schulgeld.",
+ s_unt_lead:"Unterhaltszahlungen an bedürftige Angehörige (§ 33a EStG) - Betrag, Angaben zur unterstützten Person und zum Haushalt.",
  s4b:"Doppelte Haushaltsführung - bei beruflicher Zweitwohnung. Miete bis 1.000 € pro Monat absetzbar; wöchentliche Familienheimfahrten zählen mit der Entfernungspauschale.",
  dhh_h:"Doppelte Haushaltsführung", dhh_rent:"Monatsmiete Zweitwohnung", dhh_months:"Monate", dhh_trips:"Familienheimfahrten pro Jahr", dhh_km:"Entfernung zum Hauptwohnsitz (km)",
  relocation:"Beruflich bedingte Umzugskosten",
@@ -1151,6 +1160,9 @@ de: {
  prop_ferien:"Als Ferienwohnung genutzt?", prop_kurzfristig:"Kurzfristig vermietet?", prop_angehoerige:"An Angehörige vermietet?",
  prop_foreign_hint:"Bei einer Auslandsimmobilie werden hier nur Staat, Mieteinnahmen und Kosten benötigt - die Erklärung erfolgt als steuerfreie Einkünfte mit Progressionsvorbehalt. Bitte prüfen Sie vorab das Doppelbesteuerungsabkommen mit dem betreffenden Staat.",
  sec_sv:"Sozialversicherung (Zeilen 22-28)", sec_more:"Weitere Felder (Zeilen 8-21, 29-34)",
+ sec_more_8_21:"Weitere Lohnsteuerfelder (Zeilen 8-21)",
+ sec_more_22_28:"Sozialversicherungsbeiträge (Zeilen 22a-28)",
+ sec_more_29_34:"Weitere Felder (Zeilen 29-34)",
  kfb:"Zahl der Kinderfreibeträge",
  z7:"Kirchensteuer Ehegatte (Zeile 7)", z8:"In Zeile 3 enthaltene Versorgungsbezüge (Zeile 8)",
  z9:"Ermäßigt besteuerte Versorgungsbezüge, mehrere Jahre (Zeile 9)", z10:"Arbeitslohn mehrere Jahre / Entschädigungen (Zeile 10)",
@@ -1340,8 +1352,10 @@ step2:{en:{what:"Wage data per employer, exactly as printed on the Lohnsteuerbes
  de:{what:"Lohndaten je Arbeitgeber, genau wie auf der Lohnsteuerbescheinigung (Zeilen 1-34) inkl. Sozialversicherung - ein Nachweis pro Job; der Upload legt sie automatisch an. Darunter: weitere Lohnersatzleistungen (Elterngeld, Krankengeld, ALG I - ab 410 € pflichtig, erhöhen den Steuersatz) und Renten (Anlage R - Besteuerungsanteil automatisch aus dem Beginnjahr).",docs:"Lohnsteuerbescheinigung(en) aller Arbeitgeber des Jahres, Rentenbezugsmitteilung, Elterngeld-/Krankengeldbescheide.",anlage:"Anlage N · Vorsorgeaufwand · Anlage R"}},
 step4:{en:{what:"Job-related costs per person: commuting, home office, work equipment, training, double household, relocation - plus itemized categories (Arbeitszimmer, communication, tax advisory...). €1,230 lump sum applies automatically. Low incomes with commutes over 20 km additionally receive the Mobilitätsprämie - computed automatically from your entries.",docs:"Invoices, tickets, rental contract of the second home, course confirmations.",anlage:"Anlage N - Werbungskosten (§ 9 EStG)"},
  de:{what:"Berufliche Kosten je Person: Pendlerpauschale, Homeoffice, Arbeitsmittel, Fortbildung, doppelte Haushaltsführung, Umzug - plus Einzelposten (Arbeitszimmer, Kommunikation, Steuerberatung...). Der Pauschbetrag von 1.230 € gilt automatisch. Geringe Einkommen mit Arbeitswegen über 20 km erhalten zusätzlich die Mobilitätsprämie - automatisch aus Ihren Angaben berechnet.",docs:"Rechnungen, Tickets, Mietvertrag der Zweitwohnung, Kursbestätigungen.",anlage:"Anlage N - Werbungskosten (§ 9 EStG)"}},
-step_fam:{en:{what:"Each child with its own tax ID, relationship (biological/adopted - same allowance; foster/step child - conditions apply), Kindergeld received, childcare costs and school fees - plus support payments to needy relatives.",docs:"Kindergeld notice, childcare invoices, school fee invoices, bank transfer proofs for support.",anlage:"Anlage Kind · Anlage Unterhalt (§ 33a EStG)"},
- de:{what:"Jedes Kind mit eigener Steuer-ID, Verwandtschaftsverhältnis (leiblich/adoptiert - gleicher Freibetrag; Pflege-/Stiefkind - Voraussetzungen gelten), erhaltenem Kindergeld, Betreuungskosten und Schulgeld - plus Unterhaltszahlungen an bedürftige Angehörige.",docs:"Kindergeldbescheid, Betreuungsrechnungen, Schulgeldrechnungen, Überweisungsbelege für Unterhalt.",anlage:"Anlage Kind · Anlage Unterhalt (§ 33a EStG)"}},
+step_kind:{en:{what:"Each child with its own tax ID, relationship (biological/adopted - same allowance; foster/step child - conditions apply), Kindergeld received, childcare costs and school fees.",docs:"Kindergeld notice, childcare invoices, school fee invoices.",anlage:"Anlage Kind"},
+ de:{what:"Jedes Kind mit eigener Steuer-ID, Verwandtschaftsverhältnis (leiblich/adoptiert - gleicher Freibetrag; Pflege-/Stiefkind - Voraussetzungen gelten), erhaltenem Kindergeld, Betreuungskosten und Schulgeld.",docs:"Kindergeldbescheid, Betreuungsrechnungen, Schulgeldrechnungen.",anlage:"Anlage Kind"}},
+step_unt:{en:{what:"Support payments to needy relatives, such as parents abroad.",docs:"Bank transfer proofs for support, proof of the supported person's own income/assets.",anlage:"Anlage Unterhalt (§ 33a EStG)"},
+ de:{what:"Unterhaltszahlungen an bedürftige Angehörige, z. B. Eltern im Ausland.",docs:"Überweisungsbelege für Unterhalt, Nachweis über eigenes Einkommen/Vermögen der unterstützten Person.",anlage:"Anlage Unterhalt (§ 33a EStG)"}},
 step5:{en:{what:"Donations with receipts, other special expenses, further private insurance - plus support paid to an ex-spouse (Realsplitting, max €13,805, needs consent) and the loss carryforward from your last Verlustfeststellungsbescheid (§ 10d).",docs:"Donation receipts, Anlage-U consent, loss-assessment notice.",anlage:"Sonderausgaben (§§ 10, 10b) · Anlage U"},
  de:{what:"Spenden mit Beleg, weitere Sonderausgaben, sonstige private Versicherungen - plus Unterhalt an den Ex-Ehegatten (Realsplitting, max. 13.805 €, mit Zustimmung) und der Verlustvortrag aus dem letzten Verlustfeststellungsbescheid (§ 10d).",docs:"Spendenbescheinigungen, Anlage-U-Zustimmung, Verlustfeststellungsbescheid.",anlage:"Sonderausgaben (§§ 10, 10b) · Anlage U"}},
 step_priv:{en:{what:"All insurance policies with contributions paid and reimbursements received per year - the tax categories (fully deductible, €1,900 pot, Riester €2,100, not deductible) are applied automatically per person.",docs:"Annual statements of each insurance (Beitragsbescheinigungen).",anlage:"Anlage Vorsorgeaufwand (§ 10 EStG)"},
@@ -1374,7 +1388,7 @@ function reminderPanel(cs){
  </div>`;
 }
 function stepInfoBox(i){
- const keys=['step1','step2','step4','step_fam','step5','step_priv','step_kap','step_prop','step6','step7','step_inq'];
+ const keys=['step1','step2','step_kap','step4','step_kind','step_unt','step5','step_priv','step_prop','step6','step7','step_inq'];
  const info=STEP_INFO[keys[i]]; if(!info) return '';
  const L=S.lang==='de'?info.de:info.en;
  return `<button class="info-btn" title="Info" onclick="S.infoOpen=!S.infoOpen;render()">ⓘ</button>
@@ -2137,24 +2151,25 @@ function stepDone(c,i){
  switch(i){
  case 0: return !!(c.p.taxId && c.p.birthDate && c.p.street);
  case 1: return incTotals(c).gross>0;
- case 2: return N(c.wk.commuteDays)+N(c.wk.equipment)+N(c.wk.homeOffice)+N(c.wk.training)+N(c.wk.other)+N(c.wk.dhhRent)+N(c.wk.relocation)>0 || (c.wkItems||[]).length>0;
- case 3: return ((c.fam.children||[]).length)>0 || N(c.fam.support)>0;
- case 4: return N(c.sa.donations)+N(c.sa.other)+N(c.ins.other)>0;
- case 5: return (c.privIns||[]).length>0;
- case 6: return (c.kap||[]).length>0;
- case 7: return (c.props||[]).length>0;
- case 8: return N(c.ex.medical)+N(c.ex.household)+N(c.ex.handwerker)>0;
- case 9: return c.status==='submitted';
- case 10: return (c.inq||[]).length>0 && c.inq.every(q=>q.status==='answered');
+ case 2: return (c.kap||[]).length>0;
+ case 3: return N(c.wk.commuteDays)+N(c.wk.equipment)+N(c.wk.homeOffice)+N(c.wk.training)+N(c.wk.other)+N(c.wk.dhhRent)+N(c.wk.relocation)>0 || (c.wkItems||[]).length>0;
+ case 4: return ((c.fam.children||[]).length)>0;
+ case 5: return N(c.fam.support)>0;
+ case 6: return N(c.sa.donations)+N(c.sa.other)+N(c.ins.other)>0;
+ case 7: return (c.privIns||[]).length>0;
+ case 8: return (c.props||[]).length>0;
+ case 9: return N(c.ex.medical)+N(c.ex.household)+N(c.ex.handwerker)>0;
+ case 10: return c.status==='submitted';
+ case 11: return (c.inq||[]).length>0 && c.inq.every(q=>q.status==='answered');
  } return false;
 }
 function clientView(){
  const c=cur(); if(!c){S.view='dash';return dashView();}
- const stepKeys=['step1','step2','step4','step_fam','step5','step_priv','step_kap','step_prop','step6','step7','step_inq'];
+ const stepKeys=['step1','step2','step_kap','step4','step_kind','step_unt','step5','step_priv','step_prop','step6','step7','step_inq'];
  const stepsHtml = stepKeys.map((k,i)=>`
  <div class="step-item ${S.step===i?'on':''} ${stepDone(c,i)?'done':''}" onclick="S.step=${i};render()">
  <span class="n">${stepDone(c,i)?'✓':i+1}</span> ${t(k)}</div>`).join('');
- const bodies=[stepPersonal,stepIncome,stepWork,stepFamily,stepSpecial,stepPrivIns,stepKap,stepProp,stepHousehold,stepSummary,stepInquiries];
+ const bodies=[stepPersonal,stepIncome,stepKap,stepWork,stepChildren,stepFamilySupport,stepSpecial,stepPrivIns,stepProp,stepHousehold,stepSummary,stepInquiries];
  return `<main>
  <div class="crumbs"><a onclick="goDash()">← ${t('back_dash')}</a> &nbsp;/&nbsp; <b>${esc(c.p.firstName)} ${esc(c.p.lastName)}</b> · ${t('tax_year')} ${c.taxYear} · ${chip(c.status)}</div>
  <div class="ws">
@@ -2689,7 +2704,7 @@ function stepIncome(c){
  ${LF('emps',emp,'churchPaid',t('church_paid'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'churchSpouse',t('z7'),{euro:true,ph:'0,00 €'})}
  </div>
- <details class="more" open><summary>${t('sec_more')}</summary>
+ <details class="more"><summary>${t('sec_more_8_21')}</summary>
  <div class="grid3">
  ${LF('emps',emp,'vb8',t('z8'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'vb9',t('z9'),{euro:true,ph:'0,00 €'})}
@@ -2721,6 +2736,10 @@ function stepIncome(c){
  ${LF('emps',emp,'entsch19',t('z19'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'verpf20',t('z20'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'dhh21',t('z21'),{euro:true,ph:'0,00 €'})}
+ </div>
+ </details>
+ <details class="more"><summary>${t('sec_more_22_28')}</summary>
+ <div class="grid3">
  ${LF('emps',emp,'agRV',t('z22a'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'agRVb',t('z22b'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'anRV',t('z23a'),{euro:true,ph:'0,00 €'})}
@@ -2732,6 +2751,10 @@ function stepIncome(c){
  ${LF('emps',emp,'anPV',t('z26'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'anAV',t('z27'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'pkv28',t('z28'),{euro:true,ph:'0,00 €'})}
+ </div>
+ </details>
+ <details class="more"><summary>${t('sec_more_29_34')}</summary>
+ <div class="grid3">
  ${LF('emps',emp,'bmg29',t('z29'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'vbJahr30',t('z30'),{ph:'2020'})}
  ${LF('emps',emp,'vbMon31',t('z31'),{ph:'01 / 12'})}
@@ -3024,7 +3047,7 @@ function delChild(id){ const c=cur(); c.fam.children=(c.fam.children||[]).filter
 function updChild(id,f,v,fmt){ v = validAmount(v, fmt); const c=cur(); const k=(c.fam.children||[]).find(x=>x.id===id); if(!k) return;
  if(fmt && String(v).trim()!=='') v=formatDE(N(v)); k[f]=v; c.updatedAt=Date.now(); scheduleSave(); render(); }
 
-function stepFamily(c){
+function stepChildren(c){
  const kids=c.fam.children||[];
  const cards=kids.map((k,i)=>`<div class="sum-group" style="margin-bottom:12px">
  <div class="head"><span>${t('child')} ${i+1}${k.name?' · '+esc(k.name):''}</span>
@@ -3058,10 +3081,16 @@ function stepFamily(c){
  ${CF(k,'ccPeriodTo',t('cc_period_to')+' *',{type:'date'})}
  </div>`:''}
  </div></div>`).join('');
- return `<h2>${t('step_fam')}</h2><p class="lead">${t('s_fam_lead')}</p>
+ return `<h2>${t('step_kind')}</h2><p class="lead">${t('s_kind_lead')}</p>
  <div class="section-label">${t('children_h')}</div>
  ${cards}
  <button class="btn btn-ghost btn-sm" onclick="addChild()">＋ ${t('add_child')}</button>
+ ${docSection('fam')}
+ ${navRow()}`;
+}
+/* --- family support (Anlage Unterhalt, § 33a) --- */
+function stepFamilySupport(c){
+ return `<h2>${t('step_unt')}</h2><p class="lead">${t('s_unt_lead')}</p>
  <div class="section-label">${t('support_h')}</div>
  <div class="grid2">
  ${F('fam','support',t('support_amount'),{euro:true,ph:'0,00 €',hint:t('support_hint')})}
@@ -3253,7 +3282,7 @@ function stepSummary(c){
  [t('finanzamt'),esc([c.p.finanzamt, c.p.faNumber?'('+c.p.faNumber+')':''].filter(Boolean).join(' '))],
  [t('iban'),esc(c.p.iban)]])}
  ${sumGroup(t('income'),1,empRows)}
- ${sumGroup(t('work_exp'),2,[
+ ${sumGroup(t('work_exp'),3,[
  [t('commute_days'),c.wk.commuteDays],[t('commute_km'),c.wk.commuteKm],[t('home_office'),c.wk.homeOffice],
  [t('equipment'),m(c.wk.equipment)],[t('training'),m(c.wk.training)],[t('other_wk'),m(c.wk.other)],
  [t('dhh_rent'),m(c.wk.dhhRent)],[t('dhh_trips'),c.wk.dhhTrips],[t('relocation'),m(c.wk.relocation)],
@@ -3264,16 +3293,17 @@ function stepSummary(c){
  ...(c.wkItems||[]).map(x=>[
  `${marr?'('+(x.person==='B'?'B':'A')+') ':''}${esc(wkiLabel(x.type)||t('wki_type'))}${x.desc?' - '+esc(x.desc):''}`,
  m(x.amount)])])}
- ${sumGroup(t('step_fam'),3,[...kidRows,
+ ${sumGroup(t('step_kind'),4,kidRows)}
+ ${sumGroup(t('step_unt'),5,[
  [t('support_amount'),m(c.fam.support)],
  [t('support_where'),N(c.fam.support)>0?{1:t('grp1'),2:t('grp2'),3:t('grp3'),4:t('grp4')}[c.fam.supportGroup]:'']])}
- ${sumGroup(t('special_exp'),4,[[t('donations'),m(c.sa.donations)],[t('other_sa'),m(c.sa.other)],[t('other_ins'),m(c.ins.other)]])}
- ${sumGroup(t('step_priv'),5,(c.privIns||[]).map(x=>[
+ ${sumGroup(t('special_exp'),6,[[t('donations'),m(c.sa.donations)],[t('other_sa'),m(c.sa.other)],[t('other_ins'),m(c.ins.other)]])}
+ ${sumGroup(t('step_priv'),7,(c.privIns||[]).map(x=>[
  esc(insLabel(x.type)||t('ins_type')),
  esc(`${eur(N(x.beitrag))} − ${eur(N(x.erstattung))} = ${eur(Math.max(0,N(x.beitrag)-N(x.erstattung)))}${INS_CAT[x.type]==='none'?' ('+t('cat_none')+')':''}`)]))}
- ${sumGroup(t('step_kap'),6,kapRows)}
- ${sumGroup(t('step_prop'),7,propRows)}
- ${sumGroup(t('household_g'),8,[[t('medical'),m(c.ex.medical)],[t('household'),m(c.ex.household)],[t('handwerker'),m(c.ex.handwerker)]])}
+ ${sumGroup(t('step_kap'),2,kapRows)}
+ ${sumGroup(t('step_prop'),8,propRows)}
+ ${sumGroup(t('household_g'),9,[[t('medical'),m(c.ex.medical)],[t('household'),m(c.ex.household)],[t('handwerker'),m(c.ex.handwerker)]])}
  <div style="margin-top:22px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;align-items:center">
  ${PAYMENT.enabled ? (isPaid(c)
  ? `<span class="chip submitted">✓ ${t('paid_on')} ${dateStr(c.pay.paidAt)} · ${c.pay.txId}</span>`
@@ -3733,13 +3763,14 @@ function buildPDF(c){
  (c.wkItems||[]).forEach(x=>{ if(!x.type && N(x.amount)===0) return;
  const ab=c.p.marital==='married'?'('+(x.person==='B'?'B':'A')+') ':'';
  row(ab+(wkiLabel(x.type)||t('wki_type'))+(x.desc?' - '+x.desc:''), m(x.amount)||' '); });
- y+=3; section(t('step_fam'));
+ y+=3; section(t('step_kind'));
  (c.fam.children||[]).forEach((k,i)=>{
  row(`${t('child')} ${i+1}${k.name?' - '+k.name:''}`, [k.birth,k.taxId].filter(Boolean).join(' · ')||' ');
  if(N(k.kindergeld)>0) row(' '+t('kg_short'), eur(N(k.kindergeld)));
  if(N(k.childcare)>0) row(' '+t('cc_short'), eur(N(k.childcare)));
  if(N(k.schoolFees)>0) row(' '+t('sf_short'), eur(N(k.schoolFees)));
  });
+ y+=3; section(t('step_unt'));
  row(t('support_amount'),m(c.fam.support));
  if(N(c.fam.support)>0) row(t('support_where'), {1:t('grp1'),2:t('grp2'),3:t('grp3'),4:t('grp4')}[c.fam.supportGroup]);
  y+=3; section(t('special_exp'));
