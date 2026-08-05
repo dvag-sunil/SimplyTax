@@ -2457,7 +2457,7 @@ function F(group,key,label,opts={}){
  </select>${hint}</div>`;
  }
  return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}${ai}</label>
- <input data-tabkey="${fkey}" type="${type}" value="${type==='date'?(esc(v)||dateMax()):esc(v)}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
+ <input data-tabkey="${fkey}" type="${type}" value="${type==='date'?(esc(v)||dateMax()):esc(v)}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:(opts.min!=null?`min="${opts.min}"`:'')+(opts.max!=null?` max="${opts.max}"`:'')}
  onchange="upd('${group}','${key}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
 /* Shared by F/LF/CF - "required" is detected the same way it already
@@ -3262,11 +3262,11 @@ function stepFamilySupport(c){
  ${F('fam','untName',t('unt_name')+' *',{ph:t('unt_name_ph')})}
  ${F('fam','untProfession',t('unt_profession')+' *',{ph:t('unt_profession_ph')})}
  ${F('fam','untBirthDate',t('unt_birthdate')+' *',{type:'date'})}
- ${F('fam','untIdnr',t('unt_idnr'),{ph:'12 345 678 901',hint:t('unt_idnr_hint')})}
+ ${F('fam','untIdnr',t('unt_idnr'),{ph:'12 345 678 901',hint:t('unt_idnr_hint'),maxlength:13,inputmode:'numeric'})}
  <div id="untidnr-check-msg"></div>
  ${F('fam','untRelationship',t('unt_relationship')+' *',{ph:t('unt_relationship_ph')})}
  ${F('fam','untAddress',t('unt_address')+' *',{ph:t('unt_address_ph')})}
- ${F('fam','untHouseholdSize',t('unt_household_size')+' *',{type:'number',ph:'1'})}
+ ${F('fam','untHouseholdSize',t('unt_household_size')+' *',{type:'number',ph:'1',min:1})}
  ${F('fam','untFrom',t('unt_from')+' *',{type:'date'})}
  ${F('fam','untTo',t('unt_to')+' *',{type:'date'})}
  </div>
