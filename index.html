@@ -148,6 +148,10 @@
  .step-counter{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px}
  .step-item .n{width:22px;height:22px;border-radius:50%;border:1.5px solid currentColor;display:inline-flex;align-items:center;justify-content:center;font-size:11.5px;flex:none}
  .step-item.done .n{background:var(--teal);border-color:var(--teal);color:#fff}
+ .step-item.incomplete .n{background:var(--amber-soft);border-color:var(--amber);color:var(--amber);font-weight:800}
+ .step-item.incomplete{color:var(--amber)}
+ .step-item.incomplete.on{color:#fff}
+ .step-item.incomplete.on .n{background:var(--amber);border-color:var(--amber);color:#fff}
  .panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:26px 28px}
  .panel h2{font-size:21px;margin-bottom:4px}
  .panel .lead{color:var(--ink-soft);font-size:14px;margin-bottom:22px}
@@ -2169,21 +2173,61 @@ function goDash(){ S.view='dash'; render(); }
 
 /* ---------------- client workspace ---------------- */
 const cur = () => S.clients.find(c=>c.id===S.currentId);
+/* CORRECTED: real gap found via direct feedback - the old stepDone()
+   only checked "does any data exist," so a step with several required
+   (*) fields left blank still showed a green checkmark the moment ONE
+   field was filled in. Now returns three real states based on the
+   actual required fields for each step: 'empty' (nothing entered),
+   'incomplete' (started but missing something required), 'done'
+   (everything required is genuinely present). Steps without a
+   meaningful all-or-nothing requirement (Capital gains, Werbungskosten,
+   Special expenses, Private expenses, Household) stay binary
+   empty/done, since there's no real "half-finished" state for them. */
 function stepDone(c,i){
+ const has=v=>v!=null && String(v).trim()!=='';
  switch(i){
- case 0: return !!(c.p.taxId && c.p.birthDate && c.p.street);
- case 1: return incTotals(c).gross>0;
- case 2: return (c.kap||[]).length>0;
- case 3: return N(c.wk.commuteDays)+N(c.wk.equipment)+N(c.wk.homeOffice)+N(c.wk.training)+N(c.wk.other)+N(c.wk.dhhRent)+N(c.wk.relocation)>0 || (c.wkItems||[]).length>0;
- case 4: return ((c.fam.children||[]).length)>0;
- case 5: return N(c.fam.support)>0;
- case 6: return N(c.sa.donations)+N(c.sa.other)+N(c.ins.other)>0;
- case 7: return (c.privIns||[]).length>0;
- case 8: return (c.props||[]).length>0;
- case 9: return N(c.ex.medical)+N(c.ex.household)+N(c.ex.handwerker)>0;
- case 10: return c.status==='submitted';
- case 11: return (c.inq||[]).length>0 && c.inq.every(q=>q.status==='answered');
- } return false;
+ case 0: {
+ const married=['married','married_sep','getrennt_lebend'].includes(c.p.marital);
+ const base=[c.p.firstName,c.p.lastName,c.p.birthDate,c.p.taxId,c.p.street,c.p.houseNo,c.p.plz,c.p.city,c.p.marital,c.p.fullYearResident];
+ const anyBase=base.some(has);
+ if(!anyBase) return 'empty';
+ let ok=base.every(has);
+ if(ok && c.p.fullYearResident==='no') ok = has(c.p.arrivalDate) && has(c.p.departureDate);
+ if(ok && married) ok = has(c.p.spouseFirst) && has(c.p.spouseBirth) && has(c.p.spouseTaxId);
+ return ok?'done':'incomplete';
+ }
+ case 1: {
+ const emps=c.emps||[]; if(!emps.length) return 'empty';
+ const ok=emps.every(e=>has(e.employer)&&has(e.period)&&has(e.taxClass)&&N(e.gross)>0);
+ return ok?'done':'incomplete';
+ }
+ case 2: return (c.kap||[]).length>0?'done':'empty';
+ case 3: return (N(c.wk.commuteDays)+N(c.wk.equipment)+N(c.wk.homeOffice)+N(c.wk.training)+N(c.wk.other)+N(c.wk.dhhRent)+N(c.wk.relocation)>0 || (c.wkItems||[]).length>0)?'done':'empty';
+ case 4: {
+ const kids=c.fam.children||[]; if(!kids.length) return 'empty';
+ const singleParent=['single','verwitwet','getrennt_lebend'].includes(c.p.marital);
+ const ok=kids.every(k=>has(k.name)&&has(k.birth)&&has(k.familienkasse)&&(!singleParent||has(k.otherParentName))
+   &&(!(N(k.childcare)>0)||(has(k.ccProvider)&&has(k.ccPeriodFrom)&&has(k.ccPeriodTo))));
+ return ok?'done':'incomplete';
+ }
+ case 5: {
+ if(!(N(c.fam.support)>0)) return 'empty';
+ const ok=has(c.fam.untName)&&has(c.fam.untProfession)&&has(c.fam.untBirthDate)&&has(c.fam.untRelationship)
+   &&has(c.fam.untAddress)&&has(c.fam.untHouseholdSize)&&has(c.fam.untFrom)&&has(c.fam.untTo)
+   &&has(c.fam.untCohabitation)&&has(c.fam.untKindergeld)&&has(c.fam.untOtherContributor)&&has(c.fam.untHasAssets)&&has(c.fam.untHasIncome);
+ return ok?'done':'incomplete';
+ }
+ case 6: return (N(c.sa.donations)+N(c.sa.other)+N(c.ins.other)>0)?'done':'empty';
+ case 7: return (c.privIns||[]).length>0?'done':'empty';
+ case 8: {
+ const props=c.props||[]; if(!props.length) return 'empty';
+ const ok=props.every(p=>has(p.address));
+ return ok?'done':'incomplete';
+ }
+ case 9: return (N(c.ex.medical)+N(c.ex.household)+N(c.ex.handwerker)>0)?'done':'empty';
+ case 10: return c.status==='submitted'?'done':'empty';
+ case 11: return ((c.inq||[]).length>0 && c.inq.every(q=>q.status==='answered'))?'done':'empty';
+ } return 'empty';
 }
 function clientView(){
  const c=cur(); if(!c){S.view='dash';return dashView();}
@@ -2200,8 +2244,9 @@ function clientView(){
  {label:'phase_property', steps:[8,9]},
  {label:'phase_finish', steps:[10,11]},
  ];
- const stepItem=(k,i)=>`<div class="step-item ${S.step===i?'on':''} ${stepDone(c,i)?'done':''}" onclick="S.step=${i};render()">
- <span class="n">${stepDone(c,i)?'✓':i+1}</span> ${t(k)}</div>`;
+ const stepItem=(k,i)=>{ const st=stepDone(c,i);
+ return `<div class="step-item ${S.step===i?'on':''} ${st==='done'?'done':''} ${st==='incomplete'?'incomplete':''}" onclick="S.step=${i};render()">
+ <span class="n">${st==='done'?'✓':st==='incomplete'?'!':i+1}</span> ${t(k)}</div>`; };
  const stepsHtml = PHASE_GROUPS.map(g=>`<div class="phase-group">
  <div class="phase-label">${t(g.label)}</div>
  ${g.steps.map(i=>stepItem(stepKeys[i],i)).join('')}
