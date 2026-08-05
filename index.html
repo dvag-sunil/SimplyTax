@@ -2457,7 +2457,7 @@ function F(group,key,label,opts={}){
  </select>${hint}</div>`;
  }
  return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}${ai}</label>
- <input data-tabkey="${fkey}" type="${type}" value="${type==='date'?(esc(v)||dateMax()):esc(v)}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
+ <input data-tabkey="${fkey}" type="${type}" value="${type==='date'?(esc(v)||dateMax()):esc(v)}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
  onchange="upd('${group}','${key}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
 /* Shared by F/LF/CF - "required" is detected the same way it already
@@ -2745,16 +2745,16 @@ function stepPersonal(c){
  <div class="grid2">
  ${F('p','firstName',t('first_name')+' *')} ${F('p','lastName',t('last_name')+' *')}
  ${F('p','birthDate',t('birth_date')+' *',{type:'date'})}
- ${F('p','taxId',t('tax_id')+' *',{ph:'12 345 678 901',hint:t('tax_id_hint')})}
+ ${F('p','taxId',t('tax_id')+' *',{ph:'12 345 678 901',hint:t('tax_id_hint'),maxlength:13,inputmode:'numeric'})}
  <div id="taxid-check-msg"></div>
  </div>
  <div class="grid3">
- ${F('p','street',t('street')+' *')} ${F('p','houseNo',t('house_no')+' *')} ${F('p','plz',t('plz')+' *')}
+ ${F('p','street',t('street')+' *')} ${F('p','houseNo',t('house_no')+' *')} ${F('p','plz',t('plz')+' *',{maxlength:5,pattern:'[0-9]{5}',inputmode:'numeric',ph:'12345'})}
  </div>
  <div class="grid2">
  ${F('p','city',t('city')+' *')}
  ${F('p','marital',t('marital')+' *',{select:[['single',t('single')],['married',t('married')],['married_sep',t('married_sep')],['verwitwet',t('widowed')],['getrennt_lebend',t('separated_living')]],hint:t('marital_hint'),hintMode:'toggle'})}
- ${c.p.marital==='verwitwet'?F('p','deathYear',t('death_year'),{ph:String(new Date().getFullYear()-1),hint:t('death_year_hint')}):''}
+ ${c.p.marital==='verwitwet'?F('p','deathYear',t('death_year'),{type:'number',ph:String(new Date().getFullYear()-1),hint:t('death_year_hint')}):''}
  ${c.p.marital==='getrennt_lebend'?`<div class="hint" style="margin-top:-8px;margin-bottom:14px">${t('separated_hint')}</div>`:''}
  <div class="section-label" style="margin-top:22px">${t('expat_section')}</div>
  ${F('p','fullYearResident',t('full_year_resident')+' *',{select:[['yes',t('fy_yes')],['no',t('fy_no')]]})}
@@ -2775,7 +2775,7 @@ function stepPersonal(c){
  ${married?`<div class="section-label">${t('spouse')}</div>
  <div class="grid2">
  ${F('p','spouseFirst',t('first_name')+' *')} ${F('p','spouseLast',t('last_name')+' *')}
- ${F('p','spouseBirth',t('birth_date')+' *',{type:'date'})} ${F('p','spouseTaxId',t('tax_id')+' *')}
+ ${F('p','spouseBirth',t('birth_date')+' *',{type:'date'})} ${F('p','spouseTaxId',t('tax_id')+' *',{maxlength:13,inputmode:'numeric'})}
  <div id="spousetaxid-check-msg"></div>
  ${F('p','spouseReligion',t('religion'),{select:[['none',t('rel_none')],['ev',t('rel_ev')],['rk',t('rel_rk')],['other',t('rel_other')]]})}
  </div>
