@@ -51,6 +51,8 @@
  .field label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
  .field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;outline:none;transition:.15s}
  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
+ .field.req-empty input,.field.req-empty select{background:var(--amber-soft);border-color:var(--amber)}
+ .field.req-empty input:focus,.field.req-empty select:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
  .field .hint{font-size:12px;color:var(--ink-soft);margin-top:4px}
  .fa-dropdown{position:absolute;top:100%;left:0;right:0;z-index:50;background:#fff;
  border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);
@@ -68,7 +70,7 @@
  .auth-err{background:var(--red-soft);border:1px solid #EBC6BD;color:var(--red);border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:14px}
  details.more{margin:10px 0;border:1px dashed var(--line);border-radius:10px;padding:10px 14px;background:#FBFCFB}
  details.more summary{cursor:pointer;font-weight:800;font-size:11.5px;color:var(--teal);text-transform:uppercase;letter-spacing:.07em;user-select:none}
-.badge-warn{color:var(--amber);font-size:14px;vertical-align:middle}
+.badge-warn{color:var(--amber);font-size:11px;font-weight:800;vertical-align:middle;text-transform:none;letter-spacing:normal}
  details.more[open] summary{margin-bottom:12px}
  .infobox{background:var(--blue-soft);border:1px solid #CBD9E8;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;line-height:1.5;clear:both}
  .infobox .ib-row{margin:4px 0}
@@ -834,6 +836,7 @@ en: {
  sec_sv:"Social insurance (lines 22-28)", sec_more:"More fields (lines 8-21, 29-34)",
  sec_more_8_21:"More wage tax fields (lines 8-21)",
  badge_incomplete_hint:"Foreign income details are incomplete inside this section - open it to review.",
+ badge_action_needed:"action needed",
  sec_more_22_28:"Social insurance contributions (lines 22a-28)",
  sec_more_29_34:"Further fields (lines 29-34)",
  kfb:"Child allowances (Kinderfreibeträge)",
@@ -1187,6 +1190,7 @@ de: {
  sec_sv:"Sozialversicherung (Zeilen 22-28)", sec_more:"Weitere Felder (Zeilen 8-21, 29-34)",
  sec_more_8_21:"Weitere Lohnsteuerfelder (Zeilen 8-21)",
  badge_incomplete_hint:"Angaben zum Auslandseinkommen sind in diesem Abschnitt unvollständig - bitte öffnen und prüfen.",
+ badge_action_needed:"Handlung erforderlich",
  sec_more_22_28:"Sozialversicherungsbeiträge (Zeilen 22a-28)",
  sec_more_29_34:"Weitere Felder (Zeilen 29-34)",
  kfb:"Zahl der Kinderfreibeträge",
@@ -2441,15 +2445,25 @@ function F(group,key,label,opts={}){
  const toggled = opts.hintMode==='toggle';
  const infoBtn = toggled && opts.hint ? ` <button type="button" class="info-btn-sm" title="Info" onclick="toggleFieldInfo('${fkey}')">ⓘ</button>` : '';
  const hint = opts.hint ? (toggled ? ((S.fieldInfo||{})[fkey] ? `<div class="hint">${opts.hint}</div>` : '') : `<div class="hint">${opts.hint}</div>`) : '';
+ const reqEmpty = isReqEmpty(label, v);
  if(opts.select){
- return `<div class="field"><label>${label}${ai}${infoBtn}</label>
+ return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}${ai}${infoBtn}</label>
  <select data-tabkey="${fkey}" onchange="upd('${group}','${key}',this.value)">
  ${opts.select.map(o=>`<option value="${o[0]}" ${v===o[0]?'selected':''}>${o[1]}</option>`).join('')}
  </select>${hint}</div>`;
  }
- return `<div class="field"><label>${label}${ai}</label>
+ return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}${ai}</label>
  <input data-tabkey="${fkey}" type="${type}" value="${type==='date'?(esc(v)||dateMax()):esc(v)}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
  onchange="upd('${group}','${key}',this.value,${opts.euro?1:0})">${hint}</div>`;
+}
+/* Shared by F/LF/CF - "required" is detected the same way it already
+   is for the visible "*" (label ends with it), and "empty" means no
+   real value yet. Date fields are excluded from the empty check when
+   they show today's max-date placeholder rather than a real blank,
+   since that's a display default, not a value the person entered. */
+function isReqEmpty(label, v){
+ if(!label || !label.trim().endsWith('*')) return false;
+ return v==null || String(v).trim()==='';
 }
 function upd(group,key,val,fmt){
  val = validDate(val); val = validAmount(val, fmt);
@@ -2597,13 +2611,14 @@ function LF(list,item,field,label,opts={}){
  const hint=opts.hint?`<div class="hint">${opts.hint}</div>`:'';
  const ai=S.aiFields[list+'.'+item.id+'.'+field]?`<span class="ai-flag">AUTO</span>`:'';
  const tk=`${list}.${item.id}.${field}`;
+ const reqEmpty = isReqEmpty(label, item[field]);
  if(opts.select){
- return `<div class="field"><label>${label}${ai}</label>
+ return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}${ai}</label>
  <select data-tabkey="${tk}" onchange="updItem('${list}','${item.id}','${field}',this.value,0)">
  ${opts.select.map(o=>`<option value="${o[0]}" ${item[field]===o[0]?'selected':''}>${o[1]}</option>`).join('')}
  </select>${hint}</div>`;
  }
- return `<div class="field"><label>${label}${ai}</label>
+ return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}${ai}</label>
  <input data-tabkey="${tk}" type="${opts.type||'text'}" value="${(opts.type||'text')==='date'?(esc(item[field]||'')||dateMax()):esc(item[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''} ${(opts.type||'text')==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
  onchange="updItem('${list}','${item.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
@@ -2800,12 +2815,46 @@ function stepIncome(c){
  ${LF('emps',emp,'churchPaid',t('church_paid'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'churchSpouse',t('z7'),{euro:true,ph:'0,00 €'})}
  </div>
+ <details class="more"><summary>${t('sec_more_22_28')}</summary>
+ <div class="grid3">
+ ${LF('emps',emp,'agRV',t('z22a'),{euro:true,ph:'0,00 €'})}
+ ${LF('emps',emp,'agRVb',t('z22b'),{euro:true,ph:'0,00 €'})}
+ ${LF('emps',emp,'anRV',t('z23a'),{euro:true,ph:'0,00 €'})}
+ ${LF('emps',emp,'anRVb',t('z23b'),{euro:true,ph:'0,00 €'})}
+ ${LF('emps',emp,'agKV',t('z24a'),{euro:true,ph:'0,00 €'})}
+ ${LF('emps',emp,'agPKV',t('z24b'),{euro:true,ph:'0,00 €'})}
+ ${LF('emps',emp,'agPV',t('z24c'),{euro:true,ph:'0,00 €'})}
+ ${LF('emps',emp,'anKV',t('z25'),{euro:true,ph:'0,00 €'})}
+ ${LF('emps',emp,'anPV',t('z26'),{euro:true,ph:'0,00 €'})}
+ ${LF('emps',emp,'anAV',t('z27'),{euro:true,ph:'0,00 €'})}
+ ${LF('emps',emp,'pkv28',t('z28'),{euro:true,ph:'0,00 €'})}
+ </div>
+ </details>
  <details class="more"><summary>${t('sec_more_8_21')}${(()=>{ const a=c.aus&&c.aus[emp.id]; if(!a||!(N(a.totalWage)>0)) return '';
    const incomplete = !a.taetigkeitDesc || !a.taetigkeitVon || !a.taetigkeitBis || !(N(a.workDaysTotal)>0) || !(N(a.workDaysForeign)>0)
      || (a.arbeitgeberName||a.arbeitgeberStreet||a.arbeitgeberPlz||a.arbeitgeberCity||a.arbeitgeberCountry) && !(a.arbeitgeberName&&a.arbeitgeberStreet&&a.arbeitgeberPlz&&a.arbeitgeberCity&&a.arbeitgeberCountry)
      || (N(a.workDaysForeign)>0 && N(a.workDaysForeign)<184 && !a.shortStayBasis);
-   return incomplete ? ` <span class="badge-warn" title="${t('badge_incomplete_hint')}">●</span>` : '';
+   /* CORRECTED: real gap found via direct feedback - a bare dot with
+      only a hover tooltip doesn't self-explain, especially on touch
+      devices where hover doesn't exist at all. Now a plain-text badge
+      that reads on its own, without needing to hover anything. */
+   return incomplete ? ` <span class="badge-warn">⚠ ${t('badge_action_needed')}</span>` : '';
  })()}</summary>
+ ${(()=>{ const a=c.aus&&c.aus[emp.id]; if(!a||!(N(a.totalWage)>0)) return '';
+   const incomplete = !a.taetigkeitDesc || !a.taetigkeitVon || !a.taetigkeitBis || !(N(a.workDaysTotal)>0) || !(N(a.workDaysForeign)>0)
+     || (a.arbeitgeberName||a.arbeitgeberStreet||a.arbeitgeberPlz||a.arbeitgeberCity||a.arbeitgeberCountry) && !(a.arbeitgeberName&&a.arbeitgeberStreet&&a.arbeitgeberPlz&&a.arbeitgeberCity&&a.arbeitgeberCountry)
+     || (N(a.workDaysForeign)>0 && N(a.workDaysForeign)<184 && !a.shortStayBasis);
+   if(!incomplete) return '';
+   /* The badge alone said "something's wrong" without saying what or
+      where. This banner, shown as soon as the section is opened, says
+      exactly what to do and links straight to the one place that
+      fixes it - not the raw z8-z21 fields below, which aren't where
+      this data lives at all. */
+   return `<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin-bottom:10px">
+   ⚠ ${t('badge_incomplete_hint')}
+   <button class="link-btn" style="padding:2px 0;font-size:12.5px;display:block;margin-top:4px" onclick="showAusCalc('${emp.id}')">${t('aus_edit')} →</button>
+   </div>`;
+ })()}
  <div class="grid3">
  ${LF('emps',emp,'vb8',t('z8'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'vb9',t('z9'),{euro:true,ph:'0,00 €'})}
@@ -2837,21 +2886,6 @@ function stepIncome(c){
  ${LF('emps',emp,'entsch19',t('z19'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'verpf20',t('z20'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'dhh21',t('z21'),{euro:true,ph:'0,00 €'})}
- </div>
- </details>
- <details class="more"><summary>${t('sec_more_22_28')}</summary>
- <div class="grid3">
- ${LF('emps',emp,'agRV',t('z22a'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'agRVb',t('z22b'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'anRV',t('z23a'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'anRVb',t('z23b'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'agKV',t('z24a'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'agPKV',t('z24b'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'agPV',t('z24c'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'anKV',t('z25'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'anPV',t('z26'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'anAV',t('z27'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'pkv28',t('z28'),{euro:true,ph:'0,00 €'})}
  </div>
  </details>
  <details class="more"><summary>${t('sec_more_29_34')}</summary>
@@ -3133,13 +3167,14 @@ function CF(kid,field,label,opts={}){
  const type=opts.type||'text';
  const hint=opts.hint?`<div class="hint">${opts.hint}</div>`:'';
  const tk=`child.${kid.id}.${field}`;
+ const reqEmpty = isReqEmpty(label, kid[field]);
  if(opts.select){
- return `<div class="field"><label>${label}</label>
+ return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}</label>
  <select data-tabkey="${tk}" onchange="updChild('${kid.id}','${field}',this.value)">
  ${opts.select.map(o=>`<option value="${o[0]}" ${(kid[field]||'')===o[0]?'selected':''}>${o[1]}</option>`).join('')}
  </select>${hint}</div>`;
  }
- return `<div class="field"><label>${label}</label>
+ return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}</label>
  <input data-tabkey="${tk}" type="${type}" value="${type==='date'?(esc(kid[field])||dateMax()):esc(kid[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
  onchange="updChild('${kid.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
