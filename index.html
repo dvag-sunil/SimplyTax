@@ -591,7 +591,7 @@ en: {
  upload_title:"Upload Lohnsteuerbescheinigung", upload_sub:"Drop a photo or PDF here, or click to choose a file",
  scanning:"Reading the document...", scan_ok:"Values captured automatically. Please check each field carefully - automatically filled fields are marked.",
  scan_err:"The document could not be read automatically. You can enter the values manually below.",
- employer:"Employer", period:"Employment period", tax_class:"Tax class (Steuerklasse)",
+ employer:"Employer", period_from:"Employment start", period_to:"Employment end", tax_class:"Tax class (Steuerklasse)",
  gross:"Gross salary (line 3)", wage_tax:"Wage tax withheld (line 4)", soli:"Solidarity surcharge (line 5)", church_paid:"Church tax withheld (lines 6/7)",
  s3_lead:"Social insurance contributions - usually taken from lines 22-27 of the Lohnsteuerbescheinigung. Almost every taxpayer needs this section (Anlage Vorsorgeaufwand).",
  rv:"Pension insurance, employee share (line 23)", kv:"Health insurance, employee share (line 25)", pv:"Long-term care insurance (line 26)", av:"Unemployment insurance (line 27)",
@@ -947,7 +947,7 @@ de: {
  upload_title:"Lohnsteuerbescheinigung hochladen", upload_sub:"Foto oder PDF hier ablegen oder klicken, um eine Datei zu wählen",
  scanning:"Dokument wird ausgelesen...", scan_ok:"Werte automatisch übernommen. Bitte prüfen Sie jedes Feld sorgfältig - automatisch ausgefüllte Felder sind markiert.",
  scan_err:"Das Dokument konnte nicht automatisch gelesen werden. Sie können die Werte unten manuell eintragen.",
- employer:"Arbeitgeber", period:"Beschäftigungszeitraum", tax_class:"Steuerklasse",
+ employer:"Arbeitgeber", period_from:"Beschäftigungsbeginn", period_to:"Beschäftigungsende", tax_class:"Steuerklasse",
  gross:"Bruttoarbeitslohn (Zeile 3)", wage_tax:"Einbehaltene Lohnsteuer (Zeile 4)", soli:"Solidaritätszuschlag (Zeile 5)", church_paid:"Einbehaltene Kirchensteuer (Zeile 6/7)",
  s3_lead:"Sozialversicherungsbeiträge - in der Regel aus den Zeilen 22-27 der Lohnsteuerbescheinigung. Fast jede steuerpflichtige Person braucht diesen Abschnitt (Anlage Vorsorgeaufwand).",
  rv:"Rentenversicherung, Arbeitnehmeranteil (Zeile 23)", kv:"Krankenversicherung, Arbeitnehmeranteil (Zeile 25)", pv:"Pflegeversicherung (Zeile 26)", av:"Arbeitslosenversicherung (Zeile 27)",
@@ -2206,7 +2206,7 @@ function stepDone(c,i){
  }
  case 1: {
  const emps=c.emps||[]; if(!emps.length) return 'empty';
- const ok=emps.every(e=>has(e.employer)&&has(e.period)&&has(e.taxClass)&&N(e.gross)>0);
+ const ok=emps.every(e=>has(e.employer)&&has(e.periodFrom)&&has(e.periodTo)&&has(e.taxClass)&&N(e.gross)>0);
  return ok?'done':'incomplete';
  }
  case 2: return (c.kap||[]).length>0?'done':'empty';
@@ -2804,10 +2804,13 @@ function stepIncome(c){
  <span class="edit" onclick="delItem('emps','${emp.id}')">🗑 ${t('remove')}</span></div>
  <div style="padding:14px 16px">
  ${married?`<div class="grid3">${LF('emps',emp,'person',t('person'),{select:personOpts})}</div>`:''}
- <div class="grid3">
+ <div class="grid2">
  ${LF('emps',emp,'employer',t('employer')+' *')}
- ${LF('emps',emp,'period',t('period')+' *',{ph:'01.01. - 31.12.'})}
  ${LF('emps',emp,'taxClass',t('tax_class')+' *',{select:[['',t('select')],[`1`,`I - ${t('sk1_hint')}`],[`2`,`II - ${t('sk2_hint')}`],[`3`,`III - ${t('sk3_hint')}`],[`4`,`IV - ${t('sk4_hint')}`],[`5`,`V - ${t('sk5_hint')}`],[`6`,`VI - ${t('sk6_hint')}`]]})}
+ </div>
+ <div class="grid2">
+ ${LF('emps',emp,'periodFrom',t('period_from')+' *',{type:'date'})}
+ ${LF('emps',emp,'periodTo',t('period_to')+' *',{type:'date'})}
  </div>
  <div class="grid3">
  ${LF('emps',emp,'kfb',t('kfb'),{ph:'2,0'})}
@@ -2911,7 +2914,7 @@ function stepIncome(c){
  <p style="font-size:12.5px;color:var(--ink-soft);margin-top:10px">${t('upload_new_hint')} ${t('ai_personal_note')} ${t('manual_hint')}</p>
  <div class="section-label">${t('income')}</div>
  ${cards}
- <button class="btn btn-ghost btn-sm" onclick="addItem('emps',{person:'A',employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:''})">＋ ${t('add_emp')}</button>
+ <button class="btn btn-ghost btn-sm" onclick="addItem('emps',{person:'A',employer:'',periodFrom:'',periodTo:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:''})">＋ ${t('add_emp')}</button>
  <div class="section-label">${t('sec_ersatz')}</div>
  ${F('oth','ersatz',t('ersatz_lbl'),{euro:true,ph:'0,00 €',hint:t('ersatz_hint')})}
  <div class="section-label">${t('sec_rente')}</div>
@@ -3253,7 +3256,7 @@ function stepFamilySupport(c){
  <div id="untidnr-check-msg"></div>
  ${F('fam','untRelationship',t('unt_relationship')+' *',{ph:t('unt_relationship_ph')})}
  ${F('fam','untAddress',t('unt_address')+' *',{ph:t('unt_address_ph')})}
- ${F('fam','untHouseholdSize',t('unt_household_size')+' *',{ph:'1'})}
+ ${F('fam','untHouseholdSize',t('unt_household_size')+' *',{type:'number',ph:'1'})}
  ${F('fam','untFrom',t('unt_from')+' *',{type:'date'})}
  ${F('fam','untTo',t('unt_to')+' *',{type:'date'})}
  </div>
@@ -3672,7 +3675,13 @@ function buildElsterDataset(c){
  religion:({none:'--',ev:'EV',rk:'RK',other:'VD'}[c.p.spouseReligion]||'--') }:null,
  bankverbindung:{ iban:(c.p.iban||'').replace(/\s/g,'') },
  mitwirkungBerater:true },
- anlageN:(c.emps||[]).map(k=>({ person:k.person==='B'?'B':'A', arbeitgeber:k.employer||'', zeile1_zeitraum:k.period||'',
+ anlageN:(c.emps||[]).map(k=>({ person:k.person==='B'?'B':'A', arbeitgeber:k.employer||'',
+ /* periodFrom/periodTo intentionally NOT sent - confirmed via the real
+    ERiC schema (checked the complete Anlage N field list) that there
+    is no employment-period field in Anlage N at all; the tax office
+    already receives the full Lohnsteuerbescheinigung electronically
+    from the employer directly. This is kept purely for the user's own
+    reference when reviewing multiple employers side by side. */
  steuerklasse:k.taxClass||'', kinderfreibetraege:k.kfb||'',
  zeile3_bruttoarbeitslohn:N(k.gross), zeile4_lohnsteuer:N(k.wageTax), zeile5_soli:N(k.soli),
  zeile6_kirchensteuer:N(k.churchPaid), zeile7_kirchensteuerEhegatte:N(k.churchSpouse),
@@ -3887,7 +3896,7 @@ function buildPDF(c){
  y+=3; section(t('income'));
  (c.emps||[]).forEach((k,i)=>{
  const ab=c.p.marital==='married'?' ('+(k.person==='B'?'B':'A')+')':'';
- row(`${t('statement')} ${i+1}${ab}${k.employer?' - '+k.employer:''}`, [k.period, k.taxClass?'StKl '+k.taxClass:''].filter(Boolean).join(' · ')||' ');
+ row(`${t('statement')} ${i+1}${ab}${k.employer?' - '+k.employer:''}`, [[k.periodFrom,k.periodTo].filter(Boolean).join(' - '), k.taxClass?'StKl '+k.taxClass:''].filter(Boolean).join(' · ')||' ');
  if(N(k.gross)>0) row(' '+t('gross_short'), eur(N(k.gross)));
  if(N(k.wageTax)>0) row(' '+t('wage_tax'), eur(N(k.wageTax)));
  if(N(k.soli)>0) row(' '+t('soli'), eur(N(k.soli)));
