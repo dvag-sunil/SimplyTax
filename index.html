@@ -68,6 +68,7 @@
  .auth-err{background:var(--red-soft);border:1px solid #EBC6BD;color:var(--red);border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:14px}
  details.more{margin:10px 0;border:1px dashed var(--line);border-radius:10px;padding:10px 14px;background:#FBFCFB}
  details.more summary{cursor:pointer;font-weight:800;font-size:11.5px;color:var(--teal);text-transform:uppercase;letter-spacing:.07em;user-select:none}
+.badge-warn{color:var(--amber);font-size:14px;vertical-align:middle}
  details.more[open] summary{margin-bottom:12px}
  .infobox{background:var(--blue-soft);border:1px solid #CBD9E8;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;line-height:1.5;clear:both}
  .infobox .ib-row{margin:4px 0}
@@ -116,7 +117,18 @@
  .crumbs{font-size:13px;color:var(--ink-soft);margin-bottom:14px}
  .crumbs a{color:var(--teal);cursor:pointer;text-decoration:none;font-weight:600}
  .ws{display:grid;grid-template-columns:210px 1fr 260px;gap:20px;align-items:start}
- @media(max-width:980px){.ws{grid-template-columns:1fr}.steps{display:flex;overflow-x:auto;gap:6px}.step-item{white-space:nowrap}}
+ .phase-group{margin-bottom:6px}
+ .phase-group:last-child{margin-bottom:0}
+ .phase-label{font-size:10.5px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em;padding:10px 12px 4px}
+ @media(max-width:980px){
+ .ws{grid-template-columns:1fr}
+ .steps{display:flex;overflow-x:auto;gap:14px;position:relative;
+ mask-image:linear-gradient(to right,transparent,#000 16px,#000 calc(100% - 28px),transparent);
+ -webkit-mask-image:linear-gradient(to right,transparent,#000 16px,#000 calc(100% - 28px),transparent)}
+ .step-item{white-space:nowrap}
+ .phase-group{display:flex;gap:4px;align-items:center;margin-bottom:0;flex-shrink:0}
+ .phase-label{padding:0 6px 0 0;border-right:1px solid var(--line);margin-right:4px;white-space:nowrap}
+ }
  .steps{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:10px;box-shadow:var(--shadow)}
  .step-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;font-size:13.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;transition:.12s}
  .step-item:hover{background:var(--paper)}
@@ -604,6 +616,9 @@ en: {
  manual_hint:"No document? Enter the values manually - all fields stay editable.",
  step_fam:"Children & family support",
  step_kind:"Children", step_unt:"Family support",
+ phase_start:"Getting started", phase_income:"Income", phase_deductions:"Deductions",
+ phase_family:"Family", phase_property:"Property & household", phase_finish:"Finish",
+ overview_title:"Here's what we'll cover", overview_sub:"Six phases, in this order - you can always jump ahead or back using the sidebar.",
  s_kind_lead:"Each child with its own tax ID, relationship (biological/adopted - same allowance; foster/step child - conditions apply), Kindergeld received, childcare costs and school fees.",
  s_unt_lead:"Support payments to needy relatives (§ 33a EStG) - amount, the supported person's details, and household information.",
  s4b:"Double household (doppelte Haushaltsführung) - for a work-related second home. Rent is deductible up to €1,000 per month; weekly family home trips count with the commuting allowance.",
@@ -625,6 +640,7 @@ en: {
  support_h:"Support for parents / relatives", support_amount:"Support paid (per year)", support_where:"Where does the supported person live?",
  grp1:"Germany / country group 1 (full maximum)", grp2:"Country group 2 (¾ of maximum)", grp3:"Country group 3 (½ of maximum, e.g. India)", grp4:"Country group 4 (¼ of maximum)",
  support_hint:"Deductible up to the annual maximum (§ 33a EStG), reduced by country group. The recipient's own income can reduce the amount further.",
+ unt_details_summary:"Details about the supported person and household",
  unt_required_hint:"Because you entered a support amount, the tax office requires details about the supported person and household - these fields are now required.",
  unt_name:"Name of the supported person", unt_name_ph:"e.g. Maria Muster",
  unt_idnr:"Their Tax ID (Steuer-IdNr)",
@@ -813,6 +829,7 @@ en: {
  prop_foreign_hint:"For a property abroad, only the country, rental income and costs are needed here - it is reported as tax-free income with Progressionsvorbehalt. Please confirm the tax treaty with that country before filing.",
  sec_sv:"Social insurance (lines 22-28)", sec_more:"More fields (lines 8-21, 29-34)",
  sec_more_8_21:"More wage tax fields (lines 8-21)",
+ badge_incomplete_hint:"Foreign income details are incomplete inside this section - open it to review.",
  sec_more_22_28:"Social insurance contributions (lines 22a-28)",
  sec_more_29_34:"Further fields (lines 29-34)",
  kfb:"Child allowances (Kinderfreibeträge)",
@@ -952,6 +969,9 @@ de: {
  manual_hint:"Kein Dokument? Werte einfach manuell eintragen - alle Felder bleiben editierbar.",
  step_fam:"Kinder & Unterhalt",
  step_kind:"Kinder", step_unt:"Unterhalt",
+ phase_start:"Erste Schritte", phase_income:"Einkünfte", phase_deductions:"Absetzungen",
+ phase_family:"Familie", phase_property:"Immobilie & Haushalt", phase_finish:"Abschluss",
+ overview_title:"Das erwartet Sie", overview_sub:"Sechs Phasen, in dieser Reihenfolge - über die Seitenleiste können Sie jederzeit vor- und zurückspringen.",
  s_kind_lead:"Jedes Kind mit eigener Steuer-ID, Verwandtschaftsverhältnis (leiblich/adoptiert - gleicher Freibetrag; Pflege-/Stiefkind - Voraussetzungen gelten), erhaltenem Kindergeld, Betreuungskosten und Schulgeld.",
  s_unt_lead:"Unterhaltszahlungen an bedürftige Angehörige (§ 33a EStG) - Betrag, Angaben zur unterstützten Person und zum Haushalt.",
  s4b:"Doppelte Haushaltsführung - bei beruflicher Zweitwohnung. Miete bis 1.000 € pro Monat absetzbar; wöchentliche Familienheimfahrten zählen mit der Entfernungspauschale.",
@@ -973,6 +993,7 @@ de: {
  support_h:"Unterhalt für Eltern / Angehörige", support_amount:"Gezahlter Unterhalt (pro Jahr)", support_where:"Wo lebt die unterstützte Person?",
  grp1:"Deutschland / Ländergruppe 1 (voller Höchstbetrag)", grp2:"Ländergruppe 2 (¾ des Höchstbetrags)", grp3:"Ländergruppe 3 (½ des Höchstbetrags, z. B. Indien)", grp4:"Ländergruppe 4 (¼ des Höchstbetrags)",
  support_hint:"Absetzbar bis zum Jahreshöchstbetrag (§ 33a EStG), gekürzt nach Ländergruppe. Eigene Einkünfte der unterstützten Person mindern den Betrag zusätzlich.",
+ unt_details_summary:"Angaben zur unterstützten Person und zum Haushalt",
  unt_required_hint:"Da Unterhaltszahlungen eingetragen wurden, verlangt das Finanzamt auch Angaben zur unterstützten Person und zum Haushalt - diese Felder sind jetzt Pflichtfelder.",
  unt_name:"Name der unterstützten Person", unt_name_ph:"z. B. Maria Muster",
  unt_idnr:"Deren Steuer-Identifikationsnummer",
@@ -1161,6 +1182,7 @@ de: {
  prop_foreign_hint:"Bei einer Auslandsimmobilie werden hier nur Staat, Mieteinnahmen und Kosten benötigt - die Erklärung erfolgt als steuerfreie Einkünfte mit Progressionsvorbehalt. Bitte prüfen Sie vorab das Doppelbesteuerungsabkommen mit dem betreffenden Staat.",
  sec_sv:"Sozialversicherung (Zeilen 22-28)", sec_more:"Weitere Felder (Zeilen 8-21, 29-34)",
  sec_more_8_21:"Weitere Lohnsteuerfelder (Zeilen 8-21)",
+ badge_incomplete_hint:"Angaben zum Auslandseinkommen sind in diesem Abschnitt unvollständig - bitte öffnen und prüfen.",
  sec_more_22_28:"Sozialversicherungsbeiträge (Zeilen 22a-28)",
  sec_more_29_34:"Weitere Felder (Zeilen 29-34)",
  kfb:"Zahl der Kinderfreibeträge",
@@ -2166,9 +2188,24 @@ function stepDone(c,i){
 function clientView(){
  const c=cur(); if(!c){S.view='dash';return dashView();}
  const stepKeys=['step1','step2','step_kap','step4','step_kind','step_unt','step5','step_priv','step_prop','step6','step7','step_inq'];
- const stepsHtml = stepKeys.map((k,i)=>`
- <div class="step-item ${S.step===i?'on':''} ${stepDone(c,i)?'done':''}" onclick="S.step=${i};render()">
- <span class="n">${stepDone(c,i)?'✓':i+1}</span> ${t(k)}</div>`).join('');
+ /* Phase grouping - confirmed real UX gap: 12 flat steps meant mobile
+    users saw an unmarked horizontal scroll with no sense of how much
+    was left. Grouping into named phases gives a map at a glance while
+    every individual step stays exactly as clickable as before. */
+ const PHASE_GROUPS=[
+ {label:'phase_start', steps:[0]},
+ {label:'phase_income', steps:[1,2]},
+ {label:'phase_deductions', steps:[3,6,7]},
+ {label:'phase_family', steps:[4,5]},
+ {label:'phase_property', steps:[8,9]},
+ {label:'phase_finish', steps:[10,11]},
+ ];
+ const stepItem=(k,i)=>`<div class="step-item ${S.step===i?'on':''} ${stepDone(c,i)?'done':''}" onclick="S.step=${i};render()">
+ <span class="n">${stepDone(c,i)?'✓':i+1}</span> ${t(k)}</div>`;
+ const stepsHtml = PHASE_GROUPS.map(g=>`<div class="phase-group">
+ <div class="phase-label">${t(g.label)}</div>
+ ${g.steps.map(i=>stepItem(stepKeys[i],i)).join('')}
+ </div>`).join('');
  const bodies=[stepPersonal,stepIncome,stepKap,stepWork,stepChildren,stepFamilySupport,stepSpecial,stepPrivIns,stepProp,stepHousehold,stepSummary,stepInquiries];
  return `<main>
  <div class="crumbs"><a onclick="goDash()">← ${t('back_dash')}</a> &nbsp;/&nbsp; <b>${esc(c.p.firstName)} ${esc(c.p.lastName)}</b> · ${t('tax_year')} ${c.taxYear} · ${chip(c.status)}</div>
@@ -2177,12 +2214,26 @@ function clientView(){
  <div class="panel">
  <div class="step-counter">${t("step_counter_lbl")} ${S.step+1} / ${bodies.length}</div>
  <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${Math.round(((S.step+1)/bodies.length)*100)}%"></div></div>
+ ${S.step===0 && !S.hideOverview ? overviewCard() : ''}
  ${stepInfoBox(S.step)}${bodies[S.step](c)}
  </div>
  ${meter(c)}
  </div>
  <div id="modal-slot"></div>
  </main>`;
+}
+function overviewCard(){
+ const phases=[['phase_start','👤'],['phase_income','💼'],['phase_deductions','🧾'],['phase_family','👨‍👩‍👧'],['phase_property','🏠'],['phase_finish','✅']];
+ return `<div class="infobox" style="background:var(--teal-soft);border-color:var(--teal);margin-bottom:16px;padding:16px">
+ <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+ <b style="font-size:14px">${t('overview_title')}</b>
+ <button class="link-btn" style="padding:2px 6px;font-size:12px" onclick="S.hideOverview=true;render()">✕</button>
+ </div>
+ <p style="font-size:12.5px;color:var(--ink-soft);margin:4px 0 10px">${t('overview_sub')}</p>
+ <div style="display:flex;flex-wrap:wrap;gap:8px">
+ ${phases.map(([label,icon])=>`<span style="background:var(--card);border:1px solid var(--line);border-radius:99px;padding:5px 12px;font-size:12.5px;font-weight:600">${icon} ${t(label)}</span>`).join('')}
+ </div>
+ </div>`;
 }
 function meter(c){
  const e=computeEstimate(c); const pos=e.refund>=0;
@@ -2704,7 +2755,12 @@ function stepIncome(c){
  ${LF('emps',emp,'churchPaid',t('church_paid'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'churchSpouse',t('z7'),{euro:true,ph:'0,00 €'})}
  </div>
- <details class="more"><summary>${t('sec_more_8_21')}</summary>
+ <details class="more"><summary>${t('sec_more_8_21')}${(()=>{ const a=c.aus&&c.aus[emp.id]; if(!a||!(N(a.totalWage)>0)) return '';
+   const incomplete = !a.taetigkeitDesc || !a.taetigkeitVon || !a.taetigkeitBis || !(N(a.workDaysTotal)>0) || !(N(a.workDaysForeign)>0)
+     || (a.arbeitgeberName||a.arbeitgeberStreet||a.arbeitgeberPlz||a.arbeitgeberCity||a.arbeitgeberCountry) && !(a.arbeitgeberName&&a.arbeitgeberStreet&&a.arbeitgeberPlz&&a.arbeitgeberCity&&a.arbeitgeberCountry)
+     || (N(a.workDaysForeign)>0 && N(a.workDaysForeign)<184 && !a.shortStayBasis);
+   return incomplete ? ` <span class="badge-warn" title="${t('badge_incomplete_hint')}">●</span>` : '';
+ })()}</summary>
  <div class="grid3">
  ${LF('emps',emp,'vb8',t('z8'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'vb9',t('z9'),{euro:true,ph:'0,00 €'})}
@@ -3090,14 +3146,17 @@ function stepChildren(c){
 }
 /* --- family support (Anlage Unterhalt, § 33a) --- */
 function stepFamilySupport(c){
+ const hasAmount = N(c.fam.support)>0;
  return `<h2>${t('step_unt')}</h2><p class="lead">${t('s_unt_lead')}</p>
  <div class="section-label">${t('support_h')}</div>
  <div class="grid2">
  ${F('fam','support',t('support_amount'),{euro:true,ph:'0,00 €',hint:t('support_hint')})}
  ${F('fam','supportGroup',t('support_where'),{select:[['1',t('grp1')],['2',t('grp2')],['3',t('grp3')],['4',t('grp4')]]})}
  </div>
- ${N(c.fam.support)>0?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
+ <details class="more" ${hasAmount?'open':''}><summary>${t('unt_details_summary')}</summary>
+ ${hasAmount?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
  ⚠ ${t('unt_required_hint')}
+
  </div>
  <div class="grid2">
  ${F('fam','untName',t('unt_name')+' *',{ph:t('unt_name_ph')})}
@@ -3128,6 +3187,7 @@ function stepFamilySupport(c){
  ${F('fam','untForeignConfirmed',t('unt_foreign_confirmed')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
  </div>`:''}
  ${docSection('fam')}`:''}
+ </details>
  ${navRow()}`;
 }
 
