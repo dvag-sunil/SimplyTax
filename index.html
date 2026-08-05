@@ -825,10 +825,10 @@ en: {
  days_since_payment:"days since payment", refund_window_over:"past the 14-day refund window",
  m_kap:"Capital gains tax (est.)",
  step_prop:"Rental property", s_prop_lead:"Rental income (Anlage V) - one entry per property. Costs (loan interest, maintenance, depreciation, service charges...) count as expenses; a loss reduces the taxable income.",
- prop_address:"Property (address)", prop_rent:"Rental income (per year)", prop_costs:"Costs / expenses (per year)", add_prop:"Add property", prop_net:"Net result",
+ prop_address:"Property (address)", prop_street:"Street, house number", prop_plz:"Postcode", prop_city:"City", prop_rent:"Rental income (per year)", prop_costs:"Costs / expenses (per year)", add_prop:"Add property", prop_net:"Net result",
  prop_country:"Country the property is in", prop_country_de:"Germany",
  prop_country_hint:"Property abroad is reported differently - usually tax-free in Germany, but it still raises the tax rate on your German income.",
- prop_address_hint:"Please enter it as \u0022Street 1, 12345 City\u0022 - the tax office needs the street, postcode and city as separate entries.",
+ prop_address_hint:"Include the house number - the tax office requires street, postcode and city as three separate entries.",
  prop_unit:"Unit description", prop_unit_ph:"e.g. Ground floor left",
  prop_unit_hint:"The tax office needs a label for each rented unit alongside its rent. Leave blank for a single-unit property.",
  prop_nebenkosten:"Service charges paid by tenant (per year)",
@@ -1181,10 +1181,10 @@ de: {
  days_since_payment:"Tage seit Zahlung", refund_window_over:"außerhalb der 14-Tage-Rückerstattungsfrist",
  m_kap:"Kapitalertragsteuer (ca.)",
  step_prop:"Vermietung", s_prop_lead:"Einkünfte aus Vermietung (Anlage V) - ein Eintrag je Immobilie. Kosten (Darlehenszinsen, Instandhaltung, AfA, Nebenkosten...) zählen als Werbungskosten; ein Verlust mindert das zu versteuernde Einkommen.",
- prop_address:"Immobilie (Adresse)", prop_rent:"Mieteinnahmen (pro Jahr)", prop_costs:"Kosten / Aufwendungen (pro Jahr)", add_prop:"Immobilie hinzufügen", prop_net:"Ergebnis",
+ prop_address:"Immobilie (Adresse)", prop_street:"Straße, Hausnummer", prop_plz:"Postleitzahl", prop_city:"Ort", prop_rent:"Mieteinnahmen (pro Jahr)", prop_costs:"Kosten / Aufwendungen (pro Jahr)", add_prop:"Immobilie hinzufügen", prop_net:"Ergebnis",
  prop_country:"Belegenheitsstaat der Immobilie", prop_country_de:"Deutschland",
  prop_country_hint:"Auslandsimmobilien werden anders erklärt - meist in Deutschland steuerfrei, erhöhen aber den Steuersatz auf Ihre inländischen Einkünfte.",
- prop_address_hint:"Bitte in der Form \u0022Musterstraße 1, 12345 Musterstadt\u0022 eingeben - das Finanzamt benötigt Straße, PLZ und Ort getrennt.",
+ prop_address_hint:"Bitte mit Hausnummer angeben - das Finanzamt benötigt Straße, PLZ und Ort als drei getrennte Angaben.",
  prop_unit:"Bezeichnung der Wohneinheit", prop_unit_ph:"z. B. EG links",
  prop_unit_hint:"Das Finanzamt benötigt zu jeder vermieteten Einheit eine Bezeichnung samt Miete. Bei nur einer Einheit kann das Feld leer bleiben.",
  prop_nebenkosten:"Umlagen / Nebenkosten vom Mieter (pro Jahr)",
@@ -2229,7 +2229,7 @@ function stepDone(c,i){
  case 7: return (c.privIns||[]).length>0?'done':'empty';
  case 8: {
  const props=c.props||[]; if(!props.length) return 'empty';
- const ok=props.every(p=>has(p.address));
+ const ok=props.every(p=>has(p.street)&&has(p.plz)&&has(p.city));
  return ok?'done':'incomplete';
  }
  case 9: return (N(c.ex.medical)+N(c.ex.household)+N(c.ex.handwerker)>0)?'done':'empty';
@@ -2628,7 +2628,7 @@ function LF(list,item,field,label,opts={}){
  </select>${hint}</div>`;
  }
  return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}${ai}</label>
- <input data-tabkey="${tk}" type="${opts.type||'text'}" value="${(opts.type||'text')==='date'?(esc(item[field]||'')||dateMax()):esc(item[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''} ${(opts.type||'text')==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
+ <input data-tabkey="${tk}" type="${opts.type||'text'}" value="${(opts.type||'text')==='date'?(esc(item[field]||'')||dateMax()):esc(item[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''} ${(opts.type||'text')==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
  onchange="updItem('${list}','${item.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
 function addItem(list,tpl){ const c=cur(); (c[list]=c[list]||[]).push(Object.assign({id:uid()},tpl)); c.updatedAt=Date.now(); scheduleSave(); render(); }
@@ -3051,12 +3051,14 @@ function stepProp(c){
  const rows=(c.props||[]).map((p,i)=>{
  const net=N(p.rent)-N(p.costs);
  return `<div class="sum-group" style="margin-bottom:12px">
- <div class="head"><span>${t('prop_address').split(' ')[0]} ${i+1}${p.address?' · '+esc(p.address):''}
+ <div class="head"><span>${t('prop_address').split(' ')[0]} ${i+1}${p.street?' · '+esc(p.street):''}
  <span class="chip ${net>=0?'submitted':'review'}" style="margin-left:8px">${t('prop_net')}: ${eur(net)}</span></span>
  <span class="edit" onclick="delItem('props','${p.id}')">🗑 ${t('remove')}</span></div>
  <div style="padding:14px 16px">
  ${LF('props',p,'country',t('prop_country'),{select:[['Deutschland',t('prop_country_de')],...UNT_COUNTRIES.filter(x=>x!=='Deutschland').map(x=>[x,x])],hint:i===0?t('prop_country_hint'):''})}
- ${LF('props',p,'address',t('prop_address')+' *',{ph:'Musterstraße 1, 63065 Offenbach',hint:i===0?t('prop_address_hint'):''})}
+ ${LF('props',p,'street',t('prop_street')+' *',{ph:'Musterstraße 1',hint:i===0?t('prop_address_hint'):''})}
+ ${LF('props',p,'plz',t('prop_plz')+' *',{maxlength:5,pattern:'[0-9]{5}',inputmode:'numeric',ph:'12345'})}
+ ${LF('props',p,'city',t('prop_city')+' *',{ph:'Offenbach'})}
  <div class="grid2">
  ${LF('props',p,'rent',t('prop_rent'),{euro:true,ph:'0,00 €'})}
  ${LF('props',p,'costs',t('prop_costs'),{euro:true,ph:'0,00 €'})}
@@ -3077,7 +3079,7 @@ function stepProp(c){
  </div></div>`;}).join('');
  return `<h2>${t('step_prop')}</h2><p class="lead">${t('s_prop_lead')}</p>
  ${rows}
- <button class="btn btn-ghost btn-sm" onclick="addItem('props',{country:'Deutschland',address:'',rent:'',costs:'',unit:'',nebenkosten:'',ferienwohnung:'nein',kurzfristig:'nein',angehoerige:'nein'})">＋ ${t('add_prop')}</button>
+ <button class="btn btn-ghost btn-sm" onclick="addItem('props',{country:'Deutschland',street:'',plz:'',city:'',rent:'',costs:'',unit:'',nebenkosten:'',ferienwohnung:'nein',kurzfristig:'nein',angehoerige:'nein'})">＋ ${t('add_prop')}</button>
  ${docSection('props')}
  ${navRow()}`;
 }
@@ -3426,7 +3428,7 @@ function stepSummary(c){
  loss>0?'Verluste: −'+eur(loss):'', N(k.k43)>0?'KapESt: '+eur(N(k.k43)):'', N(k.k45)>0?'KiSt: '+eur(N(k.k45)):''
  ].filter(Boolean).join(' · '))];});
  const propRows=(c.props||[]).map((p,i)=>[
- esc(p.address||t('prop_address')+' '+(i+1)),
+ esc([p.street,p.plz,p.city].filter(Boolean).join(', ')||t('prop_address')+' '+(i+1)),
  esc(`${eur(N(p.rent))} − ${eur(N(p.costs))} = ${eur(N(p.rent)-N(p.costs))}`)]);
  return `<h2>${t('step7')}</h2><p class="lead">${t('s7_lead')}</p>
  ${sumGroup(t('personal'),0,[
@@ -3762,7 +3764,7 @@ function buildElsterDataset(c){
  zeile20_aktiengewinne:N(k.k20), zeile21_stillhalterTermingeschaefte:N(k.k21),
  zeile22_verlusteOhneAktien:N(k.k22), zeile23_verlusteAktien:N(k.k23),
  zeile43_kapitalertragsteuer:N(k.k43)+N(k.taxPaid), zeile44_soli:N(k.k44)+N(k.soliPaid), zeile45_kirchensteuer:N(k.k45) })),
- anlageV:(c.props||[]).map(p=>({ objekt:p.address, land:p.country||'Deutschland',
+ anlageV:(c.props||[]).map(p=>({ street:p.street||'', plz:p.plz||'', ort:p.city||'', land:p.country||'Deutschland',
  mieteinnahmen:N(p.rent), werbungskosten:N(p.costs), nebenkosten:N(p.nebenkosten),
  wohneinheit:p.unit||'', ferienwohnung:p.ferienwohnung==='ja', kurzfristig:p.kurzfristig==='ja',
  angehoerige:p.angehoerige==='ja', ergebnis:N(p.rent)-N(p.costs) })),
@@ -3953,7 +3955,7 @@ function buildPDF(c){
  [N(k.k7)>0?'Z7 '+eur(N(k.k7)):'', N(k.k18)>0?'Z18 '+eur(N(k.k18)):'', N(k.k19)>0?'Z19 '+eur(N(k.k19)):'',
  loss>0?'Verl. -'+eur(loss):'', N(k.k43)>0?'KapESt '+eur(N(k.k43)):''].filter(Boolean).join(' · ')||' '); }); }
  if((c.props||[]).length){ y+=3; section(t('step_prop'));
- (c.props||[]).forEach((p,i)=>row(p.address||`${t('step_prop')} ${i+1}`,
+ (c.props||[]).forEach((p,i)=>row([p.street,p.plz,p.city].filter(Boolean).join(', ')||`${t('step_prop')} ${i+1}`,
  `${eur(N(p.rent))} - ${eur(N(p.costs))} = ${eur(N(p.rent)-N(p.costs))}`)); }
  y+=3; section(t('household_g'));
  row(t('medical'),m(c.ex.medical)); row(t('household'),m(c.ex.household)); row(t('handwerker'),m(c.ex.handwerker));

@@ -702,9 +702,17 @@ function buildV(data) {
     /* Only emits an entry (and only increments the sequence number) when
        there is genuine property content - ERiC rejects a lone sequence
        number as "solitaryIndex". */
-    if (!p.objekt && !(N(p.mieteinnahmen) > 0)) return;
+    if (!p.objekt && !p.street && !(N(p.mieteinnahmen) > 0)) return;
     idx++;
-    const addr = splitPropertyAddress(p.objekt);
+    /* CORRECTED: the frontend now collects street/plz/ort as three
+       separate fields directly (confirmed via Regel 3149 that this is
+       what ELSTER actually requires), eliminating the fragile
+       comma/regex parsing this used to depend on entirely. The old
+       parsing is kept only as a fallback for any external test file
+       still using the old combined "objekt" shape. */
+    const addr = (p.street || p.plz || p.ort)
+      ? { street: p.street || '', plz: p.plz || '', ort: p.ort || '' }
+      : splitPropertyAddress(p.objekt);
     xml += '<V>\n';
     xml += tag('Laufende_Nummer_V', String(idx));
 
@@ -803,7 +811,7 @@ function buildAUS(data) {
     if (!p.land || !(N(p.mieteinnahmen) > 0)) return;
     inner += '<Einz>\n';
     inner += tag(fm.AUS.progStaat, p.land);
-    inner += tag(fm.AUS.progQuelle, p.objekt || 'Vermietung');
+    inner += tag(fm.AUS.progQuelle, p.street || p.objekt || 'Vermietung');
     inner += tag(fm.AUS.progEinkunftsart, 'Vermietung und Verpachtung');
     inner += wholeEuroTag(fm.AUS.progEinkuenfte, net);
     inner += '</Einz>\n';
@@ -1583,10 +1591,12 @@ function buildEStXML(data, opts = {}) {
         skippedSections.push(`${label}: foreign rental expenses were subtracted to report a net figure, since Anlage AUS asks for net income rather than itemised costs.`);
       return;
     }
-    if (!p.objekt && !(N(p.mieteinnahmen) > 0)) return;
-    const addr = splitPropertyAddress(p.objekt);
+    if (!p.objekt && !p.street && !(N(p.mieteinnahmen) > 0)) return;
+    const addr = (p.street || p.plz || p.ort)
+      ? { street: p.street || '', plz: p.plz || '', ort: p.ort || '' }
+      : splitPropertyAddress(p.objekt);
     if (!addr.street || !addr.plz || !addr.ort)
-      skippedSections.push(`${label}: Anlage V requires the street with house number, the postcode AND the city as separate entries (Regel 3149). The address on file could not be split into all three, so the return will be rejected until it is entered in the form "Musterstr. 1, 12345 Musterstadt".`);
+      skippedSections.push(`${label}: Anlage V requires the street with house number, the postcode AND the city as separate entries (Regel 3149) - one of these is still missing for this property.`);
     if (p.ferienwohnung == null || p.kurzfristig == null || p.angehoerige == null)
       skippedSections.push(`${label}: the three required usage declarations (holiday let / short-term letting / rented to relatives) were not all answered - unanswered ones were sent as "Nein", which is the common case but is a real declaration and should be confirmed by the taxpayer.`);
     if (!(N(p.nebenkosten) > 0))

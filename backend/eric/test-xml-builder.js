@@ -598,6 +598,21 @@ check('domestic and foreign properties coexist - each routed to its own section'
   const x = buildEStXML(d).xml;
   return x.includes('<V>') && x.includes('<AUS>') && x.includes('<E0603901>Italien</E0603901>');
 })());
+
+check('V accepts street/plz/ort as direct separate fields (real gap found via direct user feedback that free-text address parsing is fragile) - no parsing, no false warnings, confirmed via real Regel 3149', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ street: 'Musterstr. 1', plz: '12345', ort: 'Musterstadt', mieteinnahmen: 9000 }];
+  const result = buildEStXML(d);
+  return result.xml.includes('<E0700407>Musterstr. 1</E0700407>') && result.xml.includes('<E0700503>12345</E0700503>')
+    && result.xml.includes('<E0700504>Musterstadt</E0700504>')
+    && !result.skippedSections.some(s => s.includes('Regel 3149'));
+})());
+check('V still works with the old combined objekt field for backward compatibility with existing external test files', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0700407>Musterstr. 1</E0700407>') && x.includes('<E0700503>12345</E0700503>');
+})());
 check('foreign rental flags the treaty question rather than deciding it', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.anlageV = [{ objekt: 'Via Roma 5, Milano', land: 'Italien', mieteinnahmen: 12000 }];
