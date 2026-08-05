@@ -707,6 +707,8 @@ en: {
  settings:"Settings", settings_title:"Practice settings", settings_sub:"Shown as letterhead on the PDF summary for your clients.",
  s_practice:"Practice / consultant name", s_address:"Address line", s_contact:"Phone / email", save:"Save",
  child:"Child", add_child:"Add child", child_name:"First name", child_taxid:"Child's tax ID (IdNr, 11 digits)",
+ child_surname_diff:"Surname (only if different from yours)", child_surname_diff_ph:"Leave blank if the same as yours",
+ child_surname_diff_hint:"The tax office assumes the child shares your surname unless you enter one here - e.g. for a child from a previous relationship or with a different family name.",
  kindergeld:"Kindergeld received (per year)",
  kindergeld_hint:"Record only - the Finanzamt automatically checks whether the child allowance (Kinderfreibetrag) is more favorable (Günstigerprüfung).",
  kg_short:"Kindergeld", cc_short:"Childcare", sf_short:"School fees", remove:"Remove",
@@ -1061,6 +1063,8 @@ de: {
  settings:"Einstellungen", settings_title:"Kanzlei-Einstellungen", settings_sub:"Wird als Briefkopf auf der PDF-Zusammenfassung für Ihre Mandanten verwendet.",
  s_practice:"Kanzlei / Name", s_address:"Adresszeile", s_contact:"Telefon / E-Mail", save:"Speichern",
  child:"Kind", add_child:"Kind hinzufügen", child_name:"Vorname", child_taxid:"Steuer-ID des Kindes (IdNr, 11 Ziffern)",
+ child_surname_diff:"Nachname (nur falls abweichend von Ihrem)", child_surname_diff_ph:"Leer lassen, falls identisch",
+ child_surname_diff_hint:"Das Finanzamt geht davon aus, dass das Kind Ihren Nachnamen trägt, sofern hier nichts eingetragen wird - z. B. bei einem Kind aus einer früheren Beziehung oder mit abweichendem Familiennamen.",
  kindergeld:"Erhaltenes Kindergeld (pro Jahr)",
  kindergeld_hint:"Nur zur Erfassung - das Finanzamt prüft automatisch, ob der Kinderfreibetrag günstiger ist (Günstigerprüfung).",
  kg_short:"Kindergeld", cc_short:"Betreuung", sf_short:"Schulgeld", remove:"Entfernen",
@@ -2801,13 +2805,13 @@ function stepIncome(c){
  <div style="padding:14px 16px">
  ${married?`<div class="grid3">${LF('emps',emp,'person',t('person'),{select:personOpts})}</div>`:''}
  <div class="grid3">
- ${LF('emps',emp,'employer',t('employer'))}
- ${LF('emps',emp,'period',t('period'),{ph:'01.01. - 31.12.'})}
- ${LF('emps',emp,'taxClass',t('tax_class'),{select:[['',t('select')],[`1`,`I - ${t('sk1_hint')}`],[`2`,`II - ${t('sk2_hint')}`],[`3`,`III - ${t('sk3_hint')}`],[`4`,`IV - ${t('sk4_hint')}`],[`5`,`V - ${t('sk5_hint')}`],[`6`,`VI - ${t('sk6_hint')}`]]})}
+ ${LF('emps',emp,'employer',t('employer')+' *')}
+ ${LF('emps',emp,'period',t('period')+' *',{ph:'01.01. - 31.12.'})}
+ ${LF('emps',emp,'taxClass',t('tax_class')+' *',{select:[['',t('select')],[`1`,`I - ${t('sk1_hint')}`],[`2`,`II - ${t('sk2_hint')}`],[`3`,`III - ${t('sk3_hint')}`],[`4`,`IV - ${t('sk4_hint')}`],[`5`,`V - ${t('sk5_hint')}`],[`6`,`VI - ${t('sk6_hint')}`]]})}
  </div>
  <div class="grid3">
  ${LF('emps',emp,'kfb',t('kfb'),{ph:'2,0'})}
- ${LF('emps',emp,'gross',t('gross'),{euro:true,ph:'0,00 €'})}
+ ${LF('emps',emp,'gross',t('gross')+' *',{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'wageTax',t('wage_tax'),{euro:true,ph:'0,00 €'})}
  </div>
  <div class="grid3">
@@ -3189,9 +3193,12 @@ function stepChildren(c){
  <div class="head"><span>${t('child')} ${i+1}${k.name?' · '+esc(k.name):''}</span>
  <span class="edit" onclick="delChild('${k.id}')">🗑 ${t('remove')}</span></div>
  <div style="padding:14px 16px">
- <div class="grid3">
- ${CF(k,'name',t('child_name'))}
- ${CF(k,'birth',t('birth_date'),{type:'date'})}
+ <div class="grid2">
+ ${CF(k,'name',t('child_name')+' *')}
+ ${CF(k,'surnameIfDifferent',t('child_surname_diff'),{ph:t('child_surname_diff_ph'),hint:i===0?t('child_surname_diff_hint'):''})}
+ </div>
+ <div class="grid2">
+ ${CF(k,'birth',t('birth_date')+' *',{type:'date'})}
  ${CF(k,'taxId',t('child_taxid'),{ph:'12 345 678 901'})}
  </div>
  <div class="grid2">
@@ -3714,7 +3721,7 @@ function buildElsterDataset(c){
  privateVersicherungen:(c.privIns||[]).map(x=>({ person:x.person==='B'?'B':'A', typ:x.type, bezeichnung:insLabel(x.type),
  kategorie:INS_CAT[x.type]||'', beitrag:N(x.beitrag), erstattung:N(x.erstattung),
  netto:Math.max(0,N(x.beitrag)-N(x.erstattung)) })), sonstigeVersicherungen:N(c.ins.other) },
- anlageKind:(c.fam.children||[]).map(k=>({ vorname:k.name, geburtsdatum:k.birth, idnr:(k.taxId||'').replace(/\s/g,''),
+ anlageKind:(c.fam.children||[]).map(k=>({ vorname:k.name, surnameIfDifferent:k.surnameIfDifferent||'', geburtsdatum:k.birth, idnr:(k.taxId||'').replace(/\s/g,''),
  kinship:k.kinship||'leiblich', familienkasse:k.familienkasse||'', otherParentName:k.otherParentName||'',
  kindergeld:N(k.kindergeld), betreuungskosten:N(k.childcare),
  betreuungAnbieter:k.ccProvider||'', betreuungVon:k.ccPeriodFrom||'', betreuungBis:k.ccPeriodTo||'',

@@ -811,6 +811,19 @@ check('N-AUS 183-day basis "Other" uses the free-text field instead of a flag', 
   const x = buildEStXML(d).xml;
   return x.includes('<E2602801>Sonderfall laut Vertrag</E2602801>');
 })());
+
+check('Kind: surname-if-different (E0500108) is written right after first name when provided - real gap found via a direct user question, confirmed via the real Felder sheet that this is a genuine, separate optional field, not a "full name" field', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageKind = [{ vorname: 'Lena', surnameIfDifferent: 'Schmidt', geburtsdatum: '2016-01-01', familienkasse: 'Test' }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0500107>Lena</E0500107>\n<E0500108>Schmidt</E0500108>');
+})());
+check('Kind: surname-if-different is correctly omitted when not provided, not sent as empty', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-01-01', familienkasse: 'Test' }];
+  const x = buildEStXML(d).xml;
+  return !x.includes('E0500108');
+})());
 check('buildR includes the required Person tag - real bug found via the multi-year regression test (mandatoryField, "/R[1]/Person[1]")', (() => {
   const withR = JSON.parse(JSON.stringify(sample));
   withR.anlageR = [{ art: 'gesetzlich', jahresbetrag: 12000, rentenbeginn: '2020' }];

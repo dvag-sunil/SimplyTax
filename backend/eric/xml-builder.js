@@ -1034,6 +1034,7 @@ function buildKind(data) {
     xml += '<Ang_Kind><Allg>\n';
     if (k.idnr) xml += tag(fm.Kind.idnr, k.idnr);
     xml += tag(fm.Kind.firstName.kennzahlen[0], k.vorname);
+    if (k.surnameIfDifferent) xml += tag(fm.Kind.surnameIfDifferent, k.surnameIfDifferent);
     xml += tag(fm.Kind.birthDate.kennzahlen[0], formatDateDE(k.geburtsdatum));
     /* Sensible default for residence duration: full tax year, the
        common case where a child lived with the filer in Germany all

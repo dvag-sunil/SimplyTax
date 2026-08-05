@@ -125,6 +125,14 @@ const SA = {
 const Kind = {
   idnr:        'E0500406', // Identifikationsnummer
   firstName:   { kennzahlen: ['E0500107'], required: true, note: 'Vorname - Pflichtfeld=Ja in the real schema' },
+  /* Real gap found via direct user question about why only a first
+     name is collected - confirmed via the real Kontexte/Felder sheets
+     that this is deliberate: ELSTER assumes the child shares the
+     filer's own surname by default, and E0500108 exists specifically
+     and only for when it genuinely differs (blended families, adopted
+     children with a different name, etc.) - optional, sibling of
+     E0500107, not a "full name" field. */
+  surnameIfDifferent: 'E0500108',
   birthDate:   { kennzahlen: ['E0500701'], required: true, note: 'Geburtsdatum - Pflichtfeld=Ja in the real schema' },
   altSurname:  'E0500108', // ggf. abweichender Familienname (only if different from parent)
   /* CORRECTED: E0500807/E0500808 were previously grouped under one key
