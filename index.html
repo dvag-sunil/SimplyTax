@@ -572,7 +572,7 @@ en: {
  birth_date:"Date of birth", tax_id:"Tax ID (IdNr, 11 digits)", tax_id_hint:"The personal Steuer-Identifikationsnummer.",
  taxid_invalid_checksum:"This doesn't look like a valid Steuer-ID - please double-check the digits.",
  dup_idnr_found:"This tax ID is entered twice for two different people - each person's ID must be unique.",
- dup_idnr_filer:"your own ID", dup_idnr_spouse:"spouse's ID", dup_idnr_unt:"supported person's ID", dup_idnr_realsplit:"ex-spouse's ID (Realsplitting)",
+ dup_idnr_filer:"your own ID", dup_idnr_spouse:"spouse's ID", dup_idnr_unt:"supported person's ID", dup_idnr_realsplit:"ex-spouse's ID (Realsplitting)", dup_idnr_child:"child",
  spouse_incomplete_warning:"First name, birthdate, and religion must all be given together for the spouse - some are missing.",
  em35c_age_warning:"Based on these two dates, the building is under 10 years old at renovation start - §35c requires it to be older. Double-check the dates, since ERiC will reject this otherwise.",
  energ_status_included:"Renovation costs included in this filing:", energ_status_excluded:"Renovation costs entered but NOT included in this filing:",
@@ -928,7 +928,7 @@ de: {
  birth_date:"Geburtsdatum", tax_id:"Steuer-ID (IdNr, 11 Ziffern)", tax_id_hint:"Die persönliche Steuer-Identifikationsnummer.",
  taxid_invalid_checksum:"Das sieht nicht nach einer gültigen Steuer-ID aus - bitte die Ziffern noch einmal prüfen.",
  dup_idnr_found:"Diese Steuer-ID ist zweimal für unterschiedliche Personen eingetragen - jede ID muss eindeutig sein.",
- dup_idnr_filer:"eigene ID", dup_idnr_spouse:"ID des Ehepartners", dup_idnr_unt:"ID der unterstützten Person", dup_idnr_realsplit:"ID des Ex-Partners (Realsplitting)",
+ dup_idnr_filer:"eigene ID", dup_idnr_spouse:"ID des Ehepartners", dup_idnr_unt:"ID der unterstützten Person", dup_idnr_realsplit:"ID des Ex-Partners (Realsplitting)", dup_idnr_child:"Kind",
  spouse_incomplete_warning:"Vorname, Geburtsdatum und Religion müssen beim Ehepartner gemeinsam angegeben werden - einige fehlen noch.",
  em35c_age_warning:"Nach diesen beiden Daten ist das Gebäude bei Baubeginn der Sanierung unter 10 Jahre alt - §35c setzt ein höheres Alter voraus. Bitte die Daten prüfen, sonst wird dies von ERiC abgelehnt.",
  energ_status_included:"Sanierungskosten in dieser Erklärung enthalten:", energ_status_excluded:"Sanierungskosten erfasst, aber NICHT in dieser Erklärung enthalten:",
@@ -2582,15 +2582,20 @@ function checkDuplicateIdNrs(){
  {key:'spouseTaxId', label:t('dup_idnr_spouse'), val:clean(c.p.spouseTaxId)},
  {key:'untIdnr', label:t('dup_idnr_unt'), val:clean(c.fam?.untIdnr)},
  {key:'realsplitIdnr', label:t('dup_idnr_realsplit'), val:clean(c.oth?.realsplitIdnr)},
+ ...(c.fam?.children||[]).map((k,i)=>({key:'child'+k.id, label:`${t('dup_idnr_child')} ${i+1}`, val:clean(k.taxId)})),
  ].filter(x=>x.val.length===11);
- const el=document.getElementById('dup-idnr-check-msg'); if(!el) return;
+ let msg='';
  for(let i=0;i<ids.length;i++) for(let j=i+1;j<ids.length;j++){
  if(ids[i].val===ids[j].val){
- el.innerHTML = `<div class="hint" style="color:var(--red)">⚠ ${t('dup_idnr_found')} (${ids[i].label} / ${ids[j].label})</div>`;
- return;
+ msg = `<div class="hint" style="color:var(--red)">⚠ ${t('dup_idnr_found')} (${ids[i].label} / ${ids[j].label})</div>`;
  }
  }
- el.innerHTML='';
+ /* Shown wherever a message slot currently exists in the DOM - could be
+    the Personal data screen, a specific child's card, or both if the
+    person switches steps mid-edit. Each slot gracefully no-ops if not
+    present on the current page. */
+ const el1=document.getElementById('dup-idnr-check-msg'); if(el1 && msg) el1.innerHTML=msg;
+ (c.fam?.children||[]).forEach(k=>{ const el=document.getElementById('childtaxid-check-msg-'+k.id); if(el && msg) el.innerHTML=msg; });
 }
 /* Real gap: the 10-year building-age rule (Regel 102240003) already
    had a static hint, but no live check - it only ever surfaced as an
@@ -3182,13 +3187,15 @@ function CF(kid,field,label,opts={}){
  </select>${hint}</div>`;
  }
  return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}</label>
- <input data-tabkey="${tk}" type="${type}" value="${type==='date'?(esc(kid[field])||dateMax()):esc(kid[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
+ <input data-tabkey="${tk}" type="${type}" value="${type==='date'?(esc(kid[field])||dateMax()):esc(kid[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
  onchange="updChild('${kid.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
 function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',familienkasse:'',otherParentName:'',kindergeld:'',childcare:'',ccProvider:'',ccPeriodFrom:'',ccPeriodTo:'',schoolFees:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function delChild(id){ const c=cur(); c.fam.children=(c.fam.children||[]).filter(k=>k.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function updChild(id,f,v,fmt){ v = validAmount(v, fmt); const c=cur(); const k=(c.fam.children||[]).find(x=>x.id===id); if(!k) return;
- if(fmt && String(v).trim()!=='') v=formatDE(N(v)); k[f]=v; c.updatedAt=Date.now(); scheduleSave(); render(); }
+ if(fmt && String(v).trim()!=='') v=formatDE(N(v)); k[f]=v; c.updatedAt=Date.now(); scheduleSave(); render();
+ if(f==='taxId'){ checkTaxIdChecksum(v, 'childtaxid-check-msg-'+id); checkDuplicateIdNrs(); }
+}
 
 function stepChildren(c){
  const kids=c.fam.children||[];
@@ -3202,7 +3209,8 @@ function stepChildren(c){
  </div>
  <div class="grid2">
  ${CF(k,'birth',t('birth_date')+' *',{type:'date'})}
- ${CF(k,'taxId',t('child_taxid'),{ph:'12 345 678 901'})}
+ ${CF(k,'taxId',t('child_taxid'),{ph:'12 345 678 901',maxlength:13,inputmode:'numeric'})}
+ <div id="childtaxid-check-msg-${k.id}"></div>
  </div>
  <div class="grid2">
  ${CF(k,'kinship',t('kinship'),{select:[['leiblich',t('kin_leib')],['adoptiert',t('kin_adopt')],['pflegekind',t('kin_pflege')],['stiefkind',t('kin_stief')]],hint:i===0?t('kinship_hint'):''})}
