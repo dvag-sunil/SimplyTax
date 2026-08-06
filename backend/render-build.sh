@@ -2,6 +2,10 @@
 set -e
 
 npm install
+echo "=== Current directory ==="
+pwd
+echo "=== Where node_modules ended up ==="
+find / -maxdepth 6 -type d -name "koffi" 2>/dev/null
 mkdir -p eric-linux
 
 pip install --quiet gdown
