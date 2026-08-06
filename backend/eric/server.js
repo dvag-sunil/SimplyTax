@@ -10,7 +10,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const ericService = require('./eric/eric-service');
-const { buildEStXML } = require('./eric/xml-builder');
+const { buildEStXML, InterchangeDataError } = require('./eric/xml-builder');
 
 const { DATABASE_URL, JWT_SECRET, ALLOWED_ORIGIN = 'https://dvag-sunil.github.io', PORT = 3000 } = process.env;
 if (!DATABASE_URL || !JWT_SECRET) { console.error('Missing DATABASE_URL or JWT_SECRET in .env'); process.exit(1); }
@@ -357,6 +357,78 @@ app.post('/api/payments/verify', auth, async (req, res) => {
    ERiC library. A crash inside that native library can never take this
    API down - eric-service.js detects it and restarts the worker. */
 
+/* Lightweight real-time field validation - checks a single field (or a
+   few) against ERiC's own checksum validators, WITHOUT needing a full
+   client/XML. Meant to be called from the wizard as the user types
+   (e.g. onblur on the Steuer-ID / IBAN fields), catching a typo'd but
+   still-11-digit ID before the user ever reaches payment. */
+/* Admin/export route - fetches the full official Finanzamt directory
+   live from ERiC. Not called by the wizard on every keystroke (that
+   would depend on the backend being awake and ERiC configured for a
+   purely informational lookup) - used instead by a one-time export
+   script (see tools/export-finanzaemter.js) that generates a static
+   JSON file bundled with the frontend. Re-run the export whenever the
+   directory needs refreshing (ELSTER updates this rarely). */
+app.get('/api/eric/finanzaemter', auth, async (req, res) => {
+  if (!ericService.isReady()) {
+    return res.status(501).json({ error: 'eric_unavailable', detail: ericService.getInitError() });
+  }
+  try {
+    const result = await ericService.getFinanzaemter();
+    res.json(result);
+  } catch (e) {
+    console.error('[eric/finanzaemter]', e.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+app.post('/api/eric/validate-fields', auth, async (req, res) => {
+  if (!ericService.isReady()) {
+    return res.status(501).json({ error: 'eric_unavailable', detail: ericService.getInitError() });
+  }
+  const { taxId, iban, bic, steuernummer, bufaNr } = req.body || {};
+  if (taxId == null && iban == null && bic == null && steuernummer == null) return res.status(400).json({ error: 'invalid_input' });
+  try {
+    const result = await ericService.validateFields({ taxId, iban, bic, steuernummer, bufaNr });
+    res.json(result);
+  } catch (e) {
+    console.error('[eric/validate-fields]', e.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+/* Real bug found via actual ERiC validation (Fehlercode 10010
+   "Bundesfinanzamtsnummer und die ersten 4 Stellen der Steuernummer
+   unterscheiden sich", plus "ungueltigeSteuernummer"): xml-builder.js
+   was sending the raw, regionally-formatted Steuernummer directly (just
+   digit-stripped), never converted into the required unified 13-digit
+   ELSTER format (which encodes the issuing Finanzamt in its own
+   structure, confirmed via the real example: StNr "9181081508155" for
+   BuFa "9181" - first 4 digits match by design, "0" fixed at position
+   5). This means ANY real customer's regionally-formatted Steuernummer
+   would have failed this exact validation in production, not just in
+   this test. The real conversion function (EricMtMakeElsterStnr) was
+   already built and working for the live checksum-indicator feature -
+   this reuses it for the actual submission path, where it was missing. */
+async function convertSteuernummerForSubmission(interchangeData) {
+  const h = interchangeData.hauptvordruck;
+  if (!h || !h.steuernummer || !h.finanzamt?.bufaNr) return interchangeData;
+  try {
+    const result = await ericService.validateFields({ steuernummer: h.steuernummer, bufaNr: h.finanzamt.bufaNr });
+    if (result?.steuernummer?.valid && result.steuernummer.elsterFormat) {
+      return { ...interchangeData, hauptvordruck: { ...h, steuernummer: result.steuernummer.elsterFormat } };
+    }
+    /* conversion failed or the Steuernummer+Finanzamt combination is
+       genuinely invalid - pass through unconverted rather than silently
+       hide the problem; buildEStXML/ERiC will surface it clearly, same
+       as before this fix, rather than mask a real data problem */
+    return interchangeData;
+  } catch (e) {
+    console.error('[steuernummer conversion]', e.message);
+    return interchangeData;
+  }
+}
+
 app.post('/api/eric/validate', auth, async (req, res) => {
   if (!ericService.isReady()) {
     return res.status(501).json({ error: 'eric_unavailable', detail: ericService.getInitError() });
@@ -364,10 +436,11 @@ app.post('/api/eric/validate', auth, async (req, res) => {
   const { clientId, interchangeData } = req.body || {};
   if (!clientId || !interchangeData) return res.status(400).json({ error: 'invalid_input' });
   try {
-    const { xml, skippedSections } = buildEStXML(interchangeData, {
+    const convertedData = await convertSteuernummerForSubmission(interchangeData);
+    const { xml, skippedSections } = buildEStXML(convertedData, {
       herstellerID: process.env.ERIC_HERSTELLER_ID,
     });
-    const result = await ericService.validate(xml, 'ESt_' + (interchangeData.meta?.taxYear || 2025));
+    const result = await ericService.validate(xml, 'ESt_' + (convertedData.meta?.taxYear || 2025));
     audit(req.user.sub, 'eric_validate', { clientId, rc: result.rc, ok: result.rc === 0 });
     res.json({
       ok: result.rc === 0,
@@ -376,6 +449,7 @@ app.post('/api/eric/validate', auth, async (req, res) => {
       skippedSections,
     });
   } catch (e) {
+    if (e instanceof InterchangeDataError) return res.status(400).json({ error: 'invalid_interchange_data', detail: e.message });
     console.error('[eric/validate]', e.message);
     res.status(500).json({ error: 'server_error' });
   }
@@ -403,23 +477,27 @@ app.post('/api/eric/submit', auth, async (req, res) => {
   }
 
   try {
-    const { xml, skippedSections } = buildEStXML(interchangeData, {
+    const convertedData = await convertSteuernummerForSubmission(interchangeData);
+    const { xml, skippedSections } = buildEStXML(convertedData, {
       herstellerID: process.env.ERIC_HERSTELLER_ID,
     });
-    const result = await ericService.submit(xml, 'ESt_' + (interchangeData.meta?.taxYear || 2025));
-    audit(req.user.sub, 'eric_submit', { clientId, rc: result.rc, sent: result.sent });
+    const result = await ericService.submit(xml, 'ESt_' + (convertedData.meta?.taxYear || 2025));
+    audit(req.user.sub, 'eric_submit', { clientId, rc: result.rc, sent: result.sent, transferTicket: result.transferTicket || null });
 
     if (result.sent) {
-      /* Transferticket extraction from result.serverXml is left as a TODO -
-         the real server response format has not been seen yet (blocked on
-         the Hersteller-ID for a real accepted submission as of this
-         writing). Once a real success response is available, parse the
-         Transferticket out of serverXml here and store it on the client
-         record (transferTicket field, already present in the interchange
-         meta block). */
+      /* CORRECTED: extractServerAnswer() in the worker was already
+         writing a real transferTicket into the result object, but this
+         endpoint never persisted or returned it - the TODO here was
+         stale, the worker-side piece it was waiting on now exists
+         (confirmed via the real ERiC API reference, EricMt
+         GetErrormessagesFromXMLAnswer). Stored on the client record
+         alongside status, not just a bare "submitted" flag. */
       await pool.query(
-        `UPDATE clients SET data = jsonb_set(data, '{status}', '"submitted"') WHERE id=$1 AND user_id=$2`,
-        [clientId, req.user.sub]
+        `UPDATE clients SET data = jsonb_set(
+           jsonb_set(data, '{status}', '"submitted"'),
+           '{transferTicket}', $3::jsonb
+         ) WHERE id=$1 AND user_id=$2`,
+        [clientId, req.user.sub, JSON.stringify(result.transferTicket || null)]
       );
     }
 
@@ -428,9 +506,13 @@ app.post('/api/eric/submit', auth, async (req, res) => {
       rc: result.rc,
       resultXml: result.resultXml,
       serverXml: result.serverXml,
+      transferTicket: result.transferTicket || null,
+      returncodeTH: result.returncodeTH || null,
+      fehlertextTH: result.fehlertextTH || null,
       skippedSections,
     });
   } catch (e) {
+    if (e instanceof InterchangeDataError) return res.status(400).json({ error: 'invalid_interchange_data', detail: e.message });
     console.error('[eric/submit]', e.message);
     res.status(500).json({ error: 'server_error' });
   }
@@ -471,4 +553,26 @@ app.delete('/api/docs/:id', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
-app.listen(PORT, () => console.log(`SimplyTax API listening on :${PORT}`));
+/* Global error handler - found during testing that a malformed JSON body
+   correctly resulted in a 400 (body-parser's own default behavior works),
+   but printed a raw, unhandled-looking stack trace to the logs. This
+   catches it explicitly for a clean one-line log instead, and is a
+   general safety net for any other error that reaches this point without
+   its own handler - ensures the app always responds with SOMETHING valid
+   rather than hanging or dropping the connection. */
+app.use((err, req, res, next) => {
+  if (err && err.type === 'entity.parse.failed') {
+    console.warn(`[body-parser] malformed JSON from ${req.ip} on ${req.path}`);
+    return res.status(400).json({ error: 'invalid_json' });
+  }
+  console.error('[unhandled]', err && err.message, err && err.stack);
+  res.status(500).json({ error: 'server_error' });
+});
+
+/* Guarded so requiring this file (e.g. from a test suite via supertest)
+   never binds a real port - only `node server.js` directly does, exactly
+   as before. Zero production behavior change. */
+if (require.main === module) {
+  app.listen(PORT, () => console.log(`SimplyTax API listening on :${PORT}`));
+}
+module.exports = app;

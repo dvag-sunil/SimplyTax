@@ -96,6 +96,22 @@ function init() {
       'void* druckParameter, eric_verschluesselungs_parameter_t* cryptoParameter, ' +
       'void* rueckgabeXmlPuffer, void* serverantwortXmlPuffer)'
     );
+    /* CONFIRMED via the real ERiC API reference (ERiC-API-Referenz.pdf,
+       EricMtGetErrormessagesFromXMLAnswer, page 161) - the documented,
+       official way to extract the Transferticket from a genuine server
+       answer, not a regex guess against the raw XML. This binding was
+       missing even though extractServerAnswer() already correctly
+       called this exact function name - it would have thrown "not a
+       function" the moment a real send response reached it. Confirmed
+       this is the Mt-prefixed, instance-bound variant (takes instanz
+       first), not the similarly-named non-Mt variant documented
+       separately - checked both against the real docs rather than
+       assume either was right. */
+    global.EricMtGetErrormessagesFromXMLAnswer = lib.func(
+      'int EricMtGetErrormessagesFromXMLAnswer(void* instanz, const char* xml, ' +
+      'void* transferticketPuffer, void* returncodeTHPuffer, ' +
+      'void* fehlertextTHPuffer, void* returncodesUndFehlertexteNDHXmlPuffer)'
+    );
 
     instanz = global.EricMtInstanzErzeugen(PLUGINS, LOGDIR);
     if (!instanz) { initError = 'EricMtInstanzErzeugen returned null - check eric-logs/eric.log'; return; }

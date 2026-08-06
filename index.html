@@ -271,7 +271,7 @@ const isPaid = c => !PAYMENT.enabled || (c && c.pay && c.pay.status==='paid');
    a real Hersteller-ID configured (currently pending). While false, the
    Summary step keeps using the existing simulated submit flow unchanged -
    nothing breaks for current users during this transition. */
-const ERIC = { enabled:false };
+const ERIC = { enabled:true }; // real backend confirmed working - was hardcoded false, meaning every submit silently ran a fake local simulation and never reached the real backend at all, regardless of certificate/server configuration
 function showAusCalc(empId){
  const c=cur(); const slot=document.getElementById('modal-slot'); if(!c||!slot) return;
  const emp = (c.emps||[]).find(e=>e.id===empId); if(!emp) return;
@@ -611,7 +611,8 @@ en: {
  meter_foot:"Non-binding estimate (unverbindliche Schätzung). The final assessment (Bescheid) by the Finanzamt may differ.",
  next:"Next", back:"Back",
  submitting:"Transmitting to the tax authority...",
- success_title:"Return submitted", success_sub:"The tax return was transmitted successfully (simulation).",
+ success_title:"Return submitted", success_sub:"The tax return was transmitted to ELSTER's test system successfully.",
+ success_no_ticket:"Submitted successfully - a confirmation number was not included in this response.",
  transfer_ticket:"Transfer ticket", close:"Close",
  warn_taxhigh:"Wage tax seems very high compared to the gross salary - please double-check.",
  warn_days:"More than 300 commuting days is unusual - please verify.",
@@ -967,7 +968,8 @@ de: {
  meter_foot:"Unverbindliche Schätzung. Der endgültige Bescheid des Finanzamts kann abweichen.",
  next:"Weiter", back:"Zurück",
  submitting:"Übermittlung an das Finanzamt...",
- success_title:"Erklärung übermittelt", success_sub:"Die Steuererklärung wurde erfolgreich übermittelt (Simulation).",
+ success_title:"Erklärung übermittelt", success_sub:"Die Steuererklärung wurde erfolgreich an das ELSTER-Testsystem übermittelt.",
+ success_no_ticket:"Erfolgreich übermittelt - eine Bestätigungsnummer war in dieser Antwort nicht enthalten.",
  transfer_ticket:"Transferticket", close:"Schließen",
  warn_taxhigh:"Die Lohnsteuer wirkt im Verhältnis zum Bruttolohn sehr hoch - bitte prüfen.",
  warn_days:"Mehr als 300 Arbeitstage sind ungewöhnlich - bitte prüfen.",
@@ -2148,9 +2150,24 @@ function delClient(id){
 /* --- multi-year: clone a client's personal data into a new tax year --- */
 function samePerson(a,b){
  if(a.p.taxId && b.p.taxId) return a.p.taxId.replace(/\s/g,'')===b.p.taxId.replace(/\s/g,'');
+ /* CORRECTED: real bug found via direct feedback - matching on
+    firstName/lastName/birthDate when ALL THREE are blank on both
+    records meant every incomplete draft client matched every other
+    incomplete draft client as "the same person," since '' === ''
+    for all three fields simultaneously. That incorrectly excluded
+    every other year the moment a second blank client existed,
+    leaving only the oldest year selectable. Now requires genuine,
+    non-blank identifying data before two records are ever considered
+    the same person - no identifying data means "unknown," not
+    "match." */
+ if(!a.p.firstName || !a.p.lastName || !b.p.firstName || !b.p.lastName) return false;
  return a.p.firstName===b.p.firstName && a.p.lastName===b.p.lastName && (a.p.birthDate||'')===(b.p.birthDate||'');
 }
-function personYears(c){ return S.clients.filter(o=>samePerson(o,c)).map(o=>o.taxYear); }
+function personYears(c){
+ const years = S.clients.filter(o=>samePerson(o,c)).map(o=>o.taxYear);
+ if(!years.includes(c.taxYear)) years.push(c.taxYear); // always exclude this exact record's own year, regardless of whether samePerson can positively identify it (e.g. still-blank name)
+ return years;
+}
 function showNewYear(id){
  const c=S.clients.find(x=>x.id===id); if(!c) return;
  const used=personYears(c);
@@ -3510,25 +3527,7 @@ function submitElster(){
  if(N(c0.oth.realsplitting)>0 && (!c0.oth.realsplitIdnr || !c0.oth.realsplitName)){
  alert(t('err_realsplit_idnr_required')); S.step=5; render(); return;
  }
- if(ERIC.enabled){ submitElsterReal(c0); return; }
- const faLine = `${t('submitting_to')}: <b>${esc(c0.p.faNumber)}</b> ${esc(c0.p.finanzamt||'')}`;
- const slot=document.getElementById('modal-slot');
- slot.innerHTML=`<div class="modal-bg"><div class="modal" style="text-align:center">
- <div class="scan-status" style="justify-content:center"><div class="spinner"></div>${t('submitting')}</div>
- <p style="margin-top:12px;font-size:13.5px;color:var(--ink-soft)">${faLine}</p></div></div>`;
- setTimeout(()=>{
- const c=cur();
- c.status='submitted'; c.submittedAt=Date.now(); c.updatedAt=Date.now();
- c.transferTicket='ET-'+c.taxYear+'-'+Math.random().toString(36).slice(2,8).toUpperCase()+'-'+Math.floor(1000+Math.random()*9000);
- scheduleSave();
- slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this){this.remove();render()}"><div class="modal" style="text-align:center">
- <div class="success-mark">✓</div>
- <h2>${t('success_title')}</h2><p style="color:var(--ink-soft);font-size:14px">${t('success_sub')}</p>
- <p style="font-size:13px;color:var(--ink-soft);margin-top:6px">${faLine}</p>
- <div class="ticket">${c.transferTicket}</div>
- <button class="btn btn-primary" onclick="this.closest('.modal-bg').remove();render()">${t('close')}</button>
- </div></div>`;
- }, 1800);
+ submitElsterReal(c0);
 }
 
 /* ---------------- real ERiC submission flow (§ 87d Freigabe + backend routes) ---------------- */
@@ -3605,10 +3604,12 @@ async function confirmFreigabeAndSubmit(clientId){
  const slot=document.getElementById('modal-slot');
  if(sr.ok){
  c.status='submitted'; c.submittedAt=Date.now(); c.updatedAt=Date.now();
+ c.transferTicket = sr.transferTicket || null;
  scheduleSave();
  slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this){this.remove();render()}"><div class="modal" style="text-align:center">
  <div class="success-mark">✓</div><h2>${t('success_title')}</h2>
  <p style="color:var(--ink-soft);font-size:14px">${t('success_sub')}</p>
+ ${sr.transferTicket?`<div class="ticket">${esc(sr.transferTicket)}</div>`:`<p style="font-size:12.5px;color:var(--ink-soft);margin-top:6px">${t('success_no_ticket')}</p>`}
  <button class="btn btn-primary" onclick="this.closest('.modal-bg').remove();render()">${t('close')}</button>
  </div></div>`;
  } else {
