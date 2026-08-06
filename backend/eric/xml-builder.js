@@ -1618,12 +1618,30 @@ function buildEStXML(data, opts = {}) {
          2023+ turned out to be. Foreign households ARE implemented for
          legacy years (second research pass) - maps onto the same
          foreignNeedConfirmed boolean already collected for 2023+. */
-      if (!data.anlageUnterhalt.personName || !data.anlageUnterhalt.profession || !data.anlageUnterhalt.personBirthDate || !data.anlageUnterhalt.householdAddress || !data.anlageUnterhalt.personIdnr)
-        skippedSections.push(`anlageUnterhalt (legacy structure, tax year ${uYear}) support payment present but missing one or more required fields: the supported person's name, profession/marital status, birthdate, IdNr, and household address are all required (confirmed via real Regeln 27-29 for the 2021/2022 structure).`);
+      if (!data.anlageUnterhalt.personName || !data.anlageUnterhalt.profession || !data.anlageUnterhalt.personBirthDate || !data.anlageUnterhalt.householdAddress || !data.anlageUnterhalt.personIdnr) {
+        /* CORRECTED: real gap found via a genuine client file where only
+           one of five fields was actually missing (personIdnr), but the
+           message listed all five every time regardless of which was
+           genuinely the problem - the exact same class of issue just
+           fixed on the frontend's equivalent alert. Now names only what's
+           actually missing. */
+        const missing = [];
+        if (!data.anlageUnterhalt.personName) missing.push('name');
+        if (!data.anlageUnterhalt.profession) missing.push('profession/marital status');
+        if (!data.anlageUnterhalt.personBirthDate) missing.push('birthdate');
+        if (!data.anlageUnterhalt.householdAddress) missing.push('household address');
+        if (!data.anlageUnterhalt.personIdnr) missing.push('IdNr (required unconditionally for this tax year, unlike 2023 onward)');
+        skippedSections.push(`anlageUnterhalt (legacy structure, tax year ${uYear}) support payment present but missing: ${missing.join(', ')} (confirmed via real Regeln 27-29 for the 2021/2022 structure).`);
+      }
       if (data.anlageUnterhalt.country && data.anlageUnterhalt.country !== 'Deutschland' && data.anlageUnterhalt.foreignNeedConfirmed == null)
         skippedSections.push(`anlageUnterhalt (legacy structure, tax year ${uYear}) - a foreign household was indicated but the home-country confirmation (foreignNeedConfirmed) was not set - required together (Regel 30/31 for the 2021/2022 structure).`);
     } else if (!data.anlageUnterhalt.personName || !data.anlageUnterhalt.householdAddress || !data.anlageUnterhalt.profession || !data.anlageUnterhalt.personBirthDate) {
-      skippedSections.push('anlageUnterhalt support payment present but missing one or more required fields (confirmed via a real empirical ERiC test, not just documentation): the supported person\'s name, profession/marital status, birthdate, and household address are all required together (Regel 100120001).');
+      const missing2023 = [];
+      if (!data.anlageUnterhalt.personName) missing2023.push('name');
+      if (!data.anlageUnterhalt.profession) missing2023.push('profession/marital status');
+      if (!data.anlageUnterhalt.personBirthDate) missing2023.push('birthdate');
+      if (!data.anlageUnterhalt.householdAddress) missing2023.push('household address');
+      skippedSections.push(`anlageUnterhalt support payment present but missing: ${missing2023.join(', ')} (confirmed via a real empirical ERiC test, not just documentation - Regel 100120001).`);
     }
     if (!isLegacyYear && (!data.anlageUnterhalt.von || !data.anlageUnterhalt.bis))
       skippedSections.push('anlageUnterhalt support payment present but missing the support period (von/bis dates) - confirmed required together with the amount (Regel 300010/300135), found via testing against a genuine client file that omitted these dates.');

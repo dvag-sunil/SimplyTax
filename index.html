@@ -638,7 +638,8 @@ en: {
  cc_provider:"Provider name & address", cc_provider_ph:"e.g. Kita Sonnenschein, Musterstr. 1, 60000 Frankfurt",
  cc_period_from:"Service period - from", cc_period_to:"Service period - to",
  err_cc_required:"Please fill in the provider name/address and the service period for the childcare costs you entered (required whenever an amount is filled in).",
- err_unt_required:"Please fill in the supported person's name, Tax ID, and household address for the support payment you entered (required whenever an amount is filled in).",
+ err_unt_required:"Please fill in the supported person's name, profession/marital status, birthdate, and household address for the support payment you entered (required whenever an amount is filled in - the Tax ID is not required for this).",
+ err_unt_required_legacy_idnr:"For this tax year, the supported person's Tax ID is also required (this year's rules require it unconditionally, unlike 2023 onward).",
  err_unt_foreign_required:"Because the supported household is abroad, please confirm you have the home-country authority's confirmation of need (required in addition to the Tax ID for foreign households).",
  err_realsplit_idnr_required:"Please fill in the ex-spouse's Tax ID for the Realsplitting amount you entered - required by the tax authority for this deduction.",
  year_warn_no_schema:"⚠ The tax authority has not published this tax year's forms yet - returns for this year cannot be validated or submitted until they do.",
@@ -995,7 +996,8 @@ de: {
  cc_provider:"Name & Anschrift des Anbieters", cc_provider_ph:"z. B. Kita Sonnenschein, Musterstr. 1, 60000 Frankfurt",
  cc_period_from:"Leistungszeitraum - von", cc_period_to:"Leistungszeitraum - bis",
  err_cc_required:"Bitte Name/Anschrift des Anbieters und den Leistungszeitraum für die eingetragenen Kinderbetreuungskosten angeben (Pflichtfelder, sobald ein Betrag eingetragen ist).",
- err_unt_required:"Bitte Name, Steuer-ID und Anschrift der unterstützten Person für die eingetragenen Unterhaltszahlungen angeben (Pflichtfelder, sobald ein Betrag eingetragen ist).",
+ err_unt_required:"Bitte Name, Beruf/Familienstand, Geburtsdatum und Anschrift der unterstützten Person für die eingetragenen Unterhaltszahlungen angeben (Pflichtfelder, sobald ein Betrag eingetragen ist - die Steuer-ID ist dafür nicht erforderlich).",
+ err_unt_required_legacy_idnr:"Für dieses Steuerjahr ist zusätzlich die Steuer-ID der unterstützten Person erforderlich (für dieses Jahr zwingend vorgeschrieben, anders als ab 2023).",
  err_unt_foreign_required:"Da der unterstützte Haushalt im Ausland liegt, bestätigen Sie bitte, dass Ihnen die Unterhaltserklärung der Heimatbehörde vorliegt (zusätzlich zur Steuer-ID bei ausländischen Haushalten erforderlich).",
  err_realsplit_idnr_required:"Bitte geben Sie die Steuer-ID des Ex-Ehegatten für den eingetragenen Realsplitting-Betrag an - vom Finanzamt für diesen Abzug erforderlich.",
  year_warn_no_schema:"⚠ Das Finanzamt hat die Formulare für dieses Steuerjahr noch nicht veröffentlicht - Erklärungen für dieses Jahr können noch nicht geprüft oder übermittelt werden.",
@@ -3519,7 +3521,7 @@ function submitElster(){
  years too (second research pass) - same foreignNeedConfirmed field,
  just a different underlying Kennzahl pair, handled in the backend. */
  if(N(c0.fam.support)>0 && YEAR_LIMITATIONS[c0.taxYear]?.legacyUnterhalt && !c0.fam.untIdnr){
- alert(t('err_unt_required')); S.step=3; render(); return;
+ alert(t('err_unt_required_legacy_idnr')); S.step=3; render(); return;
  }
  if(N(c0.fam.support)>0 && c0.fam.untCountry && c0.fam.untCountry!=='Deutschland' && c0.fam.untForeignConfirmed!=='ja'){
  alert(t('err_unt_foreign_required')); S.step=3; render(); return;
