@@ -2,11 +2,23 @@
    Security: JWT auth, bcrypt, Helmet, CORS locked to the frontend origin, rate limiting, parameterized queries.
    Flexibility: client data stored as JSONB — new frontend fields need no schema change. */
 require('dotenv').config();
-/* TEMPORARY debug check - confirms the certificate file on Render is
-   actually intact before the ERiC worker tries to open it. Safe to
-   remove once the 610201112 (PKCS#12 decode) issue is resolved. */
+const path = require('path');
 const fs = require('fs');
-if (process.env.ERIC_CERT_PATH) {
+/* Certificate loading - prefers ERIC_CERT_B64 (a base64-encoded copy of
+   the .pfx, set as a plain env var) over ERIC_CERT_PATH directly.
+   CONFIRMED real reason: uploading the raw binary .pfx via Render's
+   Secret Files produced a corrupted copy (23,888 bytes vs the real
+   13,175 - the classic signature of binary data being mangled by a
+   text/UTF-8 reinterpretation somewhere in the upload path). Base64 is
+   plain ASCII and can't be corrupted this way, so it's decoded back
+   into a real binary file fresh at every startup instead. */
+if (process.env.ERIC_CERT_B64) {
+  const certPath = path.join('/tmp', 'certificate.pfx');
+  fs.writeFileSync(certPath, Buffer.from(process.env.ERIC_CERT_B64, 'base64'));
+  process.env.ERIC_CERT_PATH = certPath;
+  const stats = fs.statSync(certPath);
+  console.log('[debug] decoded certificate file size:', stats.size, 'bytes');
+} else if (process.env.ERIC_CERT_PATH) {
   try {
     const stats = fs.statSync(process.env.ERIC_CERT_PATH);
     console.log('[debug] certificate file size:', stats.size, 'bytes');
