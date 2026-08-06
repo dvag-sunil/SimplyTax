@@ -4,8 +4,10 @@ set -e
 npm install
 echo "=== Current directory ==="
 pwd
-echo "=== Where node_modules ended up ==="
-find / -maxdepth 6 -type d -name "koffi" 2>/dev/null
+echo "=== Contents of node_modules (top level) ==="
+ls node_modules | head -20
+echo "=== Does koffi exist here? ==="
+ls -la node_modules/koffi 2>&1 || echo "NOT FOUND at node_modules/koffi"
 mkdir -p eric-linux
 
 pip install --quiet gdown
