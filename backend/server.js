@@ -472,7 +472,13 @@ app.post('/api/eric/submit', auth, async (req, res) => {
   const { rows } = await pool.query('SELECT data FROM clients WHERE id=$1 AND user_id=$2', [clientId, req.user.sub]);
   if (!rows.length) return res.status(404).json({ error: 'not_found' });
   const stored = rows[0].data;
-  if (!stored.pay || stored.pay.status !== 'paid') {
+  /* TEMPORARY, testing-only bypass - gated behind an explicit env var so
+     it requires deliberate configuration to enable and can never be
+     silently left on in production. Set SKIP_PAYMENT_CHECK=true only
+     while testing the ERiC pipeline end-to-end; remove this block (and
+     the env var) once real payment enforcement is needed again. */
+  const skipPayment = process.env.SKIP_PAYMENT_CHECK === 'true';
+  if (!skipPayment && (!stored.pay || stored.pay.status !== 'paid')) {
     return res.status(402).json({ error: 'payment_required' });
   }
 
@@ -482,19 +488,22 @@ app.post('/api/eric/submit', auth, async (req, res) => {
       herstellerID: process.env.ERIC_HERSTELLER_ID,
     });
     const result = await ericService.submit(xml, 'ESt_' + (convertedData.meta?.taxYear || 2025));
-    audit(req.user.sub, 'eric_submit', { clientId, rc: result.rc, sent: result.sent });
+    audit(req.user.sub, 'eric_submit', { clientId, rc: result.rc, sent: result.sent, transferTicket: result.transferTicket || null });
 
     if (result.sent) {
-      /* Transferticket extraction from result.serverXml is left as a TODO -
-         the real server response format has not been seen yet (blocked on
-         the Hersteller-ID for a real accepted submission as of this
-         writing). Once a real success response is available, parse the
-         Transferticket out of serverXml here and store it on the client
-         record (transferTicket field, already present in the interchange
-         meta block). */
+      /* CORRECTED: extractServerAnswer() in the worker was already
+         writing a real transferTicket into the result object, but this
+         endpoint never persisted or returned it - the TODO here was
+         stale, the worker-side piece it was waiting on now exists
+         (confirmed via the real ERiC API reference, EricMt
+         GetErrormessagesFromXMLAnswer). Stored on the client record
+         alongside status, not just a bare "submitted" flag. */
       await pool.query(
-        `UPDATE clients SET data = jsonb_set(data, '{status}', '"submitted"') WHERE id=$1 AND user_id=$2`,
-        [clientId, req.user.sub]
+        `UPDATE clients SET data = jsonb_set(
+           jsonb_set(data, '{status}', '"submitted"'),
+           '{transferTicket}', $3::jsonb
+         ) WHERE id=$1 AND user_id=$2`,
+        [clientId, req.user.sub, JSON.stringify(result.transferTicket || null)]
       );
     }
 
@@ -503,6 +512,9 @@ app.post('/api/eric/submit', auth, async (req, res) => {
       rc: result.rc,
       resultXml: result.resultXml,
       serverXml: result.serverXml,
+      transferTicket: result.transferTicket || null,
+      returncodeTH: result.returncodeTH || null,
+      fehlertextTH: result.fehlertextTH || null,
       skippedSections,
     });
   } catch (e) {
