@@ -343,7 +343,7 @@ function renderAusShortStayFields(empId){
  const foreign=parseInt(document.getElementById('aus-days-foreign')?.value)||0;
  /* Confirmed real requirement (Regel 30) - only relevant under 184
     days abroad, since the standard 183-day exemption applies without
-    this above that threshold. A genuine legal distinction the user
+    this above that threshold. A genuine legal  distinction the user
     must actually know, not something the app can safely guess. */
  if(!(foreign>0) || foreign>=184){ slot.innerHTML=''; return; }
  slot.innerHTML=`<div class="field" style="margin-top:8px">

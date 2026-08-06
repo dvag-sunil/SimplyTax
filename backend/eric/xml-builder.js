@@ -11,7 +11,7 @@
            ready to hand to EricMtBearbeiteVorgang as datenpuffer.
 
    SCOPE - only sections with a confirmed Kennzahl in eric-fieldmap.js are
-   written. As of this update:
+   written. As of this update: 
      - anlageR (pensions) - NOW MAPPED. Both statutory and private
        Leibrenten, using the CORRECTED gesetzlich/privat percentage logic
        (see eric-fieldmap.js R section - the earlier assumption that only
