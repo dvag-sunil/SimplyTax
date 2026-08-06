@@ -2,6 +2,18 @@
    Security: JWT auth, bcrypt, Helmet, CORS locked to the frontend origin, rate limiting, parameterized queries.
    Flexibility: client data stored as JSONB — new frontend fields need no schema change. */
 require('dotenv').config();
+/* TEMPORARY debug check - confirms the certificate file on Render is
+   actually intact before the ERiC worker tries to open it. Safe to
+   remove once the 610201112 (PKCS#12 decode) issue is resolved. */
+const fs = require('fs');
+if (process.env.ERIC_CERT_PATH) {
+  try {
+    const stats = fs.statSync(process.env.ERIC_CERT_PATH);
+    console.log('[debug] certificate file size:', stats.size, 'bytes');
+  } catch (e) {
+    console.log('[debug] could not read certificate file:', e.message);
+  }
+}
 const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
