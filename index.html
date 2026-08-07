@@ -581,7 +581,8 @@ en: {
  taxid_valid_checksum:"Valid Steuer-ID",
  street:"Street", house_no:"No.", plz:"Postal code", city:"City",
  religion:"Church tax (religion)", rel_none:"None (no church tax)", rel_ev:"Protestant (EV)", rel_rk:"Catholic (RK)", rel_other:"Other",
- profession:"Profession", finanzamt:"Tax office (Finanzamt)", steuernummer:"Tax number (if available)",
+ profession:"Profession", finanzamt:"Tax office (Finanzamt)", steuernummer:"Tax number (Steuernummer)",
+ steuernummer_required_hint:"Required for submission - confirmed there is no valid way to transmit a return to ELSTER without it.",
  stnr_invalid_checksum:"This doesn't look like a valid tax number for the selected Finanzamt - please double-check.",
  stnr_valid_checksum:"Valid tax number",
  iban:"IBAN (for the refund)", spouse:"Spouse (Person B)",
@@ -946,7 +947,8 @@ de: {
  taxid_valid_checksum:"Gültige Steuer-ID",
  street:"Straße", house_no:"Nr.", plz:"PLZ", city:"Ort",
  religion:"Kirchensteuer (Religion)", rel_none:"Keine (keine Kirchensteuer)", rel_ev:"Evangelisch (EV)", rel_rk:"Katholisch (RK)", rel_other:"Andere",
- profession:"Beruf", finanzamt:"Finanzamt", steuernummer:"Steuernummer (falls vorhanden)",
+ profession:"Beruf", finanzamt:"Finanzamt", steuernummer:"Steuernummer",
+ steuernummer_required_hint:"Für die Übermittlung erforderlich - ohne Steuernummer gibt es keine gültige Möglichkeit, eine Erklärung an ELSTER zu übermitteln.",
  stnr_invalid_checksum:"Das sieht nicht nach einer gültigen Steuernummer für das gewählte Finanzamt aus - bitte prüfen.",
  stnr_valid_checksum:"Gültige Steuernummer",
  iban:"IBAN (für die Erstattung)", spouse:"Ehepartner/in (Person B)",
@@ -2233,7 +2235,7 @@ function stepDone(c,i){
  switch(i){
  case 0: {
  const married=['married','married_sep','getrennt_lebend'].includes(c.p.marital);
- const base=[c.p.firstName,c.p.lastName,c.p.birthDate,c.p.taxId,c.p.street,c.p.houseNo,c.p.plz,c.p.city,c.p.marital,c.p.fullYearResident];
+ const base=[c.p.firstName,c.p.lastName,c.p.birthDate,c.p.taxId,c.p.street,c.p.houseNo,c.p.plz,c.p.city,c.p.marital,c.p.fullYearResident,c.p.steuernummer];
  const anyBase=base.some(has);
  if(!anyBase) return 'empty';
  let ok=base.every(has);
@@ -2809,7 +2811,7 @@ function stepPersonal(c){
  ${F('p','profession',t('profession'))}
  ${F('p','bundesland',t('bundesland')+' *',{select:[['',t('select')],...BUNDESLAENDER.map(b=>[b,b])]})}
  ${finanzamtField(c)}
- ${F('p','steuernummer',t('steuernummer'))}
+ ${F('p','steuernummer',t('steuernummer')+' *',{hint:t('steuernummer_required_hint')})}
  <div id="stnr-check-msg"></div>
  </div>
  ${F('p','iban',t('iban'),{ph:'DE00 0000 0000 0000 0000 00'})}

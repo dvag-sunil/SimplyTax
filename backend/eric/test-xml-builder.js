@@ -679,6 +679,13 @@ check('V Werbungskosten: an old-style combined total without any category still 
   const result = buildEStXML(d);
   return !result.xml.includes('<Wk>') && result.skippedSections.some(s => s.includes('not broken into the real itemized categories'));
 })());
+
+check('N: fahrt17 (line 17 employer commute allowance) is no longer sent to the wrong context - real bug found via a genuine client submission returning feldUnbekannt for E0205003 under ArbL, confirmed its real context is Wk/AWT/Fahrt instead', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageN = [{ person: 'A', arbeitgeber: 'X', steuerklasse: '1', zeile3_bruttoarbeitslohn: 50000, zeile17_agLeistungenEntfernung: 500 }];
+  const result = buildEStXML(d);
+  return !result.xml.includes('E0205003') && result.skippedSections.some(s => s.includes('line 17') && s.includes('Wk/AWT/Fahrt'));
+})());
 check('V still works with the old combined objekt field for backward compatibility with existing external test files', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000 }];

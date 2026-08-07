@@ -297,7 +297,19 @@ function buildAnlageN(data) {
       if (nAusCountForPerson > 0) xml += tag(fm.N.nAusCount, String(nAusCountForPerson));
       xml += '</Stfr_NAUS>\n';
     }
-    xml += wholeEuroTag(fm.N.fahrt17.kennzahlen[0], first.zeile17_agLeistungenEntfernung);
+    /* REMOVED (real bug found via a genuine client submission returning
+       "feldUnbekannt"): this field was placed directly under ArbL, but
+       its confirmed real context is Wk/AWT/Fahrt - a Werbungskosten
+       travel-cost sub-section, not a wage-certificate line under ArbL
+       at all. Same bug class as the already-fixed E0205630 case just
+       above, but the correct fix here needs its own dedicated check
+       first - E0205630 turned out to be a genuinely different concept
+       once properly researched (VMA_Ersatz, not the field this app's
+       own field name suggested), and this one may well be the same.
+       Rather than guess a second placement without that same level of
+       confirmation, this is honestly surfaced via skippedSections in
+       buildEStXML below instead of silently sent to a location already
+       proven wrong. */
     xml += wholeEuroTag(fm.N.pausch18.kennzahlen[0], first.zeile18_pauschal15);
     /* CORRECTED: real bug found via testing against a genuine client file
        ("feldUnbekannt" for /N/ArbL/E0205630). Same bug class as dba16
@@ -1651,6 +1663,8 @@ function buildEStXML(data, opts = {}) {
   const bundesland = bundeslandCode(data.hauptvordruck?.bundesland);
 
   const skippedSections = [];
+  if ((data.anlageN || []).some(n => N(n.zeile17_agLeistungenEntfernung) > 0))
+    skippedSections.push('anlageN employer-provided commute allowance (Lohnsteuerbescheinigung line 17) was entered but not transmitted - the field previously used for this was confirmed placed under the wrong section (Wk/AWT/Fahrt, not ArbL, found via a genuine client submission returning feldUnbekannt). Its exact real meaning needs the same dedicated research the neighboring line 20 field already went through before it can be sent correctly.');
   if ((data.anlageV || []).some(p => p.werbungskosten > 0 && wkCategoryTotal(p) === 0))
     skippedSections.push('anlageV Werbungskosten (rental deduction costs) - a total was entered but not broken into the real itemized categories (depreciation, loan interest, maintenance, management, other), so it could not be transmitted honestly. Enter the amount under the specific category it belongs to instead of one combined figure.');
   if ((data.anlageKind || []).some(k => k.betreuungskosten > 0 && (!k.betreuungAnbieter || !k.betreuungVon || !k.betreuungBis)))
