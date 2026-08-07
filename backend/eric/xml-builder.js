@@ -1527,7 +1527,16 @@ function buildEStXML(data, opts = {}) {
   }
 
   const herstellerID = opts.herstellerID || process.env.ERIC_HERSTELLER_ID || '74931';
-  const testmerker = data.meta?.testmerker !== false ? '700000004' : '';
+  //const testmerker = data.meta?.testmerker !== false ? '700000004' : '';
+  const submissionMode = (process.env.ERIC_SUBMISSION_MODE || 'test').trim().toLowerCase();
+  if (!['test', 'production'].includes(submissionMode)) {
+    throw new Error('ERIC_SUBMISSION_MODE must be either "test" or "production"');
+  }
+
+  /* ELSTER treats a transmission without <Testmerker> as a real filing.
+     Keep this decision server-controlled; never trust the browser payload. */
+  const testmerker = submissionMode === 'production' ? '' : '700000004';
+  
   const year = data.meta?.taxYear || 2025;
   const bundesland = bundeslandCode(data.hauptvordruck?.bundesland);
 
