@@ -607,6 +607,37 @@ check('V accepts street/plz/ort as direct separate fields (real gap found via di
     && result.xml.includes('<E0700504>Musterstadt</E0700504>')
     && !result.skippedSections.some(s => s.includes('Regel 3149'));
 })());
+
+check('V for 2021/2022 wraps everything in Ek_b_Gst - real bug found via a genuine client submission where every single field, including the sequence number itself, was rejected as feldUnbekannt, confirmed via the real 2022 Kontexte sheet', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2022;
+  d.anlageV = [{ street: 'Teststrasse 10', plz: '63069', ort: 'Offenbach am Main', mieteinnahmen: 10000, nebenkosten: 200 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<Ek_b_Gst>') && x.includes('<E0700407>Teststrasse 10</E0700407>')
+    && x.includes('<E0701401>10200</E0701401>') && !x.includes('<E0701202>'); // no Wohneinheit label field for this year
+})());
+check('V for 2023+ does NOT use the Ek_b_Gst wrapper - confirms the legacy branch did not leak into the current structure', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2025;
+  d.anlageV = [{ street: 'Teststrasse 10', plz: '63069', ort: 'Offenbach am Main', mieteinnahmen: 10000, nebenkosten: 200 }];
+  const x = buildEStXML(d).xml;
+  return !x.includes('<Ek_b_Gst>') && x.includes('<E0701401>10200</E0701401>');
+})());
+
+check('V for 2023 ALSO uses the Ek_b_Gst wrapper - real gap caught by explicitly checking every year rather than assuming the boundary from 2022 alone; 2023 would have been silently broken the same way if this hadn\'t been checked', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2023;
+  d.anlageV = [{ street: 'Teststrasse 10', plz: '63069', ort: 'Offenbach am Main', mieteinnahmen: 10000, nebenkosten: 200 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<Ek_b_Gst>') && x.includes('<E0701401>10200</E0701401>');
+})());
+check('V for 2021 confirmed identical to 2022/2023 for every field this code uses', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2021;
+  d.anlageV = [{ street: 'Teststrasse 10', plz: '63069', ort: 'Offenbach am Main', mieteinnahmen: 10000, nebenkosten: 200 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<Ek_b_Gst>') && x.includes('<E0701401>10200</E0701401>');
+})());
 check('V still works with the old combined objekt field for backward compatibility with existing external test files', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000 }];

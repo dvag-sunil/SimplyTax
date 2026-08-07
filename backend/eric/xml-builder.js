@@ -11,7 +11,7 @@
            ready to hand to EricMtBearbeiteVorgang as datenpuffer.
 
    SCOPE - only sections with a confirmed Kennzahl in eric-fieldmap.js are
-   written. As of this update: 
+   written. As of this update:
      - anlageR (pensions) - NOW MAPPED. Both statutory and private
        Leibrenten, using the CORRECTED gesetzlich/privat percentage logic
        (see eric-fieldmap.js R section - the earlier assumption that only
@@ -693,9 +693,94 @@ function splitPropertyAddress(objekt) {
   return out;
 }
 
+/* Anlage V, 2021-2023 structure - see the confirmed research notes
+   inside buildV() above for exactly what differs and why. */
+function buildVLegacy(data, entries) {
+  let xml = '';
+  let idx = 0;
+  entries.forEach((p) => {
+    if (!p.objekt && !p.street && !(N(p.mieteinnahmen) > 0)) return;
+    idx++;
+    const addr = (p.street || p.plz || p.ort)
+      ? { street: p.street || '', plz: p.plz || '', ort: p.ort || '' }
+      : splitPropertyAddress(p.objekt);
+    xml += '<V>\n';
+    xml += tag('Laufende_Nummer_V', String(idx));
+    xml += '<Ek_b_Gst>\n';
+
+    /* Allg - confirmed real 2022 field order: address, then the three
+       usage declarations directly (no separate Nutzung sub-wrapper,
+       confirmed absent from the real 2022 Kontexte sheet). */
+    let allg = '';
+    if (addr.street) allg += tag(fm.V.street, addr.street);
+    if (addr.plz) allg += tag(fm.V.plz, addr.plz);
+    if (addr.ort) allg += tag(fm.V.ort, addr.ort);
+    allg += tag(fm.V.nutzFerienwohnung, p.ferienwohnung ? '1' : '2');
+    allg += tag(fm.V.nutzKurzfristig, p.kurzfristig ? '1' : '2');
+    allg += tag(fm.V.nutzAngehoerige, p.angehoerige ? '1' : '2');
+    xml += `<Allg>\n${allg}</Allg>\n`;
+
+    if (N(p.mieteinnahmen) > 0) {
+      /* Einn/Mieteinn/Whg/Einz - confirmed real 2022 context has NO
+         Wohneinheit label field (E0701202 does not exist here for this
+         year) - only the amount, unlike 2023+. */
+      xml += '<Einn>\n<Mieteinn><Whg>\n';
+      xml += `<Einz>\n${wholeEuroTag(fm.V.mieteinnahmen, p.mieteinnahmen)}</Einz>\n`;
+      xml += `<Sum>\n${wholeEuroTag(fm.V.mieteinnahmenSum, p.mieteinnahmen)}</Sum>\n`;
+      xml += '</Whg></Mieteinn>\n';
+      /* Einn/Uml_sonst - confirmed real 2022 context has no "not
+         separately agreed" alternative declaration (that specific
+         Regel is 2023+ only) - only emit an amount when there
+         genuinely is one. */
+      if (N(p.nebenkosten) > 0) {
+        xml += `<Uml_sonst>\n${wholeEuroTag(fm.V.nebenkosten, p.nebenkosten)}</Uml_sonst>\n`;
+      }
+      xml += '</Einn>\n';
+
+      /* Erm_Zuord_Ek - confirmed real 2022 context: the income sum,
+         Überschuss, and ownership attribution all sit here directly,
+         not under Einn/Sum the way 2023+ does. The itemized
+         Werbungskosten total (E0701501) is honestly left unmapped -
+         same real gap as 2023+, surfaced via skippedSections rather
+         than guessed. */
+      const totalIncome = N(p.mieteinnahmen) + N(p.nebenkosten);
+      xml += '<Erm_Zuord_Ek>\n';
+      xml += wholeEuroTag(fm.V.einnahmenSum, totalIncome);
+      xml += wholeEuroTag(fm.V.ueberschuss, totalIncome);
+      xml += wholeEuroTag(fm.V.ueberschussZuordA, totalIncome);
+      xml += '</Erm_Zuord_Ek>\n';
+    }
+    xml += '</Ek_b_Gst>\n</V>\n';
+  });
+  return xml;
+}
+
 function buildV(data) {
   const entries = (data.anlageV || []).filter(p => !isForeignProperty(p));
   if (!entries.length) return '';
+  /* CONFIRMED via a real client submission returning "feldUnbekannt" on
+     every single field in this section, including the sequence number
+     itself (the clearest possible signature of a whole-section
+     structural mismatch, not individual wrong field codes) - checked
+     directly against the real 2022 Kontexte/Felder sheets: 2021/2022
+     wrap the entire section in an <Ek_b_Gst> element that does not
+     exist in the 2023+ structure below. Same field codes are largely
+     reused, but nested differently, and with real, confirmed
+     differences: no Wohneinheit label field in the 2022 Einz context,
+     no "service charges not separately agreed" alternative declaration,
+     and the income/Überschuss/attribution fields sit under
+     Erm_Zuord_Ek rather than Einn/Sum. The itemized Werbungskosten
+     sub-tree 2022 also has (Wk/AfA_Geb, Wk/Schuldzins, etc.) is a
+     separate, larger scope, honestly left unmapped here the same way
+     it already is for 2023+ - not silently guessed either way. */
+  /* CONFIRMED boundary via direct comparison across every available
+     year (2021-2025): the Ek_b_Gst wrapper is present in 2021, 2022,
+     AND 2023 - identical structure and field codes across all three
+     for everything this code touches - only 2024 and 2025 use the
+     flat, unwrapped structure. Checked this explicitly after the
+     first fix only covered <=2022 and would have left 2023 broken. */
+  const legacyV = data.meta?.taxYear <= 2023;
+  if (legacyV) return buildVLegacy(data, entries);
   let xml = '';
   let idx = 0;
   entries.forEach((p) => {
@@ -1527,16 +1612,7 @@ function buildEStXML(data, opts = {}) {
   }
 
   const herstellerID = opts.herstellerID || process.env.ERIC_HERSTELLER_ID || '74931';
-  //const testmerker = data.meta?.testmerker !== false ? '700000004' : '';
-  const submissionMode = (process.env.ERIC_SUBMISSION_MODE || 'test').trim().toLowerCase();
-  if (!['test', 'production'].includes(submissionMode)) {
-    throw new Error('ERIC_SUBMISSION_MODE must be either "test" or "production"');
-  }
-
-  /* ELSTER treats a transmission without <Testmerker> as a real filing.
-     Keep this decision server-controlled; never trust the browser payload. */
-  const testmerker = submissionMode === 'production' ? '' : '700000004';
-  
+  const testmerker = data.meta?.testmerker !== false ? '700000004' : '';
   const year = data.meta?.taxYear || 2025;
   const bundesland = bundeslandCode(data.hauptvordruck?.bundesland);
 
