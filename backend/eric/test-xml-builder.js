@@ -653,6 +653,32 @@ check('V for 2024/2025 still correctly emits Laufende_Nummer_V - confirming the 
   const x = buildEStXML(d).xml;
   return x.includes('<Laufende_Nummer_V>1</Laufende_Nummer_V>');
 })());
+
+check('V Werbungskosten: itemized categories (2024/2025) correctly transmit and reduce the Überschuss, replacing the old gross-income limitation', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2025;
+  d.anlageV = [{ street: 'X', plz: '12345', ort: 'Y', mieteinnahmen: 10000, wkAfa: 5000, wkSchuldzins: 1000 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<AfA_Geb><Sum>') && x.includes('<E0703511>5000</E0703511>')
+    && x.includes('<Schuldzins><Sum>') && x.includes('<E0703406>1000</E0703406>')
+    && x.includes('<E0701601>4000</E0701601>'); // 10000 - 5000 - 1000
+})());
+check('V Werbungskosten: same itemized categories also work for legacy years (2021-2023) inside Ek_b_Gst/Wk', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2022;
+  d.anlageV = [{ street: 'X', plz: '12345', ort: 'Y', mieteinnahmen: 10000, wkVerwaltung: 300, wkSonst: 100 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<Ek_b_Gst>') && x.includes('<Verw_Ko><Sum>') && x.includes('<E0705515>300</E0705515>')
+    && x.includes('<Sonst><Sum>') && x.includes('<E0705607>100</E0705607>')
+    && x.includes('<E0701601>9600</E0701601>'); // 10000 - 300 - 100
+})());
+check('V Werbungskosten: an old-style combined total without any category still correctly warns rather than silently dropping the data', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2025;
+  d.anlageV = [{ street: 'X', plz: '12345', ort: 'Y', mieteinnahmen: 10000, werbungskosten: 7000 }];
+  const result = buildEStXML(d);
+  return !result.xml.includes('<Wk>') && result.skippedSections.some(s => s.includes('not broken into the real itemized categories'));
+})());
 check('V still works with the old combined objekt field for backward compatibility with existing external test files', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000 }];

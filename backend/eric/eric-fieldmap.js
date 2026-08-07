@@ -679,7 +679,28 @@ const V = {
      guessed (see skippedSections). */
   ueberschussZuordA: 'E0701801', // V/Erm_Zuord_Ek - Zurechnung an steuerpflichtige Person / Person A
   ueberschussZuordB: 'E0701802', // V/Erm_Zuord_Ek - Zurechnung an Ehefrau / Person B
-  // werbungskosten (itemised categories) / Ergebnis details: DELIBERATELY NOT MAPPED - see note above
+
+  /* Wk - itemized Werbungskosten (rental deduction costs). Confirmed
+     via the real 2025 Kontexte/Felder sheets that this is a genuinely
+     elaborate structure (~15 sub-categories, several with a 5-year
+     spreadable-maintenance variant with its own multi-year carryover
+     breakdown). Deliberately scoped to the five categories that cover
+     the large majority of real rental situations - building
+     depreciation, loan interest, immediately-deductible maintenance,
+     management costs, and a general "other" catch-all - using each
+     category's aggregate "Sum" field (Abzugsfähige Werbungskosten)
+     rather than requiring full itemized receipt-level detail (the
+     Direkt/Einz sub-breakdown some categories also support). The rarer
+     categories (special depreciation §7b, 5-year-spread maintenance,
+     financing costs, VAT-liable letting) are honestly left unmapped -
+     same real gap as before, just narrower now, still flagged via
+     skippedSections rather than guessed. Confirmed identical field
+     codes for 2021-2023 (inside Ek_b_Gst) and 2024/2025 (flat). */
+  wkAfaSum: 'E0703511',       // Wk/AfA_Geb/Sum - Gebäudeabschreibung (building depreciation)
+  wkSchuldzinsSum: 'E0703406', // Wk/Schuldzins/Sum - Darlehenszinsen (loan interest)
+  wkErhaltungSum: 'E0704412', // Wk/Erhalt_AW_dir/Sum - Erhaltungsaufwand (maintenance/repairs)
+  wkVerwaltungSum: 'E0705515', // Wk/Verw_Ko/Sum - Verwaltungskosten (management costs)
+  wkSonstSum: 'E0705607',      // Wk/Sonst/Sum - sonstige Werbungskosten (other)
 };
 
 /* ---------- Anlage AUS - foreign income (Progressionsvorbehalt) ----------

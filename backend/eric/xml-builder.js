@@ -693,6 +693,24 @@ function splitPropertyAddress(objekt) {
   return out;
 }
 
+/* Shared by both buildV (2024/2025) and buildVLegacy (2021-2023) -
+   confirmed identical field codes and category names for both
+   structures, only the surrounding wrapper differs. Each category
+   only emits when it has a real amount - an empty <Wk> with nothing
+   inside it is never sent. */
+function wkCategoryTotal(p) {
+  return N(p.wkAfa) + N(p.wkSchuldzins) + N(p.wkErhaltung) + N(p.wkVerwaltung) + N(p.wkSonst);
+}
+function buildWkBlock(p) {
+  let inner = '';
+  if (N(p.wkAfa) > 0) inner += `<AfA_Geb><Sum>\n${wholeEuroTag(fm.V.wkAfaSum, p.wkAfa)}</Sum></AfA_Geb>\n`;
+  if (N(p.wkSchuldzins) > 0) inner += `<Schuldzins><Sum>\n${wholeEuroTag(fm.V.wkSchuldzinsSum, p.wkSchuldzins)}</Sum></Schuldzins>\n`;
+  if (N(p.wkErhaltung) > 0) inner += `<Erhalt_AW_dir><Sum>\n${wholeEuroTag(fm.V.wkErhaltungSum, p.wkErhaltung)}</Sum></Erhalt_AW_dir>\n`;
+  if (N(p.wkVerwaltung) > 0) inner += `<Verw_Ko><Sum>\n${wholeEuroTag(fm.V.wkVerwaltungSum, p.wkVerwaltung)}</Sum></Verw_Ko>\n`;
+  if (N(p.wkSonst) > 0) inner += `<Sonst><Sum>\n${wholeEuroTag(fm.V.wkSonstSum, p.wkSonst)}</Sum></Sonst>\n`;
+  return inner ? `<Wk>\n${inner}</Wk>\n` : '';
+}
+
 /* Anlage V, 2021-2023 structure - see the confirmed research notes
    inside buildV() above for exactly what differs and why. */
 function buildVLegacy(data, entries) {
@@ -744,17 +762,20 @@ function buildVLegacy(data, entries) {
       }
       xml += '</Einn>\n';
 
+      xml += buildWkBlock(p);
+      const wkTotal = wkCategoryTotal(p);
+
       /* Erm_Zuord_Ek - confirmed real 2022 context: the income sum,
          Überschuss, and ownership attribution all sit here directly,
-         not under Einn/Sum the way 2023+ does. The itemized
-         Werbungskosten total (E0701501) is honestly left unmapped -
-         same real gap as 2023+, surfaced via skippedSections rather
-         than guessed. */
+         not under Einn/Sum the way 2023+ does. Werbungskosten is now
+         itemized above (same categories, same field codes as 2023+,
+         confirmed identical), so the Überschuss correctly subtracts
+         them rather than reporting gross income. */
       const totalIncome = N(p.mieteinnahmen) + N(p.nebenkosten);
       xml += '<Erm_Zuord_Ek>\n';
       xml += wholeEuroTag(fm.V.einnahmenSum, totalIncome);
-      xml += wholeEuroTag(fm.V.ueberschuss, totalIncome);
-      xml += wholeEuroTag(fm.V.ueberschussZuordA, totalIncome);
+      xml += wholeEuroTag(fm.V.ueberschuss, totalIncome - wkTotal);
+      xml += wholeEuroTag(fm.V.ueberschussZuordA, totalIncome - wkTotal);
       xml += '</Erm_Zuord_Ek>\n';
     }
     xml += '</Ek_b_Gst>\n</V>\n';
@@ -851,25 +872,31 @@ function buildV(data) {
       xml += `<Sum>\n${wholeEuroTag(fm.V.einnahmenSum, totalIncome)}</Sum>\n`;
       xml += '</Einn>\n';
 
+      xml += buildWkBlock(p);
+      const wkTotal = wkCategoryTotal(p);
+
       /* CORRECTED (second pass) - real bug found via the actual client
          file returning "feldUnbekannt": the previous version wrapped
          this in a fabricated <Ek_b_Gst> element and duplicated the
          income sum into it. Verified directly against the raw XSD this
          time, not just the documentation sheet: Erm_Zuord_Ek is a
          direct sibling of Einn within <V>, confirmed field order right
-         after Einn (Wk, which we skip, sits between them in the real
-         sequence but that is fine since optional elements may be
-         omitted). Its only real content here is the Überschuss - see
-         eric-fieldmap.js for why no other field is needed. */
+         after Einn (Wk sits between them in the real sequence). */
       /* CORRECTED (third pass) - real bug found via the actual client
          file: Regel confirms the Überschuss requires an attribution to
          at least one of taxpayer/spouse. No ownership-split data is
          collected, so the full amount is attributed to Person A - the
          correct behaviour for sole ownership, which is the common
          case this app supports. */
+      /* CORRECTED (fourth pass) - real gap found via direct feedback:
+         Werbungskosten are now itemized into real categories (see
+         buildWkBlock above), so the Überschuss correctly subtracts
+         them instead of reporting gross income - the "declared income
+         is too high" warning that used to accompany this is no longer
+         needed once a real category amount is entered. */
       xml += '<Erm_Zuord_Ek>\n';
-      xml += wholeEuroTag(fm.V.ueberschuss, totalIncome);
-      xml += wholeEuroTag(fm.V.ueberschussZuordA, totalIncome);
+      xml += wholeEuroTag(fm.V.ueberschuss, totalIncome - wkTotal);
+      xml += wholeEuroTag(fm.V.ueberschussZuordA, totalIncome - wkTotal);
       xml += '</Erm_Zuord_Ek>\n';
     }
     xml += '</V>\n';
@@ -1624,8 +1651,8 @@ function buildEStXML(data, opts = {}) {
   const bundesland = bundeslandCode(data.hauptvordruck?.bundesland);
 
   const skippedSections = [];
-  if ((data.anlageV || []).some(p => p.werbungskosten > 0))
-    skippedSections.push('anlageV Werbungskosten (rental deduction costs - real schema needs itemized categories, our simple total cannot be honestly mapped)');
+  if ((data.anlageV || []).some(p => p.werbungskosten > 0 && wkCategoryTotal(p) === 0))
+    skippedSections.push('anlageV Werbungskosten (rental deduction costs) - a total was entered but not broken into the real itemized categories (depreciation, loan interest, maintenance, management, other), so it could not be transmitted honestly. Enter the amount under the specific category it belongs to instead of one combined figure.');
   if ((data.anlageKind || []).some(k => k.betreuungskosten > 0 && (!k.betreuungAnbieter || !k.betreuungVon || !k.betreuungBis)))
     skippedSections.push('anlageKind childcare amount present without provider/period for at least one child - that entry\'s childcare block was skipped (should not happen if the app UI validation ran, worth checking why it was bypassed)');
   if ((data.anlageKind || []).some(k => k.vorname && k.geburtsdatum && !k.familienkasse))
@@ -1693,8 +1720,10 @@ function buildEStXML(data, opts = {}) {
       skippedSections.push(`${label}: the three required usage declarations (holiday let / short-term letting / rented to relatives) were not all answered - unanswered ones were sent as "Nein", which is the common case but is a real declaration and should be confirmed by the taxpayer.`);
     if (!(N(p.nebenkosten) > 0))
       skippedSections.push(`${label}: no service charges (Neben-/Betriebskosten) were entered, so the return declares that these were not separately agreed (Regel 100750265). If the tenant does pay service charges, that amount must be entered instead.`);
-    if (N(p.werbungskosten) > 0)
-      skippedSections.push(`${label}: rental expenses (Werbungskosten) were entered but NOT transmitted - the real schema needs itemised categories (depreciation, loan interest, maintenance and so on) which the app does not yet collect. The declared income is therefore gross, and the tax result will be too high until this is added.`);
+    if (N(p.werbungskosten) > 0 && wkCategoryTotal(p) === 0)
+      skippedSections.push(`${label}: rental expenses were entered as one combined total but not transmitted - break the amount down by category (depreciation, loan interest, maintenance, management costs, other) instead of one figure, since the real schema requires itemization. The declared income is currently gross until this is done.`);
+    if (wkCategoryTotal(p) > 0)
+      skippedSections.push(`${label}: itemized rental deduction costs were transmitted for the five most common categories (depreciation, loan interest, immediately-deductible maintenance, management costs, other). Rarer categories - special depreciation, maintenance spread over 5 years, financing costs, VAT-liable letting - are not yet collected; if any of these apply to this property, the deduction is understated until they are added.`);
     if (N(p.mieteinnahmen) > 0 && data.hauptvordruck?.personB)
       skippedSections.push(`${label}: the full surplus was attributed to the primary filer (Person A). The app does not collect a per-property ownership split, so if this property is jointly owned with the spouse, the attribution should be reviewed and may need splitting between E0701801 and E0701802.`);
   });

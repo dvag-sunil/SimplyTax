@@ -343,7 +343,7 @@ function renderAusShortStayFields(empId){
  const foreign=parseInt(document.getElementById('aus-days-foreign')?.value)||0;
  /* Confirmed real requirement (Regel 30) - only relevant under 184
     days abroad, since the standard 183-day exemption applies without
-    this above that threshold. A genuine legal  distinction the user
+    this above that threshold. A genuine legal distinction the user
     must actually know, not something the app can safely guess. */
  if(!(foreign>0) || foreign>=184){ slot.innerHTML=''; return; }
  slot.innerHTML=`<div class="field" style="margin-top:8px">
@@ -828,6 +828,13 @@ en: {
  m_kap:"Capital gains tax (est.)",
  step_prop:"Rental property", s_prop_lead:"Rental income (Anlage V) - one entry per property. Costs (loan interest, maintenance, depreciation, service charges...) count as expenses; a loss reduces the taxable income.",
  prop_address:"Property (address)", prop_street:"Street, house number", prop_plz:"Postcode", prop_city:"City", prop_rent:"Rental income (per year)", prop_costs:"Costs / expenses (per year)", add_prop:"Add property", prop_net:"Net result",
+ prop_costs_summary:"Rental deduction costs (Werbungskosten)", prop_costs_total:"Total deductible costs entered",
+ prop_costs_hint:"The tax office requires these broken down by category, not one combined total.",
+ prop_wk_afa:"Building depreciation (AfA)", prop_wk_afa_hint:"The standard yearly write-down on the building's value - usually 2% of the building's (not the land's) purchase or construction cost.",
+ prop_wk_schuldzins:"Loan interest", prop_wk_schuldzins_hint:"Interest paid on a mortgage or loan used to buy or renovate this property - not the repayment of the loan itself, only the interest.",
+ prop_wk_erhaltung:"Maintenance and repairs", prop_wk_erhaltung_hint:"Repairs and upkeep deductible in this same year - larger renovation costs may need to be spread over several years instead; ask your Steuerberater if unsure.",
+ prop_wk_verwaltung:"Management costs",
+ prop_wk_sonst:"Other costs", prop_wk_sonst_hint:"Anything else related to this property that doesn't fit the categories above - e.g. insurance, property management fees, advertising for tenants.",
  prop_country:"Country the property is in", prop_country_de:"Germany",
  prop_country_hint:"Property abroad is reported differently - usually tax-free in Germany, but it still raises the tax rate on your German income.",
  prop_address_hint:"Include the house number - the tax office requires street, postcode and city as three separate entries.",
@@ -1186,6 +1193,13 @@ de: {
  m_kap:"Kapitalertragsteuer (ca.)",
  step_prop:"Vermietung", s_prop_lead:"Einkünfte aus Vermietung (Anlage V) - ein Eintrag je Immobilie. Kosten (Darlehenszinsen, Instandhaltung, AfA, Nebenkosten...) zählen als Werbungskosten; ein Verlust mindert das zu versteuernde Einkommen.",
  prop_address:"Immobilie (Adresse)", prop_street:"Straße, Hausnummer", prop_plz:"Postleitzahl", prop_city:"Ort", prop_rent:"Mieteinnahmen (pro Jahr)", prop_costs:"Kosten / Aufwendungen (pro Jahr)", add_prop:"Immobilie hinzufügen", prop_net:"Ergebnis",
+ prop_costs_summary:"Werbungskosten (Vermietung)", prop_costs_total:"Eingetragene abzugsfähige Kosten insgesamt",
+ prop_costs_hint:"Das Finanzamt verlangt diese aufgeteilt nach Kategorie, nicht als eine Gesamtsumme.",
+ prop_wk_afa:"Gebäudeabschreibung (AfA)", prop_wk_afa_hint:"Die jährliche Absetzung für Abnutzung - meist 2 % der Anschaffungs- oder Herstellungskosten des Gebäudes (ohne Grundstücksanteil).",
+ prop_wk_schuldzins:"Darlehenszinsen", prop_wk_schuldzins_hint:"Zinsen für ein Darlehen zum Kauf oder zur Renovierung dieser Immobilie - nicht die Tilgung selbst, nur die Zinsen.",
+ prop_wk_erhaltung:"Erhaltungsaufwand", prop_wk_erhaltung_hint:"In diesem Jahr abzugsfähige Instandhaltungs- und Reparaturkosten - größere Renovierungen müssen unter Umständen über mehrere Jahre verteilt werden; im Zweifel den Steuerberater fragen.",
+ prop_wk_verwaltung:"Verwaltungskosten",
+ prop_wk_sonst:"Sonstige Kosten", prop_wk_sonst_hint:"Alles andere im Zusammenhang mit dieser Immobilie, das nicht in die obigen Kategorien passt - z. B. Versicherung, Hausverwaltungsgebühren, Mietersuche-Anzeigen.",
  prop_country:"Belegenheitsstaat der Immobilie", prop_country_de:"Deutschland",
  prop_country_hint:"Auslandsimmobilien werden anders erklärt - meist in Deutschland steuerfrei, erhöhen aber den Steuersatz auf Ihre inländischen Einkünfte.",
  prop_address_hint:"Bitte mit Hausnummer angeben - das Finanzamt benötigt Straße, PLZ und Ort als drei getrennte Angaben.",
@@ -1719,6 +1733,10 @@ const N = v => {
  }
  const n = parseFloat(s); return Number.isFinite(n)?n:0;
 };
+/* Shared everywhere the old single p.costs field used to be referenced -
+   now sums the five real itemized categories instead of one combined
+   total, confirmed against the real ERiC schema. */
+function propCosts(p){ return N(p.wkAfa)+N(p.wkSchuldzins)+N(p.wkErhaltung)+N(p.wkVerwaltung)+N(p.wkSonst); }
 function formatDE(n){
  const hasFrac = Math.abs(n - Math.round(n)) > 0.004;
  return new Intl.NumberFormat('de-DE',{minimumFractionDigits:hasFrac?2:0,maximumFractionDigits:2}).format(n);
@@ -1837,7 +1855,7 @@ function computeEstimate(c){
  const grpFactor = {1:1, 2:0.75, 3:0.5, 4:0.25}[c.fam.supportGroup] ?? 1;
  const support = Math.min(N(c.fam.support), (TARIFF[year]||TARIFF[2025]).gfb * grpFactor);
  // rental property (Anlage V): net result per property - losses reduce taxable income
- const propNet = (c.props||[]).reduce((a,p)=>a + (N(p.rent)-N(p.costs)), 0);
+ const propNet = (c.props||[]).reduce((a,p)=>a + (N(p.rent)-propCosts(p)), 0);
  // außergewöhnliche Belastung - zumutbare Belastung per § 33 Abs. 3 EStG, tier-wise (BFH VI R 75/14)
  const kidsN = (c.fam.children||[]).length;
  const gde = Math.max(0, gross + propNet - wk); // approximated Gesamtbetrag der Einkünfte
@@ -3068,7 +3086,7 @@ function stepKap(c){
 /* --- step 8: rental property (Anlage V) --- */
 function stepProp(c){
  const rows=(c.props||[]).map((p,i)=>{
- const net=N(p.rent)-N(p.costs);
+ const net=N(p.rent)-propCosts(p);
  return `<div class="sum-group" style="margin-bottom:12px">
  <div class="head"><span>${t('prop_address').split(' ')[0]} ${i+1}${p.street?' · '+esc(p.street):''}
  <span class="chip ${net>=0?'submitted':'review'}" style="margin-left:8px">${t('prop_net')}: ${eur(net)}</span></span>
@@ -3080,8 +3098,24 @@ function stepProp(c){
  ${LF('props',p,'city',t('prop_city')+' *',{ph:'Offenbach'})}
  <div class="grid2">
  ${LF('props',p,'rent',t('prop_rent'),{euro:true,ph:'0,00 €'})}
- ${LF('props',p,'costs',t('prop_costs'),{euro:true,ph:'0,00 €'})}
  </div>
+ <details class="more" ${(N(p.wkAfa)+N(p.wkSchuldzins)+N(p.wkErhaltung)+N(p.wkVerwaltung)+N(p.wkSonst))>0?'open':''}><summary>${t('prop_costs_summary')}</summary>
+ <p class="hint" style="margin:0 0 8px">${t('prop_costs_hint')}</p>
+ <div class="grid2">
+ ${LF('props',p,'wkAfa',t('prop_wk_afa'),{euro:true,ph:'0,00 €',hint:i===0?t('prop_wk_afa_hint'):''})}
+ ${LF('props',p,'wkSchuldzins',t('prop_wk_schuldzins'),{euro:true,ph:'0,00 €',hint:i===0?t('prop_wk_schuldzins_hint'):''})}
+ </div>
+ <div class="grid2">
+ ${LF('props',p,'wkErhaltung',t('prop_wk_erhaltung'),{euro:true,ph:'0,00 €',hint:i===0?t('prop_wk_erhaltung_hint'):''})}
+ ${LF('props',p,'wkVerwaltung',t('prop_wk_verwaltung'),{euro:true,ph:'0,00 €'})}
+ </div>
+ <div class="grid2">
+ ${LF('props',p,'wkSonst',t('prop_wk_sonst'),{euro:true,ph:'0,00 €',hint:i===0?t('prop_wk_sonst_hint'):''})}
+ </div>
+ <div class="infobox" style="background:var(--paper-soft);margin:8px 0 0;padding:8px 10px;font-size:12.5px">
+ ${t('prop_costs_total')}: <b>${eur(N(p.wkAfa)+N(p.wkSchuldzins)+N(p.wkErhaltung)+N(p.wkVerwaltung)+N(p.wkSonst))}</b>
+ </div>
+ </details>
  ${(!p.country||p.country==='Deutschland')?`
  <div class="grid2">
  ${LF('props',p,'unit',t('prop_unit'),{ph:t('prop_unit_ph'),hint:i===0?t('prop_unit_hint'):''})}
@@ -3098,7 +3132,7 @@ function stepProp(c){
  </div></div>`;}).join('');
  return `<h2>${t('step_prop')}</h2><p class="lead">${t('s_prop_lead')}</p>
  ${rows}
- <button class="btn btn-ghost btn-sm" onclick="addItem('props',{country:'Deutschland',street:'',plz:'',city:'',rent:'',costs:'',unit:'',nebenkosten:'',ferienwohnung:'nein',kurzfristig:'nein',angehoerige:'nein'})">＋ ${t('add_prop')}</button>
+ <button class="btn btn-ghost btn-sm" onclick="addItem('props',{country:'Deutschland',street:'',plz:'',city:'',rent:'',wkAfa:'',wkSchuldzins:'',wkErhaltung:'',wkVerwaltung:'',wkSonst:'',unit:'',nebenkosten:'',ferienwohnung:'nein',kurzfristig:'nein',angehoerige:'nein'})">＋ ${t('add_prop')}</button>
  ${docSection('props')}
  ${navRow()}`;
 }
@@ -3448,7 +3482,7 @@ function stepSummary(c){
  ].filter(Boolean).join(' · '))];});
  const propRows=(c.props||[]).map((p,i)=>[
  esc([p.street,p.plz,p.city].filter(Boolean).join(', ')||t('prop_address')+' '+(i+1)),
- esc(`${eur(N(p.rent))} − ${eur(N(p.costs))} = ${eur(N(p.rent)-N(p.costs))}`)]);
+ esc(`${eur(N(p.rent))} − ${eur(propCosts(p))} = ${eur(N(p.rent)-propCosts(p))}`)]);
  return `<h2>${t('step7')}</h2><p class="lead">${t('s7_lead')}</p>
  ${sumGroup(t('personal'),0,[
  [t('client'),esc(c.p.firstName+' '+c.p.lastName)],
@@ -3768,9 +3802,10 @@ function buildElsterDataset(c){
  zeile22_verlusteOhneAktien:N(k.k22), zeile23_verlusteAktien:N(k.k23),
  zeile43_kapitalertragsteuer:N(k.k43)+N(k.taxPaid), zeile44_soli:N(k.k44)+N(k.soliPaid), zeile45_kirchensteuer:N(k.k45) })),
  anlageV:(c.props||[]).map(p=>({ street:p.street||'', plz:p.plz||'', ort:p.city||'', land:p.country||'Deutschland',
- mieteinnahmen:N(p.rent), werbungskosten:N(p.costs), nebenkosten:N(p.nebenkosten),
+ mieteinnahmen:N(p.rent), nebenkosten:N(p.nebenkosten),
+ wkAfa:N(p.wkAfa), wkSchuldzins:N(p.wkSchuldzins), wkErhaltung:N(p.wkErhaltung), wkVerwaltung:N(p.wkVerwaltung), wkSonst:N(p.wkSonst),
  wohneinheit:p.unit||'', ferienwohnung:p.ferienwohnung==='ja', kurzfristig:p.kurzfristig==='ja',
- angehoerige:p.angehoerige==='ja', ergebnis:N(p.rent)-N(p.costs) })),
+ angehoerige:p.angehoerige==='ja', ergebnis:N(p.rent)-(N(p.wkAfa)+N(p.wkSchuldzins)+N(p.wkErhaltung)+N(p.wkVerwaltung)+N(p.wkSonst)) })),
  anlageR:(c.rente||[]).map(r=>({ person:r.person==='B'?'B':'A', art:r.type||'gesetzlich',
  jahresbetrag:N(r.amount), rentenbeginn:r.startYear||'',
  /* FIXED: was backwards (sent percentage only for privat). The real ERiC
@@ -3959,7 +3994,7 @@ function buildPDF(c){
  loss>0?'Verl. -'+eur(loss):'', N(k.k43)>0?'KapESt '+eur(N(k.k43)):''].filter(Boolean).join(' · ')||' '); }); }
  if((c.props||[]).length){ y+=3; section(t('step_prop'));
  (c.props||[]).forEach((p,i)=>row([p.street,p.plz,p.city].filter(Boolean).join(', ')||`${t('step_prop')} ${i+1}`,
- `${eur(N(p.rent))} - ${eur(N(p.costs))} = ${eur(N(p.rent)-N(p.costs))}`)); }
+ `${eur(N(p.rent))} - ${eur(propCosts(p))} = ${eur(N(p.rent)-propCosts(p))}`)); }
  y+=3; section(t('household_g'));
  row(t('medical'),m(c.ex.medical)); row(t('household'),m(c.ex.household)); row(t('handwerker'),m(c.ex.handwerker));
  if((c.docs||[]).length){ row(t('pdf_docs'), String(c.docs.length)); }
