@@ -638,6 +638,21 @@ check('V for 2021 confirmed identical to 2022/2023 for every field this code use
   const x = buildEStXML(d).xml;
   return x.includes('<Ek_b_Gst>') && x.includes('<E0701401>10200</E0701401>');
 })());
+
+check('V legacy years (2021-2023) do NOT emit Laufende_Nummer_V - real gap found via the actual client response after the Ek_b_Gst fix; confirmed via direct schema search this field genuinely does not exist in the 2022 Felder sheet, unlike 2024/2025', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2022;
+  d.anlageV = [{ street: 'Teststrasse 10', plz: '63069', ort: 'Offenbach am Main', mieteinnahmen: 10000 }];
+  const x = buildEStXML(d).xml;
+  return !x.includes('Laufende_Nummer_V') && x.includes('<Ek_b_Gst>');
+})());
+check('V for 2024/2025 still correctly emits Laufende_Nummer_V - confirming the legacy fix did not remove it where it genuinely belongs', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2025;
+  d.anlageV = [{ street: 'Teststrasse 10', plz: '63069', ort: 'Offenbach am Main', mieteinnahmen: 10000 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<Laufende_Nummer_V>1</Laufende_Nummer_V>');
+})());
 check('V still works with the old combined objekt field for backward compatibility with existing external test files', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000 }];

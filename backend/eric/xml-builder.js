@@ -705,7 +705,14 @@ function buildVLegacy(data, entries) {
       ? { street: p.street || '', plz: p.plz || '', ort: p.ort || '' }
       : splitPropertyAddress(p.objekt);
     xml += '<V>\n';
-    xml += tag('Laufende_Nummer_V', String(idx));
+    /* CONFIRMED real gap found via the actual client response: even
+       after fixing the Ek_b_Gst wrapper, ERiC still rejected
+       Laufende_Nummer_V specifically as feldUnbekannt. Checked
+       directly - this element genuinely does not exist in the 2022
+       Felder sheet at all (searched explicitly, zero matches), while
+       it does exist for 2024/2025. Legacy years don't use an explicit
+       sequence-number element the way the current structure does, so
+       it's correctly omitted here rather than guessed back in. */
     xml += '<Ek_b_Gst>\n';
 
     /* Allg - confirmed real 2022 field order: address, then the three
