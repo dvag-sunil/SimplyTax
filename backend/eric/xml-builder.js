@@ -1675,7 +1675,29 @@ function buildEStXML(data, opts = {}) {
     throw new InterchangeDataError('interchangeData.hauptvordruck.personA is missing');
   }
 
-  const herstellerID = opts.herstellerID || process.env.ERIC_HERSTELLER_ID || '74931';
+  /* CORRECTED: real bug found while investigating the 610301106
+     "unexpected elements" rejection - this fallback was hardcoded to
+     '74931', an unregistered placeholder value, not this project's
+     real, confirmed Hersteller-ID (38099, UrbanoperationsTax -
+     confirmed and used consistently throughout this whole project).
+     If ERIC_HERSTELLER_ID is ever unset in the environment this runs
+     in, this fallback would have silently substituted a wrong,
+     unregistered ID - which could plausibly explain a low-level
+     rejection like this one, though it needs Render's actual current
+     env var state confirmed to know for certain this was the cause
+     here specifically. */
+  /* CORRECTED per explicit instruction: no hardcoded Hersteller-ID
+     value at all, not even a "correct-looking" one - a hardcoded ID in
+     source code is itself a real risk if the code is ever shared or
+     exposed. The only valid source now is genuine configuration
+     (explicitly passed in, or the real environment variable). If
+     neither is present, this fails loudly and immediately rather than
+     silently substituting any value - a missing ID should stop the
+     submission, not quietly send something wrong. */
+  const herstellerID = opts.herstellerID || process.env.ERIC_HERSTELLER_ID;
+  if (!herstellerID) {
+    throw new InterchangeDataError('ERIC_HERSTELLER_ID is not configured - refusing to submit without a genuine, configured Hersteller-ID rather than guess at one.');
+  }
   const testmerker = data.meta?.testmerker !== false ? '700000004' : '';
   const year = data.meta?.taxYear || 2025;
   const bundesland = bundeslandCode(data.hauptvordruck?.bundesland);

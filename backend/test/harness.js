@@ -45,6 +45,7 @@ process.env.DATABASE_URL = 'postgres://test:test@localhost/test'; // never actua
 process.env.JWT_SECRET = 'test-secret-not-for-production';
 process.env.ALLOWED_ORIGIN = 'https://dvag-sunil.github.io';
 process.env.PORT = '0';
+if (!process.env.ERIC_HERSTELLER_ID) process.env.ERIC_HERSTELLER_ID = 'TEST-ONLY-ID'; // xml-builder.js now genuinely refuses to run without a real configured value - test-only, never a production fallback
 
 delete require.cache[require.resolve('../server.js')];
 const app = require('../server.js');

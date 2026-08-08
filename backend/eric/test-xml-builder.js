@@ -7,6 +7,14 @@
    for that. */
 const { buildEStXML } = require('./xml-builder.js');
 
+/* Test-only configuration, not a production fallback - the real code
+   now genuinely refuses to run without a real configured
+   ERIC_HERSTELLER_ID, so the test suite needs to provide one
+   explicitly to exercise the rest of the building logic. This value
+   only ever exists in this test process's environment, never in the
+   shipped source. */
+if (!process.env.ERIC_HERSTELLER_ID) process.env.ERIC_HERSTELLER_ID = 'TEST-ONLY-ID';
+
 let pass = 0, fail = 0;
 function check(label, cond) {
   if (cond) { pass++; }
@@ -706,6 +714,19 @@ check('Vorsatz: a real Steuernummer still takes the normal S path unchanged, con
   d.hauptvordruck.steuernummer = '9181081508155';
   const x = buildEStXML(d).xml;
   return x.includes('<StNr>9181081508155</StNr>') && x.includes('<OrdNrArt>S</OrdNrArt>') && !x.includes('<Ordnungsbegriff>');
+})());
+
+check('buildEStXML genuinely refuses to run without a real configured Hersteller-ID - no hardcoded value of any kind, per explicit instruction that a hardcoded ID in source is itself a risk', (() => {
+  const saved = process.env.ERIC_HERSTELLER_ID;
+  delete process.env.ERIC_HERSTELLER_ID;
+  let threw = false;
+  try { buildEStXML(sample); } catch (e) { threw = e.message.includes('ERIC_HERSTELLER_ID is not configured'); }
+  process.env.ERIC_HERSTELLER_ID = saved;
+  return threw;
+})());
+check('buildEStXML correctly uses a real configured Hersteller-ID when one is genuinely provided, confirming the refuse-to-guess behavior does not break the normal, correctly-configured case', (() => {
+  const x = buildEStXML(sample).xml;
+  return x.includes(`<HerstellerID>${process.env.ERIC_HERSTELLER_ID}</HerstellerID>`);
 })());
 check('V still works with the old combined objekt field for backward compatibility with existing external test files', (() => {
   const d = JSON.parse(JSON.stringify(sample));
