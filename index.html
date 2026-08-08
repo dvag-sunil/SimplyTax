@@ -2896,17 +2896,20 @@ function stepIncome(c){
  ${LF('emps',emp,'pkv28',t('z28'),{euro:true,ph:'0,00 €'})}
  </div>
  </details>
- <details class="more"><summary>${t('sec_more_8_21')}${(()=>{ const a=c.aus&&c.aus[emp.id]; if(!a||!(N(a.totalWage)>0)) return '';
+ <details class="more"><summary>${t('sec_more_8_21')}${(()=>{ const a=c.aus&&c.aus[emp.id]; if(!a||!(N(a.totalWage)>0)||a.enabled===false) return '';
    const incomplete = !a.taetigkeitDesc || !a.taetigkeitVon || !a.taetigkeitBis || !(N(a.workDaysTotal)>0) || !(N(a.workDaysForeign)>0)
      || (a.arbeitgeberName||a.arbeitgeberStreet||a.arbeitgeberPlz||a.arbeitgeberCity||a.arbeitgeberCountry) && !(a.arbeitgeberName&&a.arbeitgeberStreet&&a.arbeitgeberPlz&&a.arbeitgeberCity&&a.arbeitgeberCountry)
      || (N(a.workDaysForeign)>0 && N(a.workDaysForeign)<184 && !a.shortStayBasis);
-   /* CORRECTED: real gap found via direct feedback - a bare dot with
-      only a hover tooltip doesn't self-explain, especially on touch
-      devices where hover doesn't exist at all. Now a plain-text badge
-      that reads on its own, without needing to hover anything. */
+   /* CORRECTED (real bug, not a workaround): the check never looked at
+      whether this entry is currently excluded from the filing. Data
+      left incomplete on something the person has explicitly chosen not
+      to submit isn't actually a problem - excluding it is the entire
+      point of that toggle. Checking a.enabled===false first, before
+      anything else, means an excluded entry can never show this
+      warning regardless of what state its underlying fields are in. */
    return incomplete ? ` <span class="badge-warn">⚠ ${t('badge_action_needed')}</span>` : '';
  })()}</summary>
- ${(()=>{ const a=c.aus&&c.aus[emp.id]; if(!a||!(N(a.totalWage)>0)) return '';
+ ${(()=>{ const a=c.aus&&c.aus[emp.id]; if(!a||!(N(a.totalWage)>0)||a.enabled===false) return '';
    const incomplete = !a.taetigkeitDesc || !a.taetigkeitVon || !a.taetigkeitBis || !(N(a.workDaysTotal)>0) || !(N(a.workDaysForeign)>0)
      || (a.arbeitgeberName||a.arbeitgeberStreet||a.arbeitgeberPlz||a.arbeitgeberCity||a.arbeitgeberCountry) && !(a.arbeitgeberName&&a.arbeitgeberStreet&&a.arbeitgeberPlz&&a.arbeitgeberCity&&a.arbeitgeberCountry)
      || (N(a.workDaysForeign)>0 && N(a.workDaysForeign)<184 && !a.shortStayBasis);
