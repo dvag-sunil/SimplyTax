@@ -705,6 +705,11 @@ function splitPropertyAddress(objekt) {
   return out;
 }
 
+function percentTag(name, n) {
+  const v = Number(n);
+  if (!v) return '';
+  return tag(name, v.toFixed(2));
+}
 /* Shared by both buildV (2024/2025) and buildVLegacy (2021-2023) -
    confirmed identical field codes and category names for both
    structures, only the surrounding wrapper differs. Each category
@@ -713,14 +718,42 @@ function splitPropertyAddress(objekt) {
 function wkCategoryTotal(p) {
   return N(p.wkAfa) + N(p.wkSchuldzins) + N(p.wkErhaltung) + N(p.wkVerwaltung) + N(p.wkSonst);
 }
+/* CORRECTED (real bug found via a genuine ERiC rejection, Regel
+   100750171/100750204/100750061/100750253/100750259 and 100700003):
+   a category's Sum alone is not accepted - ERiC requires at least one
+   backing individual entry justifying it, and a required overall
+   total (Se_WK) across every category actually used. Checked each
+   category's real "Direkt"/"Einz" structure directly - genuinely
+   simple, one description plus the same amount, not full multi-
+   receipt itemization. AfA specifically also needs a depreciation
+   type and percentage, which this app doesn't collect yet - uses the
+   standard, most common default (2% linear, the normal rate for
+   buildings completed after 1924) rather than leave it blank, and
+   returns a flag so the caller can honestly disclose this assumption
+   rather than silently guess without telling anyone. */
 function buildWkBlock(p) {
   let inner = '';
-  if (N(p.wkAfa) > 0) inner += `<AfA_Geb><Sum>\n${wholeEuroTag(fm.V.wkAfaSum, p.wkAfa)}</Sum></AfA_Geb>\n`;
-  if (N(p.wkSchuldzins) > 0) inner += `<Schuldzins><Sum>\n${wholeEuroTag(fm.V.wkSchuldzinsSum, p.wkSchuldzins)}</Sum></Schuldzins>\n`;
-  if (N(p.wkErhaltung) > 0) inner += `<Erhalt_AW_dir><Sum>\n${wholeEuroTag(fm.V.wkErhaltungSum, p.wkErhaltung)}</Sum></Erhalt_AW_dir>\n`;
-  if (N(p.wkVerwaltung) > 0) inner += `<Verw_Ko><Sum>\n${wholeEuroTag(fm.V.wkVerwaltungSum, p.wkVerwaltung)}</Sum></Verw_Ko>\n`;
-  if (N(p.wkSonst) > 0) inner += `<Sonst><Sum>\n${wholeEuroTag(fm.V.wkSonstSum, p.wkSonst)}</Sum></Sonst>\n`;
-  return inner ? `<Wk>\n${inner}</Wk>\n` : '';
+  let usedAfaDefault = false;
+  if (N(p.wkAfa) > 0) {
+    usedAfaDefault = true;
+    inner += `<AfA_Geb><Direkt>\n${tag(fm.V.wkAfaArt, '1')}${percentTag(fm.V.wkAfaProzent, 2)}${wholeEuroTag(fm.V.wkAfaDirekt, p.wkAfa)}</Direkt><Sum>\n${wholeEuroTag(fm.V.wkAfaSum, p.wkAfa)}</Sum></AfA_Geb>\n`;
+  }
+  if (N(p.wkSchuldzins) > 0) {
+    inner += `<Schuldzins><Direkt>\n${tag(fm.V.wkSchuldzinsAngaben, 'Darlehenszinsen')}${wholeEuroTag(fm.V.wkSchuldzinsDirekt, p.wkSchuldzins)}</Direkt><Sum>\n${wholeEuroTag(fm.V.wkSchuldzinsSum, p.wkSchuldzins)}</Sum></Schuldzins>\n`;
+  }
+  if (N(p.wkErhaltung) > 0) {
+    inner += `<Erhalt_AW_dir><Einz>\n${tag(fm.V.wkErhaltungBezeichnung, 'Erhaltungsaufwand')}${wholeEuroTag(fm.V.wkErhaltungGesamt, p.wkErhaltung)}${wholeEuroTag(fm.V.wkErhaltungEinz, p.wkErhaltung)}</Einz><Sum>\n${wholeEuroTag(fm.V.wkErhaltungSum, p.wkErhaltung)}</Sum></Erhalt_AW_dir>\n`;
+  }
+  if (N(p.wkVerwaltung) > 0) {
+    inner += `<Verw_Ko><Direkt>\n${tag(fm.V.wkVerwaltungAngaben, 'Verwaltungskosten')}${wholeEuroTag(fm.V.wkVerwaltungDirekt, p.wkVerwaltung)}</Direkt><Sum>\n${wholeEuroTag(fm.V.wkVerwaltungSum, p.wkVerwaltung)}</Sum></Verw_Ko>\n`;
+  }
+  if (N(p.wkSonst) > 0) {
+    inner += `<Sonst><Direkt>\n${tag(fm.V.wkSonstAngaben, 'Sonstige Werbungskosten')}${wholeEuroTag(fm.V.wkSonstDirekt, p.wkSonst)}</Direkt><Sum>\n${wholeEuroTag(fm.V.wkSonstSum, p.wkSonst)}</Sum></Sonst>\n`;
+  }
+  if (!inner) return { xml: '', usedAfaDefault: false };
+  const total = wkCategoryTotal(p);
+  inner += `<Se_WK>\n${wholeEuroTag(fm.V.wkSeWk, total)}</Se_WK>\n`;
+  return { xml: `<Wk>\n${inner}</Wk>\n`, usedAfaDefault };
 }
 
 /* Anlage V, 2021-2023 structure - see the confirmed research notes
@@ -774,7 +807,8 @@ function buildVLegacy(data, entries) {
       }
       xml += '</Einn>\n';
 
-      xml += buildWkBlock(p);
+      const wkResult = buildWkBlock(p);
+      xml += wkResult.xml;
       const wkTotal = wkCategoryTotal(p);
 
       /* Erm_Zuord_Ek - confirmed real 2022 context: the income sum,
@@ -891,7 +925,8 @@ function buildV(data) {
       xml += `<Sum>\n${wholeEuroTag(fm.V.einnahmenSum, totalIncome)}</Sum>\n`;
       xml += '</Einn>\n';
 
-      xml += buildWkBlock(p);
+      const wkResult = buildWkBlock(p);
+      xml += wkResult.xml;
       const wkTotal = wkCategoryTotal(p);
 
       /* CORRECTED (second pass) - real bug found via the actual client
@@ -1715,6 +1750,8 @@ function buildEStXML(data, opts = {}) {
     skippedSections.push('anlageN employer-provided commute allowance (Lohnsteuerbescheinigung line 17) was entered but not transmitted - the field previously used for this was confirmed placed under the wrong section (Wk/AWT/Fahrt, not ArbL, found via a genuine client submission returning feldUnbekannt). Its exact real meaning needs the same dedicated research the neighboring line 20 field already went through before it can be sent correctly.');
   if ((data.anlageV || []).some(p => p.werbungskosten > 0 && wkCategoryTotal(p) === 0))
     skippedSections.push('anlageV Werbungskosten (rental deduction costs) - a total was entered but not broken into the real itemized categories (depreciation, loan interest, maintenance, management, other), so it could not be transmitted honestly. Enter the amount under the specific category it belongs to instead of one combined figure.');
+  if ((data.anlageV || []).some(p => N(p.wkAfa) > 0))
+    skippedSections.push('anlageV building depreciation (AfA) - transmitted using the standard default (2% linear depreciation), since the exact method and construction date aren\'t collected yet. This is the correct rate for most buildings completed after 1924, but if a different method or rate genuinely applies to this property, the amount transmitted may not be exactly right - worth confirming with a Steuerberater if unsure.');
   if ((data.anlageKind || []).some(k => k.betreuungskosten > 0 && (!k.betreuungAnbieter || !k.betreuungVon || !k.betreuungBis)))
     skippedSections.push('anlageKind childcare amount present without provider/period for at least one child - that entry\'s childcare block was skipped (should not happen if the app UI validation ran, worth checking why it was bypassed)');
   if ((data.anlageKind || []).some(k => k.vorname && k.geburtsdatum && !k.familienkasse))

@@ -701,6 +701,31 @@ const V = {
   wkErhaltungSum: 'E0704412', // Wk/Erhalt_AW_dir/Sum - Erhaltungsaufwand (maintenance/repairs)
   wkVerwaltungSum: 'E0705515', // Wk/Verw_Ko/Sum - Verwaltungskosten (management costs)
   wkSonstSum: 'E0705607',      // Wk/Sonst/Sum - sonstige Werbungskosten (other)
+
+  /* Individual-item fields - CONFIRMED REQUIRED via a real ERiC
+     rejection (Regel 100750171/100750204/100750061/100750253/100750259):
+     a category's Sum alone is not accepted without at least one backing
+     individual entry. Each category's real "Direkt"/"Einz" structure
+     is simple - one description plus the same amount - not full
+     multi-receipt itemization, confirmed directly against the schema. */
+  wkAfaArt: 'E0703302',        // Wk/AfA_Geb/Direkt - Art der Absetzung (1=linear, 2=degressiv)
+  wkAfaProzent: 'E0703303',    // Wk/AfA_Geb/Direkt - Prozent
+  wkAfaDirekt: 'E0703306',     // Wk/AfA_Geb/Direkt - Werbungskosten (matches wkAfaSum)
+  wkSchuldzinsAngaben: 'E0704507', // Wk/Schuldzins/Direkt - Einzelangaben (z.B. Kreditinstitut)
+  wkSchuldzinsDirekt: 'E0704508',  // Wk/Schuldzins/Direkt - Werbungskosten (matches wkSchuldzinsSum)
+  wkErhaltungBezeichnung: 'E0703707', // Wk/Erhalt_AW_dir/Einz - Bezeichnung
+  wkErhaltungAussteller: 'E0703708',  // Wk/Erhalt_AW_dir/Einz - Rechnungsaussteller
+  wkErhaltungDatum: 'E0703709',       // Wk/Erhalt_AW_dir/Einz - Rechnungsdatum
+  wkErhaltungGesamt: 'E0704410',      // Wk/Erhalt_AW_dir/Einz - Gesamtbetrag
+  wkErhaltungEinz: 'E0703911',        // Wk/Erhalt_AW_dir/Einz - Werbungskosten (matches wkErhaltungSum)
+  wkVerwaltungAngaben: 'E0707501', // Wk/Verw_Ko/Direkt - Einzelangaben
+  wkVerwaltungDirekt: 'E0707502',  // Wk/Verw_Ko/Direkt - Gesamtbetrag (matches wkVerwaltungSum)
+  wkSonstAngaben: 'E0707901', // Wk/Sonst/Direkt - Einzelangaben
+  wkSonstDirekt: 'E0707902',  // Wk/Sonst/Direkt - Gesamtbetrag (matches wkSonstSum)
+  wkSeWk: 'E0705701', // Wk/Se_WK - overall Werbungskosten total across ALL categories - CONFIRMED
+                       // required (Regel 100700003): itemized categories present but no overall
+                       // sum stated. Missed in the first pass - only the per-category Sum fields
+                       // were mapped, not this required grand total across all of them.
 };
 
 /* ---------- Anlage AUS - foreign income (Progressionsvorbehalt) ----------

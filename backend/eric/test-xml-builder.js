@@ -670,22 +670,24 @@ check('V for 2023 specifically does NOT use Ek_b_Gst - permanent regression guar
   return !x.includes('<Ek_b_Gst>') && x.includes('<Laufende_Nummer_V>');
 })());
 
-check('V Werbungskosten: itemized categories (2024/2025) correctly transmit and reduce the Überschuss, replacing the old gross-income limitation', (() => {
+check('V Werbungskosten: itemized categories (2024/2025) correctly transmit with the required individual-item entries and the overall Se_WK total, and reduce the Überschuss - confirmed via a real ERiC rejection that Sum alone is not accepted without a backing individual entry', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.meta.taxYear = 2025;
   d.anlageV = [{ street: 'X', plz: '12345', ort: 'Y', mieteinnahmen: 10000, wkAfa: 5000, wkSchuldzins: 1000 }];
   const x = buildEStXML(d).xml;
-  return x.includes('<AfA_Geb><Sum>') && x.includes('<E0703511>5000</E0703511>')
-    && x.includes('<Schuldzins><Sum>') && x.includes('<E0703406>1000</E0703406>')
+  return x.includes('<AfA_Geb><Direkt>') && x.includes('<E0703511>5000</E0703511>') && x.includes('<E0703306>5000</E0703306>')
+    && x.includes('<Schuldzins><Direkt>') && x.includes('<E0703406>1000</E0703406>') && x.includes('<E0704508>1000</E0704508>')
+    && x.includes('<Se_WK>') && x.includes('<E0705701>6000</E0705701>') // overall total: 5000 + 1000
     && x.includes('<E0701601>4000</E0701601>'); // 10000 - 5000 - 1000
 })());
-check('V Werbungskosten: same itemized categories also work for legacy years (2021-2023) inside Ek_b_Gst/Wk', (() => {
+check('V Werbungskosten: same itemized categories with individual entries and overall total also work for legacy years (2021-2022) inside Ek_b_Gst/Wk', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.meta.taxYear = 2022;
   d.anlageV = [{ street: 'X', plz: '12345', ort: 'Y', mieteinnahmen: 10000, wkVerwaltung: 300, wkSonst: 100 }];
   const x = buildEStXML(d).xml;
-  return x.includes('<Ek_b_Gst>') && x.includes('<Verw_Ko><Sum>') && x.includes('<E0705515>300</E0705515>')
-    && x.includes('<Sonst><Sum>') && x.includes('<E0705607>100</E0705607>')
+  return x.includes('<Ek_b_Gst>') && x.includes('<Verw_Ko><Direkt>') && x.includes('<E0705515>300</E0705515>') && x.includes('<E0707502>300</E0707502>')
+    && x.includes('<Sonst><Direkt>') && x.includes('<E0705607>100</E0705607>') && x.includes('<E0707902>100</E0707902>')
+    && x.includes('<E0705701>400</E0705701>') // overall total: 300 + 100
     && x.includes('<E0701601>9600</E0701601>'); // 10000 - 300 - 100
 })());
 check('V Werbungskosten: an old-style combined total without any category still correctly warns rather than silently dropping the data', (() => {
@@ -694,6 +696,13 @@ check('V Werbungskosten: an old-style combined total without any category still 
   d.anlageV = [{ street: 'X', plz: '12345', ort: 'Y', mieteinnahmen: 10000, werbungskosten: 7000 }];
   const result = buildEStXML(d);
   return !result.xml.includes('<Wk>') && result.skippedSections.some(s => s.includes('not broken into the real itemized categories'));
+})());
+check('V Werbungskosten: using the AfA (building depreciation) category honestly discloses the standard-rate assumption rather than silently guessing', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2025;
+  d.anlageV = [{ street: 'X', plz: '12345', ort: 'Y', mieteinnahmen: 10000, wkAfa: 5000 }];
+  const result = buildEStXML(d);
+  return result.skippedSections.some(s => s.includes('standard default (2% linear'));
 })());
 
 check('N: fahrt17 (line 17 employer commute allowance) is no longer sent to the wrong context - real bug found via a genuine client submission returning feldUnbekannt for E0205003 under ArbL, confirmed its real context is Wk/AWT/Fahrt instead', (() => {
