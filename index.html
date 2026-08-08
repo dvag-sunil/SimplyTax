@@ -703,6 +703,9 @@ en: {
  submitting_to:"Receiving tax office",
  freigabe_title:"Release for transmission", freigabe_sub:"Please review the figures below carefully. Once you release this return, it is transmitted to the Finanzamt through the official electronic filing system.",
  freigabe_validate_failed:"ERiC could not confirm this return is ready to send yet.",
+ freigabe_no_detail_from_eric:"ERiC did not provide further detail for this specific error - see below for what the app itself already knows is incomplete.",
+ freigabe_incomplete_steps_title:"These steps are still missing required information",
+ freigabe_incomplete_steps_sub:"This is very likely why the return above was not accepted - fill these in first, then try again.",
  freigabe_field_errors_title:"ERiC found specific problems", freigabe_go_to_section:"Go to this section",
  freigabe_unknown_error:"An error was reported without further detail.",
  freigabe_warnings_title:"Please review before sending",
@@ -1074,6 +1077,9 @@ de: {
  submitting_to:"Empfangendes Finanzamt",
  freigabe_title:"Zur Übermittlung freigeben", freigabe_sub:"Bitte prüfen Sie die folgenden Angaben sorgfältig. Mit der Freigabe wird diese Erklärung über die offizielle elektronische Schnittstelle an das Finanzamt übermittelt.",
  freigabe_validate_failed:"ERiC konnte noch nicht bestätigen, dass diese Erklärung versandbereit ist.",
+ freigabe_no_detail_from_eric:"ERiC hat für diesen speziellen Fehler keine weiteren Details geliefert - siehe unten, was die App selbst bereits als unvollständig erkennt.",
+ freigabe_incomplete_steps_title:"Diesen Schritten fehlen noch Pflichtangaben",
+ freigabe_incomplete_steps_sub:"Das ist sehr wahrscheinlich der Grund, warum die obige Erklärung nicht angenommen wurde - bitte zuerst ausfüllen und dann erneut versuchen.",
  freigabe_field_errors_title:"ERiC hat konkrete Probleme gefunden", freigabe_go_to_section:"Zu diesem Abschnitt",
  freigabe_unknown_error:"Ein Fehler wurde ohne weitere Details gemeldet.",
  freigabe_warnings_title:"Bitte vor dem Versand prüfen",
@@ -3664,11 +3670,35 @@ function showFreigabeModal(c, data, validateResult){
     to the app step that section lives in, so the jump lands on the
     right step even though not always the exact field within it. */
  const fieldErrors = parseFehlerRegelpruefung(validateResult?.resultXml);
+ /* CORRECTED: real gap found via direct feedback - when ERiC's own
+    response gives no field-level detail at all (as it genuinely can
+    for some error types, confirmed earlier), the modal fell back to a
+    single, unhelpful generic sentence - even though the app's own
+    sidebar, right there on the same screen, already knew exactly
+    which step was incomplete (Personal data, shown with the amber "!"
+    marker). This scans every step's own real completeness check
+    directly - the same one the sidebar itself uses - and surfaces any
+    genuinely incomplete step here too, with a real jump button, using
+    the app's own knowledge rather than depending on ERiC to have said
+    something useful. This runs independent of and in addition to the
+    ERiC-response-based errors above. */
+ const stepKeysForFreigabe=['step1','step2','step_kap','step4','step_kind','step_unt','step5','step_priv','step_prop','step6','step7','step_inq'];
+ const incompleteSteps = stepKeysForFreigabe.map((k,i)=>({i, k, state:stepDone(c,i)})).filter(s=>s.state==='incomplete');
  slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal">
  <h2>🔏 ${t('freigabe_title')}</h2>
  <p style="color:var(--ink-soft);font-size:13.5px;margin:6px 0 16px">${t('freigabe_sub')}</p>
  ${!valid && !fieldErrors.length?`<div class="infobox" style="background:var(--red-soft);border-color:var(--red);margin-bottom:14px">
  ⚠ ${t('freigabe_validate_failed')} (${t('eric_code')}: ${validateResult?validateResult.rc:'?'})
+ ${!incompleteSteps.length?`<div style="margin-top:6px;font-size:12.5px">${t('freigabe_no_detail_from_eric')}</div>`:''}
+ </div>`:''}
+ ${incompleteSteps.length?`<div class="infobox" style="background:var(--red-soft);border-color:var(--red);margin-bottom:14px">
+ <div style="font-weight:600;margin-bottom:6px">⚠ ${t('freigabe_incomplete_steps_title')} (${incompleteSteps.length})</div>
+ <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px">${t('freigabe_incomplete_steps_sub')}</div>
+ <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.6">
+ ${incompleteSteps.map(s=>`<li style="margin-bottom:6px">${esc(t(s.k))}
+ <div style="margin-top:4px"><button class="btn btn-ghost btn-sm" style="border-color:var(--red);color:var(--red);font-weight:700" onclick="this.closest('.modal-bg').remove();S.step=${s.i};render()">${t('freigabe_go_to_section')} →</button></div>
+ </li>`).join('')}
+ </ul>
  </div>`:''}
  ${fieldErrors.length?`<div class="infobox" style="background:var(--red-soft);border-color:var(--red);margin-bottom:14px">
  <div style="font-weight:600;margin-bottom:6px">⚠ ${t('freigabe_field_errors_title')} (${fieldErrors.length})</div>
