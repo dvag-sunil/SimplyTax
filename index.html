@@ -622,7 +622,7 @@ en: {
  transfer_ticket:"Transfer ticket", close:"Close",
  warn_taxhigh:"Wage tax seems very high compared to the gross salary - please double-check.",
  warn_days:"More than 300 commuting days is unusual - please verify.",
- confirm_del:"Delete this client profile permanently?", delete:"Delete",
+ confirm_del_title:"Delete client profile", confirm_del_body:"Are you sure you want to delete {name}'s profile?", confirm_del_permanent:"This is permanent - all data for this client, including uploaded documents, will be removed and cannot be recovered.", confirm_del_action:"Delete permanently", untitled_client:"this client", delete:"Delete",
  saved:"Saved", lang_en:"EN", lang_de:"DE",
  select:"Please select...", year:"Year",
  no_results:"No clients match your search.",
@@ -996,7 +996,7 @@ de: {
  transfer_ticket:"Transferticket", close:"Schließen",
  warn_taxhigh:"Die Lohnsteuer wirkt im Verhältnis zum Bruttolohn sehr hoch - bitte prüfen.",
  warn_days:"Mehr als 300 Arbeitstage sind ungewöhnlich - bitte prüfen.",
- confirm_del:"Dieses Mandantenprofil endgültig löschen?", delete:"Löschen",
+ confirm_del_title:"Mandantenprofil löschen", confirm_del_body:"Möchten Sie das Profil von {name} wirklich löschen?", confirm_del_permanent:"Dies ist endgültig - alle Daten dieses Mandanten, einschließlich hochgeladener Dokumente, werden entfernt und können nicht wiederhergestellt werden.", confirm_del_action:"Endgültig löschen", untitled_client:"diesen Mandanten", delete:"Löschen",
  saved:"Gespeichert", lang_en:"EN", lang_de:"DE",
  select:"Bitte wählen...", year:"Jahr",
  no_results:"Keine Mandanten gefunden.",
@@ -2194,7 +2194,21 @@ function createClient(){
  S.currentId=c.id; S.step=0; S.view='client'; S.scanState=null; S.aiFields={}; render();
 }
 function delClient(id){
- if(!confirm(t('confirm_del'))) return;
+ const c=S.clients.find(x=>x.id===id);
+ if(!c) return;
+ const name=`${c.p.firstName||''} ${c.p.lastName||''}`.trim() || t('untitled_client');
+ const slot=document.getElementById('modal-slot'); if(!slot) return;
+ slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal" style="max-width:440px">
+ <h2>🗑 ${t('confirm_del_title')}</h2>
+ <p style="color:var(--ink-soft);font-size:13.5px;margin:10px 0 14px">${t('confirm_del_body').replace('{name}', `<b style="color:var(--ink)">${esc(name)}</b>`)}</p>
+ <div class="infobox" style="background:var(--red-soft);border-color:var(--red);font-size:12.5px;margin-bottom:16px">⚠ ${t('confirm_del_permanent')}</div>
+ <div style="display:flex;gap:10px;justify-content:flex-end">
+ <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
+ <button class="btn" style="background:var(--red);border-color:var(--red)" onclick="this.closest('.modal-bg').remove();delClientConfirmed('${id}')">🗑 ${t('confirm_del_action')}</button>
+ </div>
+ </div></div>`;
+}
+function delClientConfirmed(id){
  const c=S.clients.find(x=>x.id===id);
  if(c && c.docs) c.docs.forEach(d=>removeDocData(d.id));
  S.clients=S.clients.filter(c=>c.id!==id); scheduleSave(); render();
