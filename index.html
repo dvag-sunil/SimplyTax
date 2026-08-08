@@ -3637,6 +3637,21 @@ function parseFehlerRegelpruefung(resultXml){
  });
  } catch(e){ return []; }
 }
+/* Text-based version of the same idea for the plain-text warnings
+   (skippedSections) - these don't have a structured field reference
+   like the FehlerRegelpruefung errors do, but most of them do mention
+   which Anlage they're about right in the message. Checked more
+   specific keywords first (anlageNAUS before anlageN, anlageUnterhalt
+   before ESt1A_U) since some names are substrings of others. */
+const WARNING_KEYWORD_TO_STEP = [
+ [/anlagenaus/i, 1], [/realsplitting/i, 6], [/anlageunterhalt/i, 5],
+ [/anlagekind/i, 4], [/em_35c|energetisch/i, 9], [/anlagev\b|wohneinheit/i, 8],
+ [/anlagen\b/i, 1],
+];
+function guessStepFromWarningText(text){
+ for(const [re, step] of WARNING_KEYWORD_TO_STEP){ if(re.test(text)) return step; }
+ return null;
+}
 function showFreigabeModal(c, data, validateResult){
  const e=computeEstimate(c);
  const slot=document.getElementById('modal-slot'); if(!slot) return;
@@ -3673,7 +3688,9 @@ function showFreigabeModal(c, data, validateResult){
  <div style="font-weight:600;margin-bottom:6px">⚠ ${t('freigabe_warnings_title')} (${warnings.length})</div>
  <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px">${t(valid?'freigabe_warnings_sub':'freigabe_warnings_sub_rejected')}</div>
  <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.5">
- ${warnings.map(w=>`<li style="margin-bottom:4px">${esc(w)}</li>`).join('')}
+ ${warnings.map(w=>{ const stepIndex=guessStepFromWarningText(w);
+ return `<li style="margin-bottom:4px">${esc(w)}${stepIndex!=null?` <button class="link-btn" style="padding:0;font-size:12px" onclick="this.closest('.modal-bg').remove();S.step=${stepIndex};render()">${t('freigabe_go_to_section')} →</button>`:''}</li>`;
+ }).join('')}
  </ul>
  </div>`:''}
  <div class="sum-group" style="margin-bottom:14px">
