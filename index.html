@@ -51,6 +51,8 @@
  .field label{display:block;font-size:11.5px;font-weight:600;color:var(--ink-soft);margin-bottom:6px}
  .field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;outline:none;transition:.15s}
  .field input[type="checkbox"],.field input[type="radio"]{width:auto;flex:none;padding:0}
+ .field-jump-highlight{outline:3px solid var(--red)!important;outline-offset:2px;animation:field-jump-pulse 2s ease-out}
+ @keyframes field-jump-pulse{0%{box-shadow:0 0 0 6px rgba(178,58,58,.25)}100%{box-shadow:0 0 0 0 rgba(178,58,58,0)}}
  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
  .field.req-empty input,.field.req-empty select{background:var(--amber-soft);border-color:var(--amber)}
  .field.req-empty input:focus,.field.req-empty select:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
@@ -706,7 +708,7 @@ en: {
  freigabe_no_detail_from_eric:"ERiC did not provide further detail for this specific error - see below for what the app itself already knows is incomplete.",
  freigabe_incomplete_steps_title:"These steps are still missing required information",
  freigabe_incomplete_steps_sub:"This is very likely why the return above was not accepted - fill these in first, then try again.",
- freigabe_field_errors_title:"ERiC found specific problems", freigabe_go_to_section:"Go to this section",
+ freigabe_field_errors_title:"ERiC found specific problems", freigabe_go_to_section:"Go to this section", freigabe_go_to_field:"Go to this field",
  freigabe_unknown_error:"An error was reported without further detail.",
  freigabe_warnings_title:"Please review before sending",
  freigabe_warnings_sub:"ERiC accepted this return, but the following items were sent using a safe default or were left out because the app cannot honestly determine them yet. Please double-check they are correct for this client before proceeding.",
@@ -1080,7 +1082,7 @@ de: {
  freigabe_no_detail_from_eric:"ERiC hat für diesen speziellen Fehler keine weiteren Details geliefert - siehe unten, was die App selbst bereits als unvollständig erkennt.",
  freigabe_incomplete_steps_title:"Diesen Schritten fehlen noch Pflichtangaben",
  freigabe_incomplete_steps_sub:"Das ist sehr wahrscheinlich der Grund, warum die obige Erklärung nicht angenommen wurde - bitte zuerst ausfüllen und dann erneut versuchen.",
- freigabe_field_errors_title:"ERiC hat konkrete Probleme gefunden", freigabe_go_to_section:"Zu diesem Abschnitt",
+ freigabe_field_errors_title:"ERiC hat konkrete Probleme gefunden", freigabe_go_to_section:"Zu diesem Abschnitt", freigabe_go_to_field:"Zu diesem Feld",
  freigabe_unknown_error:"Ein Fehler wurde ohne weitere Details gemeldet.",
  freigabe_warnings_title:"Bitte vor dem Versand prüfen",
  freigabe_warnings_sub:"ERiC hat diese Erklärung angenommen, die folgenden Punkte wurden jedoch mit einem sicheren Standardwert übermittelt oder ausgelassen, da die App sie derzeit nicht zuverlässig ermitteln kann. Bitte prüfen Sie vor dem Fortfahren, ob dies für diesen Mandanten zutrifft.",
@@ -2303,6 +2305,50 @@ function stepDone(c,i){
  case 10: return c.status==='submitted'?'done':'empty';
  case 11: return ((c.inq||[]).length>0 && c.inq.every(q=>q.status==='answered'))?'done':'empty';
  } return 'empty';
+}
+/* Real field-level navigation, not just section-level - built
+   additively alongside stepDone rather than changing its existing
+   return shape, since that's used elsewhere for the sidebar badges.
+   Starts with Personal data, where every field is fixed and its
+   data-tabkey is predictable ("p.fieldname"). List-based steps
+   (Employment income, Property, Children) use runtime-generated item
+   IDs in their tabkeys ("emps.e1.periodTo") that can't be predicted
+   from a static map the same way - those still fall back to the
+   step-level jump, honestly, rather than guess at an ID. Returns the
+   exact tabkey of the first missing required field, or null if this
+   step doesn't have a fixed-field mapping (yet) or nothing is missing. */
+function firstMissingFieldTabkey(c,i){
+ const has=v=>v!=null && String(v).trim()!=='';
+ if(i===0){
+ const married=['married','married_sep','getrennt_lebend'].includes(c.p.marital);
+ const order=[['firstName','p.firstName'],['lastName','p.lastName'],['birthDate','p.birthDate'],['taxId','p.taxId'],
+   ['street','p.street'],['houseNo','p.houseNo'],['plz','p.plz'],['city','p.city'],['marital','p.marital'],
+   ['fullYearResident','p.fullYearResident'],['steuernummer','p.steuernummer']];
+ for(const [field,tabkey] of order){ if(!has(c.p[field])) return tabkey; }
+ if(c.p.fullYearResident==='no'){
+ if(!has(c.p.arrivalDate)) return 'p.arrivalDate';
+ if(!has(c.p.departureDate)) return 'p.departureDate';
+ }
+ if(married){
+ if(!has(c.p.spouseFirst)) return 'p.spouseFirst';
+ if(!has(c.p.spouseBirth)) return 'p.spouseBirth';
+ if(!has(c.p.spouseTaxId)) return 'p.spouseTaxId';
+ }
+ }
+ return null;
+}
+/* Scrolls to and focuses the exact field, using the same data-tabkey
+   attribute already present on every rendered field. A brief highlight
+   makes it unmistakable which one the person was sent to, rather than
+   leaving them to hunt for it even after landing on the right step. */
+function scrollToField(tabkey){
+ const el = document.querySelector(`[data-tabkey="${CSS.escape(tabkey)}"]`);
+ if(!el) return false;
+ el.scrollIntoView({behavior:'smooth', block:'center'});
+ el.focus();
+ el.classList.add('field-jump-highlight');
+ setTimeout(()=>el.classList.remove('field-jump-highlight'), 2000);
+ return true;
 }
 function clientView(){
  const c=cur(); if(!c){S.view='dash';return dashView();}
@@ -3694,7 +3740,7 @@ function showFreigabeModal(c, data, validateResult){
     something useful. This runs independent of and in addition to the
     ERiC-response-based errors above. */
  const stepKeysForFreigabe=['step1','step2','step_kap','step4','step_kind','step_unt','step5','step_priv','step_prop','step6','step7','step_inq'];
- const incompleteSteps = stepKeysForFreigabe.map((k,i)=>({i, k, state:stepDone(c,i)})).filter(s=>s.state==='incomplete');
+ const incompleteSteps = stepKeysForFreigabe.map((k,i)=>({i, k, state:stepDone(c,i), fieldTabkey:firstMissingFieldTabkey(c,i)})).filter(s=>s.state==='incomplete');
  slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal">
  <h2>🔏 ${t('freigabe_title')}</h2>
  <p style="color:var(--ink-soft);font-size:13.5px;margin:6px 0 16px">${t('freigabe_sub')}</p>
@@ -3707,7 +3753,7 @@ function showFreigabeModal(c, data, validateResult){
  <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px">${t('freigabe_incomplete_steps_sub')}</div>
  <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.6">
  ${incompleteSteps.map(s=>`<li style="margin-bottom:6px">${esc(t(s.k))}
- <div style="margin-top:4px"><button class="btn btn-ghost btn-sm" style="border-color:var(--red);color:var(--red);font-weight:700" onclick="this.closest('.modal-bg').remove();S.step=${s.i};render()">${t('freigabe_go_to_section')} →</button></div>
+ <div style="margin-top:4px"><button class="btn btn-ghost btn-sm" style="border-color:var(--red);color:var(--red);font-weight:700" onclick="this.closest('.modal-bg').remove();S.step=${s.i};render();${s.fieldTabkey?`scrollToField('${s.fieldTabkey}');`:''}">${t(s.fieldTabkey?'freigabe_go_to_field':'freigabe_go_to_section')} →</button></div>
  </li>`).join('')}
  </ul>
  </div>`:''}
