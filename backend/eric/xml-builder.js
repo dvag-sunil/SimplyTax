@@ -1592,7 +1592,24 @@ function buildVorsatz(data) {
   let xml = '<Vorsatz>\n';
   xml += tag('Unterfallart', '10'); // fixed value for ESt per the XSD's own documentation
   xml += tag('Vorgang', '01'); // "Veranlagung" - standard filing (the other option, "04", is for advance-payment cases)
-  if (h.steuernummer) xml += tag('StNr', String(h.steuernummer).replace(/\D/g, ''));
+  /* Neuaufnahme (first-time filer, no Steuernummer yet) - confirmed via
+     the real ERiC Entwicklerhandbuch, Kap. 7.2 "Neuaufnahmen (Steuerdaten
+     ohne Steuernummer)", explicitly listing Einkommensteuer as
+     supported. Confirmed via the real E10 XSD that StNr and
+     Ordnungsbegriff are direct siblings (alternatives) in the same
+     structural position, immediately before ID/IDEhefrau. The
+     Ordnungsbegriff's own type (String_MinL13_MaxL13_CType) has no
+     pattern or checksum restriction beyond exactly 13 characters -
+     checked directly, no hidden algorithm - so it's generated here from
+     the filer's own IdNr (already a stable, unique 11-digit value),
+     zero-padded to 13 characters. This only activates when the person
+     has explicitly confirmed via the required UI dialog that they
+     genuinely have no Steuernummer yet - never inferred or guessed. */
+  if (h.steuernummer) {
+    xml += tag('StNr', String(h.steuernummer).replace(/\D/g, ''));
+  } else if (h.neuaufnahmeConfirmed && A.idnr) {
+    xml += tag('Ordnungsbegriff', String(A.idnr).replace(/\D/g, '').padStart(13, '0').slice(0, 13));
+  }
   xml += tag('ID', A.idnr);
   if (B && B.idnr) xml += tag('IDEhefrau', B.idnr);
   xml += tag('Zeitraum', year);
@@ -1627,6 +1644,7 @@ function buildVorsatz(data) {
      armed with this definitive proof - is the right next step, not
      another guess. */
   if (h.steuernummer) xml += tag('OrdNrArt', 'S');
+  else if (h.neuaufnahmeConfirmed && A.idnr) xml += tag('OrdNrArt', 'O');
   /* CORRECTED: Rueckuebermittlung/Bescheid confirmed via real ERiC
      validation to be required too ("ist anzugeben, ob die Bereitstellung
      der Bescheiddaten...gewünscht wird"). "2" matches the real official

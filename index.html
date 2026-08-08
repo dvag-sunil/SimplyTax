@@ -583,6 +583,8 @@ en: {
  religion:"Church tax (religion)", rel_none:"None (no church tax)", rel_ev:"Protestant (EV)", rel_rk:"Catholic (RK)", rel_other:"Other",
  profession:"Profession", finanzamt:"Tax office (Finanzamt)", steuernummer:"Tax number (Steuernummer)",
  steuernummer_required_hint:"Required for submission - confirmed there is no valid way to transmit a return to ELSTER without it.",
+ neuaufnahme_confirm_label:"I confirm this person genuinely does not have a Steuernummer yet (first-time filer).",
+ neuaufnahme_confirm_hint:"If a Steuernummer does exist, please enter it above instead - using this option when one exists can cause processing delays and follow-up questions from the Finanzamt.",
  stnr_invalid_checksum:"This doesn't look like a valid tax number for the selected Finanzamt - please double-check.",
  stnr_valid_checksum:"Valid tax number",
  iban:"IBAN (for the refund)", spouse:"Spouse (Person B)",
@@ -700,6 +702,8 @@ en: {
  submitting_to:"Receiving tax office",
  freigabe_title:"Release for transmission", freigabe_sub:"Please review the figures below carefully. Once you release this return, it is transmitted to the Finanzamt through the official electronic filing system.",
  freigabe_validate_failed:"ERiC could not confirm this return is ready to send yet.",
+ freigabe_field_errors_title:"ERiC found specific problems", freigabe_go_to_section:"Go to this section",
+ freigabe_unknown_error:"An error was reported without further detail.",
  freigabe_warnings_title:"Please review before sending",
  freigabe_warnings_sub:"ERiC accepted this return, but the following items were sent using a safe default or were left out because the app cannot honestly determine them yet. Please double-check they are correct for this client before proceeding.",
  freigabe_checkbox:"I have reviewed this data and release it for transmission to the tax office.",
@@ -949,6 +953,8 @@ de: {
  religion:"Kirchensteuer (Religion)", rel_none:"Keine (keine Kirchensteuer)", rel_ev:"Evangelisch (EV)", rel_rk:"Katholisch (RK)", rel_other:"Andere",
  profession:"Beruf", finanzamt:"Finanzamt", steuernummer:"Steuernummer",
  steuernummer_required_hint:"Für die Übermittlung erforderlich - ohne Steuernummer gibt es keine gültige Möglichkeit, eine Erklärung an ELSTER zu übermitteln.",
+ neuaufnahme_confirm_label:"Ich bestätige, dass für diese Person tatsächlich noch keine Steuernummer vorliegt (erstmalige Abgabe).",
+ neuaufnahme_confirm_hint:"Falls doch eine Steuernummer vorliegt, bitte oben eintragen - die Nutzung dieser Option trotz vorhandener Steuernummer kann zu Verzögerungen und Rückfragen des Finanzamts führen.",
  stnr_invalid_checksum:"Das sieht nicht nach einer gültigen Steuernummer für das gewählte Finanzamt aus - bitte prüfen.",
  stnr_valid_checksum:"Gültige Steuernummer",
  iban:"IBAN (für die Erstattung)", spouse:"Ehepartner/in (Person B)",
@@ -1066,6 +1072,8 @@ de: {
  submitting_to:"Empfangendes Finanzamt",
  freigabe_title:"Zur Übermittlung freigeben", freigabe_sub:"Bitte prüfen Sie die folgenden Angaben sorgfältig. Mit der Freigabe wird diese Erklärung über die offizielle elektronische Schnittstelle an das Finanzamt übermittelt.",
  freigabe_validate_failed:"ERiC konnte noch nicht bestätigen, dass diese Erklärung versandbereit ist.",
+ freigabe_field_errors_title:"ERiC hat konkrete Probleme gefunden", freigabe_go_to_section:"Zu diesem Abschnitt",
+ freigabe_unknown_error:"Ein Fehler wurde ohne weitere Details gemeldet.",
  freigabe_warnings_title:"Bitte vor dem Versand prüfen",
  freigabe_warnings_sub:"ERiC hat diese Erklärung angenommen, die folgenden Punkte wurden jedoch mit einem sicheren Standardwert übermittelt oder ausgelassen, da die App sie derzeit nicht zuverlässig ermitteln kann. Bitte prüfen Sie vor dem Fortfahren, ob dies für diesen Mandanten zutrifft.",
  freigabe_checkbox:"Ich habe diese Daten geprüft und gebe sie zur Übermittlung an das Finanzamt frei.",
@@ -2235,10 +2243,10 @@ function stepDone(c,i){
  switch(i){
  case 0: {
  const married=['married','married_sep','getrennt_lebend'].includes(c.p.marital);
- const base=[c.p.firstName,c.p.lastName,c.p.birthDate,c.p.taxId,c.p.street,c.p.houseNo,c.p.plz,c.p.city,c.p.marital,c.p.fullYearResident,c.p.steuernummer];
- const anyBase=base.some(has);
+ const base=[c.p.firstName,c.p.lastName,c.p.birthDate,c.p.taxId,c.p.street,c.p.houseNo,c.p.plz,c.p.city,c.p.marital,c.p.fullYearResident];
+ const anyBase=base.some(has) || has(c.p.steuernummer);
  if(!anyBase) return 'empty';
- let ok=base.every(has);
+ let ok=base.every(has) && (has(c.p.steuernummer) || c.p.neuaufnahmeConfirmed===true);
  if(ok && c.p.fullYearResident==='no') ok = has(c.p.arrivalDate) && has(c.p.departureDate);
  if(ok && married) ok = has(c.p.spouseFirst) && has(c.p.spouseBirth) && has(c.p.spouseTaxId);
  return ok?'done':'incomplete';
@@ -2496,7 +2504,7 @@ function F(group,key,label,opts={}){
  </select>${hint}</div>`;
  }
  return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}${ai}</label>
- <input data-tabkey="${fkey}" type="${type}" value="${type==='date'?(esc(v)||dateMax()):esc(v)}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:(opts.min!=null?`min="${opts.min}"`:'')+(opts.max!=null?` max="${opts.max}"`:'')}
+ <input data-tabkey="${fkey}" type="${type}" value="${esc(v)}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:(opts.min!=null?`min="${opts.min}"`:'')+(opts.max!=null?` max="${opts.max}"`:'')}
  onchange="upd('${group}','${key}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
 /* Shared by F/LF/CF - "required" is detected the same way it already
@@ -2667,7 +2675,7 @@ function LF(list,item,field,label,opts={}){
  </select>${hint}</div>`;
  }
  return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}${ai}</label>
- <input data-tabkey="${tk}" type="${opts.type||'text'}" value="${(opts.type||'text')==='date'?(esc(item[field]||'')||dateMax()):esc(item[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''} ${(opts.type||'text')==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
+ <input data-tabkey="${tk}" type="${opts.type||'text'}" value="${esc(item[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''} ${(opts.type||'text')==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
  onchange="updItem('${list}','${item.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
 function addItem(list,tpl){ const c=cur(); (c[list]=c[list]||[]).push(Object.assign({id:uid()},tpl)); c.updatedAt=Date.now(); scheduleSave(); render(); }
@@ -2811,8 +2819,14 @@ function stepPersonal(c){
  ${F('p','profession',t('profession'))}
  ${F('p','bundesland',t('bundesland')+' *',{select:[['',t('select')],...BUNDESLAENDER.map(b=>[b,b])]})}
  ${finanzamtField(c)}
- ${F('p','steuernummer',t('steuernummer')+' *',{hint:t('steuernummer_required_hint')})}
+ ${F('p','steuernummer',t('steuernummer')+(c.p.neuaufnahmeConfirmed?'':' *'),{hint:c.p.neuaufnahmeConfirmed?'':t('steuernummer_required_hint')})}
  <div id="stnr-check-msg"></div>
+ ${!c.p.steuernummer?`<div class="field" style="grid-column:1/-1"><label style="display:flex;align-items:flex-start;gap:8px;font-weight:600;text-transform:none;letter-spacing:normal;cursor:pointer">
+ <input type="checkbox" style="margin-top:3px" ${c.p.neuaufnahmeConfirmed?'checked':''} onchange="upd('p','neuaufnahmeConfirmed',this.checked,0)">
+ <span>${t('neuaufnahme_confirm_label')}</span>
+ </label>
+ ${c.p.neuaufnahmeConfirmed?`<div class="hint" style="margin-top:4px">${t('neuaufnahme_confirm_hint')}</div>`:''}
+ </div>`:''}
  </div>
  ${F('p','iban',t('iban'),{ph:'DE00 0000 0000 0000 0000 00'})}
  <div id="iban-check-msg"></div>
@@ -3244,7 +3258,7 @@ function CF(kid,field,label,opts={}){
  </select>${hint}</div>`;
  }
  return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}</label>
- <input data-tabkey="${tk}" type="${type}" value="${type==='date'?(esc(kid[field])||dateMax()):esc(kid[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
+ <input data-tabkey="${tk}" type="${type}" value="${esc(kid[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
  onchange="updChild('${kid.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
 function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',familienkasse:'',otherParentName:'',kindergeld:'',childcare:'',ccProvider:'',ccPeriodFrom:'',ccPeriodTo:'',schoolFees:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
@@ -3587,16 +3601,67 @@ async function submitElsterReal(c){
  showFreigabeModal(c, data, vr);
  } catch(e){ setBusy(false); alert(t('eric_error')+': '+e.message); }
 }
+/* Maps each error's top-level Anlage prefix (confirmed stable across
+   the schema, e.g. "/V", "/N", "/ESt1A_U") to the app step it lives
+   in, using the same real step order confirmed throughout this
+   project. Genuine field-level precision isn't attempted here - see
+   the comment in showFreigabeModal for why - this gets the person to
+   the right *section*, which is the honestly achievable version of
+   "land where the error is." */
+const ANLAGE_TO_STEP = {
+ 'ESt1A': 0, 'Vorsatz': 0, 'N': 1, 'N_AUS': 1, 'N_DHH': 1, 'KAP': 2,
+ 'Kind': 4, 'ESt1A_U': 5, 'SA': 6, 'Sonst': 6, 'VOR': 7, 'R': 7,
+ 'AgB': 9, 'EM_35c': 9, 'V': 8, 'AUS': 8,
+};
+function parseFehlerRegelpruefung(resultXml){
+ if(!resultXml) return [];
+ try{
+ const doc = new DOMParser().parseFromString(resultXml, 'text/xml');
+ const nodes = Array.from(doc.getElementsByTagName('FehlerRegelpruefung'));
+ return nodes.map(n=>{
+ const textNode = n.getElementsByTagName('Text')[0];
+ const fieldNode = n.getElementsByTagName('Feldidentifikator')[0];
+ const text = textNode ? textNode.textContent : (n.getElementsByTagName('FachlicheFehlerId')[0]?.textContent || t('freigabe_unknown_error'));
+ let stepIndex = null;
+ if(fieldNode){
+ const m = fieldNode.textContent.match(/^\/([A-Za-z0-9_]+)/);
+ if(m && ANLAGE_TO_STEP[m[1]] != null) stepIndex = ANLAGE_TO_STEP[m[1]];
+ }
+ return { text, stepIndex };
+ });
+ } catch(e){ return []; }
+}
 function showFreigabeModal(c, data, validateResult){
  const e=computeEstimate(c);
  const slot=document.getElementById('modal-slot'); if(!slot) return;
  const valid = validateResult && validateResult.ok;
  const warnings = (validateResult && Array.isArray(validateResult.skippedSections)) ? validateResult.skippedSections : [];
+ /* CORRECTED: real gap found via direct feedback - the app only ever
+    showed one generic sentence ("ERiC could not confirm...") and threw
+    away every specific detail ERiC actually sent back (which field,
+    which rule, in plain German). Now parses the real resultXml for
+    each <FehlerRegelpruefung> block and shows its own message.
+    True field-level jump navigation would need a complete reverse
+    mapping from every E-code back to its exact app location -
+    essentially inverting the whole field map - which isn't something
+    to guess at. What's honestly achievable now: matching each error's
+    top-level Anlage prefix (confirmed stable - /V, /N, /ESt1A_U, etc.)
+    to the app step that section lives in, so the jump lands on the
+    right step even though not always the exact field within it. */
+ const fieldErrors = parseFehlerRegelpruefung(validateResult?.resultXml);
  slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal">
  <h2>🔏 ${t('freigabe_title')}</h2>
  <p style="color:var(--ink-soft);font-size:13.5px;margin:6px 0 16px">${t('freigabe_sub')}</p>
- ${!valid?`<div class="infobox" style="background:var(--red-soft);border-color:var(--red);margin-bottom:14px">
+ ${!valid && !fieldErrors.length?`<div class="infobox" style="background:var(--red-soft);border-color:var(--red);margin-bottom:14px">
  ⚠ ${t('freigabe_validate_failed')} (${t('eric_code')}: ${validateResult?validateResult.rc:'?'})
+ </div>`:''}
+ ${fieldErrors.length?`<div class="infobox" style="background:var(--red-soft);border-color:var(--red);margin-bottom:14px">
+ <div style="font-weight:600;margin-bottom:6px">⚠ ${t('freigabe_field_errors_title')} (${fieldErrors.length})</div>
+ <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.6">
+ ${fieldErrors.map(fe=>`<li style="margin-bottom:6px">${esc(fe.text)}
+ ${fe.stepIndex!=null?` <button class="link-btn" style="padding:0;font-size:12px" onclick="this.closest('.modal-bg').remove();S.step=${fe.stepIndex};render()">${t('freigabe_go_to_section')} →</button>`:''}
+ </li>`).join('')}
+ </ul>
  </div>`:''}
  ${warnings.length?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin-bottom:14px">
  <div style="font-weight:600;margin-bottom:6px">⚠ ${t('freigabe_warnings_title')} (${warnings.length})</div>
@@ -3715,7 +3780,7 @@ function buildElsterDataset(c){
  : (c.p.marital==='verwitwet' && parseInt(c.p.deathYear||0)===(c.taxYear-1)) ? 'einzelveranlagung_verwitwete_gnadensplitting_par32a6'
  : 'einzelveranlagung',
  finanzamt:{ name:c.p.finanzamt||'', bufaNr:c.p.faNumber||'' },
- steuernummer:c.p.steuernummer||'', bundesland:c.p.bundesland||'',
+ steuernummer:c.p.steuernummer||'', neuaufnahmeConfirmed:c.p.neuaufnahmeConfirmed===true, bundesland:c.p.bundesland||'',
  personA:{ idnr:(c.p.taxId||'').replace(/\s/g,''), name:c.p.lastName, vorname:c.p.firstName,
  geburtsdatum:c.p.birthDate, beruf:c.p.profession, religion:rel,
  anschrift:{ strasse:c.p.street, hausnummer:c.p.houseNo, plz:c.p.plz, ort:c.p.city } },

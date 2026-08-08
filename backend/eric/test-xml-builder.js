@@ -686,6 +686,27 @@ check('N: fahrt17 (line 17 employer commute allowance) is no longer sent to the 
   const result = buildEStXML(d);
   return !result.xml.includes('E0205003') && result.skippedSections.some(s => s.includes('line 17') && s.includes('Wk/AWT/Fahrt'));
 })());
+
+check('Vorsatz: Neuaufnahme (no Steuernummer, explicitly confirmed) correctly emits Ordnungsbegriff + OrdNrArt=O instead of StNr - confirmed via the real ERiC handbook Kap 7.2 that this is a genuine supported path, not a guess', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.steuernummer = '';
+  d.hauptvordruck.neuaufnahmeConfirmed = true;
+  const x = buildEStXML(d).xml;
+  return x.includes('<Ordnungsbegriff>') && x.includes('<OrdNrArt>O</OrdNrArt>') && !x.includes('<StNr>') && !x.includes('<OrdNrArt>S</OrdNrArt>');
+})());
+check('Vorsatz: without explicit Neuaufnahme confirmation, no Ordnungsbegriff or OrdNrArt is guessed - matches the honest incomplete-submission behavior already established', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.steuernummer = '';
+  d.hauptvordruck.neuaufnahmeConfirmed = false;
+  const x = buildEStXML(d).xml;
+  return !x.includes('<Ordnungsbegriff>') && !x.includes('OrdNrArt');
+})());
+check('Vorsatz: a real Steuernummer still takes the normal S path unchanged, confirming the new Neuaufnahme branch did not affect the existing common case', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.steuernummer = '9181081508155';
+  const x = buildEStXML(d).xml;
+  return x.includes('<StNr>9181081508155</StNr>') && x.includes('<OrdNrArt>S</OrdNrArt>') && !x.includes('<Ordnungsbegriff>');
+})());
 check('V still works with the old combined objekt field for backward compatibility with existing external test files', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000 }];
