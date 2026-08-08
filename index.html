@@ -707,6 +707,7 @@ en: {
  freigabe_unknown_error:"An error was reported without further detail.",
  freigabe_warnings_title:"Please review before sending",
  freigabe_warnings_sub:"ERiC accepted this return, but the following items were sent using a safe default or were left out because the app cannot honestly determine them yet. Please double-check they are correct for this client before proceeding.",
+ freigabe_warnings_sub_rejected:"These items were also flagged, but they are not the reason this return was rejected - the error above is. Fix that first; these are worth reviewing once it does go through.",
  freigabe_checkbox:"I have reviewed this data and release it for transmission to the tax office.",
  freigabe_submit:"Release & submit", freigabe_not_sent:"Not transmitted",
  freigabe_not_sent_hint:"The tax office did not confirm receipt. This is expected while ERiC setup is still in progress; nothing was lost, your data is saved and you can try again later.",
@@ -1077,6 +1078,7 @@ de: {
  freigabe_unknown_error:"Ein Fehler wurde ohne weitere Details gemeldet.",
  freigabe_warnings_title:"Bitte vor dem Versand prüfen",
  freigabe_warnings_sub:"ERiC hat diese Erklärung angenommen, die folgenden Punkte wurden jedoch mit einem sicheren Standardwert übermittelt oder ausgelassen, da die App sie derzeit nicht zuverlässig ermitteln kann. Bitte prüfen Sie vor dem Fortfahren, ob dies für diesen Mandanten zutrifft.",
+ freigabe_warnings_sub_rejected:"Diese Punkte wurden ebenfalls angemerkt, sind aber nicht der Grund für die Ablehnung dieser Erklärung - das ist der obige Fehler. Bitte diesen zuerst beheben; diese Punkte lohnt es sich zu prüfen, sobald die Erklärung durchgeht.",
  freigabe_checkbox:"Ich habe diese Daten geprüft und gebe sie zur Übermittlung an das Finanzamt frei.",
  freigabe_submit:"Freigeben & übermitteln", freigabe_not_sent:"Nicht übermittelt",
  freigabe_not_sent_hint:"Das Finanzamt hat den Eingang nicht bestätigt. Das ist erwartbar, solange die ERiC-Einrichtung noch läuft; es geht nichts verloren, Ihre Daten sind gespeichert und Sie können es später erneut versuchen.",
@@ -3669,7 +3671,7 @@ function showFreigabeModal(c, data, validateResult){
  </div>`:''}
  ${warnings.length?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin-bottom:14px">
  <div style="font-weight:600;margin-bottom:6px">⚠ ${t('freigabe_warnings_title')} (${warnings.length})</div>
- <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px">${t('freigabe_warnings_sub')}</div>
+ <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px">${t(valid?'freigabe_warnings_sub':'freigabe_warnings_sub_rejected')}</div>
  <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.5">
  ${warnings.map(w=>`<li style="margin-bottom:4px">${esc(w)}</li>`).join('')}
  </ul>
