@@ -2355,6 +2355,16 @@ function firstMissingFieldTabkey(c,i){
    attribute already present on every rendered field. A brief highlight
    makes it unmistakable which one the person was sent to, rather than
    leaving them to hunt for it even after landing on the right step. */
+/* Resolves an N_AUS entry index (from a Feldidentifikator like
+   N_AUS[0], or an ordinal like "1. Anlage N-AUS") back to the real
+   employer ID whose data actually lives at that position - using the
+   exact same order and filter the export mapping itself uses, so
+   index 0 always means the same real entry ERiC was actually talking
+   about, not a guess. */
+function ausEntryIdAtIndex(c, idx){
+ const ordered = (c.emps||[]).filter(k=>c.aus && c.aus[k.id] && (N(c.aus[k.id].totalWage)>0) && c.aus[k.id].enabled!==false);
+ return ordered[idx] ? ordered[idx].id : null;
+}
 function scrollToField(tabkey){
  const el = document.querySelector(`[data-tabkey="${CSS.escape(tabkey)}"]`);
  if(!el) return false;
@@ -3706,6 +3716,40 @@ const ANLAGE_TO_STEP = {
  'Kind': 4, 'ESt1A_U': 5, 'SA': 6, 'Sonst': 6, 'VOR': 7, 'R': 7,
  'AgB': 9, 'EM_35c': 9, 'V': 8, 'AUS': 8,
 };
+/* ERiC always returns error text in German, regardless of which
+   language the app is running in - confirmed directly, there's no
+   language parameter ERiC's own API accepts for this. Rather than
+   show raw German inside an English interface, this recognizes the
+   handful of real, recurring message *patterns* ERiC actually sends
+   (confirmed against every real error this project has seen) and
+   translates them properly. A message that doesn't match any known
+   pattern is shown as-is, in German, rather than guessed at - an
+   unrecognized translation would be worse than an honest original. */
+const ERIC_ERROR_PATTERNS = [
+ { re: /^Das Feld '(.+?)' wird im angegebenen Veranlagungszeitraum bzw\. bei der angegebenen Veranlagungsart nicht unterstützt\.$/,
+   en: m => `The field '${m[1]}' is not supported for the specified tax year or filing type.`,
+   de: m => `Das Feld '${m[1]}' wird im angegebenen Veranlagungszeitraum bzw. bei der angegebenen Veranlagungsart nicht unterstützt.` },
+ { re: /^Es fehlt die Angabe zum Staat \((.+?)\)\.$/,
+   en: m => `The country is missing (${m[1]}).`,
+   de: m => `Es fehlt die Angabe zum Staat (${m[1]}).` },
+ { re: /^Feld '(.+?)': Ungültige Identifikationsnummer\.$/,
+   en: m => `Field '${m[1]}': invalid identification number.`,
+   de: m => `Feld '${m[1]}': Ungültige Identifikationsnummer.` },
+ { re: /^Die Art der Ordnungsnummer muss im Feld (.+?) angegeben werden\.$/,
+   en: m => `The type of reference number must be provided in field ${m[1]}.`,
+   de: m => `Die Art der Ordnungsnummer muss im Feld ${m[1]} angegeben werden.` },
+ { re: /^Die Bundesfinanzamtsnummer und die ersten 4 Stellen der Steuernummer unterscheiden sich\.$/,
+   en: () => `The Finanzamt office number and the first 4 digits of the Steuernummer don't match.`,
+   de: () => `Die Bundesfinanzamtsnummer und die ersten 4 Stellen der Steuernummer unterscheiden sich.` },
+];
+function translateEricError(text){
+ if(!text) return text;
+ for(const p of ERIC_ERROR_PATTERNS){
+ const m = text.match(p.re);
+ if(m) return (S.lang==='de' ? p.de : p.en)(m);
+ }
+ return text; // no known pattern - shown honestly as-is rather than guessed at
+}
 function parseFehlerRegelpruefung(resultXml){
  if(!resultXml) return [];
  try{
@@ -3714,13 +3758,28 @@ function parseFehlerRegelpruefung(resultXml){
  return nodes.map(n=>{
  const textNode = n.getElementsByTagName('Text')[0];
  const fieldNode = n.getElementsByTagName('Feldidentifikator')[0];
- const text = textNode ? textNode.textContent : (n.getElementsByTagName('FachlicheFehlerId')[0]?.textContent || t('freigabe_unknown_error'));
- let stepIndex = null;
+ const rawText = textNode ? textNode.textContent : (n.getElementsByTagName('FachlicheFehlerId')[0]?.textContent || t('freigabe_unknown_error'));
+ const text = translateEricError(rawText);
+ let stepIndex = null, ausEntryIndex = null;
  if(fieldNode){
- const m = fieldNode.textContent.match(/^\/([A-Za-z0-9_]+)/);
+ const path = fieldNode.textContent;
+ const m = path.match(/^\/([A-Za-z0-9_]+)/);
  if(m && ANLAGE_TO_STEP[m[1]] != null) stepIndex = ANLAGE_TO_STEP[m[1]];
+ /* N_AUS entries live inside a modal, not as visible page fields -
+    "jumping to the field" here means opening the calculator for the
+    right entry, not scrolling. The index in the path (N_AUS[0], [1]...)
+    tells us which entry, in the same order they're stored. */
+ const am = path.match(/^\/N_AUS\[(\d+)\]/);
+ if(am) ausEntryIndex = parseInt(am[1], 10);
+ } else {
+ /* Some messages (like the "Staat is missing" one) don't carry a
+    Feldidentifikator at all, but do name the entry in plain text
+    ("1. Anlage N-AUS...") - the ordinal number there is the same
+    real signal, just expressed differently. */
+ const om = rawText.match(/(\d+)\.\s*Anlage N-AUS/);
+ if(om){ stepIndex = 1; ausEntryIndex = parseInt(om[1], 10) - 1; }
  }
- return { text, stepIndex };
+ return { text, stepIndex, ausEntryIndex };
  });
  } catch(e){ return []; }
 }
@@ -3791,7 +3850,7 @@ function showFreigabeModal(c, data, validateResult){
  <div style="font-weight:600;margin-bottom:6px">⚠ ${t('freigabe_field_errors_title')} (${fieldErrors.length})</div>
  <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.6">
  ${fieldErrors.map(fe=>`<li style="margin-bottom:6px">${esc(fe.text)}
- ${fe.stepIndex!=null?`<div style="margin-top:6px"><button class="btn btn-ghost btn-sm" style="border-color:var(--red);color:var(--red);font-weight:700" onclick="this.closest('.modal-bg').remove();S.step=${fe.stepIndex};render()">${t('freigabe_go_to_section')} →</button></div>`:''}
+ ${fe.stepIndex!=null?`<div style="margin-top:6px"><button class="btn btn-ghost btn-sm" style="border-color:var(--red);color:var(--red);font-weight:700" onclick="this.closest('.modal-bg').remove();S.step=${fe.stepIndex};render();${fe.ausEntryIndex!=null?`const _eid=ausEntryIdAtIndex(cur(),${fe.ausEntryIndex});if(_eid)showAusCalc(_eid);`:''}">${t(fe.ausEntryIndex!=null?'freigabe_go_to_field':'freigabe_go_to_section')} →</button></div>`:''}
  </li>`).join('')}
  </ul>
  </div>`:''}
