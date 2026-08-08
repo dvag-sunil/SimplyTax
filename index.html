@@ -1986,6 +1986,17 @@ function render(){
  if(target){ target.focus(); if(target.select) try{ target.select(); }catch(e){} }
  pendingFocusKey = null;
  }
+ /* CORRECTED: real bug found via direct feedback - the live Steuernummer
+    checksum check only ever ran when the person actively edited the
+    field. Navigating away and back re-rendered the step from scratch,
+    which left the result message genuinely blank - not because the
+    value had been re-confirmed as valid, just because nothing had run
+    to check it again. That looked exactly like "the error went away,"
+    when really nothing had been validated at all - a stale, misleading
+    state either way. Now the check also runs once whenever this step
+    is actually on screen with both a Steuernummer and Finanzamt already
+    present, so the message always reflects a genuine, current result. */
+ if(S.view==='client' && S.step===0){ const cc=cur(); if(cc && cc.p.steuernummer && cc.p.faNumber) checkSteuernummerChecksum(); }
 }
 /* Tab key across fields: intercept Tab/Shift+Tab on any tracked field, commit its value
  (via blur, same as clicking away), and queue the next/previous field to be focused
