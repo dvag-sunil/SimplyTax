@@ -632,14 +632,14 @@ check('V for 2023+ does NOT use the Ek_b_Gst wrapper - confirms the legacy branc
   return !x.includes('<Ek_b_Gst>') && x.includes('<E0701401>10200</E0701401>');
 })());
 
-check('V for 2023 ALSO uses the Ek_b_Gst wrapper - real gap caught by explicitly checking every year rather than assuming the boundary from 2022 alone; 2023 would have been silently broken the same way if this hadn\'t been checked', (() => {
+check('V for 2023 uses the FLAT structure (like 2024/2025), NOT Ek_b_Gst - corrected after a real client submission was rejected on every field; the earlier version of this test asserted the wrong thing, based on a top-level Kontexte scan that found an Ek_b_Gst path unrelated to the specific fields this code actually emits. Checked field-by-field against the real 2023 sheet this time', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.meta.taxYear = 2023;
   d.anlageV = [{ street: 'Teststrasse 10', plz: '63069', ort: 'Offenbach am Main', mieteinnahmen: 10000, nebenkosten: 200 }];
   const x = buildEStXML(d).xml;
-  return x.includes('<Ek_b_Gst>') && x.includes('<E0701401>10200</E0701401>');
+  return !x.includes('<Ek_b_Gst>') && x.includes('<Laufende_Nummer_V>') && x.includes('<E0701401>10200</E0701401>');
 })());
-check('V for 2021 confirmed identical to 2022/2023 for every field this code uses', (() => {
+check('V for 2021 confirmed identical to 2022 for every field this code uses (2023 is NOT part of this group - corrected above)', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.meta.taxYear = 2021;
   d.anlageV = [{ street: 'Teststrasse 10', plz: '63069', ort: 'Offenbach am Main', mieteinnahmen: 10000, nebenkosten: 200 }];
@@ -647,7 +647,7 @@ check('V for 2021 confirmed identical to 2022/2023 for every field this code use
   return x.includes('<Ek_b_Gst>') && x.includes('<E0701401>10200</E0701401>');
 })());
 
-check('V legacy years (2021-2023) do NOT emit Laufende_Nummer_V - real gap found via the actual client response after the Ek_b_Gst fix; confirmed via direct schema search this field genuinely does not exist in the 2022 Felder sheet, unlike 2024/2025', (() => {
+check('V legacy years (2021-2022 only, NOT 2023 - corrected above) do NOT emit Laufende_Nummer_V - confirmed via direct schema search this field genuinely does not exist in the 2022 Felder sheet, unlike 2024/2025', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.meta.taxYear = 2022;
   d.anlageV = [{ street: 'Teststrasse 10', plz: '63069', ort: 'Offenbach am Main', mieteinnahmen: 10000 }];
@@ -660,6 +660,14 @@ check('V for 2024/2025 still correctly emits Laufende_Nummer_V - confirming the 
   d.anlageV = [{ street: 'Teststrasse 10', plz: '63069', ort: 'Offenbach am Main', mieteinnahmen: 10000 }];
   const x = buildEStXML(d).xml;
   return x.includes('<Laufende_Nummer_V>1</Laufende_Nummer_V>');
+})());
+
+check('V for 2023 specifically does NOT use Ek_b_Gst - permanent regression guard for the real mistake found via a genuine client submission, where a too-broad top-level Kontexte scan wrongly extended the legacy boundary to include 2023', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2023;
+  d.anlageV = [{ street: 'X', plz: '12345', ort: 'Y', mieteinnahmen: 5000 }];
+  const x = buildEStXML(d).xml;
+  return !x.includes('<Ek_b_Gst>') && x.includes('<Laufende_Nummer_V>');
 })());
 
 check('V Werbungskosten: itemized categories (2024/2025) correctly transmit and reduce the Überschuss, replacing the old gross-income limitation', (() => {

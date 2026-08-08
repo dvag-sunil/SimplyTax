@@ -813,13 +813,20 @@ function buildV(data) {
      sub-tree 2022 also has (Wk/AfA_Geb, Wk/Schuldzins, etc.) is a
      separate, larger scope, honestly left unmapped here the same way
      it already is for 2023+ - not silently guessed either way. */
-  /* CONFIRMED boundary via direct comparison across every available
-     year (2021-2025): the Ek_b_Gst wrapper is present in 2021, 2022,
-     AND 2023 - identical structure and field codes across all three
-     for everything this code touches - only 2024 and 2025 use the
-     flat, unwrapped structure. Checked this explicitly after the
-     first fix only covered <=2022 and would have left 2023 broken. */
-  const legacyV = data.meta?.taxYear <= 2023;
+  /* CORRECTED (real regression found via a genuine client submission
+     returning feldUnbekannt on every V field for a 2023 return): the
+     earlier "confirmed for 2023 too" comment above was wrong. That
+     check only scanned the top-level Kontexte sheet for the presence
+     of any Ek_b_Gst path anywhere, which found one - but it belonged
+     to entries unrelated to the actual fields this code emits, not
+     the ones it uses. Redone properly this time: checked every single
+     field code this code actually touches against the real 2023
+     Felder sheet directly, field by field. All of them sit under the
+     flat, non-wrapped context (Allg/Lage, Einn/Sum, etc.) - identical
+     to 2024/2025, not the Ek_b_Gst-wrapped legacy structure. Only 2021
+     and 2022 are genuinely legacy - re-verified those the same
+     thorough way to be sure this correction doesn't overcorrect. */
+  const legacyV = data.meta?.taxYear <= 2022;
   if (legacyV) return buildVLegacy(data, entries);
   let xml = '';
   let idx = 0;
