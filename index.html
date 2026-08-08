@@ -3680,7 +3680,7 @@ function showFreigabeModal(c, data, validateResult){
  <div style="font-weight:600;margin-bottom:6px">⚠ ${t('freigabe_field_errors_title')} (${fieldErrors.length})</div>
  <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.6">
  ${fieldErrors.map(fe=>`<li style="margin-bottom:6px">${esc(fe.text)}
- ${fe.stepIndex!=null?` <button class="link-btn" style="padding:0;font-size:12px" onclick="this.closest('.modal-bg').remove();S.step=${fe.stepIndex};render()">${t('freigabe_go_to_section')} →</button>`:''}
+ ${fe.stepIndex!=null?`<div style="margin-top:6px"><button class="btn btn-ghost btn-sm" style="border-color:var(--red);color:var(--red);font-weight:700" onclick="this.closest('.modal-bg').remove();S.step=${fe.stepIndex};render()">${t('freigabe_go_to_section')} →</button></div>`:''}
  </li>`).join('')}
  </ul>
  </div>`:''}
@@ -3689,7 +3689,7 @@ function showFreigabeModal(c, data, validateResult){
  <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px">${t(valid?'freigabe_warnings_sub':'freigabe_warnings_sub_rejected')}</div>
  <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.5">
  ${warnings.map(w=>{ const stepIndex=guessStepFromWarningText(w);
- return `<li style="margin-bottom:4px">${esc(w)}${stepIndex!=null?` <button class="link-btn" style="padding:0;font-size:12px" onclick="this.closest('.modal-bg').remove();S.step=${stepIndex};render()">${t('freigabe_go_to_section')} →</button>`:''}</li>`;
+ return `<li style="margin-bottom:8px">${esc(w)}${stepIndex!=null?`<div style="margin-top:6px"><button class="btn btn-ghost btn-sm" style="border-color:var(--amber);color:var(--amber);font-weight:700" onclick="this.closest('.modal-bg').remove();S.step=${stepIndex};render()">${t('freigabe_go_to_section')} →</button></div>`:''}</li>`;
  }).join('')}
  </ul>
  </div>`:''}
