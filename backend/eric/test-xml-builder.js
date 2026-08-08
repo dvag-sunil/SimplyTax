@@ -695,19 +695,12 @@ check('N: fahrt17 (line 17 employer commute allowance) is no longer sent to the 
   return !result.xml.includes('E0205003') && result.skippedSections.some(s => s.includes('line 17') && s.includes('Wk/AWT/Fahrt'));
 })());
 
-check('Vorsatz: Neuaufnahme (no Steuernummer, explicitly confirmed) correctly emits Ordnungsbegriff + OrdNrArt=O instead of StNr - confirmed via the real ERiC handbook Kap 7.2 that this is a genuine supported path, not a guess', (() => {
+check('Vorsatz: Neuaufnahme is disabled following a real ERiC rejection (rc 610301106) confirmed via direct A/B testing against the identical client - even with neuaufnahmeConfirmed set, no Ordnungsbegriff or OrdNrArt=O is ever emitted, matching the one path already proven to work in practice', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.hauptvordruck.steuernummer = '';
   d.hauptvordruck.neuaufnahmeConfirmed = true;
   const x = buildEStXML(d).xml;
-  return x.includes('<Ordnungsbegriff>') && x.includes('<OrdNrArt>O</OrdNrArt>') && !x.includes('<StNr>') && !x.includes('<OrdNrArt>S</OrdNrArt>');
-})());
-check('Vorsatz: without explicit Neuaufnahme confirmation, no Ordnungsbegriff or OrdNrArt is guessed - matches the honest incomplete-submission behavior already established', (() => {
-  const d = JSON.parse(JSON.stringify(sample));
-  d.hauptvordruck.steuernummer = '';
-  d.hauptvordruck.neuaufnahmeConfirmed = false;
-  const x = buildEStXML(d).xml;
-  return !x.includes('<Ordnungsbegriff>') && !x.includes('OrdNrArt');
+  return !x.includes('<Ordnungsbegriff>') && !x.includes('<OrdNrArt>O</OrdNrArt>') && !x.includes('<StNr>');
 })());
 check('Vorsatz: a real Steuernummer still takes the normal S path unchanged, confirming the new Neuaufnahme branch did not affect the existing common case', (() => {
   const d = JSON.parse(JSON.stringify(sample));

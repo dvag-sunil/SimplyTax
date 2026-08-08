@@ -2249,7 +2249,7 @@ function stepDone(c,i){
  const base=[c.p.firstName,c.p.lastName,c.p.birthDate,c.p.taxId,c.p.street,c.p.houseNo,c.p.plz,c.p.city,c.p.marital,c.p.fullYearResident];
  const anyBase=base.some(has) || has(c.p.steuernummer);
  if(!anyBase) return 'empty';
- let ok=base.every(has) && (has(c.p.steuernummer) || c.p.neuaufnahmeConfirmed===true);
+ let ok=base.every(has) && has(c.p.steuernummer);
  if(ok && c.p.fullYearResident==='no') ok = has(c.p.arrivalDate) && has(c.p.departureDate);
  if(ok && married) ok = has(c.p.spouseFirst) && has(c.p.spouseBirth) && has(c.p.spouseTaxId);
  return ok?'done':'incomplete';
@@ -2822,14 +2822,8 @@ function stepPersonal(c){
  ${F('p','profession',t('profession'))}
  ${F('p','bundesland',t('bundesland')+' *',{select:[['',t('select')],...BUNDESLAENDER.map(b=>[b,b])]})}
  ${finanzamtField(c)}
- ${F('p','steuernummer',t('steuernummer')+(c.p.neuaufnahmeConfirmed?'':' *'),{hint:c.p.neuaufnahmeConfirmed?'':t('steuernummer_required_hint')})}
+ ${F('p','steuernummer',t('steuernummer')+' *',{hint:t('steuernummer_required_hint')})}
  <div id="stnr-check-msg"></div>
- ${!c.p.steuernummer?`<div class="field" style="grid-column:1/-1"><label style="display:flex;align-items:flex-start;gap:8px;font-weight:600;text-transform:none;letter-spacing:normal;cursor:pointer">
- <input type="checkbox" style="margin-top:3px" ${c.p.neuaufnahmeConfirmed?'checked':''} onchange="upd('p','neuaufnahmeConfirmed',this.checked,0)">
- <span>${t('neuaufnahme_confirm_label')}</span>
- </label>
- ${c.p.neuaufnahmeConfirmed?`<div class="hint" style="margin-top:4px">${t('neuaufnahme_confirm_hint')}</div>`:''}
- </div>`:''}
  </div>
  ${F('p','iban',t('iban'),{ph:'DE00 0000 0000 0000 0000 00'})}
  <div id="iban-check-msg"></div>
