@@ -708,7 +708,13 @@ function splitPropertyAddress(objekt) {
 function percentTag(name, n) {
   const v = Number(n);
   if (!v) return '';
-  return tag(name, v.toFixed(2));
+  /* CORRECTED (real bug found via a genuine ERiC rejection,
+     zahlHatUngueltigeZeichen): this field's real required format is
+     German-style comma decimal ("2,00"), not a period - confirmed
+     directly from ERiC's own error text ("muss vom Format '0,00'...
+     sein"). toFixed(2) produces a period; replaced with a comma to
+     match what ERiC actually requires for this specific field. */
+  return tag(name, v.toFixed(2).replace('.', ','));
 }
 /* Shared by both buildV (2024/2025) and buildVLegacy (2021-2023) -
    confirmed identical field codes and category names for both

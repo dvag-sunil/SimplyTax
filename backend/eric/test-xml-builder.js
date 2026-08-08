@@ -705,6 +705,14 @@ check('V Werbungskosten: using the AfA (building depreciation) category honestly
   return result.skippedSections.some(s => s.includes('standard default (2% linear'));
 })());
 
+check('V Werbungskosten: AfA percentage uses German comma decimal format (2,00), not a period - real bug found via a genuine ERiC rejection (zahlHatUngueltigeZeichen) confirming the required format directly from ERiC\'s own error text', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2025;
+  d.anlageV = [{ street: 'X', plz: '12345', ort: 'Y', mieteinnahmen: 10000, wkAfa: 5000 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0703303>2,00</E0703303>') && !x.includes('<E0703303>2.00</E0703303>');
+})());
+
 check('N: fahrt17 (line 17 employer commute allowance) is no longer sent to the wrong context - real bug found via a genuine client submission returning feldUnbekannt for E0205003 under ArbL, confirmed its real context is Wk/AWT/Fahrt instead', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.anlageN = [{ person: 'A', arbeitgeber: 'X', steuerklasse: '1', zeile3_bruttoarbeitslohn: 50000, zeile17_agLeistungenEntfernung: 500 }];
