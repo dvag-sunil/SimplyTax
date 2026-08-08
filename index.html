@@ -2970,8 +2970,16 @@ function stepIncome(c){
  </div>
  </details>
  <details class="more"><summary>${t('sec_more_8_21')}${(()=>{ const a=c.aus&&c.aus[emp.id]; if(!a||!(N(a.totalWage)>0)||a.enabled===false) return '';
-   const incomplete = !a.taetigkeitDesc || !a.taetigkeitVon || !a.taetigkeitBis || !(N(a.workDaysTotal)>0) || !(N(a.workDaysForeign)>0)
-     || (a.arbeitgeberName||a.arbeitgeberStreet||a.arbeitgeberPlz||a.arbeitgeberCity||a.arbeitgeberCountry) && !(a.arbeitgeberName&&a.arbeitgeberStreet&&a.arbeitgeberPlz&&a.arbeitgeberCity&&a.arbeitgeberCountry)
+   /* CORRECTED (real bug found via direct feedback): this check was
+      reading taetigkeitDesc/Von/Bis and arbeitgeberName/Street/Plz/
+      City/Country - field names the save function never actually
+      writes. The real saved fields are activityDesc/From/To and
+      employerName/Street/Plz/City/Country - confirmed directly
+      against applyAusCalc(). The badge could never clear no matter
+      what was filled in, since it was checking properties that never
+      existed on the real data. */
+   const incomplete = !a.activityDesc || !a.activityFrom || !a.activityTo || !(N(a.workDaysTotal)>0) || !(N(a.workDaysForeign)>0)
+     || (a.employerName||a.employerStreet||a.employerPlz||a.employerCity||a.employerCountry) && !(a.employerName&&a.employerStreet&&a.employerPlz&&a.employerCity&&a.employerCountry)
      || (N(a.workDaysForeign)>0 && N(a.workDaysForeign)<184 && !a.shortStayBasis);
    /* CORRECTED (real bug, not a workaround): the check never looked at
       whether this entry is currently excluded from the filing. Data
@@ -2983,8 +2991,16 @@ function stepIncome(c){
    return incomplete ? ` <span class="badge-warn">⚠ ${t('badge_action_needed')}</span>` : '';
  })()}</summary>
  ${(()=>{ const a=c.aus&&c.aus[emp.id]; if(!a||!(N(a.totalWage)>0)||a.enabled===false) return '';
-   const incomplete = !a.taetigkeitDesc || !a.taetigkeitVon || !a.taetigkeitBis || !(N(a.workDaysTotal)>0) || !(N(a.workDaysForeign)>0)
-     || (a.arbeitgeberName||a.arbeitgeberStreet||a.arbeitgeberPlz||a.arbeitgeberCity||a.arbeitgeberCountry) && !(a.arbeitgeberName&&a.arbeitgeberStreet&&a.arbeitgeberPlz&&a.arbeitgeberCity&&a.arbeitgeberCountry)
+   /* CORRECTED (real bug found via direct feedback): this check was
+      reading taetigkeitDesc/Von/Bis and arbeitgeberName/Street/Plz/
+      City/Country - field names the save function never actually
+      writes. The real saved fields are activityDesc/From/To and
+      employerName/Street/Plz/City/Country - confirmed directly
+      against applyAusCalc(). The badge could never clear no matter
+      what was filled in, since it was checking properties that never
+      existed on the real data. */
+   const incomplete = !a.activityDesc || !a.activityFrom || !a.activityTo || !(N(a.workDaysTotal)>0) || !(N(a.workDaysForeign)>0)
+     || (a.employerName||a.employerStreet||a.employerPlz||a.employerCity||a.employerCountry) && !(a.employerName&&a.employerStreet&&a.employerPlz&&a.employerCity&&a.employerCountry)
      || (N(a.workDaysForeign)>0 && N(a.workDaysForeign)<184 && !a.shortStayBasis);
    if(!incomplete) return '';
    /* The badge alone said "something's wrong" without saying what or
