@@ -53,6 +53,11 @@
  .field input[type="checkbox"],.field input[type="radio"]{width:auto;flex:none;padding:0}
  .field-jump-highlight{outline:3px solid var(--red)!important;outline-offset:2px;animation:field-jump-pulse 2s ease-out}
  @keyframes field-jump-pulse{0%{box-shadow:0 0 0 6px rgba(178,58,58,.25)}100%{box-shadow:0 0 0 0 rgba(178,58,58,0)}}
+ .search-popover{position:absolute;top:28px;right:0;width:320px;max-width:90vw;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:10px;z-index:50;text-align:left}
+ .search-popover input{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px;margin-bottom:6px}
+ .search-results-list{list-style:none;margin:0;padding:0;max-height:280px;overflow-y:auto}
+ .search-results-list li{padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13.5px;font-weight:600}
+ .search-results-list li:hover{background:var(--paper-soft)}
  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
  .field.req-empty input,.field.req-empty select{background:var(--amber-soft);border-color:var(--amber)}
  .field.req-empty input:focus,.field.req-empty select:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
@@ -712,6 +717,8 @@ en: {
  freigabe_incomplete_steps_title:"These steps are still missing required information",
  freigabe_incomplete_steps_sub:"This is very likely why the return above was not accepted - fill these in first, then try again.",
  freigabe_field_errors_title:"ERiC found specific problems", freigabe_go_to_section:"Go to this section", freigabe_go_to_field:"Go to this field",
+ search_title:"Where do I enter this?", search_ph:"Search e.g. \"Kinderbetreuung\", \"Anlage V\", \"home office\"...",
+ search_hint:"Type at least 2 characters to search.", search_no_results:"No match found for this yet.",
  freigabe_unknown_error:"An error was reported without further detail.",
  freigabe_warnings_title:"Please review before sending",
  freigabe_warnings_sub:"ERiC accepted this return, but the following items were sent using a safe default or were left out because the app cannot honestly determine them yet. Please double-check they are correct for this client before proceeding.",
@@ -1089,6 +1096,8 @@ de: {
  freigabe_incomplete_steps_title:"Diesen Schritten fehlen noch Pflichtangaben",
  freigabe_incomplete_steps_sub:"Das ist sehr wahrscheinlich der Grund, warum die obige Erklärung nicht angenommen wurde - bitte zuerst ausfüllen und dann erneut versuchen.",
  freigabe_field_errors_title:"ERiC hat konkrete Probleme gefunden", freigabe_go_to_section:"Zu diesem Abschnitt", freigabe_go_to_field:"Zu diesem Feld",
+ search_title:"Wo trage ich das ein?", search_ph:"Suche z. B. \"Kinderbetreuung\", \"Anlage V\", \"Homeoffice\"...",
+ search_hint:"Mindestens 2 Zeichen zum Suchen eingeben.", search_no_results:"Dafür wurde noch nichts Passendes gefunden.",
  freigabe_unknown_error:"Ein Fehler wurde ohne weitere Details gemeldet.",
  freigabe_warnings_title:"Bitte vor dem Versand prüfen",
  freigabe_warnings_sub:"ERiC hat diese Erklärung angenommen, die folgenden Punkte wurden jedoch mit einem sicheren Standardwert übermittelt oder ausgelassen, da die App sie derzeit nicht zuverlässig ermitteln kann. Bitte prüfen Sie vor dem Fortfahren, ob dies für diesen Mandanten zutrifft.",
@@ -1318,6 +1327,7 @@ let S = {
  clients:[], currentId:null, step:0,
  search:'', fStatus:'all', fYear:'all',
  aiFields:{}, scanState:null, infoOpen:false, fieldInfo:{}, showReminders:false, // scanState: null | 'scanning' | 'ok' | 'err'
+ searchOpen:false, searchQuery:'',
  /* CORRECTED: real bug found via direct feedback - every field commit
     triggers a full re-render (app.innerHTML rebuilt from scratch, no
     virtual-DOM diffing - see the Tab-navigation fix comment for the
@@ -2386,6 +2396,156 @@ function firstMissingFieldTabkey(c,i){
  }
  return null;
 }
+/* =========================================================================
+   SEARCH / NAVIGATION - "where do I enter this?"
+   =========================================================================
+   Static index: one real entry per step, covering its actual Anlage
+   name/number (reusing the exact same real mapping already confirmed
+   correct for the validation-error jump feature - ANLAGE_TO_STEP is
+   defined further down in this file but the step numbers it resolves
+   to are the same fixed list used here), its plain-language step name
+   in both languages, and a curated synonym list for the genuinely
+   common ways someone would actually phrase what they're looking for -
+   built to grow over time based on real searches, not meant to be
+   exhaustive on day one. Every step is deliberately included even
+   where synonyms are sparse, so label/hint search (layered on top of
+   this) still has a real step to land on. */
+const SEARCH_STATIC_INDEX = [
+ { step:0, anlage:['ESt 1 A','Hauptvordruck'], en:'Personal data', de:'Persönliche Daten',
+   synonyms:['personal data','main form','tax id','steuer id','steuernummer','address','marital status','religion','church tax','finanzamt','tax office',
+     'persönliche daten','hauptformular','adresse','familienstand','religion','kirchensteuer','finanzamt'] },
+ { step:1, anlage:['Anlage N'], en:'Employment income', de:'Einkünfte aus nichtselbstständiger Arbeit',
+   synonyms:['salary','wage','gross income','payslip','lohnsteuerbescheinigung','employer','wage tax','income tax withheld',
+     'gehalt','lohn','bruttoarbeitslohn','arbeitgeber','lohnsteuer','gehaltsabrechnung'] },
+ { step:1, anlage:['Anlage N-AUS'], en:'Foreign employment income', de:'Ausländische Einkünfte aus nichtselbstständiger Arbeit',
+   synonyms:['foreign income','foreign salary','work abroad','days worked abroad','double taxation','dba',
+     'ausländisches einkommen','auslandstätigkeit','doppelbesteuerung'] },
+ { step:2, anlage:['Anlage KAP'], en:'Capital gains', de:'Einkünfte aus Kapitalvermögen',
+   synonyms:['dividends','interest income','stock gains','capital gains','brokerage','trading','sparerpauschbetrag',
+     'dividenden','zinsen','aktiengewinne','kapitalerträge','broker'] },
+ { step:3, anlage:['Anlage N', 'Werbungskosten'], en:'Werbungskosten (work-related expenses)', de:'Werbungskosten',
+   synonyms:['commute','travel to office','home office','homeoffice pauschale','equipment','arbeitsmittel','training','fortbildung',
+     'arbeitszimmer','double household','doppelte haushaltsführung','relocation','umzug',
+     'fahrten zur arbeit','entfernungspauschale','fachliteratur','laptop','sprachkurs'] },
+ { step:4, anlage:['Anlage Kind'], en:'Children', de:'Kinder',
+   synonyms:['child','children','kindergeld','childcare','child care','kinderbetreuung','kita','daycare','school fees','schulgeld',
+     'kind','kinder','kita gebühren','betreuungskosten'] },
+ { step:5, anlage:['Anlage Unterhalt','Anlage U'], en:'Family support', de:'Unterhaltsleistungen',
+   synonyms:['alimony','support payments','maintenance payments','realsplitting','ex spouse','parent support',
+     'unterhalt','unterhaltszahlungen','ehegattenunterhalt','elternunterhalt'] },
+ { step:6, anlage:['Anlage Vorsorgeaufwand','Anlage AV'], en:'Special expenses', de:'Sonderausgaben',
+   synonyms:['donations','charity','church tax','riester','private pension','insurance contributions',
+     'spenden','kirchensteuer','riester rente','vorsorgeaufwendungen','altersvorsorge'] },
+ { step:7, anlage:['Anlage Vorsorgeaufwand'], en:'Private expenses (insurance)', de:'Private Versicherungen',
+   synonyms:['health insurance','private health insurance','liability insurance','life insurance',
+     'krankenversicherung','private krankenversicherung','haftpflichtversicherung','lebensversicherung'] },
+ { step:8, anlage:['Anlage V'], en:'Rental property', de:'Vermietung und Verpachtung',
+   synonyms:['rent','rental income','landlord','tenant','mieteinnahmen','depreciation','afa','loan interest','maintenance',
+     'immobilie','vermietung','mieter','abschreibung','schuldzinsen','erhaltungsaufwand','nebenkosten'] },
+ { step:9, anlage:['Anlage AgB','Haushaltsnahe Dienstleistungen'], en:'Household & other', de:'Haushaltsnahe Leistungen',
+   synonyms:['craftsman invoice','handwerkerrechnung','household services','cleaning','gardener','extraordinary expenses',
+     'medical costs','disability','haushaltsnahe dienstleistungen','handwerkerleistungen','krankheitskosten','außergewöhnliche belastungen'] },
+];
+/* Genuinely comprehensive, built at search time from the actual client
+   data - real employer names, property addresses, children's names,
+   and uploaded document names all become searchable too, so someone
+   can find "the Tata entry" or "the invoice I uploaded" as directly as
+   a generic field name. This is what makes the search feel like it
+   understands their actual return, not just the blank form. */
+function buildSearchIndex(c){
+ const entries = SEARCH_STATIC_INDEX.map(e => ({
+   step: e.step,
+   label: S.lang==='de' ? e.de : e.en,
+   text: [e.en, e.de, ...e.anlage, ...e.synonyms].join(' ').toLowerCase(),
+   tabkey: null,
+ }));
+ (c.emps||[]).forEach(emp => { if(emp.employer) entries.push({ step:1, label:emp.employer, text:emp.employer.toLowerCase(), tabkey:`emps.${emp.id}.employer` }); });
+ (c.props||[]).forEach(p => { const label=[p.street,p.ort].filter(Boolean).join(', '); if(label) entries.push({ step:8, label, text:label.toLowerCase(), tabkey:`props.${p.id}.street` }); });
+ (c.fam?.children||[]).forEach(k => { if(k.firstName) entries.push({ step:4, label:k.firstName, text:(k.firstName||'').toLowerCase(), tabkey:`child.${k.id}.firstName` }); });
+ (c.docs||[]).forEach(d => { if(d.name) entries.push({ step:null, label:d.name, text:d.name.toLowerCase(), tabkey:null, isDoc:true, section:d.section }); });
+ return entries;
+}
+/* Simple, honest substring ranking - no fuzzy-match guessing that could
+   confidently point someone at the wrong place. A query matching the
+   start of a word ranks above one only matching mid-word, and shorter,
+   more specific entries rank above long ones containing the same term
+   incidentally. Returns the best matches, or an empty list if nothing
+   genuinely matches - callers are expected to say so honestly rather
+   than show an unrelated top result. */
+function searchApp(c, query){
+ const q = String(query||'').trim().toLowerCase();
+ if(!q || q.length<2) return [];
+ const index = buildSearchIndex(c);
+ /* CORRECTED: real bug found via direct testing - "anlage v" was
+    matching "Anlage Vorsorgeaufwand" too, since plain .includes()
+    treats it as a valid substring match regardless of word
+    boundaries. A word-boundary regex means "anlage v" only matches
+    where it genuinely starts a word ("Anlage V", not the "v" buried
+    inside "Vorsorgeaufwand"). Escaping the query since it becomes
+    part of a regex here. */
+ const qEsc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+ /* Trailing boundary only required for multi-word queries - a
+    deliberate, complete phrase like "anlage v" shouldn't match mid-word
+    into "anlage vorsorgeaufwand", but a single word still needs to
+    match as a genuine in-progress prefix ("kinderbetr" while someone
+    is still typing "kinderbetreuung"), so it doesn't get a trailing
+    boundary requirement. */
+ const boundaryRe = new RegExp('\\b' + qEsc + (q.includes(' ') ? '\\b' : ''));
+ const scored = index.map(e => {
+   let score = 0;
+   if(boundaryRe.test(e.text)){
+     score = e.text.startsWith(q) ? 2 : 1;
+     score += Math.max(0, 1 - e.text.length/200); // slight preference for more specific, shorter entries
+   }
+   return { ...e, score };
+ }).filter(e=>e.score>0);
+ scored.sort((a,b)=>b.score-a.score);
+ const seen = new Set(); const out=[];
+ for(const s of scored){ const key=s.step+'|'+s.label; if(seen.has(key)) continue; seen.add(key); out.push(s); if(out.length>=8) break; }
+ return out;
+}
+function toggleAppSearch(){
+ S.searchOpen = !S.searchOpen;
+ if(!S.searchOpen) S.searchQuery = '';
+ render();
+ if(S.searchOpen){ const el=document.getElementById('app-search-input'); if(el) el.focus(); }
+}
+function searchBox(c){
+ const results = searchApp(c, S.searchQuery);
+ return `<div class="search-popover" onclick="event.stopPropagation()">
+ <input id="app-search-input" type="text" value="${esc(S.searchQuery)}" placeholder="${t('search_ph')}"
+   oninput="S.searchQuery=this.value;renderSearchResultsOnly()" onkeydown="if(event.key==='Escape')toggleAppSearch()">
+ <div id="app-search-results">${searchResultsHtml(results)}</div>
+ </div>`;
+}
+function searchResultsHtml(results){
+ if(!S.searchQuery || S.searchQuery.trim().length<2) return `<div class="hint" style="padding:8px 4px">${t('search_hint')}</div>`;
+ if(!results.length) return `<div class="hint" style="padding:8px 4px">${t('search_no_results')}</div>`;
+ return `<ul class="search-results-list">${results.map(r=>`<li onclick="selectSearchResult(${r.step},${r.tabkey?`'${r.tabkey}'`:'null'},${r.isDoc?'true':'false'},${r.section?`'${r.section}'`:'null'})">
+   ${r.isDoc?'📎':'📍'} ${esc(r.label)}</li>`).join('')}</ul>`;
+}
+/* Called on every keystroke - re-renders only the results dropdown,
+   not the whole page, so the input never loses focus mid-type (the
+   same problem the Tab-navigation fix elsewhere in this file already
+   had to work around for full re-renders). */
+function renderSearchResultsOnly(){
+ const el = document.getElementById('app-search-results'); if(!el) return;
+ el.innerHTML = searchResultsHtml(searchApp(cur(), S.searchQuery));
+}
+function selectSearchResult(step, tabkey, isDoc, section){
+ S.searchOpen = false; S.searchQuery = '';
+ if(isDoc){ S.step = section ? SEARCH_SECTION_TO_STEP[section] ?? 0 : 0; render(); return; }
+ if(step!=null) S.step = step;
+ render();
+ if(tabkey) scrollToField(tabkey);
+}
+/* Maps a document's saved section tag back to its step index - reuses
+   the same real step ordering as everywhere else in this file. Values
+   confirmed directly against every real docSection() call in the app,
+   not assumed - 'fam' covers both Children and Family support (the
+   only section genuinely shared by two steps), mapped to Children as
+   the more common of the two document types actually uploaded there. */
+const SEARCH_SECTION_TO_STEP = { privIns:7, kap:2, props:8, wk:3, fam:4, ex:9 };
 /* Scrolls to and focuses the exact field, using the same data-tabkey
    attribute already present on every rendered field. A brief highlight
    makes it unmistakable which one the person was sent to, rather than
@@ -2433,7 +2593,12 @@ function clientView(){
  </div>`).join('');
  const bodies=[stepPersonal,stepIncome,stepKap,stepWork,stepChildren,stepFamilySupport,stepSpecial,stepPrivIns,stepProp,stepHousehold,stepSummary,stepInquiries];
  return `<main>
- <div class="crumbs"><a onclick="goDash()">← ${t('back_dash')}</a> &nbsp;/&nbsp; <b>${esc(c.p.firstName)} ${esc(c.p.lastName)}</b> · ${t('tax_year')} ${c.taxYear} · ${chip(c.status)}</div>
+ <div class="crumbs"><a onclick="goDash()">← ${t('back_dash')}</a> &nbsp;/&nbsp; <b>${esc(c.p.firstName)} ${esc(c.p.lastName)}</b> · ${t('tax_year')} ${c.taxYear} · ${chip(c.status)}
+ <span style="float:right;position:relative">
+ <button class="btn-sm link-btn" onclick="event.stopPropagation();toggleAppSearch()" title="${t('search_title')}">🔍 ${t('search_title')}</button>
+ ${S.searchOpen?searchBox(c):''}
+ </span>
+ </div>
  <div class="ws">
  <div class="steps">${stepsHtml}</div>
  <div class="panel">
