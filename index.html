@@ -604,6 +604,9 @@ en: {
  other_ins:"Other insurance (liability, accident...)",
  s4_lead:"Deductible income-related costs (Anlage N): structured items (commuting, home office, double household) plus itemized expenses below. The €1,230 lump sum per employed person is applied automatically if entries are lower. Enter each cost only once.",
  commute_days:"Commuting days per year", commute_km:"One-way distance (km)", home_office:"Home-office days",
+ wk_cat_travel:"Travel to office", wk_cat_homeoffice:"Home office", wk_cat_equipment:"Equipment booked for office",
+ wk_cat_training:"Professional development (training, courses, language)", wk_cat_arbeitszimmer:"Arbeitszimmer (dedicated home office room)",
+ arbeitszimmer:"Arbeitszimmer costs", arbeitszimmer_hint:"A room used exclusively as a home office - a separate deduction from the general home-office day allowance above. Rules depend on whether it's your only workspace (unlimited) or not (capped at €1,260/year) - a Steuerberater can confirm which applies.",
  equipment:"Work equipment (laptop, desk...)", training:"Training / professional development", other_wk:"Other work expenses",
  s5_lead:"Special expenses (Sonderausgaben). The minimum flat amount of €36 is applied automatically.",
  donations:"Donations (with receipt)", other_sa:"Other special expenses",
@@ -978,6 +981,9 @@ de: {
  other_ins:"Weitere Versicherungen (Haftpflicht, Unfall...)",
  s4_lead:"Abziehbare Werbungskosten (Anlage N): strukturierte Angaben (Pendlerpauschale, Homeoffice, doppelte Haushaltsführung) plus Einzelposten weiter unten. Der Arbeitnehmer-Pauschbetrag von 1.230 € je erwerbstätiger Person wird automatisch angesetzt. Jede Ausgabe nur einmal erfassen.",
  commute_days:"Arbeitstage mit Fahrt zur Arbeit", commute_km:"Einfache Entfernung (km)", home_office:"Homeoffice-Tage",
+ wk_cat_travel:"Fahrten zur Arbeit", wk_cat_homeoffice:"Homeoffice", wk_cat_equipment:"Arbeitsmittel",
+ wk_cat_training:"Fortbildung (Kurse, Sprache, berufliche Weiterbildung)", wk_cat_arbeitszimmer:"Arbeitszimmer (ausschließlich beruflich genutzter Raum)",
+ arbeitszimmer:"Kosten Arbeitszimmer", arbeitszimmer_hint:"Ein ausschließlich beruflich genutzter Raum - ein eigener Abzug, getrennt von der Homeoffice-Pauschale oben. Die Regeln hängen davon ab, ob es der einzige Arbeitsplatz ist (unbegrenzt) oder nicht (gedeckelt auf 1.260 €/Jahr) - im Zweifel hilft ein Steuerberater bei der Einordnung.",
  equipment:"Arbeitsmittel (Laptop, Schreibtisch...)", training:"Fortbildung", other_wk:"Sonstige Werbungskosten",
  s5_lead:"Sonderausgaben. Der Pauschbetrag von 36 € wird automatisch berücksichtigt.",
  donations:"Spenden (mit Beleg)", other_sa:"Weitere Sonderausgaben",
@@ -1506,9 +1512,9 @@ function newClient(f,l,year,marital){
  oth:{ ersatz:'', gdbA:'', gdbB:'', fahrtA:'', fahrtB:'', pflegeA:'', pflegeB:'', kidTransfer:'',
  realsplitting:'', realsplitIdnr:'', realsplitName:'', lossCarry:'', soGain:'', soUnterhalt:'', energCost:'', energStage:'' },
  ins:{ rv:'',kv:'',pv:'',av:'',other:'' },
- wk:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',
+ wk:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',
  dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
- wkB:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',
+ wkB:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',
  dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
  fam:{ kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',untName:'',untIdnr:'',untProfession:'',untBirthDate:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untCohabitation:'nein',untKindergeld:'nein',untOtherContributor:'nein',untHasAssets:'nein',untHasIncome:'nein',untCountry:'',untForeignConfirmed:'nein',children:[] },
  sa:{ donations:'',other:'' },
@@ -1571,7 +1577,7 @@ async function loadState(){
 }
 function migrateClient(c){
  c.p = Object.assign({faNumber:'',bundesland:'',spouseReligion:'none',singleParent:'no',deathYear:'',fullYearResident:'yes',arrivalDate:'',departureDate:''}, c.p||{});
- c.wkB = Object.assign({commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wkB||{});
+ c.wkB = Object.assign({commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wkB||{});
  (Array.isArray(c.privIns)?c.privIns:[]).forEach(x=>{ if(x.person!=='B') x.person='A'; });
  c.emps = Array.isArray(c.emps)?c.emps:[];
  c.emps.forEach(e=>{ if(e.person!=='B') e.person='A'; });
@@ -1605,7 +1611,7 @@ function migrateClient(c){
  if(!N(e0.anAV)) e0.anAV=c.ins.av;
  c.ins.rv=c.ins.kv=c.ins.pv=c.ins.av='';
  }
- c.wk = Object.assign({dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wk||{});
+ c.wk = Object.assign({arbeitszimmer:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wk||{});
  c.fam = Object.assign({kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',untName:'',untIdnr:'',untProfession:'',untBirthDate:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untCohabitation:'nein',untKindergeld:'nein',untOtherContributor:'nein',untHasAssets:'nein',untHasIncome:'nein',untCountry:'',untForeignConfirmed:'nein',children:[]}, c.fam||{});
  if(!Array.isArray(c.fam.children)) c.fam.children=[];
  c.fam.children.forEach(k=>{ if(!k.kinship) k.kinship='leiblich'; });
@@ -1851,7 +1857,7 @@ function computeEstimate(c){
  const dhhRent=Math.min(N(w.dhhRent),1000)*Math.min(N(w.dhhMonths),12);
  const dKm=N(w.dhhKm), dNear=Math.min(dKm,20), dFar=Math.max(dKm-20,0);
  const dhhTrips=Math.min(N(w.dhhTrips),52)*(dNear*0.30+dFar*0.38);
- return commute+ho+N(w.equipment)+N(w.training)+N(w.other)+dhhRent+dhhTrips+N(w.relocation); };
+ return commute+ho+N(w.equipment)+N(w.training)+N(w.other)+N(w.arbeitszimmer)+dhhRent+dhhTrips+N(w.relocation); };
  const employedB = joint && (c.emps||[]).some(x=>x.person==='B' && N(x.gross)>0);
  const employedA = (c.emps||[]).some(x=>N(x.gross)>0 && (!joint || x.person!=='B'));
  const itemsA = (c.wkItems||[]).filter(x=>!joint || x.person!=='B').reduce((a,x)=>a+N(x.amount),0);
@@ -2322,7 +2328,7 @@ function stepDone(c,i){
  return ok?'done':'incomplete';
  }
  case 2: return (c.kap||[]).length>0?'done':'empty';
- case 3: return (N(c.wk.commuteDays)+N(c.wk.equipment)+N(c.wk.homeOffice)+N(c.wk.training)+N(c.wk.other)+N(c.wk.dhhRent)+N(c.wk.relocation)>0 || (c.wkItems||[]).length>0)?'done':'empty';
+ case 3: return (N(c.wk.commuteDays)+N(c.wk.equipment)+N(c.wk.homeOffice)+N(c.wk.training)+N(c.wk.other)+N(c.wk.arbeitszimmer)+N(c.wk.dhhRent)+N(c.wk.relocation)>0 || (c.wkItems||[]).length>0)?'done':'empty';
  case 4: {
  const kids=c.fam.children||[]; if(!kids.length) return 'empty';
  const singleParent=['single','verwitwet','getrennt_lebend'].includes(c.p.marital);
@@ -3328,17 +3334,27 @@ function stepWork(c){
  ${married?`<div class="sum-row"><span class="l">${t('wki_tot_b')}</span><span class="r num"><b>${eur(wkiTotB)}</b></span></div>`:''}
  </div>`:'';
  return `<h2>${t('step4')}</h2><p class="lead">${t('s4_lead')}</p>
- <div class="grid3">
+ <div class="section-label">${t('wk_cat_travel')}</div>
+ <div class="grid2">
  ${F('wk','commuteDays',t('commute_days'),{euro:true,ph:'220'})}
  ${F('wk','commuteKm',t('commute_km'),{euro:true,ph:'15'})}
- ${F('wk','homeOffice',t('home_office'),{euro:true,ph:'60'})}
- </div>
- <div class="grid3">
- ${F('wk','equipment',t('equipment'),{euro:true,ph:'0,00 €'})}
- ${F('wk','training',t('training'),{euro:true,ph:'0,00 €'})}
- ${F('wk','other',t('other_wk'),{euro:true,ph:'0,00 €'})}
  </div>
  ${warnDays?`<div class="warn">⚠️ ${t('warn_days')}</div>`:''}
+ <div class="section-label">${t('wk_cat_homeoffice')}</div>
+ ${F('wk','homeOffice',t('home_office'),{euro:true,ph:'60'})}
+ <div class="section-label">${t('wk_cat_equipment')}</div>
+ ${F('wk','equipment',t('equipment'),{euro:true,ph:'0,00 €'})}
+ <div class="section-label">${t('wk_cat_training')}</div>
+ ${F('wk','training',t('training'),{euro:true,ph:'0,00 €'})}
+ <div class="section-label">${t('wk_cat_arbeitszimmer')}</div>
+ ${F('wk','arbeitszimmer',t('arbeitszimmer'),{euro:true,ph:'0,00 €',hint:t('arbeitszimmer_hint')})}
+ ${F('wk','other',t('other_wk'),{euro:true,ph:'0,00 €'})}
+ <div class="section-label">${t('step_wki')}</div>
+ ${wkiCards}
+ <button class="btn btn-ghost btn-sm" onclick="addItem('wkItems',{person:'A',type:'',desc:'',amount:''})">＋ ${t('add_wki')}</button>
+ ${wkiTotBox}
+ ${(N(c.wk.dhhRent)>0 && (c.wkItems||[]).some(x=>x.type==='dhh'))?`<div class="auth-err">⚠️ ${t('warn_dup_dhh')}</div>`:''}
+ ${(N(c.wk.relocation)>0 && (c.wkItems||[]).some(x=>x.type==='umzug'))?`<div class="auth-err">⚠️ ${t('warn_dup_umzug')}</div>`:''}
  <div class="section-label">${t('dhh_h')}</div>
  <p class="lead" style="margin-bottom:14px">${t('s4b')}</p>
  <div class="grid2">
@@ -3350,16 +3366,21 @@ function stepWork(c){
  ${F('wk','relocation',t('relocation'),{euro:true,ph:'0,00 €'})}
  ${c.p.marital==='married'?`
  <div class="section-label">Person B - ${esc((c.p.spouseFirst||'')+' '+(c.p.spouseLast||'')).trim()||t('spouse')}</div>
- <div class="grid3">
+ <div class="section-label">${t('wk_cat_travel')}</div>
+ <div class="grid2">
  ${F('wkB','commuteDays',t('commute_days'),{euro:true,ph:'220'})}
  ${F('wkB','commuteKm',t('commute_km'),{euro:true,ph:'15'})}
+ </div>
+ <div class="section-label">${t('wk_cat_homeoffice')}</div>
  ${F('wkB','homeOffice',t('home_office'),{euro:true,ph:'60'})}
- </div>
- <div class="grid3">
+ <div class="section-label">${t('wk_cat_equipment')}</div>
  ${F('wkB','equipment',t('equipment'),{euro:true,ph:'0,00 €'})}
+ <div class="section-label">${t('wk_cat_training')}</div>
  ${F('wkB','training',t('training'),{euro:true,ph:'0,00 €'})}
+ <div class="section-label">${t('wk_cat_arbeitszimmer')}</div>
+ ${F('wkB','arbeitszimmer',t('arbeitszimmer'),{euro:true,ph:'0,00 €',hint:t('arbeitszimmer_hint')})}
  ${F('wkB','other',t('other_wk'),{euro:true,ph:'0,00 €'})}
- </div>
+ <div class="section-label">${t('dhh_h')}</div>
  <div class="grid2">
  ${F('wkB','dhhRent',t('dhh_rent'),{euro:true,ph:'0,00 €'})}
  ${F('wkB','dhhMonths',t('dhh_months'),{euro:true,ph:'12'})}
@@ -3367,12 +3388,6 @@ function stepWork(c){
  ${F('wkB','dhhKm',t('dhh_km'),{euro:true,ph:'250'})}
  </div>
  ${F('wkB','relocation',t('relocation'),{euro:true,ph:'0,00 €'})}`:''}
- ${(N(c.wk.dhhRent)>0 && (c.wkItems||[]).some(x=>x.type==='dhh'))?`<div class="auth-err">⚠️ ${t('warn_dup_dhh')}</div>`:''}
- ${(N(c.wk.relocation)>0 && (c.wkItems||[]).some(x=>x.type==='umzug'))?`<div class="auth-err">⚠️ ${t('warn_dup_umzug')}</div>`:''}
- <div class="section-label">${t('step_wki')}</div>
- ${wkiCards}
- <button class="btn btn-ghost btn-sm" onclick="addItem('wkItems',{person:'A',type:'',desc:'',amount:''})">＋ ${t('add_wki')}</button>
- ${wkiTotBox}
  ${docSection('wk')}
  ${navRow()}`;
 }
