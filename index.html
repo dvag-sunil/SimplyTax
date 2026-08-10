@@ -2440,11 +2440,12 @@ const SEARCH_STATIC_INDEX = [
    synonyms:['health insurance','private health insurance','liability insurance','life insurance',
      'krankenversicherung','private krankenversicherung','haftpflichtversicherung','lebensversicherung'] },
  { step:8, anlage:['Anlage V'], en:'Rental property', de:'Vermietung und Verpachtung',
-   synonyms:['rent','rental income','landlord','tenant','mieteinnahmen','depreciation','afa','loan interest','maintenance',
-     'immobilie','vermietung','mieter','abschreibung','schuldzinsen','erhaltungsaufwand','nebenkosten'] },
+   synonyms:['rent','rental income','landlord','tenant','mieteinnahmen','depreciation','afa','building depreciation','loan interest','maintenance',
+     'management costs','immobilie','vermietung','mieter','abschreibung','gebäudeabschreibung','schuldzinsen','erhaltungsaufwand','verwaltungskosten','nebenkosten'] },
  { step:9, anlage:['Anlage AgB','Haushaltsnahe Dienstleistungen'], en:'Household & other', de:'Haushaltsnahe Leistungen',
    synonyms:['craftsman invoice','handwerkerrechnung','household services','cleaning','gardener','extraordinary expenses',
-     'medical costs','disability','haushaltsnahe dienstleistungen','handwerkerleistungen','krankheitskosten','außergewöhnliche belastungen'] },
+     'medical costs','disability','energy renovation','energetic renovation','35c','insulation','new windows','new heating',
+     'haushaltsnahe dienstleistungen','handwerkerleistungen','krankheitskosten','außergewöhnliche belastungen','energetische sanierung','wärmedämmung'] },
 ];
 /* Genuinely comprehensive, built at search time from the actual client
    data - real employer names, property addresses, children's names,
@@ -2460,7 +2461,32 @@ function buildSearchIndex(c){
    tabkey: null,
  }));
  (c.emps||[]).forEach(emp => { if(emp.employer) entries.push({ step:1, label:emp.employer, text:emp.employer.toLowerCase(), tabkey:`emps.${emp.id}.employer` }); });
- (c.props||[]).forEach(p => { const label=[p.street,p.ort].filter(Boolean).join(', '); if(label) entries.push({ step:8, label, text:label.toLowerCase(), tabkey:`props.${p.id}.street` }); });
+ (c.props||[]).forEach(p => {
+   const label=[p.street,p.ort].filter(Boolean).join(', ');
+   if(label) entries.push({ step:8, label, text:label.toLowerCase(), tabkey:`props.${p.id}.street` });
+   /* CORRECTED: real gap found via direct feedback - searching real
+      field labels like "Building depreciation" or "energy renovation"
+      returned nothing, since the index only ever had step-level
+      synonyms, never the actual field labels themselves - the "search
+      real labels" half of the plan was never actually built. These are
+      list-based (per-property), so each real property gets its own
+      genuine entry with the real label text and a direct field-level
+      tabkey, the same dynamic pattern already used for employer names
+      just above. */
+   ['wkAfa','wkSchuldzins','wkErhaltung','wkVerwaltung','wkSonst'].forEach(f => {
+     const labelKey = {wkAfa:'prop_wk_afa', wkSchuldzins:'prop_wk_schuldzins', wkErhaltung:'prop_wk_erhaltung', wkVerwaltung:'prop_wk_verwaltung', wkSonst:'prop_wk_sonst'}[f];
+     const fLabel = t(labelKey) + (label ? ` (${label})` : '');
+     entries.push({ step:8, label:fLabel, text:(t(labelKey)+' '+labelKey).toLowerCase(), tabkey:`props.${p.id}.${f}` });
+   });
+ });
+ /* Same real-label gap, fixed the same way for the six actual EM_35c
+    energy renovation measures - these are fixed, step-level fields
+    (not list-based), so a plain static entry per measure is enough,
+    using each one's real translated label directly. */
+ EM35C_MEASURES.forEach(m => {
+   const label = t('energ_m_'+m.key);
+   entries.push({ step:9, label, text:(label+' energetic renovation energetische sanierung 35c').toLowerCase(), tabkey:`oth.em${m.key}` });
+ });
  (c.fam?.children||[]).forEach(k => { if(k.firstName) entries.push({ step:4, label:k.firstName, text:(k.firstName||'').toLowerCase(), tabkey:`child.${k.id}.firstName` }); });
  (c.docs||[]).forEach(d => { if(d.name) entries.push({ step:null, label:d.name, text:d.name.toLowerCase(), tabkey:null, isDoc:true, section:d.section }); });
  return entries;
