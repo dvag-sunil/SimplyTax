@@ -2486,6 +2486,31 @@ function buildSearchIndex(c){
    text: [e.en, e.de, ...e.anlage, ...e.synonyms].join(' ').toLowerCase(),
    tabkey: null,
  }));
+ /* CORRECTED: real gap found via direct feedback - the itemized
+    Werbungskosten categories (WKI_TYPES) and the insurance type
+    catalog (INS_TYPES) are both real, substantial category lists with
+    their own genuine labels and hint text already written - eleven
+    real work-expense categories, twenty-four real insurance types -
+    none of it was ever in the search index. These are fixed lists,
+    not per-client data, so they're added once here rather than built
+    per-property/per-employer the way real entered data is. Extra
+    keyword coverage added specifically for cases where the category's
+    own label wouldn't naturally contain the word someone might
+    actually type - "internet" for communication costs being the
+    concrete example given, matching the same real logic ("phone,
+    internet" is genuinely what that category covers, but "internet"
+    itself isn't in the label text). */
+ const WKI_EXTRA_KEYWORDS = { kommunikation:'internet phone handy telefon' };
+ WKI_TYPES.forEach(w => {
+   const label = S.lang==='de' ? w.de : w.en;
+   const hint = S.lang==='de' ? w.hde : w.hen;
+   entries.push({ step:3, label, hint, text:(w.de+' '+w.en+' '+(WKI_EXTRA_KEYWORDS[w.k]||'')).toLowerCase(), tabkey:null });
+ });
+ const INS_EXTRA_KEYWORDS = { rechtsschutz:'legal insurance', tierhaft:'dog cat pet liability', kfzhaft:'car auto vehicle', kasko:'car auto vehicle' };
+ INS_TYPES.forEach(x => {
+   const label = S.lang==='de' ? x.de : x.en;
+   entries.push({ step:7, label, hint:null, text:(x.de+' '+x.en+' '+(INS_EXTRA_KEYWORDS[x.k]||'')).toLowerCase(), tabkey:null });
+ });
  (c.emps||[]).forEach(emp => { if(emp.employer) entries.push({ step:1, label:emp.employer, text:emp.employer.toLowerCase(), tabkey:`emps.${emp.id}.employer` }); });
  (c.props||[]).forEach(p => {
    const label=[p.street,p.ort].filter(Boolean).join(', ');
