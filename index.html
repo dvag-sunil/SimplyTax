@@ -244,7 +244,7 @@
  BACKEND TOGGLE - set enabled:true and your API URL to use the PostgreSQL
  backend (see /backend). false = local/browser storage only (current mode).
 ===================================================================== */
-const BACKEND = { enabled:true, baseUrl:'https://simplytax-api.onrender.com' }; // ← if your Render URL has a suffix (e.g. -xk2p), adjust it here
+const BACKEND = { enabled:true, baseUrl:'https://simplytax-api-dev.onrender.com' }; // ← DEV environment - points at simplytax-api-dev, not production
 /* DISCOUNT CODES - edit this list to add/remove promo codes. type:'percent' (0-100) or 'fixed' (EUR off).
  Client-side table is used for the 'simulated' payment mode; for real Stripe payments the SAME codes
  must also exist in backend/server.js (DISCOUNTS) since the server is the source of truth for the
@@ -1312,7 +1312,30 @@ let S = {
  clients:[], currentId:null, step:0,
  search:'', fStatus:'all', fYear:'all',
  aiFields:{}, scanState:null, infoOpen:false, fieldInfo:{}, showReminders:false, // scanState: null | 'scanning' | 'ok' | 'err'
+ /* CORRECTED: real bug found via direct feedback - every field commit
+    triggers a full re-render (app.innerHTML rebuilt from scratch, no
+    virtual-DOM diffing - see the Tab-navigation fix comment for the
+    same underlying cause), which destroys and recreates every <details>
+    element. A section the person had manually opened by clicking had
+    no way to stay open across that rebuild, since nothing remembered
+    they'd opened it - the very next keystroke's re-render would put it
+    right back to whatever its default happened to be, closing it
+    without an actual second click ever asking for that. This object
+    tracks manual opens/closes explicitly, keyed per section, so the
+    render functions can check "did the person actually touch this"
+    rather than only ever falling back to a data-driven default. */
+ openSections:{},
 };
+/* Reads whether a collapsible section is open - manual user action
+   (tracked in S.openSections) always wins once it exists; falls back
+   to the given data-driven default only before the person has ever
+   touched that specific section. */
+function isSectionOpen(key, dataDefault){
+ return S.openSections[key] !== undefined ? S.openSections[key] : !!dataDefault;
+}
+function toggleSectionState(key, isOpen){
+ S.openSections[key] = isOpen;
+}
 const t = k => (STR[S.lang][k] ?? k);
 const uid = () => 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const BUNDESLAENDER=['Baden-Württemberg','Bayern','Berlin','Brandenburg','Bremen','Hamburg','Hessen','Mecklenburg-Vorpommern','Niedersachsen','Nordrhein-Westfalen','Rheinland-Pfalz','Saarland','Sachsen','Sachsen-Anhalt','Schleswig-Holstein','Thüringen'];
@@ -2964,7 +2987,7 @@ function stepIncome(c){
  ${LF('emps',emp,'churchPaid',t('church_paid'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'churchSpouse',t('z7'),{euro:true,ph:'0,00 €'})}
  </div>
- <details class="more"><summary>${t('sec_more_22_28')}</summary>
+ <details class="more" ${isSectionOpen('emp-22-28-'+emp.id, false)?'open':''} ontoggle="toggleSectionState('emp-22-28-${emp.id}', this.open)"><summary>${t('sec_more_22_28')}</summary>
  <div class="grid3">
  ${LF('emps',emp,'agRV',t('z22a'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'agRVb',t('z22b'),{euro:true,ph:'0,00 €'})}
@@ -2979,7 +3002,7 @@ function stepIncome(c){
  ${LF('emps',emp,'pkv28',t('z28'),{euro:true,ph:'0,00 €'})}
  </div>
  </details>
- <details class="more"><summary>${t('sec_more_8_21')}${(()=>{ const a=c.aus&&c.aus[emp.id]; if(!a||!(N(a.totalWage)>0)||a.enabled===false) return '';
+ <details class="more" ${isSectionOpen('emp-8-21-'+emp.id, false)?'open':''} ontoggle="toggleSectionState('emp-8-21-${emp.id}', this.open)"><summary>${t('sec_more_8_21')}${(()=>{ const a=c.aus&&c.aus[emp.id]; if(!a||!(N(a.totalWage)>0)||a.enabled===false) return '';
    /* CORRECTED (real bug found via direct feedback): this check was
       reading taetigkeitDesc/Von/Bis and arbeitgeberName/Street/Plz/
       City/Country - field names the save function never actually
@@ -3056,7 +3079,7 @@ function stepIncome(c){
  ${LF('emps',emp,'dhh21',t('z21'),{euro:true,ph:'0,00 €'})}
  </div>
  </details>
- <details class="more"><summary>${t('sec_more_29_34')}</summary>
+ <details class="more" ${isSectionOpen('emp-29-34-'+emp.id, false)?'open':''} ontoggle="toggleSectionState('emp-29-34-${emp.id}', this.open)"><summary>${t('sec_more_29_34')}</summary>
  <div class="grid3">
  ${LF('emps',emp,'bmg29',t('z29'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'vbJahr30',t('z30'),{ph:'2020'})}
@@ -3163,7 +3186,7 @@ function stepKap(c){
  <div style="padding:14px 16px">
  ${married?`<div class="grid3">${LF('kap',k,'person',t('person'),{select:personOpts})}</div>`:''}
  ${LF('kap',k,'platform',t('platform'),{ph:'Trade Republic, Scalable, ING...',hint:i===0?t('kap_hint'):''})}
- <details class="more" open><summary>${t('kap_dom')}</summary>
+ <details class="more" ${isSectionOpen('kap-dom', true)?'open':''} ontoggle="toggleSectionState('kap-dom', this.open)"><summary>${t('kap_dom')}</summary>
  <div class="grid2">
  ${LF('kap',k,'k7',t('k7'),{euro:true,ph:'0,00 €'})}
  ${LF('kap',k,'k8',t('k8'),{euro:true,ph:'0,00 €'})}
@@ -3172,7 +3195,7 @@ function stepKap(c){
  </div>
  ${LF('kap',k,'sparerUsed',t('k16'),{euro:true,ph:'0,00 €',hint:t('k16_hint')})}
  </details>
- <details class="more"><summary>${t('kap_for')}</summary>
+ <details class="more" ${isSectionOpen('kap-for', false)?'open':''} ontoggle="toggleSectionState('kap-for', this.open)"><summary>${t('kap_for')}</summary>
  <p style="font-size:12px;color:var(--ink-soft);margin-bottom:10px">${t('for_hint')}</p>
  <div class="grid2">
  ${LF('kap',k,'k18',t('k18'),{euro:true,ph:'0,00 €'})}
@@ -3218,7 +3241,7 @@ function stepProp(c){
  <div class="grid2">
  ${LF('props',p,'rent',t('prop_rent'),{euro:true,ph:'0,00 €'})}
  </div>
- <details class="more" ${(N(p.wkAfa)+N(p.wkSchuldzins)+N(p.wkErhaltung)+N(p.wkVerwaltung)+N(p.wkSonst))>0?'open':''}><summary>${t('prop_costs_summary')}</summary>
+ <details class="more" ${isSectionOpen('prop-costs-'+p.id, (N(p.wkAfa)+N(p.wkSchuldzins)+N(p.wkErhaltung)+N(p.wkVerwaltung)+N(p.wkSonst))>0)?'open':''} ontoggle="toggleSectionState('prop-costs-${p.id}', this.open)"><summary>${t('prop_costs_summary')}</summary>
  <p class="hint" style="margin:0 0 8px">${t('prop_costs_hint')}</p>
  <div class="grid2">
  ${LF('props',p,'wkAfa',t('prop_wk_afa'),{euro:true,ph:'0,00 €',hint:i===0?t('prop_wk_afa_hint'):''})}
@@ -3425,7 +3448,7 @@ function stepFamilySupport(c){
  ${F('fam','support',t('support_amount'),{euro:true,ph:'0,00 €',hint:t('support_hint')})}
  ${F('fam','supportGroup',t('support_where'),{select:[['1',t('grp1')],['2',t('grp2')],['3',t('grp3')],['4',t('grp4')]]})}
  </div>
- <details class="more" ${hasAmount?'open':''}><summary>${t('unt_details_summary')}</summary>
+ <details class="more" ${isSectionOpen('unt-details', hasAmount)?'open':''} ontoggle="toggleSectionState('unt-details', this.open)"><summary>${t('unt_details_summary')}</summary>
  ${hasAmount?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
  ⚠ ${t('unt_required_hint')}
 
