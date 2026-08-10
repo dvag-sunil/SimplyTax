@@ -59,6 +59,7 @@
  .search-results-list li{padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13.5px;font-weight:600}
  .search-results-list li:hover{background:var(--paper-soft)}
  .search-result-hint{font-weight:400;font-size:12px;color:var(--ink-soft);margin-top:2px;line-height:1.35}
+ .search-result-category-note{color:var(--teal);font-weight:600}
  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
  .field.req-empty input,.field.req-empty select{background:var(--amber-soft);border-color:var(--amber)}
  .field.req-empty input:focus,.field.req-empty select:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
@@ -720,6 +721,7 @@ en: {
  freigabe_field_errors_title:"ERiC found specific problems", freigabe_go_to_section:"Go to this section", freigabe_go_to_field:"Go to this field",
  search_title:"Where do I enter this?", search_ph:"Search e.g. \"Kinderbetreuung\", \"Anlage V\", \"home office\"...",
  search_hint:"Type at least 2 characters to search.", search_no_results:"No match found for this yet.",
+ search_category_note:"Selecting this adds a new entry with this category already chosen.",
  freigabe_unknown_error:"An error was reported without further detail.",
  freigabe_warnings_title:"Please review before sending",
  freigabe_warnings_sub:"ERiC accepted this return, but the following items were sent using a safe default or were left out because the app cannot honestly determine them yet. Please double-check they are correct for this client before proceeding.",
@@ -1100,6 +1102,7 @@ de: {
  freigabe_field_errors_title:"ERiC hat konkrete Probleme gefunden", freigabe_go_to_section:"Zu diesem Abschnitt", freigabe_go_to_field:"Zu diesem Feld",
  search_title:"Wo trage ich das ein?", search_ph:"Suche z. B. \"Kinderbetreuung\", \"Anlage V\", \"Homeoffice\"...",
  search_hint:"Mindestens 2 Zeichen zum Suchen eingeben.", search_no_results:"Dafür wurde noch nichts Passendes gefunden.",
+ search_category_note:"Bei Auswahl wird ein neuer Eintrag mit dieser Kategorie angelegt.",
  freigabe_unknown_error:"Ein Fehler wurde ohne weitere Details gemeldet.",
  freigabe_warnings_title:"Bitte vor dem Versand prüfen",
  freigabe_warnings_sub:"ERiC hat diese Erklärung angenommen, die folgenden Punkte wurden jedoch mit einem sicheren Standardwert übermittelt oder ausgelassen, da die App sie derzeit nicht zuverlässig ermitteln kann. Bitte prüfen Sie vor dem Fortfahren, ob dies für diesen Mandanten zutrifft.",
@@ -2504,12 +2507,14 @@ function buildSearchIndex(c){
  WKI_TYPES.forEach(w => {
    const label = S.lang==='de' ? w.de : w.en;
    const hint = S.lang==='de' ? w.hde : w.hen;
-   entries.push({ step:3, label, hint, text:(w.de+' '+w.en+' '+(WKI_EXTRA_KEYWORDS[w.k]||'')).toLowerCase(), tabkey:null });
+   entries.push({ step:3, label, hint, text:(w.de+' '+w.en+' '+(WKI_EXTRA_KEYWORDS[w.k]||'')).toLowerCase(), tabkey:null,
+     createList:'wkItems', createTpl:{person:'A', type:w.k, desc:'', amount:''} });
  });
  const INS_EXTRA_KEYWORDS = { rechtsschutz:'legal insurance', tierhaft:'dog cat pet liability', kfzhaft:'car auto vehicle', kasko:'car auto vehicle' };
  INS_TYPES.forEach(x => {
    const label = S.lang==='de' ? x.de : x.en;
-   entries.push({ step:7, label, hint:null, text:(x.de+' '+x.en+' '+(INS_EXTRA_KEYWORDS[x.k]||'')).toLowerCase(), tabkey:null });
+   entries.push({ step:7, label, hint:null, text:(x.de+' '+x.en+' '+(INS_EXTRA_KEYWORDS[x.k]||'')).toLowerCase(), tabkey:null,
+     createList:'privIns', createTpl:{person:'A', type:x.k, beitrag:'', erstattung:''} });
  });
  (c.emps||[]).forEach(emp => { if(emp.employer) entries.push({ step:1, label:emp.employer, text:emp.employer.toLowerCase(), tabkey:`emps.${emp.id}.employer` }); });
  (c.props||[]).forEach(p => {
@@ -2597,10 +2602,12 @@ function searchBox(c){
  </div>`;
 }
 function searchResultsHtml(results){
+ S._lastSearchResults = results;
  if(!S.searchQuery || S.searchQuery.trim().length<2) return `<div class="hint" style="padding:8px 4px">${t('search_hint')}</div>`;
  if(!results.length) return `<div class="hint" style="padding:8px 4px">${t('search_no_results')}</div>`;
- return `<ul class="search-results-list">${results.map(r=>`<li onclick="selectSearchResult(${r.step},${r.tabkey?`'${r.tabkey}'`:'null'},${r.isDoc?'true':'false'},${r.section?`'${r.section}'`:'null'})">
-   <div>${r.isDoc?'📎':'📍'} ${esc(r.label)}</div>
+ return `<ul class="search-results-list">${results.map((r,i)=>`<li onclick="selectSearchResult(${i})">
+   <div>${r.isDoc?'📎':r.createList?'➕':'📍'} ${esc(r.label)}</div>
+   ${r.createList?`<div class="search-result-hint search-result-category-note">${t('search_category_note')}</div>`:''}
    ${r.hint?`<div class="search-result-hint">${esc(r.hint)}</div>`:''}
    </li>`).join('')}</ul>`;
 }
@@ -2612,12 +2619,31 @@ function renderSearchResultsOnly(){
  const el = document.getElementById('app-search-results'); if(!el) return;
  el.innerHTML = searchResultsHtml(searchApp(cur(), S.searchQuery));
 }
-function selectSearchResult(step, tabkey, isDoc, section){
+/* CORRECTED: real gap found via direct feedback - jumping to a step
+   for a category search result (an itemized Werbungskosten type, an
+   insurance type) landed the person on a page with an "Add item"
+   button and nothing else visible - the actual category they searched
+   for was hidden inside a dropdown they'd still have to find and open
+   themselves, with no indication it even lived there. Now, selecting
+   one of these results genuinely creates the new entry with that exact
+   category already chosen, then jumps straight to its own amount
+   field - nothing left to hunt for in a dropdown. Referenced by index
+   into the results actually shown, rather than serializing the whole
+   object into an inline onclick attribute. */
+function selectSearchResult(i){
+ const r = (S._lastSearchResults||[])[i]; if(!r) return;
  S.searchOpen = false; S.searchQuery = '';
- if(isDoc){ S.step = section ? SEARCH_SECTION_TO_STEP[section] ?? 0 : 0; render(); return; }
- if(step!=null) S.step = step;
+ if(r.isDoc){ S.step = r.section ? SEARCH_SECTION_TO_STEP[r.section] ?? 0 : 0; render(); return; }
+ if(r.step!=null) S.step = r.step;
+ if(r.createList){
+   render();
+   const newId = addItem(r.createList, r.createTpl);
+   const amountField = r.createList==='wkItems' ? 'amount' : 'beitrag';
+   scrollToField(`${r.createList}.${newId}.${amountField}`);
+   return;
+ }
  render();
- if(tabkey) scrollToField(tabkey);
+ if(r.tabkey) scrollToField(r.tabkey);
 }
 /* Maps a document's saved section tag back to its step index - reuses
    the same real step ordering as everywhere else in this file. Values
@@ -3048,7 +3074,7 @@ function LF(list,item,field,label,opts={}){
  <input data-tabkey="${tk}" type="${opts.type||'text'}" value="${esc(item[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''} ${(opts.type||'text')==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
  onchange="updItem('${list}','${item.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
-function addItem(list,tpl){ const c=cur(); (c[list]=c[list]||[]).push(Object.assign({id:uid()},tpl)); c.updatedAt=Date.now(); scheduleSave(); render(); }
+function addItem(list,tpl){ const c=cur(); const item=Object.assign({id:uid()},tpl); (c[list]=c[list]||[]).push(item); c.updatedAt=Date.now(); scheduleSave(); render(); return item.id; }
 function delItem(list,id){ const c=cur(); c[list]=(c[list]||[]).filter(x=>x.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function updItem(list,id,f,v,fmt){ v = validDate(v); v = validAmount(v, fmt); const c=cur(); const it=(c[list]||[]).find(x=>x.id===id); if(!it) return;
  if(fmt && String(v).trim()!=='') v=formatDE(N(v));
