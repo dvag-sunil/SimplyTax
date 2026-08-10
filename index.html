@@ -58,6 +58,7 @@
  .search-results-list{list-style:none;margin:0;padding:0;max-height:280px;overflow-y:auto}
  .search-results-list li{padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13.5px;font-weight:600}
  .search-results-list li:hover{background:var(--paper-soft)}
+ .search-result-hint{font-weight:400;font-size:12px;color:var(--ink-soft);margin-top:2px;line-height:1.35}
  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
  .field.req-empty input,.field.req-empty select{background:var(--amber-soft);border-color:var(--amber)}
  .field.req-empty input:focus,.field.req-empty select:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
@@ -787,6 +788,7 @@ en: {
  energ_priorclaim:"Already claimed §35c for this property before?", energ_otherfunding:"Other public funding applied for (e.g. KfW)?",
  energ_measures_label:"Which measures apply? (select all that apply)",
  energ_m_Walls:"Wall insulation", energ_m_Roof:"Roof insulation", energ_m_Ceiling:"Floor/ceiling insulation",
+ energ_m_hint:"Energy renovation measures on your own home under §35c - 20% of the cost is deductible over 3 years, up to €200,000 total per measure.",
  energ_m_Windows:"New windows or exterior doors", energ_m_Ventilation:"Ventilation system", energ_m_Heating:"New heating system",
  energ_credit_note:"20% is credited over 3 tax years (7% + 7% + 6%), capped at €40,000 total.",
  energ_has_prior_years:"Already claimed this in a previous year? (enter the recognized amounts below)",
@@ -855,7 +857,7 @@ en: {
  prop_wk_afa:"Building depreciation (AfA)", prop_wk_afa_hint:"The standard yearly write-down on the building's value - usually 2% of the building's (not the land's) purchase or construction cost.",
  prop_wk_schuldzins:"Loan interest", prop_wk_schuldzins_hint:"Interest paid on a mortgage or loan used to buy or renovate this property - not the repayment of the loan itself, only the interest.",
  prop_wk_erhaltung:"Maintenance and repairs", prop_wk_erhaltung_hint:"Repairs and upkeep deductible in this same year - larger renovation costs may need to be spread over several years instead; ask your Steuerberater if unsure.",
- prop_wk_verwaltung:"Management costs",
+ prop_wk_verwaltung:"Management costs", prop_wk_verwaltung_hint:"Fees paid to a property manager or management company for administering this rental, if you don't handle it yourself.",
  prop_wk_sonst:"Other costs", prop_wk_sonst_hint:"Anything else related to this property that doesn't fit the categories above - e.g. insurance, property management fees, advertising for tenants.",
  prop_country:"Country the property is in", prop_country_de:"Germany",
  prop_country_hint:"Property abroad is reported differently - usually tax-free in Germany, but it still raises the tax rate on your German income.",
@@ -1166,6 +1168,7 @@ de: {
  energ_priorclaim:"§35c für dieses Objekt schon früher genutzt?", energ_otherfunding:"Andere öffentliche Förderung beantragt (z. B. KfW)?",
  energ_measures_label:"Welche Maßnahmen treffen zu? (Mehrfachauswahl möglich)",
  energ_m_Walls:"Wärmedämmung Wände", energ_m_Roof:"Wärmedämmung Dach", energ_m_Ceiling:"Wärmedämmung Geschossdecken",
+ energ_m_hint:"Energetische Sanierungsmaßnahmen am eigenen Haus nach §35c - 20 % der Kosten sind über 3 Jahre absetzbar, bis zu 200.000 € insgesamt je Maßnahme.",
  energ_m_Windows:"Neue Fenster oder Außentüren", energ_m_Ventilation:"Lüftungsanlage", energ_m_Heating:"Neue Heizungsanlage",
  energ_credit_note:"20 % werden über 3 Steuerjahre verteilt angerechnet (7 % + 7 % + 6 %), maximal 40.000 € insgesamt.",
  energ_has_prior_years:"Bereits in einem Vorjahr geltend gemacht? (unten anerkannte Beträge eintragen)",
@@ -1234,7 +1237,7 @@ de: {
  prop_wk_afa:"Gebäudeabschreibung (AfA)", prop_wk_afa_hint:"Die jährliche Absetzung für Abnutzung - meist 2 % der Anschaffungs- oder Herstellungskosten des Gebäudes (ohne Grundstücksanteil).",
  prop_wk_schuldzins:"Darlehenszinsen", prop_wk_schuldzins_hint:"Zinsen für ein Darlehen zum Kauf oder zur Renovierung dieser Immobilie - nicht die Tilgung selbst, nur die Zinsen.",
  prop_wk_erhaltung:"Erhaltungsaufwand", prop_wk_erhaltung_hint:"In diesem Jahr abzugsfähige Instandhaltungs- und Reparaturkosten - größere Renovierungen müssen unter Umständen über mehrere Jahre verteilt werden; im Zweifel den Steuerberater fragen.",
- prop_wk_verwaltung:"Verwaltungskosten",
+ prop_wk_verwaltung:"Verwaltungskosten", prop_wk_verwaltung_hint:"Gebühren an eine Hausverwaltung für die Verwaltung dieser Immobilie, falls Sie sich nicht selbst darum kümmern.",
  prop_wk_sonst:"Sonstige Kosten", prop_wk_sonst_hint:"Alles andere im Zusammenhang mit dieser Immobilie, das nicht in die obigen Kategorien passt - z. B. Versicherung, Hausverwaltungsgebühren, Mietersuche-Anzeigen.",
  prop_country:"Belegenheitsstaat der Immobilie", prop_country_de:"Deutschland",
  prop_country_hint:"Auslandsimmobilien werden anders erklärt - meist in Deutschland steuerfrei, erhöhen aber den Steuersatz auf Ihre inländischen Einkünfte.",
@@ -2412,37 +2415,59 @@ function firstMissingFieldTabkey(c,i){
    this) still has a real step to land on. */
 const SEARCH_STATIC_INDEX = [
  { step:0, anlage:['ESt 1 A','Hauptvordruck'], en:'Personal data', de:'Persönliche Daten',
+   enHint:'Your name, address, tax ID, marital status, and Finanzamt - the basic details every return needs.',
+   deHint:'Name, Adresse, Steuer-ID, Familienstand und Finanzamt - die Grunddaten, die jede Erklärung braucht.',
    synonyms:['personal data','main form','tax id','steuer id','steuernummer','address','marital status','religion','church tax','finanzamt','tax office',
      'persönliche daten','hauptformular','adresse','familienstand','religion','kirchensteuer','finanzamt'] },
  { step:1, anlage:['Anlage N'], en:'Employment income', de:'Einkünfte aus nichtselbstständiger Arbeit',
+   enHint:'Your gross salary, tax withheld, and social insurance contributions - straight from your Lohnsteuerbescheinigung.',
+   deHint:'Bruttolohn, einbehaltene Steuer und Sozialversicherungsbeiträge - direkt von der Lohnsteuerbescheinigung.',
    synonyms:['salary','wage','gross income','payslip','lohnsteuerbescheinigung','employer','wage tax','income tax withheld',
      'gehalt','lohn','bruttoarbeitslohn','arbeitgeber','lohnsteuer','gehaltsabrechnung'] },
  { step:1, anlage:['Anlage N-AUS'], en:'Foreign employment income', de:'Ausländische Einkünfte aus nichtselbstständiger Arbeit',
+   enHint:'Days worked abroad for the same employer, and the tax treaty basis for excluding that portion of your income.',
+   deHint:'Im Ausland gearbeitete Tage für denselben Arbeitgeber und die abkommensrechtliche Grundlage für die Freistellung.',
    synonyms:['foreign income','foreign salary','work abroad','days worked abroad','double taxation','dba',
      'ausländisches einkommen','auslandstätigkeit','doppelbesteuerung'] },
  { step:2, anlage:['Anlage KAP'], en:'Capital gains', de:'Einkünfte aus Kapitalvermögen',
+   enHint:'Dividends, interest, and gains from stocks or funds - usually straight from your bank/broker\'s tax statement.',
+   deHint:'Dividenden, Zinsen und Gewinne aus Aktien oder Fonds - meist direkt von der Steuerbescheinigung der Bank.',
    synonyms:['dividends','interest income','stock gains','capital gains','brokerage','trading','sparerpauschbetrag',
      'dividenden','zinsen','aktiengewinne','kapitalerträge','broker'] },
  { step:3, anlage:['Anlage N', 'Werbungskosten'], en:'Werbungskosten (work-related expenses)', de:'Werbungskosten',
+   enHint:'Costs of doing your job - commuting, home office, equipment, training - deducted from your taxable income.',
+   deHint:'Kosten für Ihren Beruf - Fahrten zur Arbeit, Homeoffice, Arbeitsmittel, Fortbildung - mindern Ihr zu versteuerndes Einkommen.',
    synonyms:['commute','travel to office','home office','homeoffice pauschale','equipment','arbeitsmittel','training','fortbildung',
      'arbeitszimmer','double household','doppelte haushaltsführung','relocation','umzug',
      'fahrten zur arbeit','entfernungspauschale','fachliteratur','laptop','sprachkurs'] },
  { step:4, anlage:['Anlage Kind'], en:'Children', de:'Kinder',
+   enHint:'Your children\'s details, childcare costs, and school fees - each child gets their own entry.',
+   deHint:'Angaben zu Ihren Kindern, Kinderbetreuungskosten und Schulgeld - jedes Kind bekommt einen eigenen Eintrag.',
    synonyms:['child','children','kindergeld','childcare','child care','kinderbetreuung','kita','daycare','school fees','schulgeld',
      'kind','kinder','kita gebühren','betreuungskosten'] },
  { step:5, anlage:['Anlage Unterhalt','Anlage U'], en:'Family support', de:'Unterhaltsleistungen',
+   enHint:'Financial support you provide to someone else - a parent, an ex-spouse, or another dependent relative.',
+   deHint:'Finanzielle Unterstützung, die Sie einer anderen Person leisten - Eltern, Ex-Partner oder andere unterhaltsberechtigte Angehörige.',
    synonyms:['alimony','support payments','maintenance payments','realsplitting','ex spouse','parent support',
      'unterhalt','unterhaltszahlungen','ehegattenunterhalt','elternunterhalt'] },
  { step:6, anlage:['Anlage Vorsorgeaufwand','Anlage AV'], en:'Special expenses', de:'Sonderausgaben',
+   enHint:'Donations, church tax paid, and pension contributions like Riester - deductible costs outside your job.',
+   deHint:'Spenden, gezahlte Kirchensteuer und Altersvorsorgebeiträge wie Riester - abzugsfähige Kosten außerhalb des Berufs.',
    synonyms:['donations','charity','church tax','riester','private pension','insurance contributions',
      'spenden','kirchensteuer','riester rente','vorsorgeaufwendungen','altersvorsorge'] },
  { step:7, anlage:['Anlage Vorsorgeaufwand'], en:'Private expenses (insurance)', de:'Private Versicherungen',
+   enHint:'Health, liability, and life insurance premiums you pay privately - separate from what your employer withholds.',
+   deHint:'Kranken-, Haftpflicht- und Lebensversicherungsbeiträge, die Sie privat zahlen - getrennt vom Abzug durch den Arbeitgeber.',
    synonyms:['health insurance','private health insurance','liability insurance','life insurance',
      'krankenversicherung','private krankenversicherung','haftpflichtversicherung','lebensversicherung'] },
  { step:8, anlage:['Anlage V'], en:'Rental property', de:'Vermietung und Verpachtung',
+   enHint:'Rental income and deductible costs (depreciation, interest, maintenance) for a property you rent out.',
+   deHint:'Mieteinnahmen und abzugsfähige Kosten (Abschreibung, Zinsen, Erhaltung) für eine vermietete Immobilie.',
    synonyms:['rent','rental income','landlord','tenant','mieteinnahmen','depreciation','afa','building depreciation','loan interest','maintenance',
      'management costs','immobilie','vermietung','mieter','abschreibung','gebäudeabschreibung','schuldzinsen','erhaltungsaufwand','verwaltungskosten','nebenkosten'] },
  { step:9, anlage:['Anlage AgB','Haushaltsnahe Dienstleistungen'], en:'Household & other', de:'Haushaltsnahe Leistungen',
+   enHint:'Craftsman invoices, household help, medical costs, disability allowances, and home energy renovation.',
+   deHint:'Handwerkerrechnungen, Haushaltshilfe, Krankheitskosten, Behinderten-Pauschbeträge und energetische Sanierung.',
    synonyms:['craftsman invoice','handwerkerrechnung','household services','cleaning','gardener','extraordinary expenses',
      'medical costs','disability','energy renovation','energetic renovation','35c','insulation','new windows','new heating',
      'haushaltsnahe dienstleistungen','handwerkerleistungen','krankheitskosten','außergewöhnliche belastungen','energetische sanierung','wärmedämmung'] },
@@ -2457,6 +2482,7 @@ function buildSearchIndex(c){
  const entries = SEARCH_STATIC_INDEX.map(e => ({
    step: e.step,
    label: S.lang==='de' ? e.de : e.en,
+   hint: S.lang==='de' ? e.deHint : e.enHint,
    text: [e.en, e.de, ...e.anlage, ...e.synonyms].join(' ').toLowerCase(),
    tabkey: null,
  }));
@@ -2475,8 +2501,9 @@ function buildSearchIndex(c){
       just above. */
    ['wkAfa','wkSchuldzins','wkErhaltung','wkVerwaltung','wkSonst'].forEach(f => {
      const labelKey = {wkAfa:'prop_wk_afa', wkSchuldzins:'prop_wk_schuldzins', wkErhaltung:'prop_wk_erhaltung', wkVerwaltung:'prop_wk_verwaltung', wkSonst:'prop_wk_sonst'}[f];
+     const hintKey = labelKey+'_hint';
      const fLabel = t(labelKey) + (label ? ` (${label})` : '');
-     entries.push({ step:8, label:fLabel, text:(t(labelKey)+' '+labelKey).toLowerCase(), tabkey:`props.${p.id}.${f}` });
+     entries.push({ step:8, label:fLabel, hint:t(hintKey)||null, text:(t(labelKey)+' '+labelKey).toLowerCase(), tabkey:`props.${p.id}.${f}` });
    });
  });
  /* Same real-label gap, fixed the same way for the six actual EM_35c
@@ -2485,7 +2512,7 @@ function buildSearchIndex(c){
     using each one's real translated label directly. */
  EM35C_MEASURES.forEach(m => {
    const label = t('energ_m_'+m.key);
-   entries.push({ step:9, label, text:(label+' energetic renovation energetische sanierung 35c').toLowerCase(), tabkey:`oth.em${m.key}` });
+   entries.push({ step:9, label, hint:t('energ_m_hint'), text:(label+' energetic renovation energetische sanierung 35c').toLowerCase(), tabkey:`oth.em${m.key}` });
  });
  (c.fam?.children||[]).forEach(k => { if(k.firstName) entries.push({ step:4, label:k.firstName, text:(k.firstName||'').toLowerCase(), tabkey:`child.${k.id}.firstName` }); });
  (c.docs||[]).forEach(d => { if(d.name) entries.push({ step:null, label:d.name, text:d.name.toLowerCase(), tabkey:null, isDoc:true, section:d.section }); });
@@ -2548,7 +2575,9 @@ function searchResultsHtml(results){
  if(!S.searchQuery || S.searchQuery.trim().length<2) return `<div class="hint" style="padding:8px 4px">${t('search_hint')}</div>`;
  if(!results.length) return `<div class="hint" style="padding:8px 4px">${t('search_no_results')}</div>`;
  return `<ul class="search-results-list">${results.map(r=>`<li onclick="selectSearchResult(${r.step},${r.tabkey?`'${r.tabkey}'`:'null'},${r.isDoc?'true':'false'},${r.section?`'${r.section}'`:'null'})">
-   ${r.isDoc?'📎':'📍'} ${esc(r.label)}</li>`).join('')}</ul>`;
+   <div>${r.isDoc?'📎':'📍'} ${esc(r.label)}</div>
+   ${r.hint?`<div class="search-result-hint">${esc(r.hint)}</div>`:''}
+   </li>`).join('')}</ul>`;
 }
 /* Called on every keystroke - re-renders only the results dropdown,
    not the whole page, so the input never loses focus mid-type (the
