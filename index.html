@@ -4763,7 +4763,19 @@ Return this exact JSON structure (use "" for any field not found or empty on the
  headers:{ 'Content-Type':'application/json', ...(authToken?{'Authorization':'Bearer '+authToken}:{}) },
  body: JSON.stringify({ dataUrl, prompt })
  });
- if(!resp.ok) throw new Error('extract_failed');
+ if(!resp.ok){
+   /* CORRECTED: a deliberately-disabled feature (operator turned off
+      AI_AUTOFILL_ENABLED, or no API key configured) isn't a failure -
+      it's expected, intentional behavior. Treating it the same as a
+      genuine extraction error would show end users an alarming "failed"
+      message for something that was never supposed to run at all. The
+      document itself still uploads and stores normally either way -
+      this only affects whether auto-fill is attempted. */
+   let errCode = '';
+   try{ errCode = (await resp.json()).error || ''; }catch(e){}
+   if(errCode === 'extraction_disabled') throw new Error('extraction_disabled');
+   throw new Error('extract_failed');
+ }
  const data = await resp.json();
  const text = (data.content||[]).filter(i=>i.type==='text').map(i=>i.text).join('\n');
  const clean = text.replace(/```json|```/g,'').trim();
@@ -4825,7 +4837,10 @@ Return this exact JSON structure (use "" for any field not found or empty on the
  }
  c.updatedAt=Date.now(); scheduleSave();
  S.scanState='ok';
- }catch(err){ console.error('extraction failed',err); S.scanState='err'; }
+ }catch(err){
+   if(err.message==='extraction_disabled'){ S.scanState=null; render(); return; } // deliberate, not an error - fail silently
+   console.error('extraction failed',err); S.scanState='err';
+ }
  render();
 }
 
