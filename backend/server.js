@@ -148,7 +148,15 @@ app.use(express.json({ limit: '10mb' }));
    in public JS, which is why the earlier direct-fetch version silently failed once deployed. */
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 const EXTRACT_MODEL = process.env.EXTRACT_MODEL || 'claude-haiku-4-5-20251001';   // cheapest current tier, plenty for structured OCR-style extraction
+/* Operator-only control, not a user-facing setting - explicitly requested to live here rather
+   than as a UI toggle. Independent of ANTHROPIC_API_KEY, so this can be switched off in
+   production without touching credentials (e.g. to temporarily disable auto-fill while keeping
+   the key configured for later), the same explicit-opt-out pattern already used for
+   SKIP_PAYMENT_CHECK elsewhere in this file. Defaults to enabled unless explicitly set to
+   'false', so existing deployments that never touch this variable see no behavior change. */
+const AI_AUTOFILL_ENABLED = process.env.AI_AUTOFILL_ENABLED !== 'false';
 app.post('/api/extract-doc', auth, async (req, res) => {
+  if(!AI_AUTOFILL_ENABLED) return res.status(501).json({ error: 'extraction_disabled', note: 'AI_AUTOFILL_ENABLED is set to false' });
   if(!ANTHROPIC_API_KEY) return res.status(501).json({ error: 'extraction_disabled', note: 'set ANTHROPIC_API_KEY to activate' });
   const { dataUrl, prompt } = req.body || {};
   const m = /^data:([^;]+);base64,(.+)$/.exec(dataUrl || '');

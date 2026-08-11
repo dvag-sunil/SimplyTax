@@ -53,6 +53,13 @@
  .field input[type="checkbox"],.field input[type="radio"]{width:auto;flex:none;padding:0}
  .field-jump-highlight{outline:3px solid var(--red)!important;outline-offset:2px;animation:field-jump-pulse 2s ease-out}
  @keyframes field-jump-pulse{0%{box-shadow:0 0 0 6px rgba(178,58,58,.25)}100%{box-shadow:0 0 0 0 rgba(178,58,58,0)}}
+ .search-popover{position:absolute;top:28px;right:0;width:320px;max-width:90vw;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:10px;z-index:50;text-align:left}
+ .search-popover input{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px;margin-bottom:6px}
+ .search-results-list{list-style:none;margin:0;padding:0;max-height:280px;overflow-y:auto}
+ .search-results-list li{padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13.5px;font-weight:600}
+ .search-results-list li:hover{background:var(--paper-soft)}
+ .search-result-hint{font-weight:400;font-size:12px;color:var(--ink-soft);margin-top:2px;line-height:1.35}
+ .search-result-category-note{color:var(--teal);font-weight:600}
  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
  .field.req-empty input,.field.req-empty select{background:var(--amber-soft);border-color:var(--amber)}
  .field.req-empty input:focus,.field.req-empty select:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
@@ -244,7 +251,7 @@
  BACKEND TOGGLE - set enabled:true and your API URL to use the PostgreSQL
  backend (see /backend). false = local/browser storage only (current mode).
 ===================================================================== */
-const BACKEND = { enabled:true, baseUrl:'https://simplytax-api.onrender.com' }; // ← if your Render URL has a suffix (e.g. -xk2p), adjust it here
+const BACKEND = { enabled:true, baseUrl:'https://simplytax-api.onrender.com' }; // ← PRODUCTION - if your Render URL has a suffix (e.g. -xk2p), adjust it here
 /* DISCOUNT CODES - edit this list to add/remove promo codes. type:'percent' (0-100) or 'fixed' (EUR off).
  Client-side table is used for the 'simulated' payment mode; for real Stripe payments the SAME codes
  must also exist in backend/server.js (DISCOUNTS) since the server is the source of truth for the
@@ -604,6 +611,9 @@ en: {
  other_ins:"Other insurance (liability, accident...)",
  s4_lead:"Deductible income-related costs (Anlage N): structured items (commuting, home office, double household) plus itemized expenses below. The €1,230 lump sum per employed person is applied automatically if entries are lower. Enter each cost only once.",
  commute_days:"Commuting days per year", commute_km:"One-way distance (km)", home_office:"Home-office days",
+ wk_cat_travel:"Travel to office", wk_cat_homeoffice:"Home office", wk_cat_equipment:"Equipment booked for office",
+ wk_cat_training:"Professional development (training, courses, language)", wk_cat_arbeitszimmer:"Arbeitszimmer (dedicated home office room)",
+ arbeitszimmer:"Arbeitszimmer costs", arbeitszimmer_hint:"A room used exclusively as a home office - a separate deduction from the general home-office day allowance above. Rules depend on whether it's your only workspace (unlimited) or not (capped at €1,260/year) - a Steuerberater can confirm which applies.",
  equipment:"Work equipment (laptop, desk...)", training:"Training / professional development", other_wk:"Other work expenses",
  s5_lead:"Special expenses (Sonderausgaben). The minimum flat amount of €36 is applied automatically.",
  donations:"Donations (with receipt)", other_sa:"Other special expenses",
@@ -709,6 +719,9 @@ en: {
  freigabe_incomplete_steps_title:"These steps are still missing required information",
  freigabe_incomplete_steps_sub:"This is very likely why the return above was not accepted - fill these in first, then try again.",
  freigabe_field_errors_title:"ERiC found specific problems", freigabe_go_to_section:"Go to this section", freigabe_go_to_field:"Go to this field",
+ search_title:"Where do I enter this?", search_ph:"Search e.g. \"Kinderbetreuung\", \"Anlage V\", \"home office\"...",
+ search_hint:"Type at least 2 characters to search.", search_no_results:"No match found for this yet.",
+ search_category_note:"Selecting this adds a new entry with this category already chosen.",
  freigabe_unknown_error:"An error was reported without further detail.",
  freigabe_warnings_title:"Please review before sending",
  freigabe_warnings_sub:"ERiC accepted this return, but the following items were sent using a safe default or were left out because the app cannot honestly determine them yet. Please double-check they are correct for this client before proceeding.",
@@ -777,6 +790,7 @@ en: {
  energ_priorclaim:"Already claimed §35c for this property before?", energ_otherfunding:"Other public funding applied for (e.g. KfW)?",
  energ_measures_label:"Which measures apply? (select all that apply)",
  energ_m_Walls:"Wall insulation", energ_m_Roof:"Roof insulation", energ_m_Ceiling:"Floor/ceiling insulation",
+ energ_m_hint:"Energy renovation measures on your own home under §35c - 20% of the cost is deductible over 3 years, up to €200,000 total per measure.",
  energ_m_Windows:"New windows or exterior doors", energ_m_Ventilation:"Ventilation system", energ_m_Heating:"New heating system",
  energ_credit_note:"20% is credited over 3 tax years (7% + 7% + 6%), capped at €40,000 total.",
  energ_has_prior_years:"Already claimed this in a previous year? (enter the recognized amounts below)",
@@ -798,6 +812,7 @@ en: {
  deadline_banner:"Filing deadline - Tax year 2025: self-filers 31 July 2026 · with Steuerberater/Lohnsteuerhilfeverein 1 March 2027 · voluntary filers have 4 years (until 31 Dec 2029).",
  elster_link:"Official Tax Portal",
  expat_section:"Residency", full_year_resident:"Did you live in Germany the entire tax year?",
+ personal_info_h:"Personal info", address_h:"Address", status_h:"Status", tax_info_h:"Tax info",
  fy_yes:"Yes - full year in Germany", fy_no:"No - only part of the year (moved in or out)",
  arrival_date:"Arrival / registration date in Germany", departure_date:"Departure date from Germany (if applicable)",
  partial_year_hint:"Expats / people who moved mid-year: enter your actual dates. Flag this for your consultant - only income during your German residency period is fully taxable here.",
@@ -845,7 +860,7 @@ en: {
  prop_wk_afa:"Building depreciation (AfA)", prop_wk_afa_hint:"The standard yearly write-down on the building's value - usually 2% of the building's (not the land's) purchase or construction cost.",
  prop_wk_schuldzins:"Loan interest", prop_wk_schuldzins_hint:"Interest paid on a mortgage or loan used to buy or renovate this property - not the repayment of the loan itself, only the interest.",
  prop_wk_erhaltung:"Maintenance and repairs", prop_wk_erhaltung_hint:"Repairs and upkeep deductible in this same year - larger renovation costs may need to be spread over several years instead; ask your Steuerberater if unsure.",
- prop_wk_verwaltung:"Management costs",
+ prop_wk_verwaltung:"Management costs", prop_wk_verwaltung_hint:"Fees paid to a property manager or management company for administering this rental, if you don't handle it yourself.",
  prop_wk_sonst:"Other costs", prop_wk_sonst_hint:"Anything else related to this property that doesn't fit the categories above - e.g. insurance, property management fees, advertising for tenants.",
  prop_country:"Country the property is in", prop_country_de:"Germany",
  prop_country_hint:"Property abroad is reported differently - usually tax-free in Germany, but it still raises the tax rate on your German income.",
@@ -978,6 +993,9 @@ de: {
  other_ins:"Weitere Versicherungen (Haftpflicht, Unfall...)",
  s4_lead:"Abziehbare Werbungskosten (Anlage N): strukturierte Angaben (Pendlerpauschale, Homeoffice, doppelte Haushaltsführung) plus Einzelposten weiter unten. Der Arbeitnehmer-Pauschbetrag von 1.230 € je erwerbstätiger Person wird automatisch angesetzt. Jede Ausgabe nur einmal erfassen.",
  commute_days:"Arbeitstage mit Fahrt zur Arbeit", commute_km:"Einfache Entfernung (km)", home_office:"Homeoffice-Tage",
+ wk_cat_travel:"Fahrten zur Arbeit", wk_cat_homeoffice:"Homeoffice", wk_cat_equipment:"Arbeitsmittel",
+ wk_cat_training:"Fortbildung (Kurse, Sprache, berufliche Weiterbildung)", wk_cat_arbeitszimmer:"Arbeitszimmer (ausschließlich beruflich genutzter Raum)",
+ arbeitszimmer:"Kosten Arbeitszimmer", arbeitszimmer_hint:"Ein ausschließlich beruflich genutzter Raum - ein eigener Abzug, getrennt von der Homeoffice-Pauschale oben. Die Regeln hängen davon ab, ob es der einzige Arbeitsplatz ist (unbegrenzt) oder nicht (gedeckelt auf 1.260 €/Jahr) - im Zweifel hilft ein Steuerberater bei der Einordnung.",
  equipment:"Arbeitsmittel (Laptop, Schreibtisch...)", training:"Fortbildung", other_wk:"Sonstige Werbungskosten",
  s5_lead:"Sonderausgaben. Der Pauschbetrag von 36 € wird automatisch berücksichtigt.",
  donations:"Spenden (mit Beleg)", other_sa:"Weitere Sonderausgaben",
@@ -1083,6 +1101,9 @@ de: {
  freigabe_incomplete_steps_title:"Diesen Schritten fehlen noch Pflichtangaben",
  freigabe_incomplete_steps_sub:"Das ist sehr wahrscheinlich der Grund, warum die obige Erklärung nicht angenommen wurde - bitte zuerst ausfüllen und dann erneut versuchen.",
  freigabe_field_errors_title:"ERiC hat konkrete Probleme gefunden", freigabe_go_to_section:"Zu diesem Abschnitt", freigabe_go_to_field:"Zu diesem Feld",
+ search_title:"Wo trage ich das ein?", search_ph:"Suche z. B. \"Kinderbetreuung\", \"Anlage V\", \"Homeoffice\"...",
+ search_hint:"Mindestens 2 Zeichen zum Suchen eingeben.", search_no_results:"Dafür wurde noch nichts Passendes gefunden.",
+ search_category_note:"Bei Auswahl wird ein neuer Eintrag mit dieser Kategorie angelegt.",
  freigabe_unknown_error:"Ein Fehler wurde ohne weitere Details gemeldet.",
  freigabe_warnings_title:"Bitte vor dem Versand prüfen",
  freigabe_warnings_sub:"ERiC hat diese Erklärung angenommen, die folgenden Punkte wurden jedoch mit einem sicheren Standardwert übermittelt oder ausgelassen, da die App sie derzeit nicht zuverlässig ermitteln kann. Bitte prüfen Sie vor dem Fortfahren, ob dies für diesen Mandanten zutrifft.",
@@ -1151,6 +1172,7 @@ de: {
  energ_priorclaim:"§35c für dieses Objekt schon früher genutzt?", energ_otherfunding:"Andere öffentliche Förderung beantragt (z. B. KfW)?",
  energ_measures_label:"Welche Maßnahmen treffen zu? (Mehrfachauswahl möglich)",
  energ_m_Walls:"Wärmedämmung Wände", energ_m_Roof:"Wärmedämmung Dach", energ_m_Ceiling:"Wärmedämmung Geschossdecken",
+ energ_m_hint:"Energetische Sanierungsmaßnahmen am eigenen Haus nach §35c - 20 % der Kosten sind über 3 Jahre absetzbar, bis zu 200.000 € insgesamt je Maßnahme.",
  energ_m_Windows:"Neue Fenster oder Außentüren", energ_m_Ventilation:"Lüftungsanlage", energ_m_Heating:"Neue Heizungsanlage",
  energ_credit_note:"20 % werden über 3 Steuerjahre verteilt angerechnet (7 % + 7 % + 6 %), maximal 40.000 € insgesamt.",
  energ_has_prior_years:"Bereits in einem Vorjahr geltend gemacht? (unten anerkannte Beträge eintragen)",
@@ -1172,6 +1194,7 @@ de: {
  deadline_banner:"Abgabefrist - Steuerjahr 2025: Selbsteinreicher 31. Juli 2026 · mit Steuerberater/Lohnsteuerhilfeverein 1. März 2027 · freiwillige Abgabe bis 31. Dez. 2029 möglich.",
  elster_link:"Offizielles Finanzamt-Portal",
  expat_section:"Aufenthalt", full_year_resident:"Haben Sie das gesamte Steuerjahr in Deutschland gelebt?",
+ personal_info_h:"Persönliche Angaben", address_h:"Adresse", status_h:"Status", tax_info_h:"Steuerdaten",
  fy_yes:"Ja - das gesamte Jahr in Deutschland", fy_no:"Nein - nur einen Teil des Jahres (Zu- oder Wegzug)",
  arrival_date:"Zuzugsdatum / Anmeldedatum in Deutschland", departure_date:"Wegzugsdatum aus Deutschland (falls zutreffend)",
  partial_year_hint:"Expats / Personen mit Zu- oder Wegzug: tatsächliche Daten eintragen. Bitte den Steuerberater darauf hinweisen - nur Einkommen während des Aufenthalts in Deutschland ist hier voll steuerpflichtig.",
@@ -1219,7 +1242,7 @@ de: {
  prop_wk_afa:"Gebäudeabschreibung (AfA)", prop_wk_afa_hint:"Die jährliche Absetzung für Abnutzung - meist 2 % der Anschaffungs- oder Herstellungskosten des Gebäudes (ohne Grundstücksanteil).",
  prop_wk_schuldzins:"Darlehenszinsen", prop_wk_schuldzins_hint:"Zinsen für ein Darlehen zum Kauf oder zur Renovierung dieser Immobilie - nicht die Tilgung selbst, nur die Zinsen.",
  prop_wk_erhaltung:"Erhaltungsaufwand", prop_wk_erhaltung_hint:"In diesem Jahr abzugsfähige Instandhaltungs- und Reparaturkosten - größere Renovierungen müssen unter Umständen über mehrere Jahre verteilt werden; im Zweifel den Steuerberater fragen.",
- prop_wk_verwaltung:"Verwaltungskosten",
+ prop_wk_verwaltung:"Verwaltungskosten", prop_wk_verwaltung_hint:"Gebühren an eine Hausverwaltung für die Verwaltung dieser Immobilie, falls Sie sich nicht selbst darum kümmern.",
  prop_wk_sonst:"Sonstige Kosten", prop_wk_sonst_hint:"Alles andere im Zusammenhang mit dieser Immobilie, das nicht in die obigen Kategorien passt - z. B. Versicherung, Hausverwaltungsgebühren, Mietersuche-Anzeigen.",
  prop_country:"Belegenheitsstaat der Immobilie", prop_country_de:"Deutschland",
  prop_country_hint:"Auslandsimmobilien werden anders erklärt - meist in Deutschland steuerfrei, erhöhen aber den Steuersatz auf Ihre inländischen Einkünfte.",
@@ -1312,7 +1335,31 @@ let S = {
  clients:[], currentId:null, step:0,
  search:'', fStatus:'all', fYear:'all',
  aiFields:{}, scanState:null, infoOpen:false, fieldInfo:{}, showReminders:false, // scanState: null | 'scanning' | 'ok' | 'err'
+ searchOpen:false, searchQuery:'',
+ /* CORRECTED: real bug found via direct feedback - every field commit
+    triggers a full re-render (app.innerHTML rebuilt from scratch, no
+    virtual-DOM diffing - see the Tab-navigation fix comment for the
+    same underlying cause), which destroys and recreates every <details>
+    element. A section the person had manually opened by clicking had
+    no way to stay open across that rebuild, since nothing remembered
+    they'd opened it - the very next keystroke's re-render would put it
+    right back to whatever its default happened to be, closing it
+    without an actual second click ever asking for that. This object
+    tracks manual opens/closes explicitly, keyed per section, so the
+    render functions can check "did the person actually touch this"
+    rather than only ever falling back to a data-driven default. */
+ openSections:{},
 };
+/* Reads whether a collapsible section is open - manual user action
+   (tracked in S.openSections) always wins once it exists; falls back
+   to the given data-driven default only before the person has ever
+   touched that specific section. */
+function isSectionOpen(key, dataDefault){
+ return S.openSections[key] !== undefined ? S.openSections[key] : !!dataDefault;
+}
+function toggleSectionState(key, isOpen){
+ S.openSections[key] = isOpen;
+}
 const t = k => (STR[S.lang][k] ?? k);
 const uid = () => 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const BUNDESLAENDER=['Baden-Württemberg','Bayern','Berlin','Brandenburg','Bremen','Hamburg','Hessen','Mecklenburg-Vorpommern','Niedersachsen','Nordrhein-Westfalen','Rheinland-Pfalz','Saarland','Sachsen','Sachsen-Anhalt','Schleswig-Holstein','Thüringen'];
@@ -1483,9 +1530,9 @@ function newClient(f,l,year,marital){
  oth:{ ersatz:'', gdbA:'', gdbB:'', fahrtA:'', fahrtB:'', pflegeA:'', pflegeB:'', kidTransfer:'',
  realsplitting:'', realsplitIdnr:'', realsplitName:'', lossCarry:'', soGain:'', soUnterhalt:'', energCost:'', energStage:'' },
  ins:{ rv:'',kv:'',pv:'',av:'',other:'' },
- wk:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',
+ wk:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',
  dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
- wkB:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',
+ wkB:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',
  dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
  fam:{ kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',untName:'',untIdnr:'',untProfession:'',untBirthDate:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untCohabitation:'nein',untKindergeld:'nein',untOtherContributor:'nein',untHasAssets:'nein',untHasIncome:'nein',untCountry:'',untForeignConfirmed:'nein',children:[] },
  sa:{ donations:'',other:'' },
@@ -1548,7 +1595,7 @@ async function loadState(){
 }
 function migrateClient(c){
  c.p = Object.assign({faNumber:'',bundesland:'',spouseReligion:'none',singleParent:'no',deathYear:'',fullYearResident:'yes',arrivalDate:'',departureDate:''}, c.p||{});
- c.wkB = Object.assign({commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wkB||{});
+ c.wkB = Object.assign({commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wkB||{});
  (Array.isArray(c.privIns)?c.privIns:[]).forEach(x=>{ if(x.person!=='B') x.person='A'; });
  c.emps = Array.isArray(c.emps)?c.emps:[];
  c.emps.forEach(e=>{ if(e.person!=='B') e.person='A'; });
@@ -1582,7 +1629,7 @@ function migrateClient(c){
  if(!N(e0.anAV)) e0.anAV=c.ins.av;
  c.ins.rv=c.ins.kv=c.ins.pv=c.ins.av='';
  }
- c.wk = Object.assign({dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wk||{});
+ c.wk = Object.assign({arbeitszimmer:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wk||{});
  c.fam = Object.assign({kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',untName:'',untIdnr:'',untProfession:'',untBirthDate:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untCohabitation:'nein',untKindergeld:'nein',untOtherContributor:'nein',untHasAssets:'nein',untHasIncome:'nein',untCountry:'',untForeignConfirmed:'nein',children:[]}, c.fam||{});
  if(!Array.isArray(c.fam.children)) c.fam.children=[];
  c.fam.children.forEach(k=>{ if(!k.kinship) k.kinship='leiblich'; });
@@ -1759,8 +1806,14 @@ const N = v => {
    total, confirmed against the real ERiC schema. */
 function propCosts(p){ return N(p.wkAfa)+N(p.wkSchuldzins)+N(p.wkErhaltung)+N(p.wkVerwaltung)+N(p.wkSonst); }
 function formatDE(n){
- const hasFrac = Math.abs(n - Math.round(n)) > 0.004;
- return new Intl.NumberFormat('de-DE',{minimumFractionDigits:hasFrac?2:0,maximumFractionDigits:2}).format(n);
+ /* CORRECTED: real bug found via direct feedback - checked every call
+    site of this function (five of them, all input-field commit
+    handlers, none a read-only summary display) and confirmed none of
+    them should ever drop the decimals for a whole number. Entering
+    "10" produced "10" instead of "10,00", not matching the "0,00 €"
+    placeholder every one of these fields shows. Always showing 2
+    decimals matches what every field actually promises. */
+ return new Intl.NumberFormat('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
 }
 function eur(n){ return new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(Math.round(n)); }
 function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -1822,7 +1875,7 @@ function computeEstimate(c){
  const dhhRent=Math.min(N(w.dhhRent),1000)*Math.min(N(w.dhhMonths),12);
  const dKm=N(w.dhhKm), dNear=Math.min(dKm,20), dFar=Math.max(dKm-20,0);
  const dhhTrips=Math.min(N(w.dhhTrips),52)*(dNear*0.30+dFar*0.38);
- return commute+ho+N(w.equipment)+N(w.training)+N(w.other)+dhhRent+dhhTrips+N(w.relocation); };
+ return commute+ho+N(w.equipment)+N(w.training)+N(w.other)+N(w.arbeitszimmer)+dhhRent+dhhTrips+N(w.relocation); };
  const employedB = joint && (c.emps||[]).some(x=>x.person==='B' && N(x.gross)>0);
  const employedA = (c.emps||[]).some(x=>N(x.gross)>0 && (!joint || x.person!=='B'));
  const itemsA = (c.wkItems||[]).filter(x=>!joint || x.person!=='B').reduce((a,x)=>a+N(x.amount),0);
@@ -2293,7 +2346,7 @@ function stepDone(c,i){
  return ok?'done':'incomplete';
  }
  case 2: return (c.kap||[]).length>0?'done':'empty';
- case 3: return (N(c.wk.commuteDays)+N(c.wk.equipment)+N(c.wk.homeOffice)+N(c.wk.training)+N(c.wk.other)+N(c.wk.dhhRent)+N(c.wk.relocation)>0 || (c.wkItems||[]).length>0)?'done':'empty';
+ case 3: return (N(c.wk.commuteDays)+N(c.wk.equipment)+N(c.wk.homeOffice)+N(c.wk.training)+N(c.wk.other)+N(c.wk.arbeitszimmer)+N(c.wk.dhhRent)+N(c.wk.relocation)>0 || (c.wkItems||[]).length>0)?'done':'empty';
  case 4: {
  const kids=c.fam.children||[]; if(!kids.length) return 'empty';
  const singleParent=['single','verwitwet','getrennt_lebend'].includes(c.p.marital);
@@ -2351,6 +2404,256 @@ function firstMissingFieldTabkey(c,i){
  }
  return null;
 }
+/* =========================================================================
+   SEARCH / NAVIGATION - "where do I enter this?"
+   =========================================================================
+   Static index: one real entry per step, covering its actual Anlage
+   name/number (reusing the exact same real mapping already confirmed
+   correct for the validation-error jump feature - ANLAGE_TO_STEP is
+   defined further down in this file but the step numbers it resolves
+   to are the same fixed list used here), its plain-language step name
+   in both languages, and a curated synonym list for the genuinely
+   common ways someone would actually phrase what they're looking for -
+   built to grow over time based on real searches, not meant to be
+   exhaustive on day one. Every step is deliberately included even
+   where synonyms are sparse, so label/hint search (layered on top of
+   this) still has a real step to land on. */
+const SEARCH_STATIC_INDEX = [
+ { step:0, anlage:['ESt 1 A','Hauptvordruck'], en:'Personal data', de:'Persönliche Daten',
+   enHint:'Your name, address, tax ID, marital status, and Finanzamt - the basic details every return needs.',
+   deHint:'Name, Adresse, Steuer-ID, Familienstand und Finanzamt - die Grunddaten, die jede Erklärung braucht.',
+   synonyms:['personal data','main form','tax id','steuer id','steuernummer','address','marital status','religion','church tax','finanzamt','tax office',
+     'persönliche daten','hauptformular','adresse','familienstand','religion','kirchensteuer','finanzamt'] },
+ { step:1, anlage:['Anlage N'], en:'Employment income', de:'Einkünfte aus nichtselbstständiger Arbeit',
+   enHint:'Your gross salary, tax withheld, and social insurance contributions - straight from your Lohnsteuerbescheinigung.',
+   deHint:'Bruttolohn, einbehaltene Steuer und Sozialversicherungsbeiträge - direkt von der Lohnsteuerbescheinigung.',
+   synonyms:['salary','wage','gross income','payslip','lohnsteuerbescheinigung','employer','wage tax','income tax withheld',
+     'gehalt','lohn','bruttoarbeitslohn','arbeitgeber','lohnsteuer','gehaltsabrechnung'] },
+ { step:1, anlage:['Anlage N-AUS'], en:'Foreign employment income', de:'Ausländische Einkünfte aus nichtselbstständiger Arbeit',
+   enHint:'Days worked abroad for the same employer, and the tax treaty basis for excluding that portion of your income.',
+   deHint:'Im Ausland gearbeitete Tage für denselben Arbeitgeber und die abkommensrechtliche Grundlage für die Freistellung.',
+   synonyms:['foreign income','foreign salary','work abroad','days worked abroad','double taxation','dba',
+     'ausländisches einkommen','auslandstätigkeit','doppelbesteuerung'] },
+ { step:2, anlage:['Anlage KAP'], en:'Capital gains', de:'Einkünfte aus Kapitalvermögen',
+   enHint:'Dividends, interest, and gains from stocks or funds - usually straight from your bank/broker\'s tax statement.',
+   deHint:'Dividenden, Zinsen und Gewinne aus Aktien oder Fonds - meist direkt von der Steuerbescheinigung der Bank.',
+   synonyms:['dividends','interest income','stock gains','capital gains','brokerage','trading','sparerpauschbetrag',
+     'dividenden','zinsen','aktiengewinne','kapitalerträge','broker'] },
+ { step:3, anlage:['Anlage N', 'Werbungskosten'], en:'Werbungskosten (work-related expenses)', de:'Werbungskosten',
+   enHint:'Costs of doing your job - commuting, home office, equipment, training - deducted from your taxable income.',
+   deHint:'Kosten für Ihren Beruf - Fahrten zur Arbeit, Homeoffice, Arbeitsmittel, Fortbildung - mindern Ihr zu versteuerndes Einkommen.',
+   synonyms:['commute','travel to office','home office','homeoffice pauschale','equipment','arbeitsmittel','training','fortbildung',
+     'arbeitszimmer','double household','doppelte haushaltsführung','relocation','umzug',
+     'fahrten zur arbeit','entfernungspauschale','fachliteratur','laptop','sprachkurs'] },
+ { step:4, anlage:['Anlage Kind'], en:'Children', de:'Kinder',
+   enHint:'Your children\'s details, childcare costs, and school fees - each child gets their own entry.',
+   deHint:'Angaben zu Ihren Kindern, Kinderbetreuungskosten und Schulgeld - jedes Kind bekommt einen eigenen Eintrag.',
+   synonyms:['child','children','kindergeld','childcare','child care','kinderbetreuung','kita','daycare','school fees','schulgeld',
+     'kind','kinder','kita gebühren','betreuungskosten'] },
+ { step:5, anlage:['Anlage Unterhalt','Anlage U'], en:'Family support', de:'Unterhaltsleistungen',
+   enHint:'Financial support you provide to someone else - a parent, an ex-spouse, or another dependent relative.',
+   deHint:'Finanzielle Unterstützung, die Sie einer anderen Person leisten - Eltern, Ex-Partner oder andere unterhaltsberechtigte Angehörige.',
+   synonyms:['alimony','support payments','maintenance payments','realsplitting','ex spouse','parent support',
+     'unterhalt','unterhaltszahlungen','ehegattenunterhalt','elternunterhalt'] },
+ { step:6, anlage:['Anlage Vorsorgeaufwand','Anlage AV'], en:'Special expenses', de:'Sonderausgaben',
+   enHint:'Donations, church tax paid, and pension contributions like Riester - deductible costs outside your job.',
+   deHint:'Spenden, gezahlte Kirchensteuer und Altersvorsorgebeiträge wie Riester - abzugsfähige Kosten außerhalb des Berufs.',
+   synonyms:['donations','charity','church tax','riester','private pension','insurance contributions',
+     'spenden','kirchensteuer','riester rente','vorsorgeaufwendungen','altersvorsorge'] },
+ { step:7, anlage:['Anlage Vorsorgeaufwand'], en:'Private expenses (insurance)', de:'Private Versicherungen',
+   enHint:'Health, liability, and life insurance premiums you pay privately - separate from what your employer withholds.',
+   deHint:'Kranken-, Haftpflicht- und Lebensversicherungsbeiträge, die Sie privat zahlen - getrennt vom Abzug durch den Arbeitgeber.',
+   synonyms:['health insurance','private health insurance','liability insurance','life insurance',
+     'krankenversicherung','private krankenversicherung','haftpflichtversicherung','lebensversicherung'] },
+ { step:8, anlage:['Anlage V'], en:'Rental property', de:'Vermietung und Verpachtung',
+   enHint:'Rental income and deductible costs (depreciation, interest, maintenance) for a property you rent out.',
+   deHint:'Mieteinnahmen und abzugsfähige Kosten (Abschreibung, Zinsen, Erhaltung) für eine vermietete Immobilie.',
+   synonyms:['rent','rental income','landlord','tenant','mieteinnahmen','depreciation','afa','building depreciation','loan interest','maintenance',
+     'management costs','immobilie','vermietung','mieter','abschreibung','gebäudeabschreibung','schuldzinsen','erhaltungsaufwand','verwaltungskosten','nebenkosten'] },
+ { step:9, anlage:['Anlage AgB','Haushaltsnahe Dienstleistungen'], en:'Household & other', de:'Haushaltsnahe Leistungen',
+   enHint:'Craftsman invoices, household help, medical costs, disability allowances, and home energy renovation.',
+   deHint:'Handwerkerrechnungen, Haushaltshilfe, Krankheitskosten, Behinderten-Pauschbeträge und energetische Sanierung.',
+   synonyms:['craftsman invoice','handwerkerrechnung','household services','cleaning','gardener','extraordinary expenses',
+     'medical costs','disability','energy renovation','energetic renovation','35c','insulation','new windows','new heating',
+     'haushaltsnahe dienstleistungen','handwerkerleistungen','krankheitskosten','außergewöhnliche belastungen','energetische sanierung','wärmedämmung'] },
+];
+/* Genuinely comprehensive, built at search time from the actual client
+   data - real employer names, property addresses, children's names,
+   and uploaded document names all become searchable too, so someone
+   can find "the Tata entry" or "the invoice I uploaded" as directly as
+   a generic field name. This is what makes the search feel like it
+   understands their actual return, not just the blank form. */
+function buildSearchIndex(c){
+ const entries = SEARCH_STATIC_INDEX.map(e => ({
+   step: e.step,
+   label: S.lang==='de' ? e.de : e.en,
+   hint: S.lang==='de' ? e.deHint : e.enHint,
+   text: [e.en, e.de, ...e.anlage, ...e.synonyms].join(' ').toLowerCase(),
+   tabkey: null,
+ }));
+ /* CORRECTED: real gap found via direct feedback - the itemized
+    Werbungskosten categories (WKI_TYPES) and the insurance type
+    catalog (INS_TYPES) are both real, substantial category lists with
+    their own genuine labels and hint text already written - eleven
+    real work-expense categories, twenty-four real insurance types -
+    none of it was ever in the search index. These are fixed lists,
+    not per-client data, so they're added once here rather than built
+    per-property/per-employer the way real entered data is. Extra
+    keyword coverage added specifically for cases where the category's
+    own label wouldn't naturally contain the word someone might
+    actually type - "internet" for communication costs being the
+    concrete example given, matching the same real logic ("phone,
+    internet" is genuinely what that category covers, but "internet"
+    itself isn't in the label text). */
+ const WKI_EXTRA_KEYWORDS = { kommunikation:'internet phone handy telefon' };
+ WKI_TYPES.forEach(w => {
+   const label = S.lang==='de' ? w.de : w.en;
+   const hint = S.lang==='de' ? w.hde : w.hen;
+   entries.push({ step:3, label, hint, text:(w.de+' '+w.en+' '+(WKI_EXTRA_KEYWORDS[w.k]||'')).toLowerCase(), tabkey:null,
+     createList:'wkItems', createTpl:{person:'A', type:w.k, desc:'', amount:''} });
+ });
+ const INS_EXTRA_KEYWORDS = { rechtsschutz:'legal insurance', tierhaft:'dog cat pet liability', kfzhaft:'car auto vehicle', kasko:'car auto vehicle' };
+ INS_TYPES.forEach(x => {
+   const label = S.lang==='de' ? x.de : x.en;
+   entries.push({ step:7, label, hint:null, text:(x.de+' '+x.en+' '+(INS_EXTRA_KEYWORDS[x.k]||'')).toLowerCase(), tabkey:null,
+     createList:'privIns', createTpl:{person:'A', type:x.k, beitrag:'', erstattung:''} });
+ });
+ (c.emps||[]).forEach(emp => { if(emp.employer) entries.push({ step:1, label:emp.employer, text:emp.employer.toLowerCase(), tabkey:`emps.${emp.id}.employer` }); });
+ (c.props||[]).forEach(p => {
+   const label=[p.street,p.ort].filter(Boolean).join(', ');
+   if(label) entries.push({ step:8, label, text:label.toLowerCase(), tabkey:`props.${p.id}.street` });
+   /* CORRECTED: real gap found via direct feedback - searching real
+      field labels like "Building depreciation" or "energy renovation"
+      returned nothing, since the index only ever had step-level
+      synonyms, never the actual field labels themselves - the "search
+      real labels" half of the plan was never actually built. These are
+      list-based (per-property), so each real property gets its own
+      genuine entry with the real label text and a direct field-level
+      tabkey, the same dynamic pattern already used for employer names
+      just above. */
+   ['wkAfa','wkSchuldzins','wkErhaltung','wkVerwaltung','wkSonst'].forEach(f => {
+     const labelKey = {wkAfa:'prop_wk_afa', wkSchuldzins:'prop_wk_schuldzins', wkErhaltung:'prop_wk_erhaltung', wkVerwaltung:'prop_wk_verwaltung', wkSonst:'prop_wk_sonst'}[f];
+     const hintKey = labelKey+'_hint';
+     const fLabel = t(labelKey) + (label ? ` (${label})` : '');
+     entries.push({ step:8, label:fLabel, hint:t(hintKey)||null, text:(t(labelKey)+' '+labelKey).toLowerCase(), tabkey:`props.${p.id}.${f}` });
+   });
+ });
+ /* Same real-label gap, fixed the same way for the six actual EM_35c
+    energy renovation measures - these are fixed, step-level fields
+    (not list-based), so a plain static entry per measure is enough,
+    using each one's real translated label directly. */
+ EM35C_MEASURES.forEach(m => {
+   const label = t('energ_m_'+m.key);
+   entries.push({ step:9, label, hint:t('energ_m_hint'), text:(label+' energetic renovation energetische sanierung 35c').toLowerCase(), tabkey:`oth.em${m.key}` });
+ });
+ (c.fam?.children||[]).forEach(k => { if(k.firstName) entries.push({ step:4, label:k.firstName, text:(k.firstName||'').toLowerCase(), tabkey:`child.${k.id}.firstName` }); });
+ (c.docs||[]).forEach(d => { if(d.name) entries.push({ step:null, label:d.name, text:d.name.toLowerCase(), tabkey:null, isDoc:true, section:d.section }); });
+ return entries;
+}
+/* Simple, honest substring ranking - no fuzzy-match guessing that could
+   confidently point someone at the wrong place. A query matching the
+   start of a word ranks above one only matching mid-word, and shorter,
+   more specific entries rank above long ones containing the same term
+   incidentally. Returns the best matches, or an empty list if nothing
+   genuinely matches - callers are expected to say so honestly rather
+   than show an unrelated top result. */
+function searchApp(c, query){
+ const q = String(query||'').trim().toLowerCase();
+ if(!q || q.length<2) return [];
+ const index = buildSearchIndex(c);
+ /* CORRECTED: real bug found via direct testing - "anlage v" was
+    matching "Anlage Vorsorgeaufwand" too, since plain .includes()
+    treats it as a valid substring match regardless of word
+    boundaries. A word-boundary regex means "anlage v" only matches
+    where it genuinely starts a word ("Anlage V", not the "v" buried
+    inside "Vorsorgeaufwand"). Escaping the query since it becomes
+    part of a regex here. */
+ const qEsc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+ /* Trailing boundary only required for multi-word queries - a
+    deliberate, complete phrase like "anlage v" shouldn't match mid-word
+    into "anlage vorsorgeaufwand", but a single word still needs to
+    match as a genuine in-progress prefix ("kinderbetr" while someone
+    is still typing "kinderbetreuung"), so it doesn't get a trailing
+    boundary requirement. */
+ const boundaryRe = new RegExp('\\b' + qEsc + (q.includes(' ') ? '\\b' : ''));
+ const scored = index.map(e => {
+   let score = 0;
+   if(boundaryRe.test(e.text)){
+     score = e.text.startsWith(q) ? 2 : 1;
+     score += Math.max(0, 1 - e.text.length/200); // slight preference for more specific, shorter entries
+   }
+   return { ...e, score };
+ }).filter(e=>e.score>0);
+ scored.sort((a,b)=>b.score-a.score);
+ const seen = new Set(); const out=[];
+ for(const s of scored){ const key=s.step+'|'+s.label; if(seen.has(key)) continue; seen.add(key); out.push(s); if(out.length>=8) break; }
+ return out;
+}
+function toggleAppSearch(){
+ S.searchOpen = !S.searchOpen;
+ if(!S.searchOpen) S.searchQuery = '';
+ render();
+ if(S.searchOpen){ const el=document.getElementById('app-search-input'); if(el) el.focus(); }
+}
+function searchBox(c){
+ const results = searchApp(c, S.searchQuery);
+ return `<div class="search-popover" onclick="event.stopPropagation()">
+ <input id="app-search-input" type="text" value="${esc(S.searchQuery)}" placeholder="${t('search_ph')}"
+   oninput="S.searchQuery=this.value;renderSearchResultsOnly()" onkeydown="if(event.key==='Escape')toggleAppSearch()">
+ <div id="app-search-results">${searchResultsHtml(results)}</div>
+ </div>`;
+}
+function searchResultsHtml(results){
+ S._lastSearchResults = results;
+ if(!S.searchQuery || S.searchQuery.trim().length<2) return `<div class="hint" style="padding:8px 4px">${t('search_hint')}</div>`;
+ if(!results.length) return `<div class="hint" style="padding:8px 4px">${t('search_no_results')}</div>`;
+ return `<ul class="search-results-list">${results.map((r,i)=>`<li onclick="selectSearchResult(${i})">
+   <div>${r.isDoc?'📎':r.createList?'➕':'📍'} ${esc(r.label)}</div>
+   ${r.createList?`<div class="search-result-hint search-result-category-note">${t('search_category_note')}</div>`:''}
+   ${r.hint?`<div class="search-result-hint">${esc(r.hint)}</div>`:''}
+   </li>`).join('')}</ul>`;
+}
+/* Called on every keystroke - re-renders only the results dropdown,
+   not the whole page, so the input never loses focus mid-type (the
+   same problem the Tab-navigation fix elsewhere in this file already
+   had to work around for full re-renders). */
+function renderSearchResultsOnly(){
+ const el = document.getElementById('app-search-results'); if(!el) return;
+ el.innerHTML = searchResultsHtml(searchApp(cur(), S.searchQuery));
+}
+/* CORRECTED: real gap found via direct feedback - jumping to a step
+   for a category search result (an itemized Werbungskosten type, an
+   insurance type) landed the person on a page with an "Add item"
+   button and nothing else visible - the actual category they searched
+   for was hidden inside a dropdown they'd still have to find and open
+   themselves, with no indication it even lived there. Now, selecting
+   one of these results genuinely creates the new entry with that exact
+   category already chosen, then jumps straight to its own amount
+   field - nothing left to hunt for in a dropdown. Referenced by index
+   into the results actually shown, rather than serializing the whole
+   object into an inline onclick attribute. */
+function selectSearchResult(i){
+ const r = (S._lastSearchResults||[])[i]; if(!r) return;
+ S.searchOpen = false; S.searchQuery = '';
+ if(r.isDoc){ S.step = r.section ? SEARCH_SECTION_TO_STEP[r.section] ?? 0 : 0; render(); return; }
+ if(r.step!=null) S.step = r.step;
+ if(r.createList){
+   render();
+   const newId = addItem(r.createList, r.createTpl);
+   const amountField = r.createList==='wkItems' ? 'amount' : 'beitrag';
+   scrollToField(`${r.createList}.${newId}.${amountField}`);
+   return;
+ }
+ render();
+ if(r.tabkey) scrollToField(r.tabkey);
+}
+/* Maps a document's saved section tag back to its step index - reuses
+   the same real step ordering as everywhere else in this file. Values
+   confirmed directly against every real docSection() call in the app,
+   not assumed - 'fam' covers both Children and Family support (the
+   only section genuinely shared by two steps), mapped to Children as
+   the more common of the two document types actually uploaded there. */
+const SEARCH_SECTION_TO_STEP = { privIns:7, kap:2, props:8, wk:3, fam:4, ex:9 };
 /* Scrolls to and focuses the exact field, using the same data-tabkey
    attribute already present on every rendered field. A brief highlight
    makes it unmistakable which one the person was sent to, rather than
@@ -2398,7 +2701,12 @@ function clientView(){
  </div>`).join('');
  const bodies=[stepPersonal,stepIncome,stepKap,stepWork,stepChildren,stepFamilySupport,stepSpecial,stepPrivIns,stepProp,stepHousehold,stepSummary,stepInquiries];
  return `<main>
- <div class="crumbs"><a onclick="goDash()">← ${t('back_dash')}</a> &nbsp;/&nbsp; <b>${esc(c.p.firstName)} ${esc(c.p.lastName)}</b> · ${t('tax_year')} ${c.taxYear} · ${chip(c.status)}</div>
+ <div class="crumbs"><a onclick="goDash()">← ${t('back_dash')}</a> &nbsp;/&nbsp; <b>${esc(c.p.firstName)} ${esc(c.p.lastName)}</b> · ${t('tax_year')} ${c.taxYear} · ${chip(c.status)}
+ <span style="float:right;position:relative">
+ <button class="btn-sm link-btn" onclick="event.stopPropagation();toggleAppSearch()" title="${t('search_title')}">🔍 ${t('search_title')}</button>
+ ${S.searchOpen?searchBox(c):''}
+ </span>
+ </div>
  <div class="ws">
  <div class="steps">${stepsHtml}</div>
  <div class="panel">
@@ -2768,7 +3076,7 @@ function LF(list,item,field,label,opts={}){
  <input data-tabkey="${tk}" type="${opts.type||'text'}" value="${esc(item[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''} ${(opts.type||'text')==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
  onchange="updItem('${list}','${item.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
-function addItem(list,tpl){ const c=cur(); (c[list]=c[list]||[]).push(Object.assign({id:uid()},tpl)); c.updatedAt=Date.now(); scheduleSave(); render(); }
+function addItem(list,tpl){ const c=cur(); const item=Object.assign({id:uid()},tpl); (c[list]=c[list]||[]).push(item); c.updatedAt=Date.now(); scheduleSave(); render(); return item.id; }
 function delItem(list,id){ const c=cur(); c[list]=(c[list]||[]).filter(x=>x.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function updItem(list,id,f,v,fmt){ v = validDate(v); v = validAmount(v, fmt); const c=cur(); const it=(c[list]||[]).find(x=>x.id===id); if(!it) return;
  if(fmt && String(v).trim()!=='') v=formatDE(N(v));
@@ -2883,30 +3191,34 @@ function navRow(){
 function stepPersonal(c){
  const married = ['married','married_sep','getrennt_lebend'].includes(c.p.marital); // spouse identity incl. § 26a / getrennt lebend
  return `<h2>${t('step1')}</h2><p class="lead">${t('s1_lead')}</p>
- <div class="section-label">${t('personal')}</div>
+ <div class="section-label">${t('personal_info_h')}</div>
  <div class="grid2">
  ${F('p','firstName',t('first_name')+' *')} ${F('p','lastName',t('last_name')+' *')}
  ${F('p','birthDate',t('birth_date')+' *',{type:'date'})}
  ${F('p','taxId',t('tax_id')+' *',{ph:'12 345 678 901',hint:t('tax_id_hint'),maxlength:13,inputmode:'numeric'})}
  <div id="taxid-check-msg"></div>
  </div>
+ <div class="section-label">${t('address_h')}</div>
  <div class="grid3">
  ${F('p','street',t('street')+' *')} ${F('p','houseNo',t('house_no')+' *')} ${F('p','plz',t('plz')+' *',{maxlength:5,pattern:'[0-9]{5}',inputmode:'numeric',ph:'12345'})}
  </div>
- <div class="grid2">
  ${F('p','city',t('city')+' *')}
+ <div class="section-label">${t('status_h')}</div>
+ <div class="grid2">
  ${F('p','marital',t('marital')+' *',{select:[['single',t('single')],['married',t('married')],['married_sep',t('married_sep')],['verwitwet',t('widowed')],['getrennt_lebend',t('separated_living')]],hint:t('marital_hint'),hintMode:'toggle'})}
  ${c.p.marital==='verwitwet'?F('p','deathYear',t('death_year'),{type:'number',ph:String(new Date().getFullYear()-1),hint:t('death_year_hint')}):''}
  ${c.p.marital==='getrennt_lebend'?`<div class="hint" style="margin-top:-8px;margin-bottom:14px">${t('separated_hint')}</div>`:''}
- <div class="section-label" style="margin-top:22px">${t('expat_section')}</div>
  ${F('p','fullYearResident',t('full_year_resident')+' *',{select:[['yes',t('fy_yes')],['no',t('fy_no')]]})}
+ ${c.p.marital!=='married' ? F('p','singleParent',t('single_parent'),{select:[['no',t('opt_no')],['yes',t('opt_yes')]],hint:t('single_parent_hint')}) : ''}
+ ${F('p','religion',t('religion'),{select:[['none',t('rel_none')],['ev',t('rel_ev')],['rk',t('rel_rk')],['other',t('rel_other')]]})}
+ ${F('p','profession',t('profession'))}
+ </div>
  ${(c.p.fullYearResident==='no')?`<div class="grid2">
  ${F('p','arrivalDate',t('arrival_date')+' *',{type:'date',hint:t('partial_year_hint')})}
  ${F('p','departureDate',t('departure_date')+' *',{type:'date'})}
  </div>`:'' }
- ${c.p.marital!=='married' ? F('p','singleParent',t('single_parent'),{select:[['no',t('opt_no')],['yes',t('opt_yes')]],hint:t('single_parent_hint')}) : ''}
- ${F('p','religion',t('religion'),{select:[['none',t('rel_none')],['ev',t('rel_ev')],['rk',t('rel_rk')],['other',t('rel_other')]]})}
- ${F('p','profession',t('profession'))}
+ <div class="section-label">${t('tax_info_h')}</div>
+ <div class="grid2">
  ${F('p','bundesland',t('bundesland')+' *',{select:[['',t('select')],...BUNDESLAENDER.map(b=>[b,b])]})}
  ${finanzamtField(c)}
  ${F('p','steuernummer',t('steuernummer')+' *',{hint:t('steuernummer_required_hint')})}
@@ -2964,7 +3276,7 @@ function stepIncome(c){
  ${LF('emps',emp,'churchPaid',t('church_paid'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'churchSpouse',t('z7'),{euro:true,ph:'0,00 €'})}
  </div>
- <details class="more"><summary>${t('sec_more_22_28')}</summary>
+ <details class="more" ${isSectionOpen('emp-22-28-'+emp.id, false)?'open':''} ontoggle="toggleSectionState('emp-22-28-${emp.id}', this.open)"><summary>${t('sec_more_22_28')}</summary>
  <div class="grid3">
  ${LF('emps',emp,'agRV',t('z22a'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'agRVb',t('z22b'),{euro:true,ph:'0,00 €'})}
@@ -2979,7 +3291,7 @@ function stepIncome(c){
  ${LF('emps',emp,'pkv28',t('z28'),{euro:true,ph:'0,00 €'})}
  </div>
  </details>
- <details class="more"><summary>${t('sec_more_8_21')}${(()=>{ const a=c.aus&&c.aus[emp.id]; if(!a||!(N(a.totalWage)>0)||a.enabled===false) return '';
+ <details class="more" ${isSectionOpen('emp-8-21-'+emp.id, false)?'open':''} ontoggle="toggleSectionState('emp-8-21-${emp.id}', this.open)"><summary>${t('sec_more_8_21')}${(()=>{ const a=c.aus&&c.aus[emp.id]; if(!a||!(N(a.totalWage)>0)||a.enabled===false) return '';
    /* CORRECTED (real bug found via direct feedback): this check was
       reading taetigkeitDesc/Von/Bis and arbeitgeberName/Street/Plz/
       City/Country - field names the save function never actually
@@ -3056,7 +3368,7 @@ function stepIncome(c){
  ${LF('emps',emp,'dhh21',t('z21'),{euro:true,ph:'0,00 €'})}
  </div>
  </details>
- <details class="more"><summary>${t('sec_more_29_34')}</summary>
+ <details class="more" ${isSectionOpen('emp-29-34-'+emp.id, false)?'open':''} ontoggle="toggleSectionState('emp-29-34-${emp.id}', this.open)"><summary>${t('sec_more_29_34')}</summary>
  <div class="grid3">
  ${LF('emps',emp,'bmg29',t('z29'),{euro:true,ph:'0,00 €'})}
  ${LF('emps',emp,'vbJahr30',t('z30'),{ph:'2020'})}
@@ -3163,7 +3475,7 @@ function stepKap(c){
  <div style="padding:14px 16px">
  ${married?`<div class="grid3">${LF('kap',k,'person',t('person'),{select:personOpts})}</div>`:''}
  ${LF('kap',k,'platform',t('platform'),{ph:'Trade Republic, Scalable, ING...',hint:i===0?t('kap_hint'):''})}
- <details class="more" open><summary>${t('kap_dom')}</summary>
+ <details class="more" ${isSectionOpen('kap-dom', true)?'open':''} ontoggle="toggleSectionState('kap-dom', this.open)"><summary>${t('kap_dom')}</summary>
  <div class="grid2">
  ${LF('kap',k,'k7',t('k7'),{euro:true,ph:'0,00 €'})}
  ${LF('kap',k,'k8',t('k8'),{euro:true,ph:'0,00 €'})}
@@ -3172,7 +3484,7 @@ function stepKap(c){
  </div>
  ${LF('kap',k,'sparerUsed',t('k16'),{euro:true,ph:'0,00 €',hint:t('k16_hint')})}
  </details>
- <details class="more"><summary>${t('kap_for')}</summary>
+ <details class="more" ${isSectionOpen('kap-for', false)?'open':''} ontoggle="toggleSectionState('kap-for', this.open)"><summary>${t('kap_for')}</summary>
  <p style="font-size:12px;color:var(--ink-soft);margin-bottom:10px">${t('for_hint')}</p>
  <div class="grid2">
  ${LF('kap',k,'k18',t('k18'),{euro:true,ph:'0,00 €'})}
@@ -3218,7 +3530,7 @@ function stepProp(c){
  <div class="grid2">
  ${LF('props',p,'rent',t('prop_rent'),{euro:true,ph:'0,00 €'})}
  </div>
- <details class="more" ${(N(p.wkAfa)+N(p.wkSchuldzins)+N(p.wkErhaltung)+N(p.wkVerwaltung)+N(p.wkSonst))>0?'open':''}><summary>${t('prop_costs_summary')}</summary>
+ <details class="more" ${isSectionOpen('prop-costs-'+p.id, (N(p.wkAfa)+N(p.wkSchuldzins)+N(p.wkErhaltung)+N(p.wkVerwaltung)+N(p.wkSonst))>0)?'open':''} ontoggle="toggleSectionState('prop-costs-${p.id}', this.open)"><summary>${t('prop_costs_summary')}</summary>
  <p class="hint" style="margin:0 0 8px">${t('prop_costs_hint')}</p>
  <div class="grid2">
  ${LF('props',p,'wkAfa',t('prop_wk_afa'),{euro:true,ph:'0,00 €',hint:i===0?t('prop_wk_afa_hint'):''})}
@@ -3299,17 +3611,27 @@ function stepWork(c){
  ${married?`<div class="sum-row"><span class="l">${t('wki_tot_b')}</span><span class="r num"><b>${eur(wkiTotB)}</b></span></div>`:''}
  </div>`:'';
  return `<h2>${t('step4')}</h2><p class="lead">${t('s4_lead')}</p>
- <div class="grid3">
+ <div class="section-label">${t('wk_cat_travel')}</div>
+ <div class="grid2">
  ${F('wk','commuteDays',t('commute_days'),{euro:true,ph:'220'})}
  ${F('wk','commuteKm',t('commute_km'),{euro:true,ph:'15'})}
- ${F('wk','homeOffice',t('home_office'),{euro:true,ph:'60'})}
- </div>
- <div class="grid3">
- ${F('wk','equipment',t('equipment'),{euro:true,ph:'0,00 €'})}
- ${F('wk','training',t('training'),{euro:true,ph:'0,00 €'})}
- ${F('wk','other',t('other_wk'),{euro:true,ph:'0,00 €'})}
  </div>
  ${warnDays?`<div class="warn">⚠️ ${t('warn_days')}</div>`:''}
+ <div class="section-label">${t('wk_cat_homeoffice')}</div>
+ ${F('wk','homeOffice',t('home_office'),{euro:true,ph:'60'})}
+ <div class="section-label">${t('wk_cat_equipment')}</div>
+ ${F('wk','equipment',t('equipment'),{euro:true,ph:'0,00 €'})}
+ <div class="section-label">${t('wk_cat_training')}</div>
+ ${F('wk','training',t('training'),{euro:true,ph:'0,00 €'})}
+ <div class="section-label">${t('wk_cat_arbeitszimmer')}</div>
+ ${F('wk','arbeitszimmer',t('arbeitszimmer'),{euro:true,ph:'0,00 €',hint:t('arbeitszimmer_hint')})}
+ ${F('wk','other',t('other_wk'),{euro:true,ph:'0,00 €'})}
+ <div class="section-label">${t('step_wki')}</div>
+ ${wkiCards}
+ <button class="btn btn-ghost btn-sm" onclick="addItem('wkItems',{person:'A',type:'',desc:'',amount:''})">＋ ${t('add_wki')}</button>
+ ${wkiTotBox}
+ ${(N(c.wk.dhhRent)>0 && (c.wkItems||[]).some(x=>x.type==='dhh'))?`<div class="auth-err">⚠️ ${t('warn_dup_dhh')}</div>`:''}
+ ${(N(c.wk.relocation)>0 && (c.wkItems||[]).some(x=>x.type==='umzug'))?`<div class="auth-err">⚠️ ${t('warn_dup_umzug')}</div>`:''}
  <div class="section-label">${t('dhh_h')}</div>
  <p class="lead" style="margin-bottom:14px">${t('s4b')}</p>
  <div class="grid2">
@@ -3321,16 +3643,21 @@ function stepWork(c){
  ${F('wk','relocation',t('relocation'),{euro:true,ph:'0,00 €'})}
  ${c.p.marital==='married'?`
  <div class="section-label">Person B - ${esc((c.p.spouseFirst||'')+' '+(c.p.spouseLast||'')).trim()||t('spouse')}</div>
- <div class="grid3">
+ <div class="section-label">${t('wk_cat_travel')}</div>
+ <div class="grid2">
  ${F('wkB','commuteDays',t('commute_days'),{euro:true,ph:'220'})}
  ${F('wkB','commuteKm',t('commute_km'),{euro:true,ph:'15'})}
+ </div>
+ <div class="section-label">${t('wk_cat_homeoffice')}</div>
  ${F('wkB','homeOffice',t('home_office'),{euro:true,ph:'60'})}
- </div>
- <div class="grid3">
+ <div class="section-label">${t('wk_cat_equipment')}</div>
  ${F('wkB','equipment',t('equipment'),{euro:true,ph:'0,00 €'})}
+ <div class="section-label">${t('wk_cat_training')}</div>
  ${F('wkB','training',t('training'),{euro:true,ph:'0,00 €'})}
+ <div class="section-label">${t('wk_cat_arbeitszimmer')}</div>
+ ${F('wkB','arbeitszimmer',t('arbeitszimmer'),{euro:true,ph:'0,00 €',hint:t('arbeitszimmer_hint')})}
  ${F('wkB','other',t('other_wk'),{euro:true,ph:'0,00 €'})}
- </div>
+ <div class="section-label">${t('dhh_h')}</div>
  <div class="grid2">
  ${F('wkB','dhhRent',t('dhh_rent'),{euro:true,ph:'0,00 €'})}
  ${F('wkB','dhhMonths',t('dhh_months'),{euro:true,ph:'12'})}
@@ -3338,12 +3665,6 @@ function stepWork(c){
  ${F('wkB','dhhKm',t('dhh_km'),{euro:true,ph:'250'})}
  </div>
  ${F('wkB','relocation',t('relocation'),{euro:true,ph:'0,00 €'})}`:''}
- ${(N(c.wk.dhhRent)>0 && (c.wkItems||[]).some(x=>x.type==='dhh'))?`<div class="auth-err">⚠️ ${t('warn_dup_dhh')}</div>`:''}
- ${(N(c.wk.relocation)>0 && (c.wkItems||[]).some(x=>x.type==='umzug'))?`<div class="auth-err">⚠️ ${t('warn_dup_umzug')}</div>`:''}
- <div class="section-label">${t('step_wki')}</div>
- ${wkiCards}
- <button class="btn btn-ghost btn-sm" onclick="addItem('wkItems',{person:'A',type:'',desc:'',amount:''})">＋ ${t('add_wki')}</button>
- ${wkiTotBox}
  ${docSection('wk')}
  ${navRow()}`;
 }
@@ -3425,7 +3746,7 @@ function stepFamilySupport(c){
  ${F('fam','support',t('support_amount'),{euro:true,ph:'0,00 €',hint:t('support_hint')})}
  ${F('fam','supportGroup',t('support_where'),{select:[['1',t('grp1')],['2',t('grp2')],['3',t('grp3')],['4',t('grp4')]]})}
  </div>
- <details class="more" ${hasAmount?'open':''}><summary>${t('unt_details_summary')}</summary>
+ <details class="more" ${isSectionOpen('unt-details', hasAmount)?'open':''} ontoggle="toggleSectionState('unt-details', this.open)"><summary>${t('unt_details_summary')}</summary>
  ${hasAmount?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
  ⚠ ${t('unt_required_hint')}
 
@@ -4448,7 +4769,19 @@ Return this exact JSON structure (use "" for any field not found or empty on the
  headers:{ 'Content-Type':'application/json', ...(authToken?{'Authorization':'Bearer '+authToken}:{}) },
  body: JSON.stringify({ dataUrl, prompt })
  });
- if(!resp.ok) throw new Error('extract_failed');
+ if(!resp.ok){
+   /* CORRECTED: a deliberately-disabled feature (operator turned off
+      AI_AUTOFILL_ENABLED, or no API key configured) isn't a failure -
+      it's expected, intentional behavior. Treating it the same as a
+      genuine extraction error would show end users an alarming "failed"
+      message for something that was never supposed to run at all. The
+      document itself still uploads and stores normally either way -
+      this only affects whether auto-fill is attempted. */
+   let errCode = '';
+   try{ errCode = (await resp.json()).error || ''; }catch(e){}
+   if(errCode === 'extraction_disabled') throw new Error('extraction_disabled');
+   throw new Error('extract_failed');
+ }
  const data = await resp.json();
  const text = (data.content||[]).filter(i=>i.type==='text').map(i=>i.text).join('\n');
  const clean = text.replace(/```json|```/g,'').trim();
@@ -4510,7 +4843,10 @@ Return this exact JSON structure (use "" for any field not found or empty on the
  }
  c.updatedAt=Date.now(); scheduleSave();
  S.scanState='ok';
- }catch(err){ console.error('extraction failed',err); S.scanState='err'; }
+ }catch(err){
+   if(err.message==='extraction_disabled'){ S.scanState=null; render(); return; } // deliberate, not an error - fail silently
+   console.error('extraction failed',err); S.scanState='err';
+ }
  render();
 }
 
