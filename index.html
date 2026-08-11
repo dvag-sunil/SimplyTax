@@ -626,6 +626,9 @@ en: {
  submit_elster:"Submit to the tax authority", resubmit:"Submitted on", edit:"Edit",
  personal:"Personal data", income:"Employment income", insurance:"Insurance", work_exp:"Werbungskosten (work-related expenses)", special_exp:"Special expenses", household_g:"Household & other",
  meter_title:"Estimated refund", meter_nach:"Estimated back payment",
+ veranlagung_compare_title:"Joint or separate - which is better?", veranlagung_compare_hint:"A comparison based on everything entered so far. Shared household items (donations, property, children's costs, insurance) are split evenly between the two individual estimates below, since German tax law lets couples allocate these themselves - treat the separate figure as a close approximation, not an exact calculation.",
+ veranlagung_better:"Better", veranlagung_refund:"refund", veranlagung_owed:"owed",
+ veranlagung_diff_note:"Difference: {amount}",
  m_zve:"Taxable income (est.)", m_tax:"Income tax (est.)", m_soli:"Solidarity surch.", m_kist:"Church tax", m_paid:"Already paid", m_credit:"§ 35a credit",
  meter_foot:"Non-binding estimate (unverbindliche Schätzung). The final assessment (Bescheid) by the Finanzamt may differ.",
  next:"Next", back:"Back",
@@ -1013,6 +1016,9 @@ de: {
  submit_elster:"An das Finanzamt übermitteln", resubmit:"Übermittelt am", edit:"Bearbeiten",
  personal:"Persönliche Daten", income:"Arbeitslohn", insurance:"Vorsorge", work_exp:"Werbungskosten", special_exp:"Sonderausgaben", household_g:"Haushalt & Sonstiges",
  meter_title:"Voraussichtliche Erstattung", meter_nach:"Voraussichtliche Nachzahlung",
+ veranlagung_compare_title:"Zusammen oder einzeln - was ist günstiger?", veranlagung_compare_hint:"Ein Vergleich auf Basis der bisher eingegebenen Daten. Gemeinsame Haushaltsposten (Spenden, Immobilie, Kinderkosten, Versicherungen) werden in den beiden Einzelschätzungen unten hälftig aufgeteilt, da das Gesetz Paaren hier eine eigene Aufteilung erlaubt - die Einzelveranlagungs-Zahl ist daher eine gute Näherung, keine exakte Berechnung.",
+ veranlagung_better:"Günstiger", veranlagung_refund:"Erstattung", veranlagung_owed:"Nachzahlung",
+ veranlagung_diff_note:"Unterschied: {amount}",
  m_zve:"Zu verst. Einkommen (ca.)", m_tax:"Einkommensteuer (ca.)", m_soli:"Solidaritätszuschlag", m_kist:"Kirchensteuer", m_paid:"Bereits gezahlt", m_credit:"§ 35a-Ermäßigung",
  meter_foot:"Unverbindliche Schätzung. Der endgültige Bescheid des Finanzamts kann abweichen.",
  next:"Weiter", back:"Zurück",
@@ -2035,6 +2041,80 @@ function computeEstimate(c){
  + (joint ? Math.min(N(c.wkB.commuteDays),366)*Math.max(N(c.wkB.commuteKm)-20,0)*0.38 : 0);
  const mob = (zvE < gfbY && farEP > 0) ? 0.14 * Math.min(farEP, gfbY - zvE) : 0;
  return { zvE, wk, tax, credit, taxAfter, soli, kist, kap, propNet, owed, paid, mob, refund: paid - owed + mob };
+}
+/* Builds a standalone "single filer" simulation for one spouse, used to
+   compare Zusammenveranlagung against Einzelveranlagung. Never touches
+   the real client object - works on a full deep clone throughout.
+   Traced directly through computeEstimate above to find every place it
+   reads marital status to decide what counts: emps/wkItems/privIns all
+   get POOLED as if they were one person's data whenever marital isn't
+   'married' (confirmed directly in the code, not assumed), so this
+   function must first FILTER each list down to just this person's own
+   entries before calling computeEstimate - otherwise both spouses'
+   income would incorrectly get combined into a single "individual".
+   Person B's own fields (wkB, spouseBirth, spouseReligion, disability
+   fields with a B suffix) also need moving into the "A" slot, since
+   computeEstimate only reads the "A" version of these once marital
+   isn't 'married'.
+   Honest limitation, not hidden: several fields in this app's data
+   model are household-level with no per-spouse split at all (shared
+   insurance, donations, property, children's costs, extraordinary
+   expenses). Real Einzelveranlagung requires an actual allocation
+   decision the couple makes together - this simulation splits those
+   50/50 as a reasonable, clearly-labeled approximation for comparison
+   purposes, not a precise legal calculation. */
+function computeEstimatePerPerson(c, person){
+ const clone = JSON.parse(JSON.stringify(c));
+ clone.p.marital = 'single'; // forces joint=false cleanly, no widow-splitting edge case
+ const isThisPerson = x => person==='A' ? (x.person!=='B') : (x.person==='B');
+ clone.emps = (clone.emps||[]).filter(isThisPerson);
+ clone.wkItems = (clone.wkItems||[]).filter(isThisPerson);
+ clone.privIns = (clone.privIns||[]).filter(isThisPerson);
+ clone.rente = (clone.rente||[]).filter(isThisPerson);
+ clone.kap = (clone.kap||[]); // KAP has no person field in this app's model - split via sparer/kapGains below instead
+ if(person==='B'){
+ clone.wk = c.wkB ? JSON.parse(JSON.stringify(c.wkB)) : {};
+ clone.p.birthDate = c.p.spouseBirth||'';
+ clone.p.religion = c.p.spouseReligion||'none';
+ clone.oth = clone.oth||{};
+ clone.oth.gdbA = c.oth?.gdbB||''; clone.oth.fahrtA = c.oth?.fahrtB||''; clone.oth.pflegeA = c.oth?.pflegeB||'';
+ }
+ // Household-level fields with no per-spouse split in this app's data model - approximated 50/50, honestly documented above
+ const half = v => { const n = N(v); return n ? String(n/2) : v; };
+ clone.ex = clone.ex||{}; clone.ex.medical = half(c.ex?.medical); clone.ex.household = half(c.ex?.household); clone.ex.handwerker = half(c.ex?.handwerker);
+ clone.fam = clone.fam||{}; clone.fam.support = half(c.fam?.support);
+ (clone.fam.children||[]).forEach((k,i)=>{ const orig=(c.fam.children||[])[i]; if(orig){ k.childcare=half(orig.childcare); k.schoolFees=half(orig.schoolFees); } });
+ clone.sa = clone.sa||{}; clone.sa.donations = half(c.sa?.donations); clone.sa.other = half(c.sa?.other);
+ clone.props = (clone.props||[]).map((p,i)=>{ const orig=(c.props||[])[i]; if(orig){ p.rent=half(orig.rent); } return p; });
+ clone.oth = clone.oth||{};
+ ['realsplitting','soGain','soUnterhalt','lossCarry','ersatz','emWalls','emRoof','emCeiling','emWindows','emVentilation','emHeating'].forEach(k=>{ clone.oth[k]=half(c.oth?.[k]); });
+ clone.ins = clone.ins||{}; ['rv','kv','pv','av','other'].forEach(k=>{ clone.ins[k]=half(c.ins?.[k]); });
+ clone.kap = (c.kap||[]).map(k=>{ const k2={...k}; ['gains','k7','k18','k19','k12','k13'].forEach(f=>{k2[f]=half(k[f]);}); return k2; });
+ return computeEstimate(clone);
+}
+function veranlagungCompareCard(c){
+ const jointR = computeEstimate(c).refund;
+ const simA = computeEstimatePerPerson(c,'A');
+ const simB = computeEstimatePerPerson(c,'B');
+ const sepR = simA.refund + simB.refund;
+ const jointBetter = jointR >= sepR;
+ const diff = Math.abs(jointR - sepR);
+ const fmt = r => `<div class="num" style="font-size:20px;margin-top:2px">${eur(Math.abs(r))}</div><div class="hint" style="margin-top:1px">${r>=0?t('veranlagung_refund'):t('veranlagung_owed')}</div>`;
+ return `<div class="infobox" style="margin-bottom:16px">
+ <b>${t('veranlagung_compare_title')}</b>
+ <p class="hint" style="margin:4px 0 12px">${t('veranlagung_compare_hint')}</p>
+ <div class="grid2">
+ <div style="padding:10px 12px;border-radius:10px;background:${jointBetter?'var(--teal-soft)':'var(--paper-soft)'};border:1px solid ${jointBetter?'var(--teal)':'var(--border)'}">
+ <div style="font-size:12.5px;font-weight:600">${t('married')}${jointBetter?' ✓ '+t('veranlagung_better'):''}</div>
+ ${fmt(jointR)}
+ </div>
+ <div style="padding:10px 12px;border-radius:10px;background:${!jointBetter?'var(--teal-soft)':'var(--paper-soft)'};border:1px solid ${!jointBetter?'var(--teal)':'var(--border)'}">
+ <div style="font-size:12.5px;font-weight:600">${t('married_sep')}${!jointBetter?' ✓ '+t('veranlagung_better'):''}</div>
+ ${fmt(sepR)}
+ </div>
+ </div>
+ ${diff>0?`<p class="hint" style="margin-top:10px">${t('veranlagung_diff_note').replace('{amount}',eur(diff))}</p>`:''}
+ </div>`;
 }
 
 /* ---------------- render root ---------------- */
@@ -3891,6 +3971,7 @@ function stepSummary(c){
  esc([p.street,p.plz,p.city].filter(Boolean).join(', ')||t('prop_address')+' '+(i+1)),
  esc(`${eur(N(p.rent))} − ${eur(propCosts(p))} = ${eur(N(p.rent)-propCosts(p))}`)]);
  return `<h2>${t('step7')}</h2><p class="lead">${t('s7_lead')}</p>
+ ${c.p.marital==='married' ? veranlagungCompareCard(c) : ''}
  ${sumGroup(t('personal'),0,[
  [t('client'),esc(c.p.firstName+' '+c.p.lastName)],
  [t('birth_date'),esc(c.p.birthDate)],
