@@ -60,6 +60,9 @@
  .search-results-list li:hover{background:var(--paper-soft)}
  .search-result-hint{font-weight:400;font-size:12px;color:var(--ink-soft);margin-top:2px;line-height:1.35}
  .search-result-category-note{color:var(--teal);font-weight:600}
+ .zeile-row{display:flex;align-items:baseline;gap:10px;margin-bottom:16px}
+ .zeile-num{flex:0 0 auto;min-width:34px;font-weight:700;color:var(--teal-dark);font-size:13px;background:var(--teal-soft);border-radius:6px;padding:2px 6px;text-align:center}
+ .zeile-row .field{flex:1;margin-bottom:0}
  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
  .field.req-empty input,.field.req-empty select{background:var(--amber-soft);border-color:var(--amber)}
  .field.req-empty input:focus,.field.req-empty select:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
@@ -873,6 +876,11 @@ en: {
  prop_foreign_hint:"For a property abroad, only the country, rental income and costs are needed here - it is reported as tax-free income with Progressionsvorbehalt. Please confirm the tax treaty with that country before filing.",
  sec_sv:"Social insurance (lines 22-28)", sec_more:"More fields (lines 8-21, 29-34)",
  sec_more_8_21:"More wage tax fields (lines 8-21)",
+ sec_more_16_21:"Foreign income & less common allowances (lines 16-21)",
+ sec_22_28:"Social insurance contributions (lines 22a-28)",
+ sec_more_rare:"Rarely needed fields (lines 11-14, 29-34)",
+ bescheinigung_hint:"Enter these directly from your Lohnsteuerbescheinigung - each field below matches its line number on the certificate.",
+ z11_14_hint:"Lines 11-14 are unused on current certificates - only relevant for older tax years that still used them.",
  badge_incomplete_hint:"Foreign income details are incomplete inside this section - open it to review.",
  badge_action_needed:"action needed",
  sec_more_22_28:"Social insurance contributions (lines 22a-28)",
@@ -1255,6 +1263,11 @@ de: {
  prop_foreign_hint:"Bei einer Auslandsimmobilie werden hier nur Staat, Mieteinnahmen und Kosten benötigt - die Erklärung erfolgt als steuerfreie Einkünfte mit Progressionsvorbehalt. Bitte prüfen Sie vorab das Doppelbesteuerungsabkommen mit dem betreffenden Staat.",
  sec_sv:"Sozialversicherung (Zeilen 22-28)", sec_more:"Weitere Felder (Zeilen 8-21, 29-34)",
  sec_more_8_21:"Weitere Lohnsteuerfelder (Zeilen 8-21)",
+ sec_more_16_21:"Auslandseinkünfte & seltenere Freibeträge (Zeilen 16-21)",
+ sec_22_28:"Sozialversicherungsbeiträge (Zeilen 22a-28)",
+ sec_more_rare:"Selten benötigte Felder (Zeilen 11-14, 29-34)",
+ bescheinigung_hint:"Direkt von Ihrer Lohnsteuerbescheinigung übertragen - jedes Feld unten entspricht der gleichen Zeilennummer auf der Bescheinigung.",
+ z11_14_hint:"Zeilen 11-14 sind auf aktuellen Bescheinigungen unbesetzt - nur relevant für ältere Steuerjahre, in denen sie noch verwendet wurden.",
  badge_incomplete_hint:"Angaben zum Auslandseinkommen sind in diesem Abschnitt unvollständig - bitte öffnen und prüfen.",
  badge_action_needed:"Handlung erforderlich",
  sec_more_22_28:"Sozialversicherungsbeiträge (Zeilen 22a-28)",
@@ -3076,6 +3089,16 @@ function LF(list,item,field,label,opts={}){
  <input data-tabkey="${tk}" type="${opts.type||'text'}" value="${esc(item[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''} ${(opts.type||'text')==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
  onchange="updItem('${list}','${item.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
+/* Wraps a single LF() field with a prominent Zeile-number badge, so it
+   reads the way the real Lohnsteuerbescheinigung itself does - a
+   number you can scan down the left edge, matching against the paper
+   certificate line by line, rather than a number buried mid-sentence
+   inside the label text. Built on top of LF() itself, not a separate
+   rendering path - every existing behavior (AI-filled flag, required
+   highlighting, tab navigation) keeps working unchanged. */
+function zeileField(num, list, item, field, label, opts={}){
+ return `<div class="zeile-row"><span class="zeile-num">${num}</span>${LF(list,item,field,label,opts)}</div>`;
+}
 function addItem(list,tpl){ const c=cur(); const item=Object.assign({id:uid()},tpl); (c[list]=c[list]||[]).push(item); c.updatedAt=Date.now(); scheduleSave(); render(); return item.id; }
 function delItem(list,id){ const c=cur(); c[list]=(c[list]||[]).filter(x=>x.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function updItem(list,id,f,v,fmt){ v = validDate(v); v = validAmount(v, fmt); const c=cur(); const it=(c[list]||[]).find(x=>x.id===id); if(!it) return;
@@ -3251,7 +3274,7 @@ function stepIncome(c){
  const emps=c.emps||[];
  const married=c.p.marital==='married';
  const personOpts=[['A','A - '+(c.p.firstName||'Person A')],['B','B - '+((c.p.spouseFirst||'')+' '+(c.p.spouseLast||'')).trim()||'B - Person B']];
- const cards=emps.map((emp,i)=>`<div class="sum-group" style="margin-bottom:12px">
+const cards=emps.map((emp,i)=>`<div class="sum-group" style="margin-bottom:12px">
  <div class="head"><span>${t('statement')} ${i+1}
  ${married?`<span class="chip ${emp.person==='B'?'review':'submitted'}" style="margin-left:6px">${emp.person==='B'?'B':'A'}</span>`:''}
  ${emp.employer?' · '+esc(emp.employer):''}</span>
@@ -3262,91 +3285,25 @@ function stepIncome(c){
  ${LF('emps',emp,'employer',t('employer')+' *')}
  ${LF('emps',emp,'taxClass',t('tax_class')+' *',{select:[['',t('select')],[`1`,`I - ${t('sk1_hint')}`],[`2`,`II - ${t('sk2_hint')}`],[`3`,`III - ${t('sk3_hint')}`],[`4`,`IV - ${t('sk4_hint')}`],[`5`,`V - ${t('sk5_hint')}`],[`6`,`VI - ${t('sk6_hint')}`]]})}
  </div>
- <div class="grid2">
+ <div class="grid3">
  ${LF('emps',emp,'periodFrom',t('period_from')+' *',{type:'date'})}
  ${LF('emps',emp,'periodTo',t('period_to')+' *',{type:'date'})}
- </div>
- <div class="grid3">
  ${LF('emps',emp,'kfb',t('kfb'),{ph:'2,0'})}
- ${LF('emps',emp,'gross',t('gross')+' *',{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'wageTax',t('wage_tax'),{euro:true,ph:'0,00 €'})}
  </div>
- <div class="grid3">
- ${LF('emps',emp,'soli',t('soli'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'churchPaid',t('church_paid'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'churchSpouse',t('z7'),{euro:true,ph:'0,00 €'})}
- </div>
- <details class="more" ${isSectionOpen('emp-22-28-'+emp.id, false)?'open':''} ontoggle="toggleSectionState('emp-22-28-${emp.id}', this.open)"><summary>${t('sec_more_22_28')}</summary>
- <div class="grid3">
- ${LF('emps',emp,'agRV',t('z22a'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'agRVb',t('z22b'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'anRV',t('z23a'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'anRVb',t('z23b'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'agKV',t('z24a'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'agPKV',t('z24b'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'agPV',t('z24c'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'anKV',t('z25'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'anPV',t('z26'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'anAV',t('z27'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'pkv28',t('z28'),{euro:true,ph:'0,00 €'})}
- </div>
- </details>
- <details class="more" ${isSectionOpen('emp-8-21-'+emp.id, false)?'open':''} ontoggle="toggleSectionState('emp-8-21-${emp.id}', this.open)"><summary>${t('sec_more_8_21')}${(()=>{ const a=c.aus&&c.aus[emp.id]; if(!a||!(N(a.totalWage)>0)||a.enabled===false) return '';
-   /* CORRECTED (real bug found via direct feedback): this check was
-      reading taetigkeitDesc/Von/Bis and arbeitgeberName/Street/Plz/
-      City/Country - field names the save function never actually
-      writes. The real saved fields are activityDesc/From/To and
-      employerName/Street/Plz/City/Country - confirmed directly
-      against applyAusCalc(). The badge could never clear no matter
-      what was filled in, since it was checking properties that never
-      existed on the real data. */
-   const incomplete = !a.activityDesc || !a.activityFrom || !a.activityTo || !(N(a.workDaysTotal)>0) || !(N(a.workDaysForeign)>0)
-     || (a.employerName||a.employerStreet||a.employerPlz||a.employerCity||a.employerCountry) && !(a.employerName&&a.employerStreet&&a.employerPlz&&a.employerCity&&a.employerCountry)
-     || (N(a.workDaysForeign)>0 && N(a.workDaysForeign)<184 && !a.shortStayBasis);
-   /* CORRECTED (real bug, not a workaround): the check never looked at
-      whether this entry is currently excluded from the filing. Data
-      left incomplete on something the person has explicitly chosen not
-      to submit isn't actually a problem - excluding it is the entire
-      point of that toggle. Checking a.enabled===false first, before
-      anything else, means an excluded entry can never show this
-      warning regardless of what state its underlying fields are in. */
-   return incomplete ? ` <span class="badge-warn">⚠ ${t('badge_action_needed')}</span>` : '';
- })()}</summary>
- ${(()=>{ const a=c.aus&&c.aus[emp.id]; if(!a||!(N(a.totalWage)>0)||a.enabled===false) return '';
-   /* CORRECTED (real bug found via direct feedback): this check was
-      reading taetigkeitDesc/Von/Bis and arbeitgeberName/Street/Plz/
-      City/Country - field names the save function never actually
-      writes. The real saved fields are activityDesc/From/To and
-      employerName/Street/Plz/City/Country - confirmed directly
-      against applyAusCalc(). The badge could never clear no matter
-      what was filled in, since it was checking properties that never
-      existed on the real data. */
-   const incomplete = !a.activityDesc || !a.activityFrom || !a.activityTo || !(N(a.workDaysTotal)>0) || !(N(a.workDaysForeign)>0)
-     || (a.employerName||a.employerStreet||a.employerPlz||a.employerCity||a.employerCountry) && !(a.employerName&&a.employerStreet&&a.employerPlz&&a.employerCity&&a.employerCountry)
-     || (N(a.workDaysForeign)>0 && N(a.workDaysForeign)<184 && !a.shortStayBasis);
-   if(!incomplete) return '';
-   /* The badge alone said "something's wrong" without saying what or
-      where. This banner, shown as soon as the section is opened, says
-      exactly what to do and links straight to the one place that
-      fixes it - not the raw z8-z21 fields below, which aren't where
-      this data lives at all. */
-   return `<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin-bottom:10px">
-   ⚠ ${t('badge_incomplete_hint')}
-   <button class="link-btn" style="padding:2px 0;font-size:12.5px;display:block;margin-top:4px" onclick="showAusCalc('${emp.id}')">${t('aus_edit')} →</button>
-   </div>`;
- })()}
- <div class="grid3">
- ${LF('emps',emp,'vb8',t('z8'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'vb9',t('z9'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'ml10',t('z10'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'lst11',t('z11'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'soli12',t('z12'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'kist13',t('z13'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'kistSp14',t('z14'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'ersatz15',t('z15'),{euro:true,ph:'0,00 €',hint:t('z15_hint')})}
- ${LF('emps',emp,'kug15a',t('z15a'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'dba16',t('z16'),{euro:true,ph:'0,00 €'})}
- <div style="grid-column:1/-1;margin-top:-10px;margin-bottom:6px">
+ <div class="hint" style="margin:-6px 0 16px">${t('bescheinigung_hint')}</div>
+ ${zeileField('3', 'emps', emp, 'gross', t('gross')+' *', {euro:true,ph:'0,00 €'})}
+ ${zeileField('4', 'emps', emp, 'wageTax', t('wage_tax'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('5', 'emps', emp, 'soli', t('soli'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('6', 'emps', emp, 'churchPaid', t('church_paid'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('7', 'emps', emp, 'churchSpouse', t('z7'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('8', 'emps', emp, 'vb8', t('z8'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('9', 'emps', emp, 'vb9', t('z9'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('10', 'emps', emp, 'ml10', t('z10'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('15', 'emps', emp, 'ersatz15', t('z15'), {euro:true,ph:'0,00 €',hint:t('z15_hint')})}
+ ${zeileField('15a', 'emps', emp, 'kug15a', t('z15a'), {euro:true,ph:'0,00 €'})}
+ <details class="more" ${isSectionOpen('emp-16-21-'+emp.id, false)?'open':''} ontoggle="toggleSectionState('emp-16-21-${emp.id}', this.open)"><summary>${t('sec_more_16_21')}</summary>
+ ${zeileField('16', 'emps', emp, 'dba16', t('z16'), {euro:true,ph:'0,00 €'})}
+ <div style="margin-top:-10px;margin-bottom:16px">
  ${(()=>{ const a=c.aus&&c.aus[emp.id]; const hasData=a&&N(a.totalWage)>0;
    if(!hasData) return `<button class="link-btn" style="padding:4px 0;font-size:12.5px" onclick="showAusCalc('${emp.id}')">🌍 ${t('aus_calc_link')}</button>`;
    const on=a.enabled!==false;
@@ -3361,21 +3318,35 @@ function stepIncome(c){
    </div>`;
  })()}
  </div>
- ${LF('emps',emp,'fahrt17',t('z17'),{euro:true,ph:'0,00 €',hint:t('z17_hint')})}
- ${LF('emps',emp,'pausch18',t('z18'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'entsch19',t('z19'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'verpf20',t('z20'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'dhh21',t('z21'),{euro:true,ph:'0,00 €'})}
- </div>
+ ${zeileField('17', 'emps', emp, 'fahrt17', t('z17'), {euro:true,ph:'0,00 €',hint:t('z17_hint')})}
+ ${zeileField('18', 'emps', emp, 'pausch18', t('z18'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('19', 'emps', emp, 'entsch19', t('z19'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('20', 'emps', emp, 'verpf20', t('z20'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('21', 'emps', emp, 'dhh21', t('z21'), {euro:true,ph:'0,00 €'})}
  </details>
- <details class="more" ${isSectionOpen('emp-29-34-'+emp.id, false)?'open':''} ontoggle="toggleSectionState('emp-29-34-${emp.id}', this.open)"><summary>${t('sec_more_29_34')}</summary>
- <div class="grid3">
- ${LF('emps',emp,'bmg29',t('z29'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'vbJahr30',t('z30'),{ph:'2020'})}
- ${LF('emps',emp,'vbMon31',t('z31'),{ph:'01 / 12'})}
- ${LF('emps',emp,'sterbe32',t('z32'),{euro:true,ph:'0,00 €'})}
- ${LF('emps',emp,'fb34',t('z34'),{euro:true,ph:'0,00 €'})}
- </div>
+ <div class="section-label" style="margin-top:22px">${t('sec_22_28')}</div>
+ ${zeileField('22a', 'emps', emp, 'agRV', t('z22a'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('22b', 'emps', emp, 'agRVb', t('z22b'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('23a', 'emps', emp, 'anRV', t('z23a'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('23b', 'emps', emp, 'anRVb', t('z23b'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('24a', 'emps', emp, 'agKV', t('z24a'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('24b', 'emps', emp, 'agPKV', t('z24b'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('24c', 'emps', emp, 'agPV', t('z24c'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('25', 'emps', emp, 'anKV', t('z25'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('26', 'emps', emp, 'anPV', t('z26'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('27', 'emps', emp, 'anAV', t('z27'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('28', 'emps', emp, 'pkv28', t('z28'), {euro:true,ph:'0,00 €'})}
+ <details class="more" ${isSectionOpen('emp-rare-'+emp.id, false)?'open':''} ontoggle="toggleSectionState('emp-rare-${emp.id}', this.open)"><summary>${t('sec_more_rare')}</summary>
+ <div class="hint" style="margin-bottom:12px">${t('z11_14_hint')}</div>
+ ${zeileField('11', 'emps', emp, 'lst11', t('z11'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('12', 'emps', emp, 'soli12', t('z12'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('13', 'emps', emp, 'kist13', t('z13'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('14', 'emps', emp, 'kistSp14', t('z14'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('29', 'emps', emp, 'bmg29', t('z29'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('30', 'emps', emp, 'vbJahr30', t('z30'), {ph:'2020'})}
+ ${zeileField('31', 'emps', emp, 'vbMon31', t('z31'), {ph:'01 / 12'})}
+ ${zeileField('32', 'emps', emp, 'sterbe32', t('z32'), {euro:true,ph:'0,00 €'})}
+ ${zeileField('34', 'emps', emp, 'fb34', t('z34'), {euro:true,ph:'0,00 €'})}
  </details>
  </div></div>`).join('');
  const warnTax = emps.some(e=>N(e.wageTax)>0 && N(e.gross)>0 && N(e.wageTax)>N(e.gross)*0.45);
