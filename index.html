@@ -2355,7 +2355,7 @@ function stepDone(c,i){
  }
  case 1: {
  const emps=c.emps||[]; if(!emps.length) return 'empty';
- const ok=emps.every(e=>has(e.employer)&&has(e.periodFrom)&&has(e.periodTo)&&has(e.taxClass)&&N(e.gross)>0);
+ const ok=emps.every(e=>has(e.employer)&&has(e.taxClass)&&N(e.gross)>0);
  return ok?'done':'incomplete';
  }
  case 2: return (c.kap||[]).length>0?'done':'empty';
@@ -2392,7 +2392,7 @@ function stepDone(c,i){
    Starts with Personal data, where every field is fixed and its
    data-tabkey is predictable ("p.fieldname"). List-based steps
    (Employment income, Property, Children) use runtime-generated item
-   IDs in their tabkeys ("emps.e1.periodTo") that can't be predicted
+   IDs in their tabkeys ("emps.e1.gross") that can't be predicted
    from a static map the same way - those still fall back to the
    step-level jump, honestly, rather than guess at an ID. Returns the
    exact tabkey of the first missing required field, or null if this
@@ -3281,13 +3281,9 @@ const cards=emps.map((emp,i)=>`<div class="sum-group" style="margin-bottom:12px"
  <span class="edit" onclick="delItem('emps','${emp.id}')">🗑 ${t('remove')}</span></div>
  <div style="padding:14px 16px">
  ${married?`<div class="grid3">${LF('emps',emp,'person',t('person'),{select:personOpts})}</div>`:''}
- <div class="grid2">
+ <div class="grid3">
  ${LF('emps',emp,'employer',t('employer')+' *')}
  ${LF('emps',emp,'taxClass',t('tax_class')+' *',{select:[['',t('select')],[`1`,`I - ${t('sk1_hint')}`],[`2`,`II - ${t('sk2_hint')}`],[`3`,`III - ${t('sk3_hint')}`],[`4`,`IV - ${t('sk4_hint')}`],[`5`,`V - ${t('sk5_hint')}`],[`6`,`VI - ${t('sk6_hint')}`]]})}
- </div>
- <div class="grid3">
- ${LF('emps',emp,'periodFrom',t('period_from')+' *',{type:'date'})}
- ${LF('emps',emp,'periodTo',t('period_to')+' *',{type:'date'})}
  ${LF('emps',emp,'kfb',t('kfb'),{ph:'2,0'})}
  </div>
  <div class="hint" style="margin:-6px 0 16px">${t('bescheinigung_hint')}</div>
@@ -3358,7 +3354,7 @@ const cards=emps.map((emp,i)=>`<div class="sum-group" style="margin-bottom:12px"
  <p style="font-size:12.5px;color:var(--ink-soft);margin-top:10px">${t('upload_new_hint')} ${t('ai_personal_note')} ${t('manual_hint')}</p>
  <div class="section-label">${t('income')}</div>
  ${cards}
- <button class="btn btn-ghost btn-sm" onclick="addItem('emps',{person:'A',employer:'',periodFrom:'',periodTo:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:''})">＋ ${t('add_emp')}</button>
+ <button class="btn btn-ghost btn-sm" onclick="addItem('emps',{person:'A',employer:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:''})">＋ ${t('add_emp')}</button>
  <div class="section-label">${t('sec_ersatz')}</div>
  ${F('oth','ersatz',t('ersatz_lbl'),{euro:true,ph:'0,00 €',hint:t('ersatz_hint')})}
  <div class="section-label">${t('sec_rente')}</div>
@@ -4275,12 +4271,13 @@ function buildElsterDataset(c){
  bankverbindung:{ iban:(c.p.iban||'').replace(/\s/g,'') },
  mitwirkungBerater:true },
  anlageN:(c.emps||[]).map(k=>({ person:k.person==='B'?'B':'A', arbeitgeber:k.employer||'',
- /* periodFrom/periodTo intentionally NOT sent - confirmed via the real
-    ERiC schema (checked the complete Anlage N field list) that there
-    is no employment-period field in Anlage N at all; the tax office
-    already receives the full Lohnsteuerbescheinigung electronically
-    from the employer directly. This is kept purely for the user's own
-    reference when reviewing multiple employers side by side. */
+ /* periodFrom/periodTo removed from the app entirely (previously
+    collected but never transmitted - confirmed via the real ERiC
+    schema that there is no employment-period field in Anlage N at
+    all, since the tax office already receives the full
+    Lohnsteuerbescheinigung electronically from the employer directly).
+    Nothing to reference here anymore - genuinely gone, not just
+    excluded from the XML. */
  steuerklasse:k.taxClass||'', kinderfreibetraege:k.kfb||'',
  zeile3_bruttoarbeitslohn:N(k.gross), zeile4_lohnsteuer:N(k.wageTax), zeile5_soli:N(k.soli),
  zeile6_kirchensteuer:N(k.churchPaid), zeile7_kirchensteuerEhegatte:N(k.churchSpouse),
@@ -4496,7 +4493,7 @@ function buildPDF(c){
  y+=3; section(t('income'));
  (c.emps||[]).forEach((k,i)=>{
  const ab=c.p.marital==='married'?' ('+(k.person==='B'?'B':'A')+')':'';
- row(`${t('statement')} ${i+1}${ab}${k.employer?' - '+k.employer:''}`, [[k.periodFrom,k.periodTo].filter(Boolean).join(' - '), k.taxClass?'StKl '+k.taxClass:''].filter(Boolean).join(' · ')||' ');
+ row(`${t('statement')} ${i+1}${ab}${k.employer?' - '+k.employer:''}`, [k.taxClass?'StKl '+k.taxClass:'', N(k.gross)>0?eur(N(k.gross)):''].filter(Boolean).join(' · ')||' ');
  if(N(k.gross)>0) row(' '+t('gross_short'), eur(N(k.gross)));
  if(N(k.wageTax)>0) row(' '+t('wage_tax'), eur(N(k.wageTax)));
  if(N(k.soli)>0) row(' '+t('soli'), eur(N(k.soli)));
