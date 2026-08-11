@@ -748,6 +748,12 @@ en: {
  statement:"Income statement", add_emp:"Add income statement", gross_short:"Gross",
  s2_lead2:"One entry per employer (also for job changes, second jobs or minijobs with wage tax). Upload each Lohnsteuerbescheinigung - every upload creates a NEW income statement and never overwrites existing entries. Please review every field.",
  upload_new_hint:"Each upload adds a new statement below. Insurance contributions (lines 22-27) are added onto the Insurance step automatically.",
+ ai_consent_title:"Before we read this document",
+ ai_consent_body:"To fill in these fields automatically, this document's content is sent to our AI provider (Anthropic, USA) for that one purpose only - it isn't used to train any model and is deleted shortly after. You can always enter everything by hand instead. This choice is remembered, so you won't see this again unless you change it.",
+ ai_consent_link:"Read the full details",
+ ai_consent_decline:"Enter manually instead",
+ ai_consent_accept:"I understand, continue",
+ ai_consent_review_link:"Review AI document reading permission",
  step_kap:"Capital gains", s_kap_lead:"Capital income (Anlage KAP) - gains, dividends and interest from stocks, funds and ETFs at banks, brokers and platforms. The saver's allowance (Sparer-Pauschbetrag) of €1,000 per person (€2,000 for joint assessment) is applied automatically in the estimate.",
  platform:"Bank / platform", kap_gains:"Capital income (gains, dividends, interest)", kap_tax:"Capital gains tax withheld (KapESt)", kap_soli:"Solidarity surcharge withheld",
  add_kap:"Add platform", kap_hint:"Taxed at a flat 25% + Soli. The Finanzamt runs a Günstigerprüfung (your personal rate, if lower) on request.",
@@ -1138,6 +1144,12 @@ de: {
  statement:"Einkommensnachweis", add_emp:"Einkommensnachweis hinzufügen", gross_short:"Brutto",
  s2_lead2:"Je Arbeitgeber ein Eintrag (auch bei Jobwechsel, Zweitjob oder Minijob mit Lohnsteuer). Jede hochgeladene Lohnsteuerbescheinigung legt einen NEUEN Einkommensnachweis an - bestehende Einträge werden nie überschrieben. Bitte jedes Feld prüfen.",
  upload_new_hint:"Jeder Upload ergänzt unten einen neuen Nachweis. Sozialversicherungsbeiträge (Zeilen 22-27) werden automatisch beim Vorsorgeaufwand aufaddiert.",
+ ai_consent_title:"Bevor wir dieses Dokument auslesen",
+ ai_consent_body:"Um diese Felder automatisch auszufüllen, wird der Inhalt dieses Dokuments zu genau diesem einen Zweck an unseren KI-Anbieter (Anthropic, USA) übermittelt - er wird nicht zum Training von Modellen verwendet und kurz danach gelöscht. Du kannst jederzeit stattdessen alles manuell eingeben. Diese Wahl wird gespeichert, du siehst diesen Hinweis also nicht erneut, außer du änderst sie.",
+ ai_consent_link:"Alle Details lesen",
+ ai_consent_decline:"Stattdessen manuell eintragen",
+ ai_consent_accept:"Verstanden, weiter",
+ ai_consent_review_link:"Berechtigung zur KI-Dokumentenerkennung überprüfen",
  step_kap:"Kapitalerträge", s_kap_lead:"Kapitalerträge (Anlage KAP) - Gewinne, Dividenden und Zinsen aus Aktien, Fonds und ETFs bei Banken, Brokern und Plattformen. Der Sparer-Pauschbetrag von 1.000 € pro Person (2.000 € bei Zusammenveranlagung) wird in der Schätzung automatisch berücksichtigt.",
  platform:"Bank / Plattform", kap_gains:"Kapitalerträge (Gewinne, Dividenden, Zinsen)", kap_tax:"Einbehaltene Kapitalertragsteuer (KapESt)", kap_soli:"Einbehaltener Solidaritätszuschlag",
  add_kap:"Plattform hinzufügen", kap_hint:"Pauschal 25 % Steuer + Soli. Die Günstigerprüfung (persönlicher Steuersatz, falls niedriger) übernimmt das Finanzamt auf Antrag.",
@@ -1355,6 +1367,7 @@ let S = {
  search:'', fStatus:'all', fYear:'all',
  aiFields:{}, scanState:null, infoOpen:false, fieldInfo:{}, showReminders:false, // scanState: null | 'scanning' | 'ok' | 'err'
  searchOpen:false, searchQuery:'',
+ aiConsentGiven:false, pendingAiFile:null,
  /* CORRECTED: real bug found via direct feedback - every field commit
     triggers a full re-render (app.innerHTML rebuilt from scratch, no
     virtual-DOM diffing - see the Tab-navigation fix comment for the
@@ -1579,7 +1592,7 @@ async function kvDel(k){
 }
 
 async function saveState(){
- await kvSet('klarsteuer-prefs', JSON.stringify({lang:S.lang}));
+ await kvSet('klarsteuer-prefs', JSON.stringify({lang:S.lang, aiConsentGiven:S.aiConsentGiven}));
  if(!S.user) return;
  if(BACKEND.enabled){
  try{ await api('/api/clients/bulk','PUT',{clients:S.clients}); }
@@ -1599,7 +1612,7 @@ async function loadUserData(){
  S.clients=cl.map(migrateClient);
 }
 async function loadState(){
- const p=await kvGet('klarsteuer-prefs'); if(p){ try{ S.lang=JSON.parse(p).lang||'en'; }catch(e){} }
+ const p=await kvGet('klarsteuer-prefs'); if(p){ try{ const parsed=JSON.parse(p); S.lang=parsed.lang||'en'; S.aiConsentGiven=!!parsed.aiConsentGiven; }catch(e){} }
  if(BACKEND.enabled){
  const tok=await kvGet('klarsteuer-token');
  if(tok){ authToken=tok;
@@ -3432,6 +3445,7 @@ const cards=emps.map((emp,i)=>`<div class="sum-group" style="margin-bottom:12px"
  </div>
  ${scan}
  <p style="font-size:12.5px;color:var(--ink-soft);margin-top:10px">${t('upload_new_hint')} ${t('ai_personal_note')} ${t('manual_hint')}</p>
+ ${S.aiConsentGiven?`<p style="font-size:12px;margin-top:2px"><button class="link-btn" style="padding:0;font-size:12px" onclick="revokeAiConsent()">${t('ai_consent_review_link')}</button></p>`:''}
  <div class="section-label">${t('income')}</div>
  ${cards}
  <button class="btn btn-ghost btn-sm" onclick="addItem('emps',{person:'A',employer:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:''})">＋ ${t('add_emp')}</button>
@@ -4747,7 +4761,51 @@ function sanitizeExtraction(j){
  return j;
 }
 
+/* Option B: confirming persists the choice for good (until explicitly
+   revoked) and automatically continues with whatever file was waiting
+   - no need to re-select it. Declining clears the pending file
+   entirely; nothing is sent anywhere. Follows the same real modal-slot
+   pattern every other modal in this app already uses (see
+   delClient/showAusCalc), rather than a separate mechanism. */
+function confirmAiConsent(){
+ S.aiConsentGiven = true;
+ saveState();
+ const f = S.pendingAiFile; S.pendingAiFile = null;
+ const el = document.querySelector('.modal-bg'); if(el) el.remove();
+ if(f) handleFile(f);
+}
+function declineAiConsent(){
+ S.pendingAiFile = null;
+ const el = document.querySelector('.modal-bg'); if(el) el.remove();
+}
+/* Lets someone who already said yes change their mind later, from a
+   small settings link rather than only during an upload in progress. */
+function revokeAiConsent(){
+ S.aiConsentGiven = false; saveState(); render();
+}
+function showAiConsentModal(file){
+ S.pendingAiFile = file;
+ const slot=document.getElementById('modal-slot'); if(!slot) return;
+ slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this){declineAiConsent();}"><div class="modal" style="max-width:440px">
+ <h3>${t('ai_consent_title')}</h3>
+ <p style="font-size:14px;line-height:1.6;margin:10px 0 16px">${t('ai_consent_body')}
+ <a href="datenschutz.html#ai-doc-recognition${S.lang==='en'?'-en':''}" target="_blank" rel="noopener">${t('ai_consent_link')}</a></p>
+ <div style="display:flex;gap:10px;justify-content:flex-end">
+ <button class="btn btn-ghost" onclick="declineAiConsent()">${t('ai_consent_decline')}</button>
+ <button class="btn btn-primary" onclick="confirmAiConsent()">${t('ai_consent_accept')}</button>
+ </div>
+ </div></div>`;
+}
 async function handleFile(file){
+ /* Option B consent gate: real, persisted, one-time confirmation before
+    any document ever reaches the AI provider - checked here since both
+    the dropzone click and the drag-and-drop listener both funnel
+    through this exact function, so gating it here covers both upload
+    paths from a single place rather than duplicating the check. If
+    consent hasn't been given yet, the file is held and this function
+    is called again automatically the moment the person confirms - no
+    silent bypass, nothing proceeds without a real, remembered "yes". */
+ if(!S.aiConsentGiven){ showAiConsentModal(file); return; }
  S.scanState='scanning'; render();
  try{
  const b64 = await new Promise((res,rej)=>{ const r=new FileReader();
