@@ -4100,7 +4100,7 @@ function submitElster(){
  /* childcare required-fields check (ERiC rule 514139: amount alone is
  rejected without provider + service period once any amount is entered) */
  const ccMissing = (c0.fam.children||[]).find(k => N(k.childcare)>0 && (!k.ccProvider||!k.ccPeriodFrom||!k.ccPeriodTo));
- if(ccMissing){ showSubmitValidationModal(t('err_cc_required'), 3); return; }
+ if(ccMissing){ showSubmitValidationModal(t('err_cc_required'), 4); return; }
  /* support payment required-fields check (confirmed via real ERiC
  validation: amount alone is rejected without the supported person's
  name, IdNr, and household address once any amount is entered) */
@@ -4111,7 +4111,7 @@ function submitElster(){
  and birthdate ARE required (Regel 100120001, an all-or-nothing group
  with name), which were missing from validation before. */
  if(N(c0.fam.support)>0 && (!c0.fam.untName||!c0.fam.untProfession||!c0.fam.untBirthDate||!c0.fam.untAddress)){
- showSubmitValidationModal(t('err_unt_required'), 3, 'fam.untName');
+ showSubmitValidationModal(t('err_unt_required'), 5, 'fam.untName');
  return;
  }
  /* Legacy years (2021/2022) confirmed via real research to require the
@@ -4120,15 +4120,15 @@ function submitElster(){
  years too (second research pass) - same foreignNeedConfirmed field,
  just a different underlying Kennzahl pair, handled in the backend. */
  if(N(c0.fam.support)>0 && YEAR_LIMITATIONS[c0.taxYear]?.legacyUnterhalt && !c0.fam.untIdnr){
- showSubmitValidationModal(t('err_unt_required_legacy_idnr'), 3, 'fam.untIdnr');
+ showSubmitValidationModal(t('err_unt_required_legacy_idnr'), 5, 'fam.untIdnr');
  return;
  }
  if(N(c0.fam.support)>0 && c0.fam.untCountry && c0.fam.untCountry!=='Deutschland' && c0.fam.untForeignConfirmed!=='ja'){
- showSubmitValidationModal(t('err_unt_foreign_required'), 3, 'fam.untForeignConfirmed');
+ showSubmitValidationModal(t('err_unt_foreign_required'), 5, 'fam.untForeignConfirmed');
  return;
  }
  if(N(c0.oth.realsplitting)>0 && (!c0.oth.realsplitIdnr || !c0.oth.realsplitName)){
- showSubmitValidationModal(t('err_realsplit_idnr_required'), 5, 'oth.realsplitIdnr');
+ showSubmitValidationModal(t('err_realsplit_idnr_required'), 6, 'oth.realsplitIdnr');
  return;
  }
  submitElsterReal(c0);
