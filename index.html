@@ -2505,7 +2505,20 @@ function stepDone(c,i){
    &&has(c.fam.untCohabitation)&&has(c.fam.untKindergeld)&&has(c.fam.untOtherContributor)&&has(c.fam.untHasAssets)&&has(c.fam.untHasIncome);
  return ok?'done':'incomplete';
  }
- case 6: return (N(c.sa.donations)+N(c.sa.other)+N(c.ins.other)>0)?'done':'empty';
+ case 6: {
+ if(!(N(c.sa.donations)+N(c.sa.other)+N(c.ins.other)+N(c.oth.realsplitting)>0)) return 'empty';
+ /* CORRECTED: real gap found via direct feedback - this case previously
+ had no way to return 'incomplete' at all, so the Realsplitting
+ ex-spouse Tax ID/name (required by ELSTER once an amount is entered,
+ already marked with a real "*" on the field labels) was never
+ actually checked here, only in the separate pre-submission validation
+ - meaning the sidebar could show this step as "done" while a required
+ field for the actual submission was still missing. Matches the same
+ completeness pattern already used correctly for Children/Family
+ support just above. */
+ if(N(c.oth.realsplitting)>0 && (!has(c.oth.realsplitIdnr) || !has(c.oth.realsplitName))) return 'incomplete';
+ return 'done';
+ }
  case 7: return (c.privIns||[]).length>0?'done':'empty';
  case 8: {
  const props=c.props||[]; if(!props.length) return 'empty';
@@ -2545,6 +2558,10 @@ function firstMissingFieldTabkey(c,i){
  if(!has(c.p.spouseBirth)) return 'p.spouseBirth';
  if(!has(c.p.spouseTaxId)) return 'p.spouseTaxId';
  }
+ }
+ if(i===6 && N(c.oth.realsplitting)>0){
+ if(!has(c.oth.realsplitName)) return 'oth.realsplitName';
+ if(!has(c.oth.realsplitIdnr)) return 'oth.realsplitIdnr';
  }
  return null;
 }
@@ -4174,6 +4191,276 @@ const ANLAGE_TO_STEP = {
    translates them properly. A message that doesn't match any known
    pattern is shown as-is, in German, rather than guessed at - an
    unrecognized translation would be worse than an honest original. */
+/* CORRECTED: real gap found via direct feedback - error messages from
+   ERiC often embed a raw internal field path like
+   "/SA[1]/Weit_Aufw[1]/U_Leist[1]/Einz[1]/E0104305[1]", which means
+   nothing to someone using this app - they have no way to know that's
+   the supported person's Tax ID field. Built by checking the actual
+   real ERiC-44.2.4.0 schema documentation directly for every single
+   Kennzahl this app's own backend transmits (248 real fields, checked
+   against the real schema text, not guessed) - covers exactly what
+   this app could realistically receive an error about, since it only
+   ever sends fields it knows about. Falls back honestly to showing
+   the raw path when a code genuinely isn't in this list, rather than
+   guessing at an unfamiliar one. */
+const FIELD_LABEL_LOOKUP = {
+ E0100081:'Identifikationsnummer',
+ E0100082:'Identifikationsnummer',
+ E0100201:'Name',
+ E0100301:'Vorname',
+ E0100401:'Geburtsdatum',
+ E0100402:'Religion am 31.12.$VZ$',
+ E0100601:'Postleitzahl (Inland)',
+ E0100602:'Wohnort',
+ E0100701:'Verheiratet / Lebenspartnerschaft begründet seit dem',
+ E0100702:'Verwitwet seit dem',
+ E0100703:'Geschieden / Lebenspartnerschaft aufgehoben seit dem',
+ E0100801:'Vorname',
+ E0100901:'Name',
+ E0101001:'Geburtsdatum',
+ E0101104:'Straße (derzeitige Adresse)',
+ E0101601:'Steuerpflichtige Person / Ehemann / Person A',
+ E0102002:'Es ist keine Bankverbindung vorhanden',
+ E0102102:'IBAN (inländisches Geldinstitut)',
+ E0102602:'Einzelveranlagung von Ehegatten / Lebenspartnern',
+ E0104305:'Identifikationsnummer der unterstützten Person',
+ E0104408:'tatsächlich erbracht',
+ E0104801:'Einkommensersatzleistungen, die dem Progressionsvorbehalt unterliegen, z. B. Arbeitslosengeld, Elterngeld, Insolvenzgeld, Krankengeld, Mutterschaftsgeld, Verdienstausfallentschädigung (Infektionsschutzgesetz)',
+ E0105502:'$VZ$ geleistete Spenden an Empfänger im EU- / EWR-Ausland (laut Bestätigungen / laut Betriebsfinanzamt)',
+ E0105902:'Summe der Umsätze, Löhne und Gehälter zur Ermittlung des Spendenhöchstbetrages',
+ E0108405:'$VZ$ geleistete Spenden an Empfänger im Inland (laut Bestätigungen / laut Betriebsfinanzamt)',
+ E0108509:'Von den Spenden in den Zeilen $E0108405.Vordruckzeile$ und $E0105502.Vordruckzeile$ sollen $VZ$ berücksichtigt werden',
+ E0109708:'Grad der Behinderung',
+ E0111214:'darin enthaltene Lohnanteile, Maschinen- und Fahrtkosten inklusive Umsatzsteuer',
+ E0111215:'Summe steuerlich berücksichtigungsfähiger Lohnanteile, Maschinen- und Fahrtkosten inklusive Umsatzsteuer',
+ E0111217:'Art der Aufwendungen',
+ E0120101:'Anschrift dieses Haushaltes',
+ E0120102:'Wohnsitzstaat, wenn Ausland',
+ E0120103:'Höhe der Unterhaltszahlung – ohne Bargeldzahlung – (einschließlich Beiträge zu Basis-Kranken- und Pflegeversicherungen laut Zeile $E0124401.Vordruckzeile$, die von der unterstützten Person als Versicherungsnehmer geschuldet und von mir getragen wurden oder von mir als getragen gelten)',
+ E0120104:'Zeitraum, in dem die Zahlungen für den Unterhalt geleistet wurden (Tag der ersten Zahlung bis Tag der letzten Zahlung)',
+ E0120108:'Anzahl der Personen, die in dem Haushalt laut Zeile $E0120101.Vordruckzeile$ lebten',
+ E0120109:'Unterstützungszeitraum, für den Unterhalt geleistet wurde',
+ E0120201:'Name, Vorname',
+ E0120202:'Beruf, Familienstand',
+ E0120203:'Geburtsdatum',
+ E0120209:'Bei Unterhaltsempfängern im Ausland: Die von der Heimatbehörde und der unterstützten Person bestätigte Unterhaltserklärung über die Bedürftigkeit liegt mir vor.',
+ E0120210:'Bei Unterhaltsempfängern im Ausland: Die von der Heimatbehörde und der unterstützten Person bestätigte Unterhaltserklärung über die Bedürftigkeit liegt mir nicht vor.',
+ E0120211:'Identifikationsnummer',
+ E0120301:'Die unterstützte Person hatte während des gesamten Kalenderjahres $VZ$ kein oder nur geringes Vermögen (je nach Wohnsitzstaat maximal 15.500 EUR, bei Ehegatten / Lebenspartnern im gemeinsamen Haushalt insgesamt maximal 31.000 EUR)',
+ E0120401:'Während des ganzen Kalenderjahres $VZ$ hatte niemand für die unterstützte Person Anspruch auf Kindergeld oder Freibeträge für Kinder.',
+ E0120701:'Verwandtschaftsverhältnis zur unterstützenden Person',
+ E0120860:'Keine weitere Person hat zum Unterhalt der unterstützten Person beigetragen.',
+ E0120901:'Keine Einkünfte und Bezüge und keine öffentlichen Ausbildungshilfen im Kalenderjahr.',
+ E0122505:'Die unterstützte Person lebte in meinem inländischen Haushalt.',
+ E0122613:'Hatte jemand für die unterstützte Person Anspruch auf Kindergeld oder Freibeträge für Kinder?',
+ E0123105:'Hatte die unterstützte Person im Unterhaltszeitraum Vermögen?',
+ E0123213:'Die von der Heimatbehörde und der unterstützten Person bestätigte Unterhaltserklärung über die Bedürftigkeit liegt mir vor.',
+ E0123313:'Die unterstützte Person hat Einkünfte, Bezüge und / oder öffentliche Ausbildungshilfen im Kalenderjahr erzielt.',
+ E0124801:'Hat mindestens eine weitere Person zum Unterhalt der unterstützten Person beigetragen?',
+ E0161301:'Art der Aufwendungen',
+ E0161302:'Höhe der Aufwendungen',
+ E0161303:'Erhaltene und / oder zu erwartende Versicherungsleistungen, Beihilfen, Unterstützungen usw. (ggf. „0“)',
+ E0161304:'Summe der Aufwendungen',
+ E0161305:'Summe der erhaltenen und / oder zu erwartenden Versicherungsleistungen, Beihilfen, Unterstützungen usw. (ggf. „0“)',
+ E0161606:'Für die pflegebedürftige Person wurde folgender Pflegegrad festgestellt',
+ E0170601:'Rechnungsbeträge (bei Eintragungen in Zeile $E0107606.Vordruckzeile$ nur anteilig)',
+ E0183001:'Die unterstützte Person hat ihren Wohnsitz / gewöhnlichen Aufenthalt im Inland',
+ E0183101:'Name und Geburtsdatum der unterstützten Person',
+ E0190701:'Es wurde ein verbleibender Verlustvortrag nach § 10d EStG zum 31.12.$VZ-1$ festgestellt.',
+ E0200002:'Steuerklasse',
+ E0200201:'Bruttoarbeitslohn einschließlich Sachbezüge',
+ E0200204:'Bruttoarbeitslohn einschließlich Sachbezüge',
+ E0200301:'Lohnsteuer',
+ E0200304:'Lohnsteuer',
+ E0200401:'Solidaritätszuschlag',
+ E0200404:'Solidaritätszuschlag',
+ E0200501:'Kirchensteuer des Arbeitnehmers',
+ E0200504:'Kirchensteuer des Arbeitnehmers',
+ E0200601:'Nur bei Konfessionsverschiedenheit: Kirchensteuer für den Ehegatten / Lebenspartner',
+ E0200604:'Kirchensteuer für den Ehegatten / Lebenspartner (nur bei Konfessionsverschiedenheit)',
+ E0200801:'Steuerbegünstigte Versorgungsbezüge laut Nr. 8 der Lohnsteuerbescheinigung (im Bruttoarbeitslohn laut Zeile $E0200201.Vordruckzeile$ enthalten)',
+ E0200902:'Bemessungsgrundlage für den Versorgungsfreibetrag laut Nr. 29 der Lohnsteuerbescheinigung',
+ E0201003:'Bei unterjähriger Zahlung: Erster Monat, für den Versorgungsbezüge gezahlt wurden, laut Nr. 31 der Lohnsteuerbescheinigung',
+ E0201203:'Bei unterjähriger Zahlung: Letzter Monat, für den Versorgungsbezüge gezahlt wurden, laut Nr. 31 der Lohnsteuerbescheinigung',
+ E0201205:'Sterbegeld, Kapitalauszahlungen / Abfindungen und Nachzahlungen von Versorgungsbezügen laut Nr. 32 der Lohnsteuerbescheinigung (in den Zeilen $E0200201.Vordruckzeile$ und $/N/ArbL/VBez/Einz/E0200801.Vordruckzeile$ enthalten)',
+ E0201210:'Sterbegeld, Kapitalauszahlungen / Abfindungen und Nachzahlungen von Versorgungsbezügen laut Nr. 32 der Lohnsteuerbescheinigung (in den Zeilen $E0200201.Vordruckzeile$ und $/N/ArbL/VBez/Einz/E0200801.Vordruckzeile$ enthalten)',
+ E0201307:'Maßgebendes Kalenderjahr des Versorgungsbeginns laut Nr. 30 der Lohnsteuerbescheinigung',
+ E0201502:'Steuerfreier Arbeitslohn nach Doppelbesteuerungsabkommen / sonstigen zwischenstaatlichen Übereinkommen (Summe aus den Zeilen $E2604901.Vordruckzeile$, $E2607001.Vordruckzeile$ und / oder $E2608101.Vordruckzeile$ aller Anlagen N-AUS)',
+ E0201606:'Versorgungsbezüge für mehrere Kalenderjahre laut Nr. 9 der Lohnsteuerbescheinigung (im Bruttoarbeitslohn laut Zeile $E0200201.Vordruckzeile$ enthalten)',
+ E0201806:'Arbeitslohn für mehrere Jahre, Entschädigungen (z. B. Abfindungen) laut Nr. 10 der Lohnsteuerbescheinigung (im Bruttoarbeitslohn laut Zeile $E0200201.Vordruckzeile$ enthalten)',
+ E0202001:'Kurzarbeitergeld, Zuschuss zum Mutterschaftsgeld, Verdienstausfallentschädigung (Infektionsschutzgesetz), Aufstockungsbeträge nach dem Altersteilzeitgesetz, Altersteilzeitzuschläge nach Besoldungsgesetzen, Qualifizierungsgeld (laut Nr. 15 der Lohnsteuerbescheinigung)',
+ E0202400:'Anzahl der beigefügten Anlagen N-AUS',
+ E0203003:'Ziel des Weges',
+ E0203501:'PLZ, Ort und Straße',
+ E0203503:'aufgesucht an Tagen',
+ E0203504:'einfache Entfernung in Kilometern (auf volle Kilometer abgerundet)',
+ E0203505:'davon mit eigenem oder zur Nutzung überlassenem PKW zurückgelegt',
+ E0203506:'davon mit öffentlichen Verkehrsmitteln, Motorrad, Fahrrad oder Ähnlichem, als Fußgänger und / oder als Mitfahrer einer Fahrgemeinschaft zurückgelegt',
+ E0203611:'Aufwendungen für Fahrten mit öffentlichen Verkehrsmitteln (ohne Fähr- und Flugkosten)',
+ E0203901:'Arbeitgeberleistungen laut Nr. 18 der Lohnsteuerbescheinigung (pauschal besteuert)',
+ E0204803:'Summe der weiteren Werbungskosten',
+ E0205003:'Fahrtkosten',
+ E0205630:'Summe Mehraufwendungen für Verpflegung bei einer Auswärtstätigkeit im Ausland',
+ E0207116:'einfache Entfernung in km (ohne Flugstrecken)',
+ E0207117:'Anzahl der Familienheimfahrten',
+ E0207304:'Anzahl der Familienheimfahrten',
+ E0240401:'Straße, Hausnummer',
+ E0240402:'Herstellungsbeginn des Gebäudes',
+ E0240501:'Postleitzahl, Ort (ggf. ausländischer Staat)',
+ E0240801:'Gesamtfläche in m²',
+ E0240802:'davon ausschließliche Nutzung zu eigenen Wohnzwecken oder in Teilen unentgeltliche Überlassung zu Wohnzwecken an andere Personen in m²',
+ E0240803:'Für das begünstigte Objekt wurde in der Vergangenheit bereits eine Steuerermäßigung für energetische Maßnahmen in Anspruch genommen.',
+ E0240901:'Baubeginn der energetischen Maßnahme',
+ E0240902:'Ich habe / Wir haben für die energetischen Maßnahmen beantragt / in Anspruch genommen: öffentliche Förderung durch zinsverbilligte Darlehen (z. B. KfW-Bank, landeseigene Förderbank) oder steuerfreie Zuschüsse (z. B. KfW-Bank, BAFA, Gemeinde) oder Steuerbegünstigung für Gebäude in Sanierungsgebieten und städtebaulichen Entwicklungsbereichen oder Steuerermäßigung für Handwerkerleistungen nach § 35a EStG',
+ E0241001:'Aufwendungen für die Wärmedämmung von Wänden',
+ E0241101:'Aufwendungen für die Wärmedämmung von Dachflächen',
+ E0241201:'Aufwendungen für die Wärmedämmung von Geschossdecken',
+ E0241301:'Aufwendungen für die Erneuerung der Fenster und / oder Außentür(en)',
+ E0241401:'Aufwendungen für die Erneuerung und / oder den Einbau einer Lüftungsanlage',
+ E0241501:'Aufwendungen für die Erneuerung der Heizungsanlage (bitte Zeile $E0242101.Vordruckzeile$ und $E0242201.Vordruckzeile$ beachten)',
+ E0241901:'Summe der Aufwendungen für energetische Maßnahmen',
+ E0242501:'Anerkannte Aufwendungen für energetische Maßnahmen des Jahres $VZ-1$ (diese können Sie den Erläuterungen Ihres Einkommensteuerbescheides $VZ-1$ entnehmen); bei Nutzungs- und / oder Eigentumsänderungen: entsprechend erhöhte / verminderte Aufwendungen',
+ E0243401:'Anerkannte Aufwendungen für energetische Maßnahmen des Jahres $VZ-2$ (diese können Sie den Erläuterungen Ihres Einkommensteuerbescheides $VZ-2$ entnehmen); bei Nutzungs- und / oder Eigentumsänderungen: entsprechend erhöhte / verminderte Aufwendungen',
+ E0500107:'Vorname',
+ E0500108:'ggf. abweichender Familienname',
+ E0500406:'Identifikationsnummer',
+ E0500601:'Kindschaftsverhältnis bestand vom - bis',
+ E0500701:'Geburtsdatum',
+ E0500702:'Anspruch auf Kindergeld oder vergleichbare Leistungen für $VZ$',
+ E0500703:'vom - bis',
+ E0500706:'Für die Kindergeldfestsetzung zuständige Familienkasse',
+ E0500805:'Kindschaftsverhältnis bestand vom - bis',
+ E0500807:'Art des Kindschaftsverhältnisses',
+ E0500808:'Art des Kindschaftsverhältnisses',
+ E0501103:'Name, Vorname',
+ E0501106:'Art des Kindschaftsverhältnisses',
+ E0501903:'Dauer des Kindschaftsverhältnisses (Zeitraum vom – bis)',
+ E0503802:'Für das Kind wurde mir Kindergeld ausgezahlt im Zeitraum',
+ E0504301:'Nur beim Stief- / Großelternteil: Ich beantrage / Wir beantragen die Übertragung des Kinderfreibetrags und des Freibetrags für den Betreuungs- und Erziehungs- oder Ausbildungsbedarf, weil ich / wir das Kind in meinem / unserem Haushalt aufgenommen habe(n) oder ich / wir als Großelternteil gegenüber dem Kind unterhaltspflichtig bin / sind.',
+ E0504405:'berücksichtigungsfähige Gesamtaufwendungen der Eltern: Einzelbetrag',
+ E0504505:'Das von mir übernommene Schulgeld beträgt',
+ E0504807:'Es bestand ein gemeinsamer Haushalt der Elternteile im Zeitraum',
+ E0504808:'Das Kind gehörte zu unserem Haushalt im Zeitraum',
+ E0505606:'Bezeichnung der Schule oder deren Träger',
+ E0505607:'berücksichtigungsfähige Gesamtaufwendungen der Eltern',
+ E0506101:'Art der Dienstleistung, Name und Anschrift des Dienstleisters',
+ E0506102:'Name und Anschrift des Dienstleisters',
+ E0506103:'vom - bis',
+ E0506104:'Betrag',
+ E0506105:'berücksichtigungsfähige Gesamtaufwendungen der Eltern',
+ E0506504:'Steuerfreier Ersatz (z. B. vom Arbeitgeber), Erstattungen',
+ E0506505:'Betrag',
+ E0506506:'Zeitraum (vom - bis)',
+ E0506604:'berücksichtigungsfähige Aufwendungen',
+ E0506605:'Betrag',
+ E0506606:'Zeitraum (vom - bis)',
+ E0603901:'aus dem Staat',
+ E0603902:'aus der Einkunftsquelle',
+ E0603903:'Einkunftsart',
+ E0603904:'Einkünfte',
+ E0700201:'Mieteinnahmen',
+ E0700206:'Summe',
+ E0700407:'Straße, Hausnummer',
+ E0700501:'auf die Zeilen $E0700206.Vordruckzeile$ und $E0700406.Vordruckzeile$ entfallende laufende Neben- / Betriebskosten',
+ E0700503:'Postleitzahl',
+ E0700504:'Ort',
+ E0700703:'als Ferienwohnung genutzt',
+ E0700704:'an Angehörige zu Wohnzwecken vermietet',
+ E0700705:'kurzfristig vermietet',
+ E0701202:'Bezeichnung der Wohneinheit (z. B. Stockwerk, Nummer der Wohnung)',
+ E0701401:'Summe der Einnahmen aus den Zeilen $E0700206.Vordruckzeile$, $E0700406.Vordruckzeile$ bis $E0701701.Vordruckzeile$ und $E0701303.Vordruckzeile$',
+ E0701601:'Überschuss (Einnahmen laut Zeile $E0701401.Vordruckzeile$ abzüglich Werbungskosten laut Zeile $E0705701.Vordruckzeile$) – negativen Betrag mit vorangestelltem Minuszeichen eintragen –',
+ E0701801:'Steuerpflichtige Person / Ehemann / Person A',
+ E0701802:'Ehefrau / Person B',
+ E0702404:'Neben- / Betriebskosten wurden nicht gesondert vereinbart.',
+ E0703302:'Art der Absetzung für Abnutzung',
+ E0703303:'Prozent',
+ E0703306:'Werbungskosten',
+ E0703406:'Abzugsfähige Werbungskosten',
+ E0703511:'Abzugsfähige Werbungskosten',
+ E0703707:'Bezeichnung',
+ E0703708:'Rechnungsaussteller',
+ E0703709:'Rechnungsdatum',
+ E0703911:'Abzugsfähige Werbungskosten',
+ E0704410:'Gesamtbetrag',
+ E0704412:'Abzugsfähige Werbungskosten',
+ E0704507:'Einzelangaben (z. B. Kreditinstitut)',
+ E0704508:'Werbungskosten',
+ E0705515:'Abzugsfähige Werbungskosten',
+ E0705607:'Abzugsfähige Werbungskosten',
+ E0705701:'Summe der Werbungskosten (Summe der Zeilen $E0703511.Vordruckzeile$, $E0703416.Vordruckzeile$, $E0704008.Vordruckzeile$, $E0703519.Vordruckzeile$, $E0703406.Vordruckzeile$, $E0704406.Vordruckzeile$, $E0704506.Vordruckzeile$, $E0704412.Vordruckzeile$, $E0704513.Vordruckzeile$, $E0704708.Vordruckzeile$, $E0704015.Vordruckzeile$, $E0704115.Vordruckzeile$, $E0704215.Vordruckzeile$, $E0704315.Vordruckzeile$, $E0704418.Vordruckzeile$, $E0705515.Vordruckzeile$, $E0704812.Vordruckzeile$ und $E0705607.Vordruckzeile$)',
+ E0707501:'Einzelangaben',
+ E0707502:'Gesamtbetrag',
+ E0707901:'Einzelangaben',
+ E0707902:'Gesamtbetrag',
+ E1800301:'Rentenbetrag (einschließlich Einmalzahlung und Leistungen)',
+ E1800501:'Beginn der Rente',
+ E1800701:'Prozentsatz (laut Bescheinigung Ihres Versorgungsträgers)',
+ E1801601:'Rentenbetrag',
+ E1801701:'Beginn der Rente',
+ E1900401:'Ich beantrage die Günstigerprüfung für sämtliche Kapitalerträge.',
+ E1900701:'Kapitalerträge',
+ E1900901:'In Zeile $E1900701.Vordruckzeile$ enthaltene Gewinne aus Aktienveräußerungen',
+ E1901301:'Nicht ausgeglichene Verluste aus der Veräußerung von Aktien',
+ E1901401:'In Anspruch genommener Sparer-Pauschbetrag, der auf die in den Zeilen $E1900701.Vordruckzeile$ bis $E1901502.Vordruckzeile$, $E1902302.Vordruckzeile$ und $E1902601.Vordruckzeile$ erklärten Kapitalerträge entfällt (ggf. „0“)',
+ E1901403:'Verluste aus Termingeschäften',
+ E1901501:'Inländische Kapitalerträge (ohne Beträge laut den Zeilen $E1902001.Vordruckzeile$ und $E1902602.Vordruckzeile$)',
+ E1901701:'In den Zeilen $E1901501.Vordruckzeile$ und $E1901702.Vordruckzeile$ enthaltene Gewinne aus Aktienveräußerungen i. S. d. § 20 Abs. 2 Satz 1 Nr. 1 EStG',
+ E1901702:'Ausländische Kapitalerträge (ohne Beträge laut den Zeilen $E1902602.Vordruckzeile$ und $E1905703.Vordruckzeile$)',
+ E1901802:'In den Zeilen $E1901501.Vordruckzeile$ und $E1901702.Vordruckzeile$ enthaltene Verluste ohne Verluste aus der Veräußerung von Aktien',
+ E1901903:'In den Zeilen $E1901501.Vordruckzeile$ und $E1901702.Vordruckzeile$ enthaltene Verluste aus der Veräußerung von Aktien i. S. d. § 20 Abs. 2 Satz 1 Nr. 1 EStG',
+ E1902001:'Zinsen, die vom Finanzamt für Steuererstattungen gezahlt wurden (ohne an das Finanzamt zurückgezahlte Zinsen für Steuererstattungen) – Bitte Anleitung beachten. –',
+ E1904701:'Kapitalertragsteuer',
+ E1904801:'Kirchensteuer zur Kapitalertragsteuer',
+ E1904901:'Solidaritätszuschlag',
+ E2000401:'Arbeitnehmeranteil laut Nr. 23 a / b der Lohnsteuerbescheinigung',
+ E2000501:'Beiträge zur landwirtschaftlichen Alterskasse; zu berufsständischen Versorgungseinrichtungen, die den gesetzlichen Rentenversicherungen vergleichbare Leistungen erbringen (abzüglich steuerfreier Zuschüsse laut Nr. 22 b der Lohnsteuerbescheinigung) – ohne Beiträge, die in Zeile $/VOR/AVor/E2000401.Vordruckzeile$ geltend gemacht werden –',
+ E2000801:'Arbeitgeberanteil / -zuschuss laut Nr. 22 a / b der Lohnsteuerbescheinigung',
+ E2001203:'Arbeitnehmerbeiträge zu Krankenversicherungen laut Nr. 25 der Lohnsteuerbescheinigung',
+ E2001505:'Arbeitnehmerbeiträge zu sozialen Pflegeversicherungen laut Nr. 26 der Lohnsteuerbescheinigung',
+ E2001605:'Von der Kranken- und / oder sozialen Pflegeversicherung erstattete Beiträge',
+ E2001805:'Beiträge zu Krankenversicherungen – ohne Beiträge, die in Zeile $/VOR/Beitr_g_KV_PV_Inl/AN/E2001203.Vordruckzeile$ geltend gemacht werden – (z. B. bei Rentnern, bei freiwillig gesetzlich versicherten Selbstzahlern)',
+ E2004403:'Arbeitnehmerbeiträge zur Arbeitslosenversicherung laut Nr. 27 der Lohnsteuerbescheinigung',
+ E2600401:'in (Staat)',
+ E2600503:'Im Kalenderjahr $VZ$ habe ich steuerfreien Arbeitslohn bezogen',
+ E2600703:'Bestand neben dem Wohnsitz im Inland ein Wohnsitz im Ausland? Falls „Ja“, bitte die Zeilen $E2600801.Vordruckzeile$ bis $E2601104.Vordruckzeile$ ausfüllen.',
+ E2600801:'Straße und Hausnummer',
+ E2600901:'Postleitzahl',
+ E2600902:'Ort',
+ E2601001:'Staat',
+ E2601104:'Haben Sie zu diesem Staat die engeren persönlichen und wirtschaftlichen Beziehungen (Mittelpunkt der Lebensinteressen)? Falls „Ja“, bitte in Aufstellung angeben.',
+ E2601201:'Straße und Hausnummer',
+ E2601202:'Name (Bezeichnung)',
+ E2601301:'Postleitzahl',
+ E2601302:'Ort',
+ E2601401:'Staat',
+ E2601701:'Art der Auslandstätigkeit des Arbeitnehmers',
+ E2601702:'vom - bis',
+ E2602001:'Anzahl der Kalendertage im ausländischen Staat',
+ E2602301:'im Rahmen eines Werkvertrags / einer Werkleistungsverpflichtung des Arbeitgebers.',
+ E2602401:'im Rahmen einer gewerblichen Arbeitnehmerüberlassung.',
+ E2602501:'bei einem mit dem Arbeitgeber verbundenen Unternehmen.',
+ E2602601:'für eine Betriebsstätte des Arbeitgebers i. S. d. DBA.',
+ E2602701:'für einen ausländischen Arbeitgeber, mit dem ein Dienstverhältnis besteht / bestand.',
+ E2602801:'wie angegeben:',
+ E2603501:'Bruttoarbeitslohn laut Nr. 3 der Lohnsteuerbescheinigung(en)',
+ E2603601:'Bruttoarbeitslohn, von dem kein inländischer Steuerabzug vorgenommen worden ist (z. B. Bruttoarbeitslohn von einem ausländischen Arbeitgeber oder einer ausländischen Betriebsstätte)',
+ E2603701:'Steuerfreier Bruttoarbeitslohn laut Nr. 16 a / b der Lohnsteuerbescheinigung(en)',
+ E2604101:'Summe in- und ausländischer Arbeitslohn',
+ E2604401:'Verbleibender Arbeitslohn',
+ E2604501:'Tatsächliche Arbeitstage im Kalenderjahr im In- und Ausland',
+ E2604601:'davon entfallen auf die Tätigkeit, für die der ausländische Staat das Besteuerungsrecht hat',
+ E2604701:'verbleibender Arbeitslohn (Zeile $E2604401.Vordruckzeile$) × Auslandsarbeitstage (Zeile $E2604601.Vordruckzeile$) / tatsächliche Arbeitstage (Zeile $E2604501.Vordruckzeile$) = verbleibender ausländischer Arbeitslohn',
+ E2604901:'Summe steuerfrei zu stellender ausländischer Arbeitslohn (Summe der Zeilen $E2604701.Vordruckzeile$ und $E2604801.Vordruckzeile$; Betrag übertragen in Zeile $E0201502.Vordruckzeile$ der Anlage N)',
+};
+/* Finds the E-code inside a raw ERiC field path/message and replaces
+   it with its real, human meaning wherever one is known - used to
+   clean up both the Feldidentifikator path and any field reference
+   embedded directly in an error's own text. */
+function humanizeFieldPath(text){
+ if(!text) return text;
+ return text.replace(/E\d{7}/g, code => FIELD_LABEL_LOOKUP[code] || code);
+}
 const ERIC_ERROR_PATTERNS = [
  { re: /^Das Feld '(.+?)' wird im angegebenen Veranlagungszeitraum bzw\. bei der angegebenen Veranlagungsart nicht unterstützt\.$/,
    en: m => `The field '${m[1]}' is not supported for the specified tax year or filing type.`,
@@ -4195,9 +4482,9 @@ function translateEricError(text){
  if(!text) return text;
  for(const p of ERIC_ERROR_PATTERNS){
  const m = text.match(p.re);
- if(m) return (S.lang==='de' ? p.de : p.en)(m);
+ if(m) return humanizeFieldPath((S.lang==='de' ? p.de : p.en)(m));
  }
- return text; // no known pattern - shown honestly as-is rather than guessed at
+ return humanizeFieldPath(text); // no known sentence pattern - shown honestly as-is, but any embedded field code is still humanized
 }
 function parseFehlerRegelpruefung(resultXml){
  if(!resultXml) return [];
