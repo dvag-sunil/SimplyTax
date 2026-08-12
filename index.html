@@ -4217,6 +4217,7 @@ function parseFehlerRegelpruefung(resultXml){
 const WARNING_KEYWORD_TO_STEP = [
  [/anlagenaus/i, 1], [/realsplitting/i, 6], [/anlageunterhalt/i, 5],
  [/anlagekind/i, 4], [/em_35c|energetisch/i, 9], [/anlagev\b|wohneinheit/i, 8],
+ [/commute distance|workplace address|entfernungspauschale/i, 3],
  [/anlagen\b/i, 1],
 ];
 function guessStepFromWarningText(text){
