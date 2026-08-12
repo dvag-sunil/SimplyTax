@@ -1271,31 +1271,36 @@ check('Vorsatz/OrdNrArt is correctly OMITTED when there is no steuernummer (a sp
 check('Vorsatz/Rueckuebermittlung/Bescheid is now present (matches the real ELSTER example default)', xml.includes('<Rueckuebermittlung><Bescheid>2</Bescheid>'));
 
 /* --- Commute (Entfernungspauschale) and itemized Werbungskosten - newly wired --- */
-check('Commute by car: km goes to E0203505 (car field), not E0203506', (() => {
+check('Commute by car: km goes to E0203505 (car field), not E0203506, and sits inside the real Wk/EP/Erste_Taetig structure - not flat under ArbL (confirmed via an actual ERiC rejection this exact placement mistake produces)', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 220, einfacheEntfernungKm: 25, verkehrsmittel: 'car', oeffentlicheKosten: 0 } } };
   const x = buildEStXML(d).xml;
   const nBlock = x.match(/<N>[\s\S]*?<\/N>/)?.[0] || '';
-  return nBlock.includes('<E0203505>25</E0203505>') && !nBlock.includes('E0203506');
+  const wkMatch = nBlock.match(/<Wk>[\s\S]*?<\/Wk>/)?.[0] || '';
+  return wkMatch.includes('<EP><Erste_Taetig>') && wkMatch.includes('<E0203505>25</E0203505>')
+    && !nBlock.match(/<ArbL>[\s\S]*?<\/ArbL>/)[0].includes('E0203505');
 })());
-check('Commute by non-car (other): km goes to E0203506, not E0203505', (() => {
+check('Commute by non-car (other): km goes to E0203506, not E0203505, inside the same real Wk/EP/Erste_Taetig structure', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 220, einfacheEntfernungKm: 25, verkehrsmittel: 'other', oeffentlicheKosten: 0 } } };
   const x = buildEStXML(d).xml;
-  const nBlock = x.match(/<N>[\s\S]*?<\/N>/)?.[0] || '';
-  return nBlock.includes('<E0203506>25</E0203506>') && !nBlock.includes('E0203505');
+  const wkMatch = x.match(/<Wk>[\s\S]*?<\/Wk>/)?.[0] || '';
+  return wkMatch.includes('<E0203506>25</E0203506>') && !wkMatch.includes('E0203505');
 })());
-check('Commute days go to E0203503', (() => {
+check('Commute days go to E0203503, inside Wk not ArbL', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 220, einfacheEntfernungKm: 25, verkehrsmittel: 'car', oeffentlicheKosten: 0 } } };
   const x = buildEStXML(d).xml;
-  return x.includes('<E0203503>220</E0203503>');
+  const nBlock = x.match(/<N>[\s\S]*?<\/N>/)?.[0] || '';
+  const arblOnly = nBlock.match(/<ArbL>[\s\S]*?<\/ArbL>/)[0];
+  return nBlock.includes('<E0203503>220</E0203503>') && !arblOnly.includes('E0203503');
 })());
-check('Public transport with actual cost provided: E0203611 is transmitted with that value', (() => {
+check('Public transport with actual cost provided: E0203611 is transmitted with that value, inside Wk/EP/Erste_Taetig', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 220, einfacheEntfernungKm: 30, verkehrsmittel: 'public', oeffentlicheKosten: 850 } } };
   const x = buildEStXML(d).xml;
-  return x.includes('<E0203611>850</E0203611>') && x.includes('<E0203506>30</E0203506>');
+  const wkMatch = x.match(/<Wk>[\s\S]*?<\/Wk>/)?.[0] || '';
+  return wkMatch.includes('<E0203611>850</E0203611>') && wkMatch.includes('<E0203506>30</E0203506>');
 })());
 check('Public transport with no actual cost entered: E0203611 correctly omitted, not sent as zero', (() => {
   const d = JSON.parse(JSON.stringify(sample));
@@ -1309,14 +1314,15 @@ check('Distance is rounded to a whole number, matching the schema requirement ("
   const x = buildEStXML(d).xml;
   return x.includes('<E0203505>26</E0203505>') && !x.includes('25.7') && !x.includes('25,7');
 })());
-check('Itemized Werbungskosten entries are summed and transmitted as a single verified total (E0204803)', (() => {
+check('Itemized Werbungskosten entries are summed and transmitted as a single verified total (E0204803), inside the real Wk/Weitere_Wk/Sum structure - not flat under ArbL', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.werbungskosten = { personA: {}, einzelposten: [
     { person: 'A', kategorie: 'bewerbung', betrag: 45 },
     { person: 'A', kategorie: 'kommunikation', betrag: 180 },
   ] };
   const x = buildEStXML(d).xml;
-  return x.includes('<E0204803>225</E0204803>');
+  const wkMatch = x.match(/<Wk>[\s\S]*?<\/Wk>/)?.[0] || '';
+  return wkMatch.includes('<Weitere_Wk><Sum>') && wkMatch.includes('<E0204803>225</E0204803>');
 })());
 check('Itemized Werbungskosten total is genuinely per-person, not pooled across both spouses', (() => {
   const married = JSON.parse(JSON.stringify(sample));
@@ -1333,9 +1339,9 @@ check('Itemized Werbungskosten total is genuinely per-person, not pooled across 
   const bBlock = blocks.find(b => b.includes('PersonB')) || '';
   return aBlock.includes('<E0204803>100</E0204803>') && bBlock.includes('<E0204803>60</E0204803>');
 })());
-check('No commute or Werbungskosten data present: none of the new fields appear at all, no empty tags sent', (() => {
+check('No commute or Werbungskosten data present: none of the new fields appear at all, no empty tags sent, no empty Wk block either', (() => {
   const x = buildEStXML(sample).xml; // the original sample has no werbungskosten object at all
-  return !x.includes('E0203503') && !x.includes('E0203505') && !x.includes('E0203506') && !x.includes('E0203611') && !x.includes('E0204803');
+  return !x.includes('E0203503') && !x.includes('E0203505') && !x.includes('E0203506') && !x.includes('E0203611') && !x.includes('E0204803') && !x.includes('<Wk>');
 })());
 
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);

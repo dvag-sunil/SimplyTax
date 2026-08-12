@@ -340,39 +340,50 @@ function buildAnlageN(data) {
 
     /* route the pension/insurance lines through VOR instead of Anlage N -
        confirmed this session: these are NOT separately represented here */
-    /* CORRECTED: real gap found via direct feedback and confirmed by
-       checking the actual backend directly - the commute
-       (Entfernungspauschale) fields and the itemized Werbungskosten
-       entries were being calculated correctly in the app's own
-       estimate, but never actually transmitted to ELSTER at all, for
-       any year. Fixed by checking the real ERiC-44.2.4.0 schema
-       documentation directly (E10-2020.html through E10-2025.html -
-       confirmed identical Kennzahlen across every one of those years,
-       no year-gate needed here). Placed flat under ArbL, the same
-       proven placement as the neighboring E0203901 field (pausch18) in
-       this exact numeric family, which is already confirmed working. */
+    xml += '</ArbL>\n';
+    /* CORRECTED: real bug found via an actual ERiC rejection
+       (feldUnbekannt on /N[0]/ArbL[0]/E0203503[0] and .../E0203506[0]) -
+       the earlier version of this fix placed these fields flat under
+       ArbL, reasoning by analogy to a numerically-nearby field
+       (E0203901/pausch18) that's confirmed to work there. That analogy
+       turned out to be wrong - Kennzahl numeric proximity does not
+       guarantee identical XML placement. Retraced properly this time
+       using the schema's own HTML comments, which name each
+       complexType's actual containing element directly rather than
+       inferring it: confirmed Wk is a real, separate sibling element
+       to ArbL (both direct children of N, not one nested in the
+       other), and the commute fields live two levels deeper still,
+       inside Wk/EP/Erste_Taetig - not a flat placement at all. The
+       itemized Werbungskosten total has its own real wrapper the same
+       way, Wk/Weitere_Wk/Sum, confirmed via the same method. Both
+       moved out of the ArbL block above and into this new, separate
+       Wk block, closed before N itself closes. */
     const wk = data.werbungskosten && data.werbungskosten['person' + person];
+    let wkXml = '';
     if (wk && wk.entfernungspauschale) {
       const ep = wk.entfernungspauschale;
-      if (N(ep.arbeitstage) > 0) xml += wholeEuroTag(fm.N.commuteDays.kennzahlen[0], ep.arbeitstage);
+      let epXml = '';
+      if (N(ep.arbeitstage) > 0) epXml += wholeEuroTag(fm.N.commuteDays.kennzahlen[0], ep.arbeitstage);
       if (N(ep.einfacheEntfernungKm) > 0) {
         const km = Math.round(N(ep.einfacheEntfernungKm)); // schema requires a whole number ("auf volle Kilometer abgerundet")
-        if (ep.verkehrsmittel === 'car') xml += wholeEuroTag(fm.N.commuteKmCar.kennzahlen[0], km);
-        else xml += wholeEuroTag(fm.N.commuteKmOther.kennzahlen[0], km);
+        if (ep.verkehrsmittel === 'car') epXml += wholeEuroTag(fm.N.commuteKmCar.kennzahlen[0], km);
+        else epXml += wholeEuroTag(fm.N.commuteKmOther.kennzahlen[0], km);
       }
       if (ep.verkehrsmittel === 'public' && N(ep.oeffentlicheKosten) > 0)
-        xml += wholeEuroTag(fm.N.commutePublicCost.kennzahlen[0], Math.round(N(ep.oeffentlicheKosten)));
+        epXml += wholeEuroTag(fm.N.commutePublicCost.kennzahlen[0], Math.round(N(ep.oeffentlicheKosten)));
+      if (epXml) wkXml += `<EP><Erste_Taetig>${epXml}</Erste_Taetig></EP>\n`;
     }
     /* Itemized Werbungskosten (WKI_TYPES) - transmitted as a single,
-       verified total (Weitere_Wk/Sum/E0204803), summed here from the
+       verified total (Wk/Weitere_Wk/Sum/E0204803), summed here from the
        real per-entry amounts the app already collects and already
        exports, rather than mapping each of the 11 individual
        categories to its own Kennzahl, which would need further
        dedicated research to do safely. */
     const items = (data.werbungskosten && data.werbungskosten.einzelposten || []).filter(x => x.person === person);
     const itemsSum = items.reduce((a, x) => a + (N(x.betrag) || 0), 0);
-    if (itemsSum > 0) xml += wholeEuroTag(fm.N.weitereWkSum.kennzahlen[0], Math.round(itemsSum));
-    xml += '</ArbL></N>\n';
+    if (itemsSum > 0) wkXml += `<Weitere_Wk><Sum>${wholeEuroTag(fm.N.weitereWkSum.kennzahlen[0], Math.round(itemsSum))}</Sum></Weitere_Wk>\n`;
+    if (wkXml) xml += `<Wk>\n${wkXml}</Wk>\n`;
+    xml += '</N>\n';
   }
   return xml;
 }
