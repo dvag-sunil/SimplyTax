@@ -855,6 +855,7 @@ const SECTION_YEAR_SUPPORT = {
 const FIELD_YEAR_SUPPORT = {
   E0201606: { minYear: 2025, section: 'N', note: 'granular multi-year pension income breakdown, genuinely new in 2025' },
   E0183001: { minYear: 2024, section: 'SA (Realsplitting)', note: 'domestic/foreign residence flag for Anlage U, genuinely new in 2024 - structure itself (SA/Weit_Aufw/U_Leist) confirmed stable across all three years' },
+  E0203003: { minYear: 2023, section: 'N/Wk/EP/Erste_Taetig (commute destination type)', note: 'real bug found via an actual ERiC rejection ("Ziel des Weges" not supported for 2022) - checked directly against the schema for every year: genuinely absent for 2020-2022, present from 2023 onward. The rest of the commute field group (E0203501/503/504/505/506) is confirmed stable across all six years - this one field specifically is the only part of that group with a real year boundary.' },
 };
 
 function isSectionSupportedForYear(section, year) {

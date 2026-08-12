@@ -1334,6 +1334,18 @@ check('Distance is rounded to a whole number, matching the schema requirement ("
   const x = buildEStXML(d).xml;
   return x.includes('<E0203504>26</E0203504>') && x.includes('<E0203505>26</E0203505>') && !x.includes('25.7') && !x.includes('25,7');
 })());
+check('Real bug found via an actual ERiC rejection: Ziel des Weges (E0203003) genuinely does not exist before 2023 - a 2022 return with commute data correctly omits it, while a 2025 return correctly still sends it, and the rest of the commute fields (workplace, days, distance) are unaffected either way', (() => {
+  const d2022 = JSON.parse(JSON.stringify(sample));
+  d2022.meta.taxYear = 2022;
+  d2022.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 100, einfacheEntfernungKm: 100, verkehrsmittel: '', oeffentlicheKosten: 0, arbeitsstaette: 'Musterstr 1, 80331 Munich' } } };
+  const x2022 = buildEStXML(d2022).xml;
+  const d2025 = JSON.parse(JSON.stringify(sample));
+  d2025.meta.taxYear = 2025;
+  d2025.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 100, einfacheEntfernungKm: 100, verkehrsmittel: '', oeffentlicheKosten: 0, arbeitsstaette: 'Musterstr 1, 80331 Munich' } } };
+  const x2025 = buildEStXML(d2025).xml;
+  return !x2022.includes('E0203003') && x2022.includes('E0203501') && x2022.includes('E0203504')
+    && x2025.includes('<E0203003>1</E0203003>');
+})());
 check('Itemized Werbungskosten entries are summed and transmitted as a single verified total (E0204803), inside the real Wk/Weitere_Wk/Sum structure - not flat under ArbL', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.werbungskosten = { personA: {}, einzelposten: [

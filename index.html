@@ -2490,7 +2490,22 @@ function stepDone(c,i){
  return ok?'done':'incomplete';
  }
  case 2: return (c.kap||[]).length>0?'done':'empty';
- case 3: return (N(c.wk.commuteDays)+N(c.wk.equipment)+N(c.wk.homeOffice)+N(c.wk.training)+N(c.wk.other)+N(c.wk.arbeitszimmer)+N(c.wk.dhhRent)+N(c.wk.relocation)>0 || (c.wkItems||[]).length>0)?'done':'empty';
+ case 3: {
+ if(!((N(c.wk.commuteDays)+N(c.wk.equipment)+N(c.wk.homeOffice)+N(c.wk.training)+N(c.wk.other)+N(c.wk.arbeitszimmer)+N(c.wk.dhhRent)+N(c.wk.relocation)>0) || (c.wkItems||[]).length>0 || (c.p.marital==='married' && N(c.wkB.commuteDays)+N(c.wkB.equipment)+N(c.wkB.homeOffice)+N(c.wkB.training)+N(c.wkB.other)+N(c.wkB.arbeitszimmer)+N(c.wkB.dhhRent)+N(c.wkB.relocation)>0))) return 'empty';
+ /* CORRECTED: real gap found via direct feedback - this case previously
+ had no way to return 'incomplete' at all, so the commute workplace
+ address (confirmed genuinely required by ELSTER once a distance is
+ entered, via a real ERiC rejection) was never actually checked here,
+ only in the separate pre-submission validation - meaning the sidebar
+ could show this step as "done" while a field required for the actual
+ submission was still missing. Matches the exact same completeness
+ pattern just fixed for Realsplitting in case 6. Checks both persons
+ independently, since each has their own commute distance and
+ workplace address. */
+ if(N(c.wk.commuteKm)>0 && !has(c.wk.commuteWorkplace)) return 'incomplete';
+ if(c.p.marital==='married' && N(c.wkB.commuteKm)>0 && !has(c.wkB.commuteWorkplace)) return 'incomplete';
+ return 'done';
+ }
  case 4: {
  const kids=c.fam.children||[]; if(!kids.length) return 'empty';
  const singleParent=['single','verwitwet','getrennt_lebend'].includes(c.p.marital);
@@ -2562,6 +2577,10 @@ function firstMissingFieldTabkey(c,i){
  if(i===6 && N(c.oth.realsplitting)>0){
  if(!has(c.oth.realsplitName)) return 'oth.realsplitName';
  if(!has(c.oth.realsplitIdnr)) return 'oth.realsplitIdnr';
+ }
+ if(i===3){
+ if(N(c.wk.commuteKm)>0 && !has(c.wk.commuteWorkplace)) return 'wk.commuteWorkplace';
+ if(c.p.marital==='married' && N(c.wkB.commuteKm)>0 && !has(c.wkB.commuteWorkplace)) return 'wkB.commuteWorkplace';
  }
  return null;
 }

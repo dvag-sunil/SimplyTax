@@ -386,7 +386,7 @@ function buildAnlageN(data) {
       } else {
         const km = Math.round(N(ep.einfacheEntfernungKm)); // schema requires a whole number ("auf volle Kilometer abgerundet")
         let epXml = '';
-        epXml += tag(fm.N.commuteDestType.kennzahlen[0], '1');
+        if (fm.isFieldSupportedForYear('E0203003', data.meta?.taxYear || 2025)) epXml += tag(fm.N.commuteDestType.kennzahlen[0], '1');
         epXml += tag(fm.N.commuteWorkplace.kennzahlen[0], ep.arbeitsstaette);
         if (N(ep.arbeitstage) > 0) epXml += wholeEuroTag(fm.N.commuteDays.kennzahlen[0], ep.arbeitstage);
         epXml += wholeEuroTag(fm.N.commuteKmBase.kennzahlen[0], km);
