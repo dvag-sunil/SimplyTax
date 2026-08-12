@@ -614,6 +614,11 @@ en: {
  other_ins:"Other insurance (liability, accident...)",
  s4_lead:"Deductible income-related costs (Anlage N): structured items (commuting, home office, double household) plus itemized expenses below. The €1,230 lump sum per employed person is applied automatically if entries are lower. Enter each cost only once.",
  commute_days:"Commuting days per year", commute_km:"One-way distance (km)", home_office:"Home-office days",
+ commute_mode:"How is the commute usually made?",
+ commute_mode_hint:"This affects the deduction: car travel has no annual cap, while every other way of commuting (public transport, bike, on foot, motorcycle, carpool) is capped at €4,500 per year. Leaving this unset applies the capped treatment.",
+ commute_mode_car:"By car (own or company car)", commute_mode_public:"Public transport (bus, train, tram)", commute_mode_other:"Other (bike, on foot, motorcycle, carpool)",
+ commute_public_cost:"Actual public transport ticket cost for the year",
+ commute_public_cost_hint:"If the real cost of your public transport tickets is higher than the standard per-kilometre calculation, the higher actual amount can be claimed instead.",
  wk_cat_travel:"Travel to office", wk_cat_homeoffice:"Home office", wk_cat_equipment:"Equipment booked for office",
  wk_cat_training:"Professional development (training, courses, language)", wk_cat_arbeitszimmer:"Arbeitszimmer (dedicated home office room)",
  arbeitszimmer:"Arbeitszimmer costs", arbeitszimmer_hint:"A room used exclusively as a home office - a separate deduction from the general home-office day allowance above. Rules depend on whether it's your only workspace (unlimited) or not (capped at €1,260/year) - a Steuerberater can confirm which applies.",
@@ -1010,6 +1015,11 @@ de: {
  other_ins:"Weitere Versicherungen (Haftpflicht, Unfall...)",
  s4_lead:"Abziehbare Werbungskosten (Anlage N): strukturierte Angaben (Pendlerpauschale, Homeoffice, doppelte Haushaltsführung) plus Einzelposten weiter unten. Der Arbeitnehmer-Pauschbetrag von 1.230 € je erwerbstätiger Person wird automatisch angesetzt. Jede Ausgabe nur einmal erfassen.",
  commute_days:"Arbeitstage mit Fahrt zur Arbeit", commute_km:"Einfache Entfernung (km)", home_office:"Homeoffice-Tage",
+ commute_mode:"Wie wird der Arbeitsweg üblicherweise zurückgelegt?",
+ commute_mode_hint:"Dies wirkt sich auf den Abzug aus: Fahrten mit dem Auto sind unbegrenzt absetzbar, während alle anderen Verkehrsmittel (öffentliche Verkehrsmittel, Fahrrad, zu Fuß, Motorrad, Fahrgemeinschaft) auf 4.500 € im Jahr gedeckelt sind. Ohne Angabe wird die gedeckelte Berechnung angewendet.",
+ commute_mode_car:"Mit dem Auto (eigenes oder Firmenwagen)", commute_mode_public:"Öffentliche Verkehrsmittel (Bus, Bahn, Straßenbahn)", commute_mode_other:"Sonstiges (Fahrrad, zu Fuß, Motorrad, Fahrgemeinschaft)",
+ commute_public_cost:"Tatsächliche Kosten für öffentliche Verkehrsmittel im Jahr",
+ commute_public_cost_hint:"Falls die tatsächlichen Kosten Ihrer Tickets höher sind als die Berechnung nach Kilometern, kann stattdessen der höhere tatsächliche Betrag angesetzt werden.",
  wk_cat_travel:"Fahrten zur Arbeit", wk_cat_homeoffice:"Homeoffice", wk_cat_equipment:"Arbeitsmittel",
  wk_cat_training:"Fortbildung (Kurse, Sprache, berufliche Weiterbildung)", wk_cat_arbeitszimmer:"Arbeitszimmer (ausschließlich beruflich genutzter Raum)",
  arbeitszimmer:"Kosten Arbeitszimmer", arbeitszimmer_hint:"Ein ausschließlich beruflich genutzter Raum - ein eigener Abzug, getrennt von der Homeoffice-Pauschale oben. Die Regeln hängen davon ab, ob es der einzige Arbeitsplatz ist (unbegrenzt) oder nicht (gedeckelt auf 1.260 €/Jahr) - im Zweifel hilft ein Steuerberater bei der Einordnung.",
@@ -1562,9 +1572,9 @@ function newClient(f,l,year,marital){
  oth:{ ersatz:'', gdbA:'', gdbB:'', fahrtA:'', fahrtB:'', pflegeA:'', pflegeB:'', kidTransfer:'',
  realsplitting:'', realsplitIdnr:'', realsplitName:'', lossCarry:'', soGain:'', soUnterhalt:'', energCost:'', energStage:'' },
  ins:{ rv:'',kv:'',pv:'',av:'',other:'' },
- wk:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',
+ wk:{ commuteDays:'',commuteKm:'',commuteMode:'',commutePublicCost:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',
  dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
- wkB:{ commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',
+ wkB:{ commuteDays:'',commuteKm:'',commuteMode:'',commutePublicCost:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',
  dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
  fam:{ kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',untName:'',untIdnr:'',untProfession:'',untBirthDate:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untCohabitation:'nein',untKindergeld:'nein',untOtherContributor:'nein',untHasAssets:'nein',untHasIncome:'nein',untCountry:'',untForeignConfirmed:'nein',children:[] },
  sa:{ donations:'',other:'' },
@@ -1627,7 +1637,7 @@ async function loadState(){
 }
 function migrateClient(c){
  c.p = Object.assign({faNumber:'',bundesland:'',spouseReligion:'none',singleParent:'no',deathYear:'',fullYearResident:'yes',arrivalDate:'',departureDate:''}, c.p||{});
- c.wkB = Object.assign({commuteDays:'',commuteKm:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wkB||{});
+ c.wkB = Object.assign({commuteDays:'',commuteKm:'',commuteMode:'',commutePublicCost:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wkB||{});
  (Array.isArray(c.privIns)?c.privIns:[]).forEach(x=>{ if(x.person!=='B') x.person='A'; });
  c.emps = Array.isArray(c.emps)?c.emps:[];
  c.emps.forEach(e=>{ if(e.person!=='B') e.person='A'; });
@@ -1661,7 +1671,7 @@ function migrateClient(c){
  if(!N(e0.anAV)) e0.anAV=c.ins.av;
  c.ins.rv=c.ins.kv=c.ins.pv=c.ins.av='';
  }
- c.wk = Object.assign({arbeitszimmer:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wk||{});
+ c.wk = Object.assign({commuteMode:'',commutePublicCost:'',arbeitszimmer:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wk||{});
  c.fam = Object.assign({kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',untName:'',untIdnr:'',untProfession:'',untBirthDate:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untCohabitation:'nein',untKindergeld:'nein',untOtherContributor:'nein',untHasAssets:'nein',untHasIncome:'nein',untCountry:'',untForeignConfirmed:'nein',children:[]}, c.fam||{});
  if(!Array.isArray(c.fam.children)) c.fam.children=[];
  c.fam.children.forEach(k=>{ if(!k.kinship) k.kinship='leiblich'; });
@@ -1901,12 +1911,34 @@ function computeEstimate(c){
  // Werbungskosten per person: €1,230 lump sum each (if employed) OR actual costs, per person
  const calcWK = (w,fCredit)=>{ w=w||{};
  const days=Math.min(N(w.commuteDays),366), km=N(w.commuteKm);
- const near=Math.min(km,20), far=Math.max(km-20,0);
- const commute=Math.max(0, days*(near*0.30+far*0.38)-(fCredit||0));
+ /* CORRECTED: real gap found via direct request - checked the actual
+    Anlage N form structure and multiple independent tax-law sources.
+    Two real things were missing before this fix:
+    1) The flat per-km rate itself changed for the 2026 tax year -
+       the historic 20km tiered split (0,30€ first 20km, 0,38€ beyond)
+       is gone; 2026+ uses a flat 0,38€/km from the first kilometer.
+       Confirmed via two independent sources during research, not
+       ERiC-verified directly (no schema access this session) - worth
+       a real double-check against the official BMF rate table once
+       that's available again, but the year-based split itself is
+       applied here regardless, since the general shape of the rule
+       (a rate change effective 2026) is solidly corroborated.
+    2) The real €4,500/year cap only applies to non-car commutes -
+       car travel (own or company car) is completely uncapped. Public
+       transport additionally has its own exception: if actual ticket
+       costs for the year exceed what the capped flat-rate calculation
+       gives, the higher actual cost can be claimed instead. Bike,
+       foot, motorcycle, and carpool get the flat-rate calculation,
+       capped, with no actual-cost alternative - only public transport
+       has that specific exception. */
+ const kmRate = k => year>=2026 ? k*0.38 : (Math.min(k,20)*0.30 + Math.max(k-20,0)*0.38);
+ const commuteFlatRate = Math.max(0, days*kmRate(km) - (fCredit||0));
+ const isCar = w.commuteMode === 'car';
+ let commute = isCar ? commuteFlatRate : Math.min(commuteFlatRate, 4500);
+ if(!isCar && w.commuteMode==='public' && N(w.commutePublicCost) > commute) commute = N(w.commutePublicCost);
  const ho=Math.min(N(w.homeOffice)*6,1260);
  const dhhRent=Math.min(N(w.dhhRent),1000)*Math.min(N(w.dhhMonths),12);
- const dKm=N(w.dhhKm), dNear=Math.min(dKm,20), dFar=Math.max(dKm-20,0);
- const dhhTrips=Math.min(N(w.dhhTrips),52)*(dNear*0.30+dFar*0.38);
+ const dhhTrips=Math.min(N(w.dhhTrips),52)*kmRate(N(w.dhhKm));
  return commute+ho+N(w.equipment)+N(w.training)+N(w.other)+N(w.arbeitszimmer)+dhhRent+dhhTrips+N(w.relocation); };
  const employedB = joint && (c.emps||[]).some(x=>x.person==='B' && N(x.gross)>0);
  const employedA = (c.emps||[]).some(x=>N(x.gross)>0 && (!joint || x.person!=='B'));
@@ -3677,6 +3709,8 @@ function stepWork(c){
  ${F('wk','commuteDays',t('commute_days'),{euro:true,ph:'220'})}
  ${F('wk','commuteKm',t('commute_km'),{euro:true,ph:'15'})}
  </div>
+ ${F('wk','commuteMode',t('commute_mode'),{select:[['',t('select')],['car',t('commute_mode_car')],['public',t('commute_mode_public')],['other',t('commute_mode_other')]],hint:t('commute_mode_hint')})}
+ ${c.wk.commuteMode==='public'?F('wk','commutePublicCost',t('commute_public_cost'),{euro:true,ph:'0,00 €',hint:t('commute_public_cost_hint')}):''}
  ${warnDays?`<div class="warn">⚠️ ${t('warn_days')}</div>`:''}
  <div class="section-label">${t('wk_cat_homeoffice')}</div>
  ${F('wk','homeOffice',t('home_office'),{euro:true,ph:'60'})}
@@ -3709,6 +3743,8 @@ function stepWork(c){
  ${F('wkB','commuteDays',t('commute_days'),{euro:true,ph:'220'})}
  ${F('wkB','commuteKm',t('commute_km'),{euro:true,ph:'15'})}
  </div>
+ ${F('wkB','commuteMode',t('commute_mode'),{select:[['',t('select')],['car',t('commute_mode_car')],['public',t('commute_mode_public')],['other',t('commute_mode_other')]],hint:t('commute_mode_hint')})}
+ ${c.wkB.commuteMode==='public'?F('wkB','commutePublicCost',t('commute_public_cost'),{euro:true,ph:'0,00 €',hint:t('commute_public_cost_hint')}):''}
  <div class="section-label">${t('wk_cat_homeoffice')}</div>
  ${F('wkB','homeOffice',t('home_office'),{euro:true,ph:'60'})}
  <div class="section-label">${t('wk_cat_equipment')}</div>
