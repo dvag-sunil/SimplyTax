@@ -732,6 +732,7 @@ en: {
  freigabe_incomplete_steps_title:"These steps are still missing required information",
  freigabe_incomplete_steps_sub:"This is very likely why the return above was not accepted - fill these in first, then try again.",
  freigabe_field_errors_title:"ERiC found specific problems", freigabe_go_to_section:"Go to this section", freigabe_go_to_field:"Go to this field",
+ submit_validation_title:"Before submitting",
  search_title:"Where do I enter this?", search_ph:"Search e.g. \"Kinderbetreuung\", \"Anlage V\", \"home office\"...",
  search_hint:"Type at least 2 characters to search.", search_no_results:"No match found for this yet.",
  search_category_note:"Selecting this adds a new entry with this category already chosen.",
@@ -1135,6 +1136,7 @@ de: {
  freigabe_incomplete_steps_title:"Diesen Schritten fehlen noch Pflichtangaben",
  freigabe_incomplete_steps_sub:"Das ist sehr wahrscheinlich der Grund, warum die obige Erklärung nicht angenommen wurde - bitte zuerst ausfüllen und dann erneut versuchen.",
  freigabe_field_errors_title:"ERiC hat konkrete Probleme gefunden", freigabe_go_to_section:"Zu diesem Abschnitt", freigabe_go_to_field:"Zu diesem Feld",
+ submit_validation_title:"Vor dem Absenden",
  search_title:"Wo trage ich das ein?", search_ph:"Suche z. B. \"Kinderbetreuung\", \"Anlage V\", \"Homeoffice\"...",
  search_hint:"Mindestens 2 Zeichen zum Suchen eingeben.", search_no_results:"Dafür wurde noch nichts Passendes gefunden.",
  search_category_note:"Bei Auswahl wird ein neuer Eintrag mit dieser Kategorie angelegt.",
@@ -4072,15 +4074,33 @@ function stepSummary(c){
  : `<button class="btn btn-amber" style="font-size:15px;padding:13px 30px" onclick="submitElster()">📤 ${t('submit_elster')}</button>`}
  </div>`;
 }
+/* Real, styled modal replacing the browser's native alert() for
+ pre-submission validation errors - found via direct feedback showing
+ an actual ugly browser dialog instead of the app's own UI. Follows
+ the exact same modal-slot pattern already used everywhere else in
+ this app (see showAiConsentModal, the delete-confirmation dialog).
+ The step switch and field scroll only happen once the person clicks
+ through, not immediately - so nothing jumps out from under them while
+ they're still reading the message. */
+function showSubmitValidationModal(message, stepIndex, fieldTabkey){
+ const slot=document.getElementById('modal-slot'); if(!slot) return;
+ slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal" style="max-width:440px">
+ <h3>⚠ ${t('submit_validation_title')}</h3>
+ <p style="font-size:14px;line-height:1.6;margin:10px 0 16px">${esc(message)}</p>
+ <div style="display:flex;justify-content:flex-end">
+ <button class="btn btn-primary" onclick="this.closest('.modal-bg').remove();S.step=${stepIndex};render();${fieldTabkey?`scrollToField('${fieldTabkey}');`:''}">${t(fieldTabkey?'freigabe_go_to_field':'freigabe_go_to_section')} →</button>
+ </div>
+ </div></div>`;
+}
 function submitElster(){
  const c0=cur();
  if(!isPaid(c0)){ showPayModal(); return; }
- if(!/^\d{4}$/.test((c0.p.faNumber||'').trim())){ alert(t('err_fa')); S.step=0; render(); return; }
- if(!/^\d{11}$/.test((c0.p.taxId||'').replace(/\s/g,''))){ alert(t('err_taxid')); S.step=0; render(); return; }
+ if(!/^\d{4}$/.test((c0.p.faNumber||'').trim())){ showSubmitValidationModal(t('err_fa'), 0, 'p.faNumber'); return; }
+ if(!/^\d{11}$/.test((c0.p.taxId||'').replace(/\s/g,''))){ showSubmitValidationModal(t('err_taxid'), 0, 'p.taxId'); return; }
  /* childcare required-fields check (ERiC rule 514139: amount alone is
  rejected without provider + service period once any amount is entered) */
  const ccMissing = (c0.fam.children||[]).find(k => N(k.childcare)>0 && (!k.ccProvider||!k.ccPeriodFrom||!k.ccPeriodTo));
- if(ccMissing){ alert(t('err_cc_required')); S.step=3; render(); return; }
+ if(ccMissing){ showSubmitValidationModal(t('err_cc_required'), 3); return; }
  /* support payment required-fields check (confirmed via real ERiC
  validation: amount alone is rejected without the supported person's
  name, IdNr, and household address once any amount is entered) */
@@ -4091,7 +4111,8 @@ function submitElster(){
  and birthdate ARE required (Regel 100120001, an all-or-nothing group
  with name), which were missing from validation before. */
  if(N(c0.fam.support)>0 && (!c0.fam.untName||!c0.fam.untProfession||!c0.fam.untBirthDate||!c0.fam.untAddress)){
- alert(t('err_unt_required')); S.step=3; render(); return;
+ showSubmitValidationModal(t('err_unt_required'), 3, 'fam.untName');
+ return;
  }
  /* Legacy years (2021/2022) confirmed via real research to require the
  supported person's IdNr unconditionally, not just for domestic cases
@@ -4099,13 +4120,16 @@ function submitElster(){
  years too (second research pass) - same foreignNeedConfirmed field,
  just a different underlying Kennzahl pair, handled in the backend. */
  if(N(c0.fam.support)>0 && YEAR_LIMITATIONS[c0.taxYear]?.legacyUnterhalt && !c0.fam.untIdnr){
- alert(t('err_unt_required_legacy_idnr')); S.step=3; render(); return;
+ showSubmitValidationModal(t('err_unt_required_legacy_idnr'), 3, 'fam.untIdnr');
+ return;
  }
  if(N(c0.fam.support)>0 && c0.fam.untCountry && c0.fam.untCountry!=='Deutschland' && c0.fam.untForeignConfirmed!=='ja'){
- alert(t('err_unt_foreign_required')); S.step=3; render(); return;
+ showSubmitValidationModal(t('err_unt_foreign_required'), 3, 'fam.untForeignConfirmed');
+ return;
  }
  if(N(c0.oth.realsplitting)>0 && (!c0.oth.realsplitIdnr || !c0.oth.realsplitName)){
- alert(t('err_realsplit_idnr_required')); S.step=5; render(); return;
+ showSubmitValidationModal(t('err_realsplit_idnr_required'), 5, 'oth.realsplitIdnr');
+ return;
  }
  submitElsterReal(c0);
 }
