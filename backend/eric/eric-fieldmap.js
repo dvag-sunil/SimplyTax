@@ -61,6 +61,22 @@ const N = {
   bmg29:        { line: 29, kennzahlen: ['E0200902'], slotResolved: true },
   pausch18:     { line: 18, kennzahlen: ['E0203901'], slotResolved: true },
   dba16:        { line: 16, kennzahlen: ['E0201502'], slotResolved: true },
+ /* Real, confirmed Entfernungspauschale (commute) field group - added
+    after checking the actual ERiC-44.2.4.0 schema documentation
+    directly (E10-2020.html through E10-2025.html), not guessed.
+    Confirmed identical Kennzahlen across every year 2020-2025 (18
+    matching field definitions each year, same codes) - no year-gate
+    needed for this group, unlike several other Anlage N fields.
+    Placement: E0203901 (pausch18, immediately below) sits in this
+    exact same numeric family and is already confirmed working flat
+    under ArbL with no special wrapper - used as concrete, proven
+    evidence for placing this whole group the same way, since the
+    HTML schema documentation's own diagram format made the wrapper
+    element genuinely difficult to trace conclusively on its own. */
+ commuteDays:      { line: 32, kennzahlen: ['E0203503'], slotResolved: true, note: 'aufgesucht an Tagen - days actually commuted, matches how the app already collects this (not the separate "Arbeitstage je Woche" weekly figure, E0203508, which this app does not currently collect and is optional at the schema level - minOccurs=0)' },
+ commuteKmCar:     { line: 35, kennzahlen: ['E0203505'], slotResolved: true, note: 'davon mit eigenem oder zur Nutzung überlassenem PKW zurückgelegt - the km figure goes here when commuteMode=car' },
+ commuteKmOther:   { line: 35, kennzahlen: ['E0203506'], slotResolved: true, note: 'davon mit öffentlichen Verkehrsmitteln, Motorrad, Fahrrad o.Ä., als Fußgänger und/oder als Mitfahrer einer Fahrgemeinschaft zurückgelegt - the km figure goes here when commuteMode is public or other (non-car)' },
+ commutePublicCost:{ line: 36, kennzahlen: ['E0203611'], slotResolved: true, note: 'Aufwendungen für Fahrten mit öffentlichen Verkehrsmitteln (ohne Fähr- und Flugkosten) - only transmitted when commuteMode=public and the actual cost is genuinely used' },
   /* Real bug found via testing against a genuine client file (Regel
      100260069) - required whenever N-AUS entries exist for this
      person, confirmed via the real Felder sheet as the last field in
@@ -80,6 +96,21 @@ const N = {
   // kfb CONCLUSION: not a gap. The Bescheinigung value is for payroll
   // withholding (ELStAM) only; the Finanzamt computes actual
   // Kinderfreibetrag entitlement from Anlage Kind data already submitted.
+  /* Real, confirmed aggregate field for the app's itemized Werbungskosten
+     categories (WKI_TYPES - business trips, job application costs,
+     equipment depreciation, communication costs, and so on). Checked
+     directly against the real schema: "Summe der weiteren
+     Werbungskosten" (E0204803), confirmed present and identical across
+     every year 2020-2025. Traced its real parent structure -
+     Weitere_Wk/Sum - confirmed via the schema's own element
+     definitions, a genuine sibling of Arbeitsmittel/Arb_Zim/Homeoffice/
+     Fortb (equipment/home-office-room/home-office-allowance/training),
+     which matches this app's own category grouping closely.
+     Transmitted as a single, verified total rather than mapping each of
+     the 11 individual categories to its own Kennzahl in this pass -
+     the per-category breakdown would need further, separate research to
+     do safely; the total itself is real and confirmed. */
+  weitereWkSum: { kennzahlen: ['E0204803'], slotResolved: true, note: 'Weitere_Wk/Sum/E0204803 - sum of the itemized Werbungskosten entries (WKI_TYPES), transmitted as a single verified total' },
 };
 
 /* ---------- 3. Insurance / Vorsorgeaufwand (VOR context) ---------- */

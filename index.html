@@ -4443,11 +4443,11 @@ function buildElsterDataset(c){
  shortStayBasis:a.shortStayBasis||'', shortStayBasisText:a.shortStayBasisText||'' };
  }),
  werbungskosten:{
- personA:{ entfernungspauschale:{ arbeitstage:N(c.wk.commuteDays), einfacheEntfernungKm:N(c.wk.commuteKm) },
+ personA:{ entfernungspauschale:{ arbeitstage:N(c.wk.commuteDays), einfacheEntfernungKm:N(c.wk.commuteKm), verkehrsmittel:c.wk.commuteMode||'', oeffentlicheKosten:N(c.wk.commutePublicCost) },
  homeofficeTage:N(c.wk.homeOffice), arbeitsmittel:N(c.wk.equipment), fortbildung:N(c.wk.training),
  sonstige:N(c.wk.other), doppelteHaushaltsfuehrung:{ monatsmiete:N(c.wk.dhhRent), monate:N(c.wk.dhhMonths),
  familienheimfahrten:N(c.wk.dhhTrips), entfernungKm:N(c.wk.dhhKm) }, umzugskosten:N(c.wk.relocation) },
- personB: c.p.marital==='married' ? { entfernungspauschale:{ arbeitstage:N(c.wkB.commuteDays), einfacheEntfernungKm:N(c.wkB.commuteKm) },
+ personB: c.p.marital==='married' ? { entfernungspauschale:{ arbeitstage:N(c.wkB.commuteDays), einfacheEntfernungKm:N(c.wkB.commuteKm), verkehrsmittel:c.wkB.commuteMode||'', oeffentlicheKosten:N(c.wkB.commutePublicCost) },
  homeofficeTage:N(c.wkB.homeOffice), arbeitsmittel:N(c.wkB.equipment), fortbildung:N(c.wkB.training),
  sonstige:N(c.wkB.other), doppelteHaushaltsfuehrung:{ monatsmiete:N(c.wkB.dhhRent), monate:N(c.wkB.dhhMonths),
  familienheimfahrten:N(c.wkB.dhhTrips), entfernungKm:N(c.wkB.dhhKm) }, umzugskosten:N(c.wkB.relocation) } : null,
