@@ -227,6 +227,7 @@ function buildAnlageN(data) {
   const entries = data.anlageN || [];
   const byPerson = { A: entries.filter(e => e.person !== 'B'), B: entries.filter(e => e.person === 'B') };
   let xml = '';
+  const skippedSections = [];
 
   for (const person of ['A', 'B']) {
     const list = byPerson[person];
@@ -360,18 +361,41 @@ function buildAnlageN(data) {
        Wk block, closed before N itself closes. */
     const wk = data.werbungskosten && data.werbungskosten['person' + person];
     let wkXml = '';
-    if (wk && wk.entfernungspauschale) {
+    if (wk && wk.entfernungspauschale && N(wk.entfernungspauschale.einfacheEntfernungKm) > 0) {
       const ep = wk.entfernungspauschale;
-      let epXml = '';
-      if (N(ep.arbeitstage) > 0) epXml += wholeEuroTag(fm.N.commuteDays.kennzahlen[0], ep.arbeitstage);
-      if (N(ep.einfacheEntfernungKm) > 0) {
+      /* CORRECTED: real bug found via an actual ERiC rejection (Regel
+         120801/111301/100200126) - three things were missing here.
+         1) The base distance (E0203504) was never sent at all - the
+            car/non-car breakdown fields (E0203505/E0203506) are an
+            ADDITIONAL split of this figure, not a substitute for it.
+         2) Ziel des Weges (E0203003) is required alongside any commute
+            data - confirmed via the real schema enumeration, sent as
+            "1" (erste Tätigkeitsstätte), the standard case this app
+            handles; this app doesn't currently distinguish the rarer
+            Sammelpunkt/weiträumiges-Tätigkeitsgebiet case (value "2").
+         3) The workplace address (E0203501) is required together with
+            the distance/days (confirmed via the same rejection) -
+            genuinely new data this app did not collect before this
+            fix. If it's still missing (e.g. an existing client entered
+            their commute before this field existed), the whole block
+            is honestly skipped rather than resent incomplete, since a
+            partial submission here would fail the exact same way
+            again - surfaced via skippedSections instead. */
+      if (!ep.arbeitsstaette) {
+        skippedSections.push(`Person ${person}: commute distance was entered, but the required workplace address is missing - confirmed via a real ERiC rejection that this is mandatory alongside the distance. Nothing about the commute was transmitted until this is filled in.`);
+      } else {
         const km = Math.round(N(ep.einfacheEntfernungKm)); // schema requires a whole number ("auf volle Kilometer abgerundet")
+        let epXml = '';
+        epXml += tag(fm.N.commuteDestType.kennzahlen[0], '1');
+        epXml += tag(fm.N.commuteWorkplace.kennzahlen[0], ep.arbeitsstaette);
+        if (N(ep.arbeitstage) > 0) epXml += wholeEuroTag(fm.N.commuteDays.kennzahlen[0], ep.arbeitstage);
+        epXml += wholeEuroTag(fm.N.commuteKmBase.kennzahlen[0], km);
         if (ep.verkehrsmittel === 'car') epXml += wholeEuroTag(fm.N.commuteKmCar.kennzahlen[0], km);
         else epXml += wholeEuroTag(fm.N.commuteKmOther.kennzahlen[0], km);
+        if (ep.verkehrsmittel === 'public' && N(ep.oeffentlicheKosten) > 0)
+          epXml += wholeEuroTag(fm.N.commutePublicCost.kennzahlen[0], Math.round(N(ep.oeffentlicheKosten)));
+        wkXml += `<EP><Erste_Taetig>${epXml}</Erste_Taetig></EP>\n`;
       }
-      if (ep.verkehrsmittel === 'public' && N(ep.oeffentlicheKosten) > 0)
-        epXml += wholeEuroTag(fm.N.commutePublicCost.kennzahlen[0], Math.round(N(ep.oeffentlicheKosten)));
-      if (epXml) wkXml += `<EP><Erste_Taetig>${epXml}</Erste_Taetig></EP>\n`;
     }
     /* Itemized Werbungskosten (WKI_TYPES) - transmitted as a single,
        verified total (Wk/Weitere_Wk/Sum/E0204803), summed here from the
@@ -385,7 +409,7 @@ function buildAnlageN(data) {
     if (wkXml) xml += `<Wk>\n${wkXml}</Wk>\n`;
     xml += '</N>\n';
   }
-  return xml;
+  return { xml, skippedSections };
 }
 
 /* =============================================================================
@@ -1972,7 +1996,9 @@ function buildEStXML(data, opts = {}) {
   nutzdaten += buildSonst(data);
   nutzdaten += buildUnterhalt(data); // ESt1A_U
   nutzdaten += buildKind(data);
-  nutzdaten += buildAnlageN(data); // N
+  const anlageNResult = buildAnlageN(data); // N
+ nutzdaten += anlageNResult.xml;
+ skippedSections.push(...anlageNResult.skippedSections);
   nutzdaten += buildNAUS(data); // N_AUS
   nutzdaten += buildKAP(data);
   nutzdaten += buildAUS(data); // foreign rental - confirmed position: after KAP, before R

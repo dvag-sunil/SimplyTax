@@ -1270,26 +1270,46 @@ check('Vorsatz/OrdNrArt is correctly OMITTED when there is no steuernummer (a sp
 })());
 check('Vorsatz/Rueckuebermittlung/Bescheid is now present (matches the real ELSTER example default)', xml.includes('<Rueckuebermittlung><Bescheid>2</Bescheid>'));
 
-/* --- Commute (Entfernungspauschale) and itemized Werbungskosten - newly wired --- */
-check('Commute by car: km goes to E0203505 (car field), not E0203506, and sits inside the real Wk/EP/Erste_Taetig structure - not flat under ArbL (confirmed via an actual ERiC rejection this exact placement mistake produces)', (() => {
+/* --- Commute (Entfernungspauschale) and itemized Werbungskosten - newly wired, then corrected after a real ERiC rejection (Regel 120801/111301/100200126) revealed E0203504, E0203003, and E0203501 (workplace address) are all genuinely required alongside any commute data --- */
+check('Commute by car: base distance (E0203504) AND the car-specific split (E0203505) are both sent - the real bug was sending only the split, never the base figure the rejection actually complained about', (() => {
   const d = JSON.parse(JSON.stringify(sample));
-  d.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 220, einfacheEntfernungKm: 25, verkehrsmittel: 'car', oeffentlicheKosten: 0 } } };
+  d.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 220, einfacheEntfernungKm: 25, verkehrsmittel: 'car', oeffentlicheKosten: 0, arbeitsstaette: '60000 Frankfurt, Teststr 1' } } };
   const x = buildEStXML(d).xml;
   const nBlock = x.match(/<N>[\s\S]*?<\/N>/)?.[0] || '';
   const wkMatch = nBlock.match(/<Wk>[\s\S]*?<\/Wk>/)?.[0] || '';
-  return wkMatch.includes('<EP><Erste_Taetig>') && wkMatch.includes('<E0203505>25</E0203505>')
+  return wkMatch.includes('<EP><Erste_Taetig>') && wkMatch.includes('<E0203504>25</E0203504>') && wkMatch.includes('<E0203505>25</E0203505>')
     && !nBlock.match(/<ArbL>[\s\S]*?<\/ArbL>/)[0].includes('E0203505');
 })());
-check('Commute by non-car (other): km goes to E0203506, not E0203505, inside the same real Wk/EP/Erste_Taetig structure', (() => {
+check('Ziel des Weges (E0203003) is sent as "1" (erste Tätigkeitsstätte), the standard case, confirmed via the real schema enumeration', (() => {
   const d = JSON.parse(JSON.stringify(sample));
-  d.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 220, einfacheEntfernungKm: 25, verkehrsmittel: 'other', oeffentlicheKosten: 0 } } };
+  d.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 220, einfacheEntfernungKm: 25, verkehrsmittel: 'car', oeffentlicheKosten: 0, arbeitsstaette: '60000 Frankfurt, Teststr 1' } } };
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0203003>1</E0203003>');
+})());
+check('Workplace address (E0203501) is transmitted as given', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 220, einfacheEntfernungKm: 25, verkehrsmittel: 'car', oeffentlicheKosten: 0, arbeitsstaette: '60000 Frankfurt, Teststr 1' } } };
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0203501>60000 Frankfurt, Teststr 1</E0203501>');
+})());
+check('Commute WITHOUT the required workplace address: the whole commute block is honestly skipped, not sent incomplete (this is exactly the real scenario that caused the actual rejection - resending it incomplete would fail the same way again)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 220, einfacheEntfernungKm: 25, verkehrsmittel: 'car', oeffentlicheKosten: 0 } } }; // no arbeitsstaette
+  const result = buildEStXML(d);
+  const hasNoCommuteFields = !result.xml.includes('E0203503') && !result.xml.includes('E0203504') && !result.xml.includes('E0203505') && !result.xml.includes('E0203003');
+  const hasHonestWarning = result.skippedSections.some(s => s.includes('workplace address') && s.includes('Person A'));
+  return hasNoCommuteFields && hasHonestWarning;
+})());
+check('Commute by non-car (other): base distance AND the non-car split (E0203506) are both sent, with a real workplace address present', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 220, einfacheEntfernungKm: 25, verkehrsmittel: 'other', oeffentlicheKosten: 0, arbeitsstaette: '60000 Frankfurt, Teststr 1' } } };
   const x = buildEStXML(d).xml;
   const wkMatch = x.match(/<Wk>[\s\S]*?<\/Wk>/)?.[0] || '';
-  return wkMatch.includes('<E0203506>25</E0203506>') && !wkMatch.includes('E0203505');
+  return wkMatch.includes('<E0203504>25</E0203504>') && wkMatch.includes('<E0203506>25</E0203506>') && !wkMatch.includes('E0203505');
 })());
 check('Commute days go to E0203503, inside Wk not ArbL', (() => {
   const d = JSON.parse(JSON.stringify(sample));
-  d.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 220, einfacheEntfernungKm: 25, verkehrsmittel: 'car', oeffentlicheKosten: 0 } } };
+  d.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 220, einfacheEntfernungKm: 25, verkehrsmittel: 'car', oeffentlicheKosten: 0, arbeitsstaette: '60000 Frankfurt, Teststr 1' } } };
   const x = buildEStXML(d).xml;
   const nBlock = x.match(/<N>[\s\S]*?<\/N>/)?.[0] || '';
   const arblOnly = nBlock.match(/<ArbL>[\s\S]*?<\/ArbL>/)[0];
@@ -1297,22 +1317,22 @@ check('Commute days go to E0203503, inside Wk not ArbL', (() => {
 })());
 check('Public transport with actual cost provided: E0203611 is transmitted with that value, inside Wk/EP/Erste_Taetig', (() => {
   const d = JSON.parse(JSON.stringify(sample));
-  d.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 220, einfacheEntfernungKm: 30, verkehrsmittel: 'public', oeffentlicheKosten: 850 } } };
+  d.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 220, einfacheEntfernungKm: 30, verkehrsmittel: 'public', oeffentlicheKosten: 850, arbeitsstaette: '60000 Frankfurt, Teststr 1' } } };
   const x = buildEStXML(d).xml;
   const wkMatch = x.match(/<Wk>[\s\S]*?<\/Wk>/)?.[0] || '';
   return wkMatch.includes('<E0203611>850</E0203611>') && wkMatch.includes('<E0203506>30</E0203506>');
 })());
 check('Public transport with no actual cost entered: E0203611 correctly omitted, not sent as zero', (() => {
   const d = JSON.parse(JSON.stringify(sample));
-  d.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 220, einfacheEntfernungKm: 30, verkehrsmittel: 'public', oeffentlicheKosten: 0 } } };
+  d.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 220, einfacheEntfernungKm: 30, verkehrsmittel: 'public', oeffentlicheKosten: 0, arbeitsstaette: '60000 Frankfurt, Teststr 1' } } };
   const x = buildEStXML(d).xml;
   return !x.includes('E0203611');
 })());
-check('Distance is rounded to a whole number, matching the schema requirement ("auf volle Kilometer abgerundet")', (() => {
+check('Distance is rounded to a whole number, matching the schema requirement ("auf volle Kilometer abgerundet") - applies to both the base and split fields', (() => {
   const d = JSON.parse(JSON.stringify(sample));
-  d.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 220, einfacheEntfernungKm: 25.7, verkehrsmittel: 'car', oeffentlicheKosten: 0 } } };
+  d.werbungskosten = { personA: { entfernungspauschale: { arbeitstage: 220, einfacheEntfernungKm: 25.7, verkehrsmittel: 'car', oeffentlicheKosten: 0, arbeitsstaette: '60000 Frankfurt, Teststr 1' } } };
   const x = buildEStXML(d).xml;
-  return x.includes('<E0203505>26</E0203505>') && !x.includes('25.7') && !x.includes('25,7');
+  return x.includes('<E0203504>26</E0203504>') && x.includes('<E0203505>26</E0203505>') && !x.includes('25.7') && !x.includes('25,7');
 })());
 check('Itemized Werbungskosten entries are summed and transmitted as a single verified total (E0204803), inside the real Wk/Weitere_Wk/Sum structure - not flat under ArbL', (() => {
   const d = JSON.parse(JSON.stringify(sample));

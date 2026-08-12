@@ -619,6 +619,8 @@ en: {
  commute_mode_car:"By car (own or company car)", commute_mode_public:"Public transport (bus, train, tram)", commute_mode_other:"Other (bike, on foot, motorcycle, carpool)",
  commute_public_cost:"Actual public transport ticket cost for the year",
  commute_public_cost_hint:"If the real cost of your public transport tickets is higher than the standard per-kilometre calculation, the higher actual amount can be claimed instead.",
+ commute_workplace:"Workplace address (postcode, city, street)",
+ commute_workplace_hint:"Required by ELSTER alongside the commute distance - just the postcode, city, and street of your regular workplace is enough.",
  wk_cat_travel:"Travel to office", wk_cat_homeoffice:"Home office", wk_cat_equipment:"Equipment booked for office",
  wk_cat_training:"Professional development (training, courses, language)", wk_cat_arbeitszimmer:"Arbeitszimmer (dedicated home office room)",
  arbeitszimmer:"Arbeitszimmer costs", arbeitszimmer_hint:"A room used exclusively as a home office - a separate deduction from the general home-office day allowance above. Rules depend on whether it's your only workspace (unlimited) or not (capped at €1,260/year) - a Steuerberater can confirm which applies.",
@@ -1020,6 +1022,8 @@ de: {
  commute_mode_car:"Mit dem Auto (eigenes oder Firmenwagen)", commute_mode_public:"Öffentliche Verkehrsmittel (Bus, Bahn, Straßenbahn)", commute_mode_other:"Sonstiges (Fahrrad, zu Fuß, Motorrad, Fahrgemeinschaft)",
  commute_public_cost:"Tatsächliche Kosten für öffentliche Verkehrsmittel im Jahr",
  commute_public_cost_hint:"Falls die tatsächlichen Kosten Ihrer Tickets höher sind als die Berechnung nach Kilometern, kann stattdessen der höhere tatsächliche Betrag angesetzt werden.",
+ commute_workplace:"Adresse der Arbeitsstätte (PLZ, Ort, Straße)",
+ commute_workplace_hint:"Von ELSTER zusammen mit der Entfernungsangabe benötigt - PLZ, Ort und Straße Ihrer regelmäßigen Arbeitsstätte genügen.",
  wk_cat_travel:"Fahrten zur Arbeit", wk_cat_homeoffice:"Homeoffice", wk_cat_equipment:"Arbeitsmittel",
  wk_cat_training:"Fortbildung (Kurse, Sprache, berufliche Weiterbildung)", wk_cat_arbeitszimmer:"Arbeitszimmer (ausschließlich beruflich genutzter Raum)",
  arbeitszimmer:"Kosten Arbeitszimmer", arbeitszimmer_hint:"Ein ausschließlich beruflich genutzter Raum - ein eigener Abzug, getrennt von der Homeoffice-Pauschale oben. Die Regeln hängen davon ab, ob es der einzige Arbeitsplatz ist (unbegrenzt) oder nicht (gedeckelt auf 1.260 €/Jahr) - im Zweifel hilft ein Steuerberater bei der Einordnung.",
@@ -1572,9 +1576,9 @@ function newClient(f,l,year,marital){
  oth:{ ersatz:'', gdbA:'', gdbB:'', fahrtA:'', fahrtB:'', pflegeA:'', pflegeB:'', kidTransfer:'',
  realsplitting:'', realsplitIdnr:'', realsplitName:'', lossCarry:'', soGain:'', soUnterhalt:'', energCost:'', energStage:'' },
  ins:{ rv:'',kv:'',pv:'',av:'',other:'' },
- wk:{ commuteDays:'',commuteKm:'',commuteMode:'',commutePublicCost:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',
+ wk:{ commuteDays:'',commuteKm:'',commuteMode:'',commutePublicCost:'',commuteWorkplace:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',
  dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
- wkB:{ commuteDays:'',commuteKm:'',commuteMode:'',commutePublicCost:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',
+ wkB:{ commuteDays:'',commuteKm:'',commuteMode:'',commutePublicCost:'',commuteWorkplace:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',
  dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
  fam:{ kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',untName:'',untIdnr:'',untProfession:'',untBirthDate:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untCohabitation:'nein',untKindergeld:'nein',untOtherContributor:'nein',untHasAssets:'nein',untHasIncome:'nein',untCountry:'',untForeignConfirmed:'nein',children:[] },
  sa:{ donations:'',other:'' },
@@ -1637,7 +1641,7 @@ async function loadState(){
 }
 function migrateClient(c){
  c.p = Object.assign({faNumber:'',bundesland:'',spouseReligion:'none',singleParent:'no',deathYear:'',fullYearResident:'yes',arrivalDate:'',departureDate:''}, c.p||{});
- c.wkB = Object.assign({commuteDays:'',commuteKm:'',commuteMode:'',commutePublicCost:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wkB||{});
+ c.wkB = Object.assign({commuteDays:'',commuteKm:'',commuteMode:'',commutePublicCost:'',commuteWorkplace:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wkB||{});
  (Array.isArray(c.privIns)?c.privIns:[]).forEach(x=>{ if(x.person!=='B') x.person='A'; });
  c.emps = Array.isArray(c.emps)?c.emps:[];
  c.emps.forEach(e=>{ if(e.person!=='B') e.person='A'; });
@@ -1671,7 +1675,7 @@ function migrateClient(c){
  if(!N(e0.anAV)) e0.anAV=c.ins.av;
  c.ins.rv=c.ins.kv=c.ins.pv=c.ins.av='';
  }
- c.wk = Object.assign({commuteMode:'',commutePublicCost:'',arbeitszimmer:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wk||{});
+ c.wk = Object.assign({commuteMode:'',commutePublicCost:'',commuteWorkplace:'',arbeitszimmer:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wk||{});
  c.fam = Object.assign({kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',untName:'',untIdnr:'',untProfession:'',untBirthDate:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untCohabitation:'nein',untKindergeld:'nein',untOtherContributor:'nein',untHasAssets:'nein',untHasIncome:'nein',untCountry:'',untForeignConfirmed:'nein',children:[]}, c.fam||{});
  if(!Array.isArray(c.fam.children)) c.fam.children=[];
  c.fam.children.forEach(k=>{ if(!k.kinship) k.kinship='leiblich'; });
@@ -3711,6 +3715,7 @@ function stepWork(c){
  </div>
  ${F('wk','commuteMode',t('commute_mode'),{select:[['',t('select')],['car',t('commute_mode_car')],['public',t('commute_mode_public')],['other',t('commute_mode_other')]],hint:t('commute_mode_hint')})}
  ${c.wk.commuteMode==='public'?F('wk','commutePublicCost',t('commute_public_cost'),{euro:true,ph:'0,00 €',hint:t('commute_public_cost_hint')}):''}
+ ${N(c.wk.commuteKm)>0?F('wk','commuteWorkplace',t('commute_workplace'),{ph:'12345 Frankfurt, Musterstraße 1',hint:t('commute_workplace_hint')}):''}
  ${warnDays?`<div class="warn">⚠️ ${t('warn_days')}</div>`:''}
  <div class="section-label">${t('wk_cat_homeoffice')}</div>
  ${F('wk','homeOffice',t('home_office'),{euro:true,ph:'60'})}
@@ -3745,6 +3750,7 @@ function stepWork(c){
  </div>
  ${F('wkB','commuteMode',t('commute_mode'),{select:[['',t('select')],['car',t('commute_mode_car')],['public',t('commute_mode_public')],['other',t('commute_mode_other')]],hint:t('commute_mode_hint')})}
  ${c.wkB.commuteMode==='public'?F('wkB','commutePublicCost',t('commute_public_cost'),{euro:true,ph:'0,00 €',hint:t('commute_public_cost_hint')}):''}
+ ${N(c.wkB.commuteKm)>0?F('wkB','commuteWorkplace',t('commute_workplace'),{ph:'12345 Frankfurt, Musterstraße 1',hint:t('commute_workplace_hint')}):''}
  <div class="section-label">${t('wk_cat_homeoffice')}</div>
  ${F('wkB','homeOffice',t('home_office'),{euro:true,ph:'60'})}
  <div class="section-label">${t('wk_cat_equipment')}</div>
@@ -4443,11 +4449,11 @@ function buildElsterDataset(c){
  shortStayBasis:a.shortStayBasis||'', shortStayBasisText:a.shortStayBasisText||'' };
  }),
  werbungskosten:{
- personA:{ entfernungspauschale:{ arbeitstage:N(c.wk.commuteDays), einfacheEntfernungKm:N(c.wk.commuteKm), verkehrsmittel:c.wk.commuteMode||'', oeffentlicheKosten:N(c.wk.commutePublicCost) },
+ personA:{ entfernungspauschale:{ arbeitstage:N(c.wk.commuteDays), einfacheEntfernungKm:N(c.wk.commuteKm), verkehrsmittel:c.wk.commuteMode||'', oeffentlicheKosten:N(c.wk.commutePublicCost), arbeitsstaette:c.wk.commuteWorkplace||'' },
  homeofficeTage:N(c.wk.homeOffice), arbeitsmittel:N(c.wk.equipment), fortbildung:N(c.wk.training),
  sonstige:N(c.wk.other), doppelteHaushaltsfuehrung:{ monatsmiete:N(c.wk.dhhRent), monate:N(c.wk.dhhMonths),
  familienheimfahrten:N(c.wk.dhhTrips), entfernungKm:N(c.wk.dhhKm) }, umzugskosten:N(c.wk.relocation) },
- personB: c.p.marital==='married' ? { entfernungspauschale:{ arbeitstage:N(c.wkB.commuteDays), einfacheEntfernungKm:N(c.wkB.commuteKm), verkehrsmittel:c.wkB.commuteMode||'', oeffentlicheKosten:N(c.wkB.commutePublicCost) },
+ personB: c.p.marital==='married' ? { entfernungspauschale:{ arbeitstage:N(c.wkB.commuteDays), einfacheEntfernungKm:N(c.wkB.commuteKm), verkehrsmittel:c.wkB.commuteMode||'', oeffentlicheKosten:N(c.wkB.commutePublicCost), arbeitsstaette:c.wkB.commuteWorkplace||'' },
  homeofficeTage:N(c.wkB.homeOffice), arbeitsmittel:N(c.wkB.equipment), fortbildung:N(c.wkB.training),
  sonstige:N(c.wkB.other), doppelteHaushaltsfuehrung:{ monatsmiete:N(c.wkB.dhhRent), monate:N(c.wkB.dhhMonths),
  familienheimfahrten:N(c.wkB.dhhTrips), entfernungKm:N(c.wkB.dhhKm) }, umzugskosten:N(c.wkB.relocation) } : null,

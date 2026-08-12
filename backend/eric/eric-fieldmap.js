@@ -76,6 +76,16 @@ const N = {
  commuteDays:      { line: 32, kennzahlen: ['E0203503'], slotResolved: true, note: 'aufgesucht an Tagen - days actually commuted, matches how the app already collects this (not the separate "Arbeitstage je Woche" weekly figure, E0203508, which this app does not currently collect and is optional at the schema level - minOccurs=0)' },
  commuteKmCar:     { line: 35, kennzahlen: ['E0203505'], slotResolved: true, note: 'davon mit eigenem oder zur Nutzung überlassenem PKW zurückgelegt - the km figure goes here when commuteMode=car' },
  commuteKmOther:   { line: 35, kennzahlen: ['E0203506'], slotResolved: true, note: 'davon mit öffentlichen Verkehrsmitteln, Motorrad, Fahrrad o.Ä., als Fußgänger und/oder als Mitfahrer einer Fahrgemeinschaft zurückgelegt - the km figure goes here when commuteMode is public or other (non-car)' },
+ /* Real bug found via an actual ERiC rejection (Regel 120801) - these
+    three fields are genuinely required alongside any commute data,
+    confirmed directly by the real error text and cross-checked against
+    the schema. The first version of this fix sent ONLY the mode-split
+    fields (E0203505/E0203506) and never the base distance itself
+    (E0203504) at all - the mode-split fields are an ADDITIONAL
+    breakdown, not a substitute for the base figure. */
+ commuteKmBase:    { line: 33, kennzahlen: ['E0203504'], slotResolved: true, note: 'einfache Entfernung in Kilometern - the base distance figure, required alongside the mode-specific breakdown, not replaced by it' },
+ commuteDestType:  { line: null, kennzahlen: ['E0203003'], slotResolved: true, note: 'Ziel des Weges - enum, confirmed via the real schema enumeration: 1 = erste Tätigkeitsstätte (the standard case this app handles), 2 = Sammelpunkt/weiträumiges Tätigkeitsgebiet (not something this app currently distinguishes, so always sent as 1)' },
+ commuteWorkplace: { line: null, kennzahlen: ['E0203501'], slotResolved: true, note: 'PLZ, Ort und Straße - confirmed required together with the distance/days (Regel 100200126); genuinely new data this app did not collect before this fix' },
  commutePublicCost:{ line: 36, kennzahlen: ['E0203611'], slotResolved: true, note: 'Aufwendungen für Fahrten mit öffentlichen Verkehrsmitteln (ohne Fähr- und Flugkosten) - only transmitted when commuteMode=public and the actual cost is genuinely used' },
   /* Real bug found via testing against a genuine client file (Regel
      100260069) - required whenever N-AUS entries exist for this
