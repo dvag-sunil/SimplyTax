@@ -4461,19 +4461,32 @@ function humanizeFieldPath(text){
  if(!text) return text;
  return text.replace(/E\d{7}/g, code => FIELD_LABEL_LOOKUP[code] || code);
 }
+/* Stronger than humanizeFieldPath alone - given a full raw internal
+ path like "$/SA[1]/Weit_Aufw[1]/U_Leist[1]/Einz[1]/E0104305[1]$",
+ returns just the clean human label on its own ("Identifikationsnummer
+ der unterstützten Person"), not the label still wrapped in the
+ technical $/.../[N]$ syntax - since showing someone a readable label
+ sitting inside brackets and dollar signs isn't actually clean. Falls
+ back to the original raw path, unchanged, if no E-code inside it is
+ recognized - never guesses at an unfamiliar one. */
+function extractFieldLabel(rawPath){
+ const m = rawPath.match(/E\d{7}/);
+ if(m && FIELD_LABEL_LOOKUP[m[0]]) return FIELD_LABEL_LOOKUP[m[0]];
+ return rawPath;
+}
 const ERIC_ERROR_PATTERNS = [
  { re: /^Das Feld '(.+?)' wird im angegebenen Veranlagungszeitraum bzw\. bei der angegebenen Veranlagungsart nicht unterstützt\.$/,
-   en: m => `The field '${m[1]}' is not supported for the specified tax year or filing type.`,
-   de: m => `Das Feld '${m[1]}' wird im angegebenen Veranlagungszeitraum bzw. bei der angegebenen Veranlagungsart nicht unterstützt.` },
+   en: m => `The field '${extractFieldLabel(m[1])}' is not supported for the specified tax year or filing type.`,
+   de: m => `Das Feld '${extractFieldLabel(m[1])}' wird im angegebenen Veranlagungszeitraum bzw. bei der angegebenen Veranlagungsart nicht unterstützt.` },
  { re: /^Es fehlt die Angabe zum Staat \((.+?)\)\.$/,
    en: m => `The country is missing (${m[1]}).`,
    de: m => `Es fehlt die Angabe zum Staat (${m[1]}).` },
  { re: /^Feld '(.+?)': Ungültige Identifikationsnummer\.$/,
-   en: m => `Field '${m[1]}': invalid identification number.`,
-   de: m => `Feld '${m[1]}': Ungültige Identifikationsnummer.` },
+   en: m => `Invalid identification number for the field '${extractFieldLabel(m[1])}'.`,
+   de: m => `Ungültige Identifikationsnummer für das Feld '${extractFieldLabel(m[1])}'.` },
  { re: /^Die Art der Ordnungsnummer muss im Feld (.+?) angegeben werden\.$/,
-   en: m => `The type of reference number must be provided in field ${m[1]}.`,
-   de: m => `Die Art der Ordnungsnummer muss im Feld ${m[1]} angegeben werden.` },
+   en: m => `The type of reference number must be provided in field '${extractFieldLabel(m[1])}'.`,
+   de: m => `Die Art der Ordnungsnummer muss im Feld '${extractFieldLabel(m[1])}' angegeben werden.` },
  { re: /^Die Bundesfinanzamtsnummer und die ersten 4 Stellen der Steuernummer unterscheiden sich\.$/,
    en: () => `The Finanzamt office number and the first 4 digits of the Steuernummer don't match.`,
    de: () => `Die Bundesfinanzamtsnummer und die ersten 4 Stellen der Steuernummer unterscheiden sich.` },
