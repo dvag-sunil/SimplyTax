@@ -3367,7 +3367,7 @@ function stepPersonal(c){
  ${F('p','firstName',t('first_name')+' *')} ${F('p','lastName',t('last_name')+' *')}
  ${F('p','birthDate',t('birth_date')+' *',{type:'date'})}
  ${F('p','taxId',t('tax_id')+' *',{ph:'12 345 678 901',hint:t('tax_id_hint'),maxlength:13,inputmode:'numeric'})}
- <div id="taxid-check-msg"></div>
+ <div id="taxid-check-msg" style="grid-column:1/-1"></div>
  </div>
  <div class="section-label">${t('address_h')}</div>
  <div class="grid3">
@@ -3393,18 +3393,18 @@ function stepPersonal(c){
  ${F('p','bundesland',t('bundesland')+' *',{select:[['',t('select')],...BUNDESLAENDER.map(b=>[b,b])]})}
  ${finanzamtField(c)}
  ${F('p','steuernummer',t('steuernummer')+' *',{hint:t('steuernummer_required_hint')})}
- <div id="stnr-check-msg"></div>
+ <div id="stnr-check-msg" style="grid-column:1/-1"></div>
  </div>
  ${F('p','iban',t('iban'),{ph:'DE00 0000 0000 0000 0000 00'})}
- <div id="iban-check-msg"></div>
+ <div id="iban-check-msg" style="grid-column:1/-1"></div>
  ${married?`<div class="section-label">${t('spouse')}</div>
  <div class="grid2">
  ${F('p','spouseFirst',t('first_name')+' *')} ${F('p','spouseLast',t('last_name')+' *')}
  ${F('p','spouseBirth',t('birth_date')+' *',{type:'date'})} ${F('p','spouseTaxId',t('tax_id')+' *',{maxlength:13,inputmode:'numeric'})}
- <div id="spousetaxid-check-msg"></div>
+ <div id="spousetaxid-check-msg" style="grid-column:1/-1"></div>
  ${F('p','spouseReligion',t('religion'),{select:[['none',t('rel_none')],['ev',t('rel_ev')],['rk',t('rel_rk')],['other',t('rel_other')]]})}
  </div>
- <div id="dup-idnr-check-msg"></div>
+ <div id="dup-idnr-check-msg" style="grid-column:1/-1"></div>
  ${(()=>{ const s=c.p; const has=s.spouseFirst||s.spouseLast||s.spouseBirth||s.spouseTaxId;
    if(has && !(s.spouseFirst && s.spouseBirth))
      return `<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin-top:6px;padding:8px 10px;font-size:12.5px">⚠ ${t('spouse_incomplete_warning')}</div>`;
@@ -3878,7 +3878,7 @@ function stepFamilySupport(c){
  ${F('fam','untProfession',t('unt_profession')+' *',{ph:t('unt_profession_ph')})}
  ${F('fam','untBirthDate',t('unt_birthdate')+' *',{type:'date'})}
  ${F('fam','untIdnr',t('unt_idnr'),{ph:'12 345 678 901',hint:t('unt_idnr_hint'),maxlength:13,inputmode:'numeric'})}
- <div id="untidnr-check-msg"></div>
+ <div id="untidnr-check-msg" style="grid-column:1/-1"></div>
  ${F('fam','untRelationship',t('unt_relationship')+' *',{ph:t('unt_relationship_ph')})}
  ${F('fam','untAddress',t('unt_address')+' *',{ph:t('unt_address_ph')})}
  ${F('fam','untHouseholdSize',t('unt_household_size')+' *',{type:'number',ph:'1',min:1})}
@@ -3920,7 +3920,7 @@ function stepSpecial(c){
  ${N(c.oth.realsplitting)>0?`<div class="grid2">
  ${F('oth','realsplitName',t('realsplit_name')+' *',{ph:t('realsplit_name_ph')})}
  ${F('oth','realsplitIdnr',t('realsplit_idnr')+' *',{ph:'12 345 678 901',hint: c.taxYear<=2023 ? t('realsplit_idnr_hint_2023') : t('realsplit_idnr_hint'),maxlength:13,inputmode:'numeric'})}
- <div id="realsplitidnr-check-msg"></div>
+ <div id="realsplitidnr-check-msg" style="grid-column:1/-1"></div>
  </div>`:''}
  ${N(c.oth.realsplitting)>0 && YEAR_LIMITATIONS[c.taxYear]?.noRealsplittingCountry?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
  ⚠ ${t('year_warn_no_realsplit_country')}
