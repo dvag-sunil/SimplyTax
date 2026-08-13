@@ -254,7 +254,7 @@
  BACKEND TOGGLE - set enabled:true and your API URL to use the PostgreSQL
  backend (see /backend). false = local/browser storage only (current mode).
 ===================================================================== */
-const BACKEND = { enabled:true, baseUrl:'https://simplytax-api.onrender.com' }; // ← PRODUCTION - if your Render URL has a suffix (e.g. -xk2p), adjust it here
+const BACKEND = { enabled:true, baseUrl:'__BACKEND_URL__' }; // ← Replaced automatically at deploy time by the GitHub Actions workflow (.github/workflows/deploy.yml) based on which branch triggered the build - never edit this value directly, edit the workflow's own URLs instead if a Render URL ever changes
 /* DISCOUNT CODES - edit this list to add/remove promo codes. type:'percent' (0-100) or 'fixed' (EUR off).
  Client-side table is used for the 'simulated' payment mode; for real Stripe payments the SAME codes
  must also exist in backend/server.js (DISCOUNTS) since the server is the source of truth for the

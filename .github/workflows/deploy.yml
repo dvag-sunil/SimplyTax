@@ -1,0 +1,56 @@
+name: Deploy to GitHub Pages
+
+# Runs automatically on every push to either branch - main deploys with
+# the dev backend URL, production deploys with the real one. Nothing
+# else needs to change per deploy; this file is the only place the two
+# real Render URLs are ever written down.
+on:
+  push:
+    branches: [main, production]
+  workflow_dispatch: # allows a manual re-run from GitHub's own Actions tab, if ever needed
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out the branch that triggered this build
+        uses: actions/checkout@v4
+
+      - name: Substitute the correct backend URL for this branch
+        # This is the actual real, current URL for each environment -
+        # the one place in the whole project these are written down.
+        # If a Render service's URL ever changes, update it here, not
+        # in index.html itself.
+        run: |
+          if [ "${{ github.ref_name }}" = "production" ]; then
+            REAL_URL="https://simplytax-api.onrender.com"
+          else
+            REAL_URL="https://simplytax-api-dev.onrender.com"
+          fi
+          echo "Deploying ${{ github.ref_name }} with backend URL: $REAL_URL"
+          sed -i "s|__BACKEND_URL__|$REAL_URL|g" index.html
+          if grep -q "__BACKEND_URL__" index.html; then
+            echo "::error::Placeholder __BACKEND_URL__ still present after substitution - deploy stopped."
+            exit 1
+          fi
+
+      - name: Prepare the Pages upload
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
