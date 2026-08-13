@@ -682,6 +682,7 @@ en: {
  unt_name:"Name of the supported person", unt_name_ph:"e.g. Maria Muster",
  unt_idnr:"Their Tax ID (Steuer-IdNr)",
  unt_idnr_hint:"Optional - not required by the tax authority, but useful to have on file if available.",
+ unt_idnr_hint_legacy:"Required for this tax year - unlike 2023 onward, the supported person's Tax ID is mandatory for 2021 and 2022 filings.",
  realsplit_idnr:"Ex-spouse's Tax ID (Steuer-IdNr)",
  realsplit_name:"Ex-spouse's full name", realsplit_name_ph:"e.g. Max Mustermann",
  realsplit_idnr_hint:"Generally required by the tax authority for this deduction.",
@@ -1086,6 +1087,7 @@ de: {
  unt_name:"Name der unterstützten Person", unt_name_ph:"z. B. Maria Muster",
  unt_idnr:"Deren Steuer-Identifikationsnummer",
  unt_idnr_hint:"Optional - vom Finanzamt nicht verlangt, aber nützlich, falls bekannt.",
+ unt_idnr_hint_legacy:"Für dieses Steuerjahr erforderlich - anders als ab 2023 ist die Steuer-ID der unterstützten Person für 2021 und 2022 verpflichtend.",
  realsplit_idnr:"Steuer-ID des Ex-Ehegatten",
  realsplit_name:"Vollständiger Name des Ex-Ehegatten", realsplit_name_ph:"z. B. Max Mustermann",
  realsplit_idnr_hint:"Vom Finanzamt für diesen Abzug in der Regel erforderlich.",
@@ -3753,7 +3755,7 @@ function stepWork(c){
  </div>
  ${F('wk','commuteMode',t('commute_mode'),{select:[['',t('select')],['car',t('commute_mode_car')],['public',t('commute_mode_public')],['other',t('commute_mode_other')]],hint:t('commute_mode_hint')})}
  ${c.wk.commuteMode==='public'?F('wk','commutePublicCost',t('commute_public_cost'),{euro:true,ph:'0,00 €',hint:t('commute_public_cost_hint')}):''}
- ${N(c.wk.commuteKm)>0?F('wk','commuteWorkplace',t('commute_workplace'),{ph:'12345 Frankfurt, Musterstraße 1',hint:t('commute_workplace_hint')}):''}
+ ${N(c.wk.commuteKm)>0?F('wk','commuteWorkplace',t('commute_workplace')+' *',{ph:'12345 Frankfurt, Musterstraße 1',hint:t('commute_workplace_hint')}):''}
  ${warnDays?`<div class="warn">⚠️ ${t('warn_days')}</div>`:''}
  <div class="section-label">${t('wk_cat_homeoffice')}</div>
  ${F('wk','homeOffice',t('home_office'),{euro:true,ph:'60'})}
@@ -3788,7 +3790,7 @@ function stepWork(c){
  </div>
  ${F('wkB','commuteMode',t('commute_mode'),{select:[['',t('select')],['car',t('commute_mode_car')],['public',t('commute_mode_public')],['other',t('commute_mode_other')]],hint:t('commute_mode_hint')})}
  ${c.wkB.commuteMode==='public'?F('wkB','commutePublicCost',t('commute_public_cost'),{euro:true,ph:'0,00 €',hint:t('commute_public_cost_hint')}):''}
- ${N(c.wkB.commuteKm)>0?F('wkB','commuteWorkplace',t('commute_workplace'),{ph:'12345 Frankfurt, Musterstraße 1',hint:t('commute_workplace_hint')}):''}
+ ${N(c.wkB.commuteKm)>0?F('wkB','commuteWorkplace',t('commute_workplace')+' *',{ph:'12345 Frankfurt, Musterstraße 1',hint:t('commute_workplace_hint')}):''}
  <div class="section-label">${t('wk_cat_homeoffice')}</div>
  ${F('wkB','homeOffice',t('home_office'),{euro:true,ph:'60'})}
  <div class="section-label">${t('wk_cat_equipment')}</div>
@@ -3896,7 +3898,7 @@ function stepFamilySupport(c){
  ${F('fam','untName',t('unt_name')+' *',{ph:t('unt_name_ph')})}
  ${F('fam','untProfession',t('unt_profession')+' *',{ph:t('unt_profession_ph')})}
  ${F('fam','untBirthDate',t('unt_birthdate')+' *',{type:'date'})}
- ${F('fam','untIdnr',t('unt_idnr'),{ph:'12 345 678 901',hint:t('unt_idnr_hint'),maxlength:13,inputmode:'numeric'})}
+ ${F('fam','untIdnr',t('unt_idnr')+(YEAR_LIMITATIONS[c.taxYear]?.legacyUnterhalt?' *':''),{ph:'12 345 678 901',hint:YEAR_LIMITATIONS[c.taxYear]?.legacyUnterhalt?t('unt_idnr_hint_legacy'):t('unt_idnr_hint'),maxlength:13,inputmode:'numeric'})}
  <div id="untidnr-check-msg" style="grid-column:1/-1"></div>
  ${F('fam','untRelationship',t('unt_relationship')+' *',{ph:t('unt_relationship_ph')})}
  ${F('fam','untAddress',t('unt_address')+' *',{ph:t('unt_address_ph')})}
