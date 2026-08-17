@@ -1499,6 +1499,17 @@ check('Supplementary health and care insurance (kvzusatz, pflegezusatz) combine 
   return wrapCount === 1 && x.includes('<E2003104>3400</E2003104>') && x.includes('<E2003502>800</E2003502>');
 })());
 
+check('Real ERiC rejection fixed (uniqueIndex on /KAP/Person): multiple capital income entries for the same person (e.g. two banks) now combine into exactly one KAP block with correctly summed totals, not two separate blocks sharing the same Person value', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageKAP = [
+    { person: 'A', zeile7_kapitalertraege: 1000, zeile16_sparerPauschbetragGenutzt: 500 },
+    { person: 'A', zeile7_kapitalertraege: 2000, zeile16_sparerPauschbetragGenutzt: 300 },
+  ];
+  const x = buildEStXML(d).xml;
+  const kapCount = (x.match(/<KAP>/g) || []).length;
+  return kapCount === 1 && x.includes('<E1900701>3000</E1900701>') && x.includes('<E1901401>800</E1901401>');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);

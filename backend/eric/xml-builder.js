@@ -726,10 +726,24 @@ function buildKAP(data) {
   const anyGuenstiger = data.hauptvordruck?.personB && entries.some(k =>
     N(k.zeile7_kapitalertraege) > 0 || N(k.zeile8_aktiengewinne) > 0
     || N(k.zeile12_verlusteOhneAktien) > 0 || N(k.zeile13_verlusteAktien) > 0);
-  for (const k of entries) {
+  /* CORRECTED: real ERiC rejection (uniqueIndex on /KAP/Person) - the
+     previous version built one separate KAP block per entry, so a
+     person with capital income from more than one institution produced
+     multiple KAP blocks all carrying the same Person tag, which the
+     real schema requires to be unique across the whole document.
+     Grouping by person first and summing every numeric field across
+     all of that person's entries produces exactly one KAP block per
+     person - genuine, correct math, since a person's real total
+     capital income is exactly the sum across their accounts anyway. */
+  const byPerson = { A: [], B: [] };
+  for (const k of entries) byPerson[k.person === 'B' ? 'B' : 'A'].push(k);
+  const sum = (list, field) => list.reduce((a, k) => a + N(k[field]), 0);
+  for (const p of ['A', 'B']) {
+    const list = byPerson[p];
+    if (!list.length) continue;
     let inner = '';
-    const g1 = wholeEuroTag(fm.KAP.k7, k.zeile7_kapitalertraege) + wholeEuroTag(fm.KAP.k8, k.zeile8_aktiengewinne)
-      + wholeEuroTag(fm.KAP.k12, k.zeile12_verlusteOhneAktien) + wholeEuroTag(fm.KAP.k13, k.zeile13_verlusteAktien);
+    const g1 = wholeEuroTag(fm.KAP.k7, sum(list, 'zeile7_kapitalertraege')) + wholeEuroTag(fm.KAP.k8, sum(list, 'zeile8_aktiengewinne'))
+      + wholeEuroTag(fm.KAP.k12, sum(list, 'zeile12_verlusteOhneAktien')) + wholeEuroTag(fm.KAP.k13, sum(list, 'zeile13_verlusteAktien'));
     if (g1) inner += `<KapErt_inl_StAbz><Betr_lt_StBesch>\n${g1}</Betr_lt_StBesch></KapErt_inl_StAbz>\n`;
     /* CORRECTED: real bug found via the multi-year regression test
        (Regel 192036) - whenever Günstigerprüfung is requested (which
@@ -739,27 +753,28 @@ function buildKAP(data) {
        would otherwise silently omit a zero value, which is exactly
        what caused this error despite the field being "collected" (just
        never written when it was 0). */
-    const g2 = g1 ? `<${fm.KAP.k16}>${N(k.zeile16_sparerPauschbetragGenutzt)}</${fm.KAP.k16}>\n` : wholeEuroTag(fm.KAP.k16, k.zeile16_sparerPauschbetragGenutzt);
+    const pbUsed = sum(list, 'zeile16_sparerPauschbetragGenutzt');
+    const g2 = g1 ? `<${fm.KAP.k16}>${pbUsed}</${fm.KAP.k16}>\n` : wholeEuroTag(fm.KAP.k16, pbUsed);
     if (g2) inner += `<Sp_PB>\n${g2}</Sp_PB>\n`;
-    const g3 = wholeEuroTag(fm.KAP.k18, k.zeile18_inlaendischOhneSteuerabzug) + wholeEuroTag(fm.KAP.k19, k.zeile19_auslaendisch)
-      + wholeEuroTag(fm.KAP.k20, k.zeile20_aktiengewinne) + wholeEuroTag(fm.KAP.k21, k.zeile21_stillhalterTermingeschaefte)
-      + wholeEuroTag(fm.KAP.k22, k.zeile22_verlusteOhneAktien) + wholeEuroTag(fm.KAP.k23, k.zeile23_verlusteAktien);
+    const g3 = wholeEuroTag(fm.KAP.k18, sum(list, 'zeile18_inlaendischOhneSteuerabzug')) + wholeEuroTag(fm.KAP.k19, sum(list, 'zeile19_auslaendisch'))
+      + wholeEuroTag(fm.KAP.k20, sum(list, 'zeile20_aktiengewinne')) + wholeEuroTag(fm.KAP.k21, sum(list, 'zeile21_stillhalterTermingeschaefte'))
+      + wholeEuroTag(fm.KAP.k22, sum(list, 'zeile22_verlusteOhneAktien')) + wholeEuroTag(fm.KAP.k23, sum(list, 'zeile23_verlusteAktien'));
     if (g3) inner += `<KapErt_kein_inl_StAbz>\n${g3}</KapErt_kein_inl_StAbz>\n`;
-    const g4 = euroTag(fm.KAP.k43, k.zeile43_kapitalertragsteuer) + euroTag(fm.KAP.k44, k.zeile44_soli)
-      + euroTag(fm.KAP.k45, k.zeile45_kirchensteuer);
+    const g4 = euroTag(fm.KAP.k43, sum(list, 'zeile43_kapitalertragsteuer')) + euroTag(fm.KAP.k44, sum(list, 'zeile44_soli'))
+      + euroTag(fm.KAP.k45, sum(list, 'zeile45_kirchensteuer'));
     if (g4) inner += `<St_Abz_Betr_Inl_u_Inv_Ert>\n${g4}</St_Abz_Betr_Inl_u_Inv_Ert>\n`;
     /* CORRECTED: same class of bug found via the architectural review's
        empirical test (originally surfaced in buildVOR) - an entry with
        no actual populated amounts would still have produced an empty
        <KAP><Person>.../<KAP> wrapper, triggering ERiC's "kontextLeer"
-       error. Now only emits per-entry if there's genuinely content. */
+       error. Now only emits per-person if there's genuinely content. */
     if (inner) {
-      /* Applies whenever THIS entry triggered it directly, or the
+      /* Applies whenever THIS person triggered it directly, or the
          joint-filing requirement means it applies regardless (Regel
          193035 - see the anyGuenstiger computation above). */
       const antTag = (g1 || anyGuenstiger) ? `<Ant>\n${tag(fm.KAP.guenstigerpruefung, '1')}</Ant>\n` : '';
-      xml += `<KAP><Person>Person${k.person === 'B' ? 'B' : 'A'}</Person>\n${antTag}${inner}</KAP>\n`;
-      personsWithBlock.add(k.person === 'B' ? 'B' : 'A');
+      xml += `<KAP><Person>Person${p}</Person>\n${antTag}${inner}</KAP>\n`;
+      personsWithBlock.add(p);
     }
   }
   /* If the joint-filing requirement applies but one spouse has no KAP
