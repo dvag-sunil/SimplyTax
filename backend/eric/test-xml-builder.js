@@ -1564,6 +1564,22 @@ check('N_DHH correctly builds one block per person when both spouses have double
   return ndhhCount === 2 && x.includes('<Person>PersonA</Person>\n<DHHF>') && x.includes('<Person>PersonB</Person>\n<DHHF>');
 })());
 
+check('Real ERiC rejection fixed (Regel 100200032, 100200041): the five fields genuinely required alongside DHH data are now present in the correct real element order (Allg, then Fahrtk, then Unterkunft), with the date correctly formatted as TT.MM.JJJJ', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.werbungskosten = { personA: { doppelteHaushaltsfuehrung: {
+    monatsmiete: 800, monate: 6, familienheimfahrten: 12, entfernungKm: 300,
+    grund: 'Neue Arbeitsstelle', datum: '2025-03-01', beschaeftigungsort: '60329 Frankfurt am Main',
+    eigenerHausstand: 'yes', reiseart: 'no',
+  } }, einzelposten: [] };
+  const x = buildEStXML(d).xml;
+  const ndhh = x.match(/<N_DHH>[\s\S]*?<\/N_DHH>/)?.[0] || '';
+  const allgIdx = ndhh.indexOf('<Allg>'), fahrtkIdx = ndhh.indexOf('<Fahrtk>'), unterkunftIdx = ndhh.indexOf('<Unterkunft>');
+  const correctOrder = allgIdx > -1 && allgIdx < fahrtkIdx && fahrtkIdx < unterkunftIdx;
+  return correctOrder && ndhh.includes('<E0206103>01.03.2025</E0206103>') && ndhh.includes('<E0206205>Neue Arbeitsstelle</E0206205>')
+    && ndhh.includes('<E0206404>60329 Frankfurt am Main</E0206404>') && ndhh.includes('<E0206504>1</E0206504>')
+    && ndhh.includes('<E0206805>2</E0206805>');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);

@@ -357,6 +357,15 @@ const N_DHH = {
      real schema, so the already-computed capped total is correct as
      the transmitted figure. */
   dhhRent: 'E0207611',
+  /* CORRECTED: real ERiC rejection (Regel 100200032, 100200041)
+     confirmed these five fields are genuinely required once DHH data
+     is present at all, despite being schema-optional. Confirmed
+     identical across all five years 2021-2025. */
+  dhhDate: 'E0206103',        // Allg - date the double household was established
+  dhhReason: 'E0206205',      // Allg - Grund (free text)
+  dhhWorkplace: 'E0206404',   // Allg - Beschäftigungsort (free text: PLZ, Ort)
+  dhhOwnHousehold: 'E0206504', // Allg - eigener Hausstand am Lebensmittelpunkt (Ja=1/Nein=2)
+  dhhTravelMode: 'E0206805',  // Fahrtk - Firmenwagen/Sammelbeförderung (1=Ja insgesamt, 2=Nein, 3=Ja teilweise)
   // relocation: no dedicated Kennzahl found in the real schema - folded
   // into the already-wired Weitere_Wk/Sum itemized total instead,
   // rather than left unsent or a nonexistent field invented.

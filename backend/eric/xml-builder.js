@@ -470,11 +470,33 @@ function buildNDHH(data) {
     if (!wk) continue;
     const dhh = wk.doppelteHaushaltsfuehrung || {};
     const dhhRentTotal = Math.min(N(dhh.monatsmiete), 1000) * Math.min(N(dhh.monate), 12); // same real cap already applied client-side, computed again here from the raw figures actually exported
-    let dhhfXml = '';
-    if (dhhRentTotal > 0) dhhfXml += `<Unterkunft>${wholeEuroTag(fm.N_DHH.dhhRent, Math.round(dhhRentTotal))}</Unterkunft>`;
-    if (N(dhh.entfernungKm) > 0 && N(dhh.familienheimfahrten) > 0) {
-      dhhfXml += `<Fahrtk><Woech_Heimf>${wholeEuroTag(fm.N_DHH.dhhKm, Math.round(N(dhh.entfernungKm)))}${wholeEuroTag(fm.N_DHH.dhhTrips.kennzahlen[0], Math.round(N(dhh.familienheimfahrten)))}</Woech_Heimf></Fahrtk>`;
+    const hasRent = dhhRentTotal > 0;
+    const hasTrips = N(dhh.entfernungKm) > 0 && N(dhh.familienheimfahrten) > 0;
+    if (!hasRent && !hasTrips) continue;
+    /* CORRECTED: real ERiC rejection (Regel 100200032, 100200041) -
+       these five fields are genuinely required together once DHH data
+       exists at all, despite being schema-optional. Also confirmed
+       the real DHHF element order this time (Allg, then Fahrtk, then
+       Unterkunft) rather than assume the order used for the amounts
+       alone was already correct. */
+    let allgXml = '';
+    if (hasRent) {
+      if (dhh.datum) allgXml += tag(fm.N_DHH.dhhDate, formatDateDE(dhh.datum));
+      if (dhh.grund) allgXml += tag(fm.N_DHH.dhhReason, dhh.grund);
+      if (dhh.beschaeftigungsort) allgXml += tag(fm.N_DHH.dhhWorkplace, dhh.beschaeftigungsort);
+      if (dhh.eigenerHausstand) allgXml += tag(fm.N_DHH.dhhOwnHousehold, dhh.eigenerHausstand === 'yes' ? '1' : '2');
     }
+    let dhhfXml = allgXml ? `<Allg>${allgXml}</Allg>` : '';
+    if (hasTrips) {
+      let fahrtkXml = '';
+      if (dhh.reiseart) {
+        const travelCode = dhh.reiseart === 'yes' ? '1' : dhh.reiseart === 'partial' ? '3' : '2';
+        fahrtkXml += tag(fm.N_DHH.dhhTravelMode, travelCode);
+      }
+      fahrtkXml += `<Woech_Heimf>${wholeEuroTag(fm.N_DHH.dhhKm, Math.round(N(dhh.entfernungKm)))}${wholeEuroTag(fm.N_DHH.dhhTrips.kennzahlen[0], Math.round(N(dhh.familienheimfahrten)))}</Woech_Heimf>`;
+      dhhfXml += `<Fahrtk>${fahrtkXml}</Fahrtk>`;
+    }
+    if (hasRent) dhhfXml += `<Unterkunft>${wholeEuroTag(fm.N_DHH.dhhRent, Math.round(dhhRentTotal))}</Unterkunft>`;
     if (dhhfXml) xml += `<N_DHH><Person>Person${p}</Person>\n<DHHF>${dhhfXml}</DHHF>\n</N_DHH>\n`;
   }
   return xml;

@@ -659,6 +659,13 @@ en: {
  s_unt_lead:"Support payments to needy relatives (§ 33a EStG) - amount, the supported person's details, and household information.",
  s4b:"Double household (doppelte Haushaltsführung) - for a work-related second home. Rent is deductible up to €1,000 per month; weekly family home trips count with the commuting allowance.",
  dhh_h:"Double household", dhh_rent:"Monthly rent, second home", dhh_months:"Months", dhh_trips:"Family home trips per year", dhh_km:"Distance to family home (km)",
+ dhh_reason:"Reason for the double household", dhh_reason_ph:"e.g. new job, relocation for work",
+ dhh_date:"Date the double household began", dhh_workplace:"Place of employment (postcode, city)",
+ dhh_ownhousehold:"Do you maintain your own household at your center of life (the family home)?",
+ dhh_ownhousehold_hint:"This means genuinely running that household - not just having a room there.",
+ dhh_travelmode:"Were the family-home trips made using a company car or free employer-provided group transport?",
+ dhh_travelmode_yes:"Yes, for all trips", dhh_travelmode_no:"No", dhh_travelmode_partial:"Yes, for some trips",
+ dhh_travelmode_select:"Please select",
  relocation:"Work-related relocation costs",
  s_fam_lead:"Costs for children (Anlage Kind) and support payments to needy relatives - e.g., parents abroad (Anlage Unterhalt, § 33a EStG).",
  children_h:"Children", kids_count:"Number of children", childcare:"Childcare costs (per year, with invoices)", school_fees:"School fees (private school)",
@@ -1064,6 +1071,13 @@ de: {
  s_unt_lead:"Unterhaltszahlungen an bedürftige Angehörige (§ 33a EStG) - Betrag, Angaben zur unterstützten Person und zum Haushalt.",
  s4b:"Doppelte Haushaltsführung - bei beruflicher Zweitwohnung. Miete bis 1.000 € pro Monat absetzbar; wöchentliche Familienheimfahrten zählen mit der Entfernungspauschale.",
  dhh_h:"Doppelte Haushaltsführung", dhh_rent:"Monatsmiete Zweitwohnung", dhh_months:"Monate", dhh_trips:"Familienheimfahrten pro Jahr", dhh_km:"Entfernung zum Hauptwohnsitz (km)",
+ dhh_reason:"Grund für den doppelten Haushalt", dhh_reason_ph:"z. B. neue Arbeitsstelle, berufsbedingter Umzug",
+ dhh_date:"Datum der Begründung des doppelten Haushalts", dhh_workplace:"Beschäftigungsort (PLZ, Ort)",
+ dhh_ownhousehold:"Führen Sie einen eigenen Hausstand an Ihrem Lebensmittelpunkt (dem Familienwohnsitz)?",
+ dhh_ownhousehold_hint:"Damit ist gemeint, dass Sie diesen Haushalt tatsächlich führen - nicht nur ein Zimmer dort haben.",
+ dhh_travelmode:"Wurden die Familienheimfahrten mit einem Firmenwagen oder einer unentgeltlichen Sammelbeförderung des Arbeitgebers durchgeführt?",
+ dhh_travelmode_yes:"Ja, für alle Fahrten", dhh_travelmode_no:"Nein", dhh_travelmode_partial:"Ja, für einige Fahrten",
+ dhh_travelmode_select:"Bitte auswählen",
  relocation:"Beruflich bedingte Umzugskosten",
  s_fam_lead:"Kosten für Kinder (Anlage Kind) und Unterhaltszahlungen an bedürftige Angehörige - z. B. Eltern im Ausland (Anlage Unterhalt, § 33a EStG).",
  children_h:"Kinder", kids_count:"Anzahl Kinder", childcare:"Kinderbetreuungskosten (pro Jahr, mit Rechnung)", school_fees:"Schulgeld (Privatschule)",
@@ -1581,9 +1595,9 @@ function newClient(f,l,year,marital){
  realsplitting:'', realsplitIdnr:'', realsplitName:'', lossCarry:'', soGain:'', soUnterhalt:'', energCost:'', energStage:'' },
  ins:{ rv:'',kv:'',pv:'',av:'',other:'' },
  wk:{ commuteDays:'',commuteKm:'',commuteMode:'',commutePublicCost:'',commuteWorkplace:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',
- dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
+ dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'',dhhReason:'',dhhDate:'',dhhWorkplace:'',dhhOwnHousehold:'',dhhTravelMode:'' },
  wkB:{ commuteDays:'',commuteKm:'',commuteMode:'',commutePublicCost:'',commuteWorkplace:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',
- dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'' },
+ dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'',dhhReason:'',dhhDate:'',dhhWorkplace:'',dhhOwnHousehold:'',dhhTravelMode:'' },
  fam:{ kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',untName:'',untIdnr:'',untProfession:'',untBirthDate:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untCohabitation:'nein',untKindergeld:'nein',untOtherContributor:'nein',untHasAssets:'nein',untHasIncome:'nein',untCountry:'',untForeignConfirmed:'nein',children:[] },
  sa:{ donations:'',other:'' },
  ex:{ medical:'',household:'',handwerker:'' },
@@ -1645,7 +1659,7 @@ async function loadState(){
 }
 function migrateClient(c){
  c.p = Object.assign({faNumber:'',bundesland:'',spouseReligion:'none',singleParent:'no',deathYear:'',fullYearResident:'yes',arrivalDate:'',departureDate:''}, c.p||{});
- c.wkB = Object.assign({commuteDays:'',commuteKm:'',commuteMode:'',commutePublicCost:'',commuteWorkplace:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wkB||{});
+ c.wkB = Object.assign({commuteDays:'',commuteKm:'',commuteMode:'',commutePublicCost:'',commuteWorkplace:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'',dhhReason:'',dhhDate:'',dhhWorkplace:'',dhhOwnHousehold:'',dhhTravelMode:''}, c.wkB||{});
  (Array.isArray(c.privIns)?c.privIns:[]).forEach(x=>{ if(x.person!=='B') x.person='A'; });
  c.emps = Array.isArray(c.emps)?c.emps:[];
  c.emps.forEach(e=>{ if(e.person!=='B') e.person='A'; });
@@ -1679,7 +1693,7 @@ function migrateClient(c){
  if(!N(e0.anAV)) e0.anAV=c.ins.av;
  c.ins.rv=c.ins.kv=c.ins.pv=c.ins.av='';
  }
- c.wk = Object.assign({commuteMode:'',commutePublicCost:'',commuteWorkplace:'',arbeitszimmer:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:''}, c.wk||{});
+ c.wk = Object.assign({commuteMode:'',commutePublicCost:'',commuteWorkplace:'',arbeitszimmer:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'',dhhReason:'',dhhDate:'',dhhWorkplace:'',dhhOwnHousehold:'',dhhTravelMode:''}, c.wk||{});
  c.fam = Object.assign({kids:'',childcare:'',schoolFees:'',support:'',supportGroup:'1',untName:'',untIdnr:'',untProfession:'',untBirthDate:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untCohabitation:'nein',untKindergeld:'nein',untOtherContributor:'nein',untHasAssets:'nein',untHasIncome:'nein',untCountry:'',untForeignConfirmed:'nein',children:[]}, c.fam||{});
  if(!Array.isArray(c.fam.children)) c.fam.children=[];
  c.fam.children.forEach(k=>{ if(!k.kinship) k.kinship='leiblich'; });
@@ -2506,6 +2520,17 @@ function stepDone(c,i){
  workplace address. */
  if(N(c.wk.commuteKm)>0 && !has(c.wk.commuteWorkplace)) return 'incomplete';
  if(c.p.marital==='married' && N(c.wkB.commuteKm)>0 && !has(c.wkB.commuteWorkplace)) return 'incomplete';
+ /* Real, confirmed ERiC business-rule requirement (not just schema-
+    optional) - once double-household rent is entered, the reason,
+    date established, employment location, and own-household
+    declaration are all genuinely required together; once family-home
+    trips are entered, the travel-mode declaration is also required. */
+ if(N(c.wk.dhhRent)>0 && (!has(c.wk.dhhReason) || !has(c.wk.dhhDate) || !has(c.wk.dhhWorkplace) || !has(c.wk.dhhOwnHousehold))) return 'incomplete';
+ if(N(c.wk.dhhTrips)>0 && !has(c.wk.dhhTravelMode)) return 'incomplete';
+ if(c.p.marital==='married'){
+ if(N(c.wkB.dhhRent)>0 && (!has(c.wkB.dhhReason) || !has(c.wkB.dhhDate) || !has(c.wkB.dhhWorkplace) || !has(c.wkB.dhhOwnHousehold))) return 'incomplete';
+ if(N(c.wkB.dhhTrips)>0 && !has(c.wkB.dhhTravelMode)) return 'incomplete';
+ }
  return 'done';
  }
  case 4: {
@@ -2583,6 +2608,22 @@ function firstMissingFieldTabkey(c,i){
  if(i===3){
  if(N(c.wk.commuteKm)>0 && !has(c.wk.commuteWorkplace)) return 'wk.commuteWorkplace';
  if(c.p.marital==='married' && N(c.wkB.commuteKm)>0 && !has(c.wkB.commuteWorkplace)) return 'wkB.commuteWorkplace';
+ if(N(c.wk.dhhRent)>0){
+ if(!has(c.wk.dhhReason)) return 'wk.dhhReason';
+ if(!has(c.wk.dhhDate)) return 'wk.dhhDate';
+ if(!has(c.wk.dhhWorkplace)) return 'wk.dhhWorkplace';
+ if(!has(c.wk.dhhOwnHousehold)) return 'wk.dhhOwnHousehold';
+ }
+ if(N(c.wk.dhhTrips)>0 && !has(c.wk.dhhTravelMode)) return 'wk.dhhTravelMode';
+ if(c.p.marital==='married'){
+ if(N(c.wkB.dhhRent)>0){
+ if(!has(c.wkB.dhhReason)) return 'wkB.dhhReason';
+ if(!has(c.wkB.dhhDate)) return 'wkB.dhhDate';
+ if(!has(c.wkB.dhhWorkplace)) return 'wkB.dhhWorkplace';
+ if(!has(c.wkB.dhhOwnHousehold)) return 'wkB.dhhOwnHousehold';
+ }
+ if(N(c.wkB.dhhTrips)>0 && !has(c.wkB.dhhTravelMode)) return 'wkB.dhhTravelMode';
+ }
  }
  return null;
 }
@@ -3790,6 +3831,28 @@ function stepWork(c){
  ${F('wk','dhhTrips',t('dhh_trips'),{euro:true,ph:'46'})}
  ${F('wk','dhhKm',t('dhh_km'),{euro:true,ph:'250'})}
  </div>
+ ${N(c.wk.dhhRent)>0?`<div class="grid2">
+ ${F('wk','dhhReason',t('dhh_reason')+' *',{ph:t('dhh_reason_ph')})}
+ ${F('wk','dhhDate',t('dhh_date')+' *',{type:'date'})}
+ </div>
+ <div class="grid2">
+ ${F('wk','dhhWorkplace',t('dhh_workplace')+' *',{ph:'60329 Frankfurt am Main'})}
+ <div class="field${reqCls(c.wk.dhhOwnHousehold)}"><label>${t('dhh_ownhousehold')} *</label>
+ <select onchange="upd('wk','dhhOwnHousehold',this.value)">
+ <option value="">${t('select')}</option>
+ <option value="yes" ${c.wk.dhhOwnHousehold==='yes'?'selected':''}>${t('yes')}</option>
+ <option value="no" ${c.wk.dhhOwnHousehold==='no'?'selected':''}>${t('no')}</option>
+ </select>
+ <div class="hint">${t('dhh_ownhousehold_hint')}</div></div>
+ </div>`:''}
+ ${N(c.wk.dhhTrips)>0?`<div class="field${reqCls(c.wk.dhhTravelMode)}">
+ <label>${t('dhh_travelmode')} *</label>
+ <select onchange="upd('wk','dhhTravelMode',this.value)">
+ <option value="">${t('dhh_travelmode_select')}</option>
+ <option value="yes" ${c.wk.dhhTravelMode==='yes'?'selected':''}>${t('dhh_travelmode_yes')}</option>
+ <option value="no" ${c.wk.dhhTravelMode==='no'?'selected':''}>${t('dhh_travelmode_no')}</option>
+ <option value="partial" ${c.wk.dhhTravelMode==='partial'?'selected':''}>${t('dhh_travelmode_partial')}</option>
+ </select></div>`:''}
  ${F('wk','relocation',t('relocation'),{euro:true,ph:'0,00 €'})}
  ${c.p.marital==='married'?`
  <div class="section-label">Person B - ${esc((c.p.spouseFirst||'')+' '+(c.p.spouseLast||'')).trim()||t('spouse')}</div>
@@ -3817,6 +3880,28 @@ function stepWork(c){
  ${F('wkB','dhhTrips',t('dhh_trips'),{euro:true,ph:'46'})}
  ${F('wkB','dhhKm',t('dhh_km'),{euro:true,ph:'250'})}
  </div>
+ ${N(c.wkB.dhhRent)>0?`<div class="grid2">
+ ${F('wkB','dhhReason',t('dhh_reason')+' *',{ph:t('dhh_reason_ph')})}
+ ${F('wkB','dhhDate',t('dhh_date')+' *',{type:'date'})}
+ </div>
+ <div class="grid2">
+ ${F('wkB','dhhWorkplace',t('dhh_workplace')+' *',{ph:'60329 Frankfurt am Main'})}
+ <div class="field${reqCls(c.wkB.dhhOwnHousehold)}"><label>${t('dhh_ownhousehold')} *</label>
+ <select onchange="upd('wkB','dhhOwnHousehold',this.value)">
+ <option value="">${t('select')}</option>
+ <option value="yes" ${c.wkB.dhhOwnHousehold==='yes'?'selected':''}>${t('yes')}</option>
+ <option value="no" ${c.wkB.dhhOwnHousehold==='no'?'selected':''}>${t('no')}</option>
+ </select>
+ <div class="hint">${t('dhh_ownhousehold_hint')}</div></div>
+ </div>`:''}
+ ${N(c.wkB.dhhTrips)>0?`<div class="field${reqCls(c.wkB.dhhTravelMode)}">
+ <label>${t('dhh_travelmode')} *</label>
+ <select onchange="upd('wkB','dhhTravelMode',this.value)">
+ <option value="">${t('dhh_travelmode_select')}</option>
+ <option value="yes" ${c.wkB.dhhTravelMode==='yes'?'selected':''}>${t('dhh_travelmode_yes')}</option>
+ <option value="no" ${c.wkB.dhhTravelMode==='no'?'selected':''}>${t('dhh_travelmode_no')}</option>
+ <option value="partial" ${c.wkB.dhhTravelMode==='partial'?'selected':''}>${t('dhh_travelmode_partial')}</option>
+ </select></div>`:''}
  ${F('wkB','relocation',t('relocation'),{euro:true,ph:'0,00 €'})}`:''}
  ${docSection('wk')}
  ${navRow()}`;
@@ -4820,11 +4905,11 @@ function buildElsterDataset(c){
  personA:{ entfernungspauschale:{ arbeitstage:N(c.wk.commuteDays), einfacheEntfernungKm:N(c.wk.commuteKm), verkehrsmittel:c.wk.commuteMode||'', oeffentlicheKosten:N(c.wk.commutePublicCost), arbeitsstaette:c.wk.commuteWorkplace||'' },
  homeofficeTage:N(c.wk.homeOffice), arbeitsmittel:N(c.wk.equipment), fortbildung:N(c.wk.training),
  sonstige:N(c.wk.other), doppelteHaushaltsfuehrung:{ monatsmiete:N(c.wk.dhhRent), monate:N(c.wk.dhhMonths),
- familienheimfahrten:N(c.wk.dhhTrips), entfernungKm:N(c.wk.dhhKm) }, umzugskosten:N(c.wk.relocation) },
+ familienheimfahrten:N(c.wk.dhhTrips), entfernungKm:N(c.wk.dhhKm), grund:c.wk.dhhReason||'', datum:c.wk.dhhDate||'', beschaeftigungsort:c.wk.dhhWorkplace||'', eigenerHausstand:c.wk.dhhOwnHousehold||'', reiseart:c.wk.dhhTravelMode||'' }, umzugskosten:N(c.wk.relocation) },
  personB: c.p.marital==='married' ? { entfernungspauschale:{ arbeitstage:N(c.wkB.commuteDays), einfacheEntfernungKm:N(c.wkB.commuteKm), verkehrsmittel:c.wkB.commuteMode||'', oeffentlicheKosten:N(c.wkB.commutePublicCost), arbeitsstaette:c.wkB.commuteWorkplace||'' },
  homeofficeTage:N(c.wkB.homeOffice), arbeitsmittel:N(c.wkB.equipment), fortbildung:N(c.wkB.training),
  sonstige:N(c.wkB.other), doppelteHaushaltsfuehrung:{ monatsmiete:N(c.wkB.dhhRent), monate:N(c.wkB.dhhMonths),
- familienheimfahrten:N(c.wkB.dhhTrips), entfernungKm:N(c.wkB.dhhKm) }, umzugskosten:N(c.wkB.relocation) } : null,
+ familienheimfahrten:N(c.wkB.dhhTrips), entfernungKm:N(c.wkB.dhhKm), grund:c.wkB.dhhReason||'', datum:c.wkB.dhhDate||'', beschaeftigungsort:c.wkB.dhhWorkplace||'', eigenerHausstand:c.wkB.dhhOwnHousehold||'', reiseart:c.wkB.dhhTravelMode||'' }, umzugskosten:N(c.wkB.relocation) } : null,
  einzelposten:(c.wkItems||[]).map(x=>({ person:x.person==='B'?'B':'A', kategorie:x.type,
  bezeichnung:[wkiLabel(x.type),x.desc].filter(Boolean).join(' - '), betrag:N(x.amount) })) },
  anlageVorsorgeaufwand:{ ausLohnsteuerbescheinigungen:{ rv:inc.rv, gkv:inc.kv, pv:inc.pv, av:inc.av, pkv28:inc.pkv },
