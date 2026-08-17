@@ -372,7 +372,7 @@ const N_DHH = {
      own-household PLZ/Ort and since-date are required once "own
      household: yes" is declared. Confirmed identical across all five
      years 2021-2025. */
-  dhhContinuousUntil: 'E0206304', // Allg - "bis" date (DD.MM only, within the tax year)
+  dhhContinuousUntil: 'E0206304', // Allg - "bis" date. REVERTED: earlier assumption (trailing period required) proven wrong by a direct, controlled user test - "31.12." caused a blank schema crash (610301200), "31.12" produced a real rejection instead. Field currently NOT transmitted pending genuine format verification - see the commented-out line in buildNDHH.
   dhhOwnPlz: 'E0206505',          // Allg - PLZ, Ort des eigenen Hausstandes
   dhhOwnSince: 'E0206506',        // Allg - seit (full date)
   // relocation: no dedicated Kennzahl found in the real schema - folded

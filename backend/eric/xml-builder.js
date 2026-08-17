@@ -482,7 +482,28 @@ function buildNDHH(data) {
     let allgXml = '';
     if (hasRent) {
       if (dhh.datum) allgXml += tag(fm.N_DHH.dhhDate, formatDateDE(dhh.datum));
-      if (dhh.bestehtBis) allgXml += tag(fm.N_DHH.dhhContinuousUntil, dhh.bestehtBis);
+      /* CORRECTED: real ERiC rejection (datumFormatFalsch) - confirmed via
+         the field's own type name (DatumTTpMMpBaseCType) and the error
+         text itself that this needs a trailing period after the month
+         too ("TT.MM."), not just after the day. The raw user input
+         (e.g. "31.12") is normalized to guarantee this exact format
+         regardless of whether the user typed the trailing dot. */
+      /* CORRECTED (reverted): real, controlled evidence from a direct user
+         test at a known commit proved my earlier interpretation wrong -
+         appending a trailing period ("31.12.") causes the blank,
+         undiagnosable 610301200 schema crash, while the raw value
+         without it ("31.12") produces a real, detailed rejection
+         instead. The field type name's "TTp/MMp" naming does not mean
+         what I assumed. Given continuing to guess format variations
+         against real submissions has a real cost, and the exact
+         correct format is still genuinely unconfirmed, this field is
+         safely omitted entirely for now rather than guessed at again -
+         the same "don't send what isn't confirmed correct" discipline
+         used elsewhere in this project when real uncertainty exists.
+         TODO: needs a dedicated verification pass (checking an
+         official example XML, or a careful single-field VALIDATE-only
+         test) before re-enabling this field. */
+      // if (dhh.bestehtBis) allgXml += tag(fm.N_DHH.dhhContinuousUntil, String(dhh.bestehtBis).trim());
       if (dhh.grund) allgXml += tag(fm.N_DHH.dhhReason, dhh.grund);
       if (dhh.beschaeftigungsort) allgXml += tag(fm.N_DHH.dhhWorkplace, dhh.beschaeftigungsort);
       if (dhh.eigenerHausstand) allgXml += tag(fm.N_DHH.dhhOwnHousehold, dhh.eigenerHausstand === 'yes' ? '1' : '2');
