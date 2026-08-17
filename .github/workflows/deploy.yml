@@ -3,7 +3,7 @@ name: Deploy to GitHub Pages
 # Runs automatically on every push to either branch - main deploys with
 # the dev backend URL, production deploys with the real one. Nothing
 # else needs to change per deploy; this file is the only place the two
-# real Render URLs are ever written down.
+# real Render URLs are ever written down .
 on:
   push:
     branches: [main, production]
