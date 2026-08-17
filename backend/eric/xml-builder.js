@@ -486,7 +486,17 @@ function buildNAUS(data) {
          genuinely different from the field used before (E2601001, which
          is the Wohnsitz/foreign-residence country, only relevant when
          dual residence applies). */
-      if (a.land) entryXml += tag(fm.N_AUS.ausCountry, a.land);
+      /* CORRECTED: real ERiC rejection (feldUnbekannt, Regel 100260001) -
+         confirmed directly against the schema that the country value
+         needs its own real inner wrapper, genuinely also named "Staat"
+         (a confusing but confirmed real structure: the outer Staat
+         context contains Allg/Ang_ArbL/ArbL_DBA/etc. as siblings, plus
+         its own nested Staat sub-element that actually holds the
+         country field). This was missing even before the recent
+         restructuring to fix the duplicate-wrapper issue - that fix
+         corrected the outer grouping, this corrects the inner
+         placement, a separate real mistake. */
+      if (a.land) entryXml += `<Staat>${tag(fm.N_AUS.ausCountry, a.land)}</Staat>\n`;
 
       let allg = '';
       /* Legal basis - confirmed required (Regel 14). Defaults to DBA

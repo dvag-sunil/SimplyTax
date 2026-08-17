@@ -1528,8 +1528,8 @@ check('Same real bug class as KAP, found via systematic audit: foreign employmen
   ];
   const x = buildEStXML(d).xml;
   const nAusCount = (x.match(/<N_AUS>/g) || []).length;
-  const staatCount = (x.match(/<Staat>/g) || []).length;
-  return nAusCount === 1 && staatCount === 2 && x.includes('<E2600401>USA</E2600401>') && x.includes('<E2600401>Frankreich</E2600401>');
+  const outerStaatCount = (x.match(/<Staat>\n<Staat>/g) || []).length;
+  return nAusCount === 1 && outerStaatCount === 2 && x.includes('<Staat><E2600401>USA</E2600401>\n</Staat>') && x.includes('<Staat><E2600401>Frankreich</E2600401>\n</Staat>');
 })());
 
 check('Real, separate bug found while checking for the uniqueIndex issue: AUS now correctly includes the genuinely required Person tag, which was never written at all before this fix', (() => {
@@ -1537,6 +1537,13 @@ check('Real, separate bug found while checking for the uniqueIndex issue: AUS no
   d.anlageV = [{ street: 'Rue Test', plz: '75001', ort: 'Paris', land: 'Frankreich', mieteinnahmen: 12000, nebenkosten: 0, werbungskosten: 2000 }];
   const x = buildEStXML(d).xml;
   return x.includes('<AUS><Person>PersonA</Person>');
+})());
+
+check('Real ERiC rejection fixed (feldUnbekannt on E2600401): the country field is now correctly wrapped in its own inner Staat sub-element, a genuine, separate mistake from the earlier duplicate-wrapper bug - the field was placed one level too shallow', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [{ person: 'A', land: 'USA', legalBasis: 'dba', gesamtlohn: 30000 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<Staat>\n<Staat><E2600401>USA</E2600401>');
 })());
 
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
