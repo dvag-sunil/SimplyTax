@@ -1405,11 +1405,14 @@ check('Home office days are correctly wrapped in Homeoffice, not sent bare under
   const x = buildEStXML(d).xml;
   return x.includes('<Homeoffice><E0204507>60</E0204507>') || x.includes('<Homeoffice>\n<E0204507>60</E0204507>');
 })());
-check('DHH accommodation cost and home-trip distance/count are transmitted, using the already-correct client-side monthly cap', (() => {
+check('Real ERiC rejection fixed (feldUnbekannt on all three DHH fields): N_DHH is now correctly built as its own separate top-level element, not nested inside N/Wk - confirmed both that N_DHH contains the real fields AND that N itself no longer contains DHHF at all', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.werbungskosten = { personA: { doppelteHaushaltsfuehrung: { monatsmiete: 800, monate: 6, familienheimfahrten: 12, entfernungKm: 300 } }, einzelposten: [] };
   const x = buildEStXML(d).xml;
-  return x.includes('<E0207611>4800</E0207611>') && x.includes('<E0207116>300</E0207116>') && x.includes('<E0207117>12</E0207117>');
+  const nBlock = x.match(/<N>[\s\S]*?<\/N>/)?.[0] || '';
+  const ndhhBlock = x.match(/<N_DHH>[\s\S]*?<\/N_DHH>/)?.[0] || '';
+  return !nBlock.includes('DHHF') && ndhhBlock.includes('<E0207611>4800</E0207611>')
+    && ndhhBlock.includes('<E0207116>300</E0207116>') && ndhhBlock.includes('<E0207117>12</E0207117>');
 })());
 check('Relocation costs are folded honestly into the itemized Werbungskosten total rather than left unsent', (() => {
   const d = JSON.parse(JSON.stringify(sample));
@@ -1545,6 +1548,20 @@ check('Real ERiC rejection fixed (feldUnbekannt on E2600401): the country field 
   d.anlageNAUS = [{ person: 'A', land: 'USA', legalBasis: 'dba', gesamtlohn: 30000 }];
   const x = buildEStXML(d).xml;
   return x.includes('<Staat>\n<Staat><E2600401>USA</E2600401>');
+})());
+
+check('N_DHH correctly builds one block per person when both spouses have double-household costs, matching the confirmed maxOccurs=2 constraint', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'zusammenveranlagung';
+  d.hauptvordruck.personB = { idnr: '11122233344', name: 'Test', vorname: 'B', geburtsdatum: '1986-01-01', religion: '--' };
+  d.werbungskosten = {
+    personA: { doppelteHaushaltsfuehrung: { monatsmiete: 800, monate: 6, familienheimfahrten: 12, entfernungKm: 300 } },
+    personB: { doppelteHaushaltsfuehrung: { monatsmiete: 500, monate: 4, familienheimfahrten: 8, entfernungKm: 200 } },
+    einzelposten: [],
+  };
+  const x = buildEStXML(d).xml;
+  const ndhhCount = (x.match(/<N_DHH>/g) || []).length;
+  return ndhhCount === 2 && x.includes('<Person>PersonA</Person>\n<DHHF>') && x.includes('<Person>PersonB</Person>\n<DHHF>');
 })());
 
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);

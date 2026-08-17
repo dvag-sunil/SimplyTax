@@ -402,14 +402,15 @@ function buildAnlageN(data) {
        app but never transmitted at all before this fix. */
     if (wk) {
       if (N(wk.homeofficeTage) > 0) wkXml += `<Homeoffice>${wholeEuroTag(fm.N.homeOfficeDays.kennzahlen[0], Math.round(N(wk.homeofficeTage)))}</Homeoffice>\n`;
-      const dhh = wk.doppelteHaushaltsfuehrung || {};
-      const dhhRentTotal = Math.min(N(dhh.monatsmiete), 1000) * Math.min(N(dhh.monate), 12); // same real cap already applied client-side, computed again here from the raw figures actually exported
-      let dhhXml = '';
-      if (dhhRentTotal > 0) dhhXml += `<Unterkunft>${wholeEuroTag(fm.N_DHH.dhhRent, Math.round(dhhRentTotal))}</Unterkunft>`;
-      if (N(dhh.entfernungKm) > 0 && N(dhh.familienheimfahrten) > 0) {
-        dhhXml += `<Fahrtk><Woech_Heimf>${wholeEuroTag(fm.N_DHH.dhhKm, Math.round(N(dhh.entfernungKm)))}${wholeEuroTag(fm.N_DHH.dhhTrips.kennzahlen[0], Math.round(N(dhh.familienheimfahrten)))}</Woech_Heimf></Fahrtk>`;
-      }
-      if (dhhXml) wkXml += `<DHHF>${dhhXml}</DHHF>\n`;
+      /* CORRECTED: real ERiC rejection (feldUnbekannt on all three DHH
+         fields at once) confirmed DHHF genuinely does NOT belong under
+         N/Wk at all - its real parent is N_DHH, a completely separate
+         top-level element (confirmed directly: N_DHH sits as its own
+         sibling to N in the real top-level sequence, not nested inside
+         it). Moved to its own buildNDHH function below, called
+         separately in the main assembly - a genuine structural mistake
+         in the original implementation, not a year-boundary or
+         business-rule issue like several other fixes this session. */
       /* relocation (umzugskosten) - no dedicated Kennzahl found in the
          real schema; folded honestly into the itemized Werbungskosten
          total below rather than left unsent or invented. */
@@ -452,6 +453,33 @@ function buildAnlageN(data) {
    comment - the full official form has 82 fields, this covers the
    common day-apportionment case only).
 ============================================================================= */
+
+/* Double-household costs (DHHF) - CORRECTED: real ERiC rejection
+   (feldUnbekannt on all three fields at once) confirmed this genuinely
+   does not belong nested under N/Wk - N_DHH is a completely separate,
+   real top-level element, sibling to N (confirmed directly against the
+   schema), not a sub-section within it. Also confirmed the same
+   maxOccurs=2 (one per person) constraint already found and fixed for
+   KAP, R, N_AUS, and AUS - grouped by person from the start this time,
+   rather than repeat that mistake a fifth time. */
+function buildNDHH(data) {
+  const byPerson = { A: data.werbungskosten?.personA, B: data.werbungskosten?.personB };
+  let xml = '';
+  for (const p of ['A', 'B']) {
+    const wk = byPerson[p];
+    if (!wk) continue;
+    const dhh = wk.doppelteHaushaltsfuehrung || {};
+    const dhhRentTotal = Math.min(N(dhh.monatsmiete), 1000) * Math.min(N(dhh.monate), 12); // same real cap already applied client-side, computed again here from the raw figures actually exported
+    let dhhfXml = '';
+    if (dhhRentTotal > 0) dhhfXml += `<Unterkunft>${wholeEuroTag(fm.N_DHH.dhhRent, Math.round(dhhRentTotal))}</Unterkunft>`;
+    if (N(dhh.entfernungKm) > 0 && N(dhh.familienheimfahrten) > 0) {
+      dhhfXml += `<Fahrtk><Woech_Heimf>${wholeEuroTag(fm.N_DHH.dhhKm, Math.round(N(dhh.entfernungKm)))}${wholeEuroTag(fm.N_DHH.dhhTrips.kennzahlen[0], Math.round(N(dhh.familienheimfahrten)))}</Woech_Heimf></Fahrtk>`;
+    }
+    if (dhhfXml) xml += `<N_DHH><Person>Person${p}</Person>\n<DHHF>${dhhfXml}</DHHF>\n</N_DHH>\n`;
+  }
+  return xml;
+}
+
 function buildNAUS(data) {
   const entries = data.anlageNAUS || [];
   if (!entries.length) return '';
@@ -2238,6 +2266,7 @@ function buildEStXML(data, opts = {}) {
   const anlageNResult = buildAnlageN(data); // N
  nutzdaten += anlageNResult.xml;
  skippedSections.push(...anlageNResult.skippedSections);
+  nutzdaten += buildNDHH(data); // confirmed real schema position: N_DHH is a genuine top-level sibling to N, directly after it
   nutzdaten += buildNAUS(data); // N_AUS
   nutzdaten += buildKAP(data);
   nutzdaten += buildAUS(data); // foreign rental - confirmed position: after KAP, before R
