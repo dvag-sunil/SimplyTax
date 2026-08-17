@@ -1510,6 +1510,35 @@ check('Real ERiC rejection fixed (uniqueIndex on /KAP/Person): multiple capital 
   return kapCount === 1 && x.includes('<E1900701>3000</E1900701>') && x.includes('<E1901401>800</E1901401>');
 })());
 
+check('Same real bug class as KAP, found via systematic audit: multiple pension sources (statutory plus private) for the same person now combine into exactly one R block, not two sharing the same Person value', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageR = [
+    { person: 'A', art: 'gesetzlich', jahresbetrag: 8000, rentenbeginn: '2020' },
+    { person: 'A', art: 'privat', jahresbetrag: 2000, rentenbeginn: '2021' },
+  ];
+  const x = buildEStXML(d).xml;
+  const rCount = (x.match(/<R>/g) || []).length;
+  return rCount === 1 && x.includes('<E1800301>8000</E1800301>') && x.includes('<E1801601>2000</E1801601>');
+})());
+check('Same real bug class as KAP, found via systematic audit: foreign employment in more than one country for the same person now combines into exactly one N_AUS block with a separate Staat entry per country, not two N_AUS blocks sharing the same Person value', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [
+    { person: 'A', land: 'USA', legalBasis: 'dba', gesamtlohn: 30000 },
+    { person: 'A', land: 'Frankreich', legalBasis: 'dba', gesamtlohn: 15000 },
+  ];
+  const x = buildEStXML(d).xml;
+  const nAusCount = (x.match(/<N_AUS>/g) || []).length;
+  const staatCount = (x.match(/<Staat>/g) || []).length;
+  return nAusCount === 1 && staatCount === 2 && x.includes('<E2600401>USA</E2600401>') && x.includes('<E2600401>Frankreich</E2600401>');
+})());
+
+check('Real, separate bug found while checking for the uniqueIndex issue: AUS now correctly includes the genuinely required Person tag, which was never written at all before this fix', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ street: 'Rue Test', plz: '75001', ort: 'Paris', land: 'Frankreich', mieteinnahmen: 12000, nebenkosten: 0, werbungskosten: 2000 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<AUS><Person>PersonA</Person>');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);
