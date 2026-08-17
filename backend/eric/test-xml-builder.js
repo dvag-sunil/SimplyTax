@@ -1346,15 +1346,16 @@ check('Real bug found via an actual ERiC rejection: Ziel des Weges (E0203003) ge
   return !x2022.includes('E0203003') && x2022.includes('E0203501') && x2022.includes('E0203504')
     && x2025.includes('<E0203003>1</E0203003>');
 })());
-check('Itemized Werbungskosten entries are summed and transmitted as a single verified total (E0204803), inside the real Wk/Weitere_Wk/Sum structure - not flat under ArbL', (() => {
+check('Real ERiC rejection fixed (Regel 100200112): itemized Werbungskosten entries are now sent as individual Sonst entries alongside the Sum total, not the Sum alone - a sum without the underlying amounts is genuinely invalid', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.werbungskosten = { personA: {}, einzelposten: [
-    { person: 'A', kategorie: 'bewerbung', betrag: 45 },
-    { person: 'A', kategorie: 'kommunikation', betrag: 180 },
+    { person: 'A', kategorie: 'bewerbung', bezeichnung: 'Bewerbungskosten', betrag: 45 },
+    { person: 'A', kategorie: 'kommunikation', bezeichnung: 'Kommunikationskosten', betrag: 180 },
   ] };
   const x = buildEStXML(d).xml;
   const wkMatch = x.match(/<Wk>[\s\S]*?<\/Wk>/)?.[0] || '';
-  return wkMatch.includes('<Weitere_Wk><Sum>') && wkMatch.includes('<E0204803>225</E0204803>');
+  const sonstCount = (wkMatch.match(/<Sonst>/g) || []).length;
+  return sonstCount === 2 && wkMatch.includes('<E0205406>45</E0205406>') && wkMatch.includes('<E0205406>180</E0205406>') && wkMatch.includes('<E0204803>225</E0204803>');
 })());
 check('Itemized Werbungskosten total is genuinely per-person, not pooled across both spouses', (() => {
   const married = JSON.parse(JSON.stringify(sample));

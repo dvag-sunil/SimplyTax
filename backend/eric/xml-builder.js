@@ -414,15 +414,25 @@ function buildAnlageN(data) {
          real schema; folded honestly into the itemized Werbungskosten
          total below rather than left unsent or invented. */
     }
-    /* Itemized Werbungskosten (WKI_TYPES) - transmitted as a single,
-       verified total (Wk/Weitere_Wk/Sum/E0204803), summed here from the
-       real per-entry amounts the app already collects and already
-       exports, rather than mapping each of the 11 individual
-       categories to its own Kennzahl, which would need further
-       dedicated research to do safely. */
+    /* CORRECTED: real ERiC rejection (Regel 100200112) - a Sum without
+       the underlying individual amounts is genuinely invalid, confirmed
+       directly. Each itemized entry the app already collects is now
+       sent as its own Sonst element (description plus amount), with
+       relocation costs folded in as one additional entry since it has
+       no dedicated Kennzahl of its own, alongside the same real Sum
+       total already correctly calculated. */
     const items = (data.werbungskosten && data.werbungskosten.einzelposten || []).filter(x => x.person === person);
+    let sonstXml = '';
+    for (const item of items) {
+      const amt = Math.round(N(item.betrag));
+      if (amt <= 0) continue;
+      sonstXml += `<Sonst>${tag(fm.N.weitereWkDesc.kennzahlen[0], item.bezeichnung || item.kategorie || 'Werbungskosten')}${wholeEuroTag(fm.N.weitereWkAmount.kennzahlen[0], amt)}</Sonst>\n`;
+    }
+    if (wk && N(wk.umzugskosten) > 0) {
+      sonstXml += `<Sonst>${tag(fm.N.weitereWkDesc.kennzahlen[0], 'Umzugskosten')}${wholeEuroTag(fm.N.weitereWkAmount.kennzahlen[0], Math.round(N(wk.umzugskosten)))}</Sonst>\n`;
+    }
     const itemsSum = items.reduce((a, x) => a + (N(x.betrag) || 0), 0) + (wk ? N(wk.umzugskosten) : 0);
-    if (itemsSum > 0) wkXml += `<Weitere_Wk><Sum>${wholeEuroTag(fm.N.weitereWkSum.kennzahlen[0], Math.round(itemsSum))}</Sum></Weitere_Wk>\n`;
+    if (sonstXml && itemsSum > 0) wkXml += `<Weitere_Wk>\n${sonstXml}<Sum>${wholeEuroTag(fm.N.weitereWkSum.kennzahlen[0], Math.round(itemsSum))}</Sum></Weitere_Wk>\n`;
     if (wkXml) xml += `<Wk>\n${wkXml}</Wk>\n`;
     xml += '</N>\n';
   }

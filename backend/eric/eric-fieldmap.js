@@ -120,6 +120,17 @@ const N = {
      the 11 individual categories to its own Kennzahl in this pass -
      the per-category breakdown would need further, separate research to
      do safely; the total itself is real and confirmed. */
+  /* CORRECTED: real ERiC rejection (Regel 100200112) confirmed the sum
+     alone is not valid - the individual itemized amounts must also be
+     sent. Checked the real Sonst structure directly: E0205405 is
+     genuinely a free-text description field (its suggestive name,
+     "BEWERBUNGSKOSTEN," is just an illustrative example list in the
+     documentation, not an actual restricted enum - confirmed by
+     reading the real facet definition, which only constrains the
+     character set, not the specific value). Confirmed identical
+     across all five years 2021-2025. */
+  weitereWkDesc: { kennzahlen: ['E0205405'], slotResolved: true, note: 'Weitere_Wk/Sonst/E0205405 - Bezeichnung, genuinely free text' },
+  weitereWkAmount: { kennzahlen: ['E0205406'], slotResolved: true, note: 'Weitere_Wk/Sonst/E0205406 - Betrag, the individual item amount' },
   weitereWkSum: { kennzahlen: ['E0204803'], slotResolved: true, note: 'Weitere_Wk/Sum/E0204803 - sum of the itemized Werbungskosten entries (WKI_TYPES), transmitted as a single verified total' },
   /* Real gap found via the systematic backend-wiring audit - collected
      in the app, never attempted before. Confirmed directly: this wants
