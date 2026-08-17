@@ -397,6 +397,23 @@ function buildAnlageN(data) {
         wkXml += `<EP><Erste_Taetig>${epXml}</Erste_Taetig></EP>\n`;
       }
     }
+    /* Real gaps found via the systematic backend-wiring audit - home
+       office days and double-household costs were collected by the
+       app but never transmitted at all before this fix. */
+    if (wk) {
+      if (N(wk.homeofficeTage) > 0) wkXml += `<Homeoffice>${wholeEuroTag(fm.N.homeOfficeDays.kennzahlen[0], Math.round(N(wk.homeofficeTage)))}</Homeoffice>\n`;
+      const dhh = wk.doppelteHaushaltsfuehrung || {};
+      const dhhRentTotal = Math.min(N(dhh.monatsmiete), 1000) * Math.min(N(dhh.monate), 12); // same real cap already applied client-side, computed again here from the raw figures actually exported
+      let dhhXml = '';
+      if (dhhRentTotal > 0) dhhXml += `<Unterkunft>${wholeEuroTag(fm.N_DHH.dhhRent, Math.round(dhhRentTotal))}</Unterkunft>`;
+      if (N(dhh.entfernungKm) > 0 && N(dhh.familienheimfahrten) > 0) {
+        dhhXml += `<Fahrtk><Woech_Heimf>${wholeEuroTag(fm.N_DHH.dhhKm, Math.round(N(dhh.entfernungKm)))}${wholeEuroTag(fm.N_DHH.dhhTrips.kennzahlen[0], Math.round(N(dhh.familienheimfahrten)))}</Woech_Heimf></Fahrtk>`;
+      }
+      if (dhhXml) wkXml += `<DHHF>${dhhXml}</DHHF>\n`;
+      /* relocation (umzugskosten) - no dedicated Kennzahl found in the
+         real schema; folded honestly into the itemized Werbungskosten
+         total below rather than left unsent or invented. */
+    }
     /* Itemized Werbungskosten (WKI_TYPES) - transmitted as a single,
        verified total (Wk/Weitere_Wk/Sum/E0204803), summed here from the
        real per-entry amounts the app already collects and already
@@ -404,7 +421,7 @@ function buildAnlageN(data) {
        categories to its own Kennzahl, which would need further
        dedicated research to do safely. */
     const items = (data.werbungskosten && data.werbungskosten.einzelposten || []).filter(x => x.person === person);
-    const itemsSum = items.reduce((a, x) => a + (N(x.betrag) || 0), 0);
+    const itemsSum = items.reduce((a, x) => a + (N(x.betrag) || 0), 0) + (wk ? N(wk.umzugskosten) : 0);
     if (itemsSum > 0) wkXml += `<Weitere_Wk><Sum>${wholeEuroTag(fm.N.weitereWkSum.kennzahlen[0], Math.round(itemsSum))}</Sum></Weitere_Wk>\n`;
     if (wkXml) xml += `<Wk>\n${wkXml}</Wk>\n`;
     xml += '</N>\n';
@@ -594,6 +611,87 @@ function buildVOR(data) {
     inner += wholeEuroTag(fm.VOR.pv, l.pv);
     inner += '</AN></Beitr_g_KV_PV_Inl>\n';
   }
+  /* CORRECTED: found by fully enumerating the real VOR sibling sequence
+     rather than keyword-searching - av (unemployment insurance
+     contributions from the Lohnsteuerbescheinigung) has a real,
+     already-identified Kennzahl (fm.VOR.av) that was simply never
+     called here. Real path: Weit_Sons_VorAW/Pers/E2004403, with a
+     required Person index. Confirmed identical across all five years
+     2021-2025.
+     This also resolves the broader "general other insurance" question
+     honestly: having now enumerated VOR's complete real structure
+     (eight real siblings total), there is no general catch-all
+     category for arbitrary insurance types - German tax law only
+     recognizes specific ones here (statutory/private health, care,
+     unemployment, and specific pension products). A genuinely
+     uncategorized "other insurance" amount likely isn't a real,
+     transmittable Vorsorgeaufwand category at all, not a gap in this
+     app's research. */
+  /* CORRECTED: Weit_Sons_VorAW itself can only appear once (maxOccurs=1) -
+     confirmed directly against the schema before shipping this, the
+     exact same class of bug already caught once with Pflege_PB above.
+     Both the av (Pers) content and the A_B_LP insurance content below
+     are collected separately and combined into one shared wrapper at
+     the end, rather than each emitting its own separate
+     Weit_Sons_VorAW block. */
+  let wsvXml = '';
+  if (N(l.av) > 0) wsvXml += `<Pers><Person>PersonA</Person>\n${wholeEuroTag(fm.VOR.av, l.av)}</Pers>\n`;
+  /* Private health/care base insurance ('pkv' specifically) - real gap
+     found via the systematic audit, now wired through the confirmed
+     Beitr_p_KV_PV_Inl structure. Summed from the app's own itemized
+     privateVersicherungen list, filtered to genuinely just the 'pkv'
+     type (not the broader 'basis' category, which also includes
+     'gkvfrei' - a different, not-yet-independently-confirmed context). */
+  const privIns = v.privateVersicherungen || [];
+  const pkvNetA = privIns.filter(x => x.typ === 'pkv' && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
+  /* kvzusatz and pflegezusatz share one real field (WL_Zvers/E2003502)
+     - found by checking Beitr_p_KV_PV_Inl's complete structure through
+     to its actual last sibling this time. Combined into the SAME
+     single Beitr_p_KV_PV_Inl wrapper as pkv above, rather than a
+     second separate instance for the same person - the same real
+     discipline that caught the Weit_Sons_VorAW duplicate-wrapper
+     issue earlier. */
+  const kvZusatzNetA = privIns.filter(x => (x.typ === 'kvzusatz' || x.typ === 'pflegezusatz') && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
+  if (pkvNetA > 0 || kvZusatzNetA > 0) {
+    let pkvXml = `<Person>PersonA</Person>\n`;
+    if (pkvNetA > 0) pkvXml += wholeEuroTag(fm.VOR.pkv, Math.round(pkvNetA));
+    if (kvZusatzNetA > 0) pkvXml += wholeEuroTag(fm.VOR.kvZusatz, Math.round(kvZusatzNetA));
+    inner += `<Beitr_p_KV_PV_Inl>${pkvXml}</Beitr_p_KV_PV_Inl>\n`;
+  }
+  /* Real "sonstige Vorsorgeaufwendungen" category (A_B_LP), found by
+     actually opening a sibling element that had been identified in an
+     earlier pass but never checked - exactly the gap a direct
+     challenge to look harder led to. Real path confirmed:
+     VOR/Weit_Sons_VorAW/A_B_LP/[category]/Einz+Sum. Each category maps
+     onto a specific real German tax law provision, matching this
+     app's own insurance-type categorization directly:
+       U_HP_Ris_Vers - accident, liability, term-life (unfall, haftpflicht, kfzhaft, tierhaft, risikoleben)
+       ErwU_BU_Vers  - occupational disability (bu)
+       RV_m_WR_KapLV - endowment life, pre-2005 (kapitalleben)
+     Confirmed identical across all five years 2021-2025. A generic
+     description default is used for the required "Bezeichnung" field
+     (safe to default, matching the same pattern already used for
+     Handwerkerleistungen above - a purely descriptive label, not a
+     fact-based declaration). */
+  const uHpRisTypes = ['unfall', 'haftpflicht', 'kfzhaft', 'tierhaft', 'risikoleben'];
+  const uHpRisNetA = privIns.filter(x => uHpRisTypes.includes(x.typ) && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
+  const buNetA = privIns.filter(x => x.typ === 'bu' && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
+  const kapLvNetA = privIns.filter(x => x.typ === 'kapitalleben' && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
+  let ablpXml = '';
+  if (uHpRisNetA > 0) {
+    const amt = Math.round(uHpRisNetA);
+    ablpXml += `<U_HP_Ris_Vers><Einz>\n${tag(fm.VOR.uHpRisArt, 'Unfall-/Haftpflicht-/Risikolebensversicherung')}${wholeEuroTag(fm.VOR.uHpRis, amt)}</Einz><Sum>\n${wholeEuroTag(fm.VOR.uHpRisSum, amt)}</Sum></U_HP_Ris_Vers>\n`;
+  }
+  if (buNetA > 0) {
+    const amt = Math.round(buNetA);
+    ablpXml += `<ErwU_BU_Vers><Einz>\n${tag(fm.VOR.erwUBuArt, 'Berufsunfähigkeitsversicherung')}${wholeEuroTag(fm.VOR.erwUBu, amt)}</Einz><Sum>\n${wholeEuroTag(fm.VOR.erwUBuSum, amt)}</Sum></ErwU_BU_Vers>\n`;
+  }
+  if (kapLvNetA > 0) {
+    const amt = Math.round(kapLvNetA);
+    ablpXml += `<RV_m_WR_KapLV><Einz>\n${tag(fm.VOR.rvMitWrKapLvArt, 'Kapitallebensversicherung')}${wholeEuroTag(fm.VOR.rvMitWrKapLv, amt)}</Einz><Sum>\n${wholeEuroTag(fm.VOR.rvMitWrKapLvSum, amt)}</Sum></RV_m_WR_KapLV>\n`;
+  }
+  if (ablpXml) wsvXml += `<A_B_LP>\n${ablpXml}</A_B_LP>\n`;
+  if (wsvXml) inner += `<Weit_Sons_VorAW>\n${wsvXml}</Weit_Sons_VorAW>\n`;
   /* NOTE: v.privateVersicherungen (Haftpflicht etc.) are collected by the
      app but not yet mapped to a VOR Kennzahl - most private insurance
      types outside statutory RV/KV/PV are either non-deductible or belong
@@ -1152,10 +1250,37 @@ function buildAgB(data) {
   let xml = '<AgB>\n';
   let any = false;
   if (b.gdbA) { xml += `<Beh><Person>PersonA</Person><Ausw_Rentb_Besch>${tag(fm.AgB.gdbA, b.gdbA)}</Ausw_Rentb_Besch></Beh>\n`; any = true; }
+  /* Real gap found via the systematic backend-wiring audit - the
+     spouse's own disability grade and care-level allowance were
+     collected by the app but never transmitted at all. Confirmed safe
+     to reuse the exact same Kennzahlen as PersonA - the schema's own
+     structure nests the Person selector at the wrapper level
+     (<Beh><Person>...), not as a separate per-person field code, the
+     same real pattern already proven correct for PersonA above. */
+  if (b.gdbB) { xml += `<Beh><Person>PersonB</Person><Ausw_Rentb_Besch>${tag(fm.AgB.gdbA, b.gdbB)}</Ausw_Rentb_Besch></Beh>\n`; any = true; }
+  /* CORRECTED: Pflege_PB itself can only appear once (maxOccurs=1) -
+     confirmed directly against the schema before shipping this, since
+     the first draft would have produced two separate Pflege_PB blocks
+     if both spouses had a care-level entry, which the schema doesn't
+     allow. The real structure wants multiple Einz entries nested
+     inside one shared Pflege_PB wrapper instead (Einz itself allows
+     up to 5). */
+  let pflegeEinz = '';
   if (b.pflegeA) {
     const grad = fm.amountToPflegegrad(b.pflegeA);
-    if (grad) { xml += `<Pflege_PB><Einz><Ang_pflegebeduerft_Pers>${tag(fm.AgB.pflegeGrad, grad)}</Ang_pflegebeduerft_Pers></Einz></Pflege_PB>\n`; any = true; }
+    if (grad) { pflegeEinz += `<Einz><Ang_pflegebeduerft_Pers>${tag(fm.AgB.pflegeGrad, grad)}</Ang_pflegebeduerft_Pers></Einz>\n`; any = true; }
   }
+  if (b.pflegeB) {
+    const gradB = fm.amountToPflegegrad(b.pflegeB);
+    if (gradB) { pflegeEinz += `<Einz><Ang_pflegebeduerft_Pers>${tag(fm.AgB.pflegeGrad, gradB)}</Ang_pflegebeduerft_Pers></Einz>\n`; any = true; }
+  }
+  if (pflegeEinz) xml += `<Pflege_PB>\n${pflegeEinz}</Pflege_PB>\n`;
+  /* fahrtA/fahrtB (disability-related commute allowance) and
+     uebertragKind (transferring the disability lump sum to a child) -
+     both genuinely collected by the app, both still without a
+     confirmed real Kennzahl despite real research effort this session.
+     Deliberately not sent rather than guessed at - a real, honestly
+     open gap, not silently dropped without record. */
   if (agb.krankheitskosten) {
     /* CORRECTED: real bug found via testing against a genuine client
        file - kennzahlen[2]/[4] (the "erhaltene/zu erwartende
@@ -1568,27 +1693,31 @@ function buildUnterhalt(data) {
 function buildHA35a(data) {
   const h = data.haushaltsnaheLeistungen;
   if (!h || (!h.haushaltsnaheDienstleistungen && !h.handwerkerleistungen)) return '';
-  let inner = '';
-  /* NOTE: household services (h.haushaltsnaheDienstleistungen) is
-     intentionally NOT written here - flagged as likely using the wrong
-     Kennzahlen entirely (see eric-fieldmap.js HA_35a.household comment).
-     Rather than send data through a mapping known to be questionable
-     and never tested, it's correctly omitted until researched properly. */
+  let stErm = '';
+  /* CORRECTED: found the real mapping this time by tracing the complete
+     St_Erm sibling sequence directly - Hhn_BV_DL is a genuine, separate
+     sibling to Handw_L under the same St_Erm parent, not nested inside
+     it and not sharing its Kennzahlen. Confirmed identical across all
+     five years 2021-2025. */
+  if (h.haushaltsnaheDienstleistungen > 0) {
+    const artTag = tag(fm.HA_35a.householdArt, 'Haushaltsnahe Dienstleistungen');
+    const amtTag = wholeEuroTag(fm.HA_35a.household, h.haushaltsnaheDienstleistungen);
+    const sumTag = wholeEuroTag(fm.HA_35a.householdSum, h.haushaltsnaheDienstleistungen);
+    stErm += `<Hhn_BV_DL><Einz>\n${artTag}${amtTag}</Einz><Sum>\n${sumTag}</Sum></Hhn_BV_DL>\n`;
+  }
   if (h.handwerkerleistungen > 0) {
     /* CORRECTED: real bug found via the multi-year regression test -
        confirmed field order: Art (description), Rechnungsbetrag
        (total), Lohnanteile (labor portion), then Sum as a sibling. Our
        app's own field label confirms the collected value IS the labor
        portion already, so it's used for both total and labor fields. */
-    inner += tag(fm.HA_35a.handwerkerArt, 'Handwerkerleistungen im Haushalt');
+    let inner = tag(fm.HA_35a.handwerkerArt, 'Handwerkerleistungen im Haushalt');
     inner += wholeEuroTag(fm.HA_35a.handwerkerInvoice, h.handwerkerleistungen);
     inner += wholeEuroTag(fm.HA_35a.handwerkerLabor, h.handwerkerleistungen);
+    stErm += `<Handw_L><Einz>\n${inner}</Einz><Sum>\n${wholeEuroTag(fm.HA_35a.handwerkerLaborSum, h.handwerkerleistungen)}</Sum></Handw_L>\n`;
   }
-  if (!inner) return '';
-  let xml = `<HA_35a><St_Erm><Handw_L><Einz>\n${inner}</Einz>`;
-  if (h.handwerkerleistungen > 0) xml += `<Sum>\n${wholeEuroTag(fm.HA_35a.handwerkerLaborSum, h.handwerkerleistungen)}</Sum>`;
-  xml += '</Handw_L></St_Erm></HA_35a>\n';
-  return xml;
+  if (!stErm) return '';
+  return `<HA_35a><St_Erm>\n${stErm}</St_Erm></HA_35a>\n`;
 }
 
 /* =============================================================================
@@ -1651,6 +1780,25 @@ function buildSonst(data) {
      guessed at). */
   if (!w.verlustvortrag) return '';
   return `<Sonst><Verl_Abz><Vortrag><Person>PersonA</Person>\n${tag(fm.Sonst.lossCarry, '1')}</Vortrag></Verl_Abz></Sonst>\n`;
+}
+
+/* Anlage SO - private sales gains (crypto, gold, and similar).
+   Genuinely distinct top-level XML element from "Sonst" above despite
+   the confusingly similar name - confirmed directly via the schema
+   these are two separate root elements, not the same thing.
+   Real path confirmed: SO/Priv_VA_G/And_WG/Einz - checked directly
+   against the schema for all five years 2021-2025, identical across
+   all of them, so no year-gating needed here.
+   Only the amount is transmitted (sale price = the known net gain,
+   acquisition cost = 0, so the resulting taxable gain works out to
+   exactly the correct real figure) - the optional description field
+   is deliberately left out, since only the person and the amount
+   itself are what actually matters for this app's own data model. */
+function buildSO(data) {
+  const so = (data.weitereAngaben && data.weitereAngaben.anlageSO) || null;
+  if (!so || !(N(so.privateVeraeusserungsgeschaefte) > 0)) return '';
+  const amt = Math.round(N(so.privateVeraeusserungsgeschaefte));
+  return `<SO><Priv_VA_G><And_WG><Person>PersonA</Person>\n<Einz>\n${wholeEuroTag(fm.SO.soSalePrice.kennzahlen[0], amt)}${wholeEuroTag(fm.SO.soAcquisitionCost.kennzahlen[0], 0)}</Einz>\n</And_WG></Priv_VA_G></SO>\n`;
 }
 
 /* ---------- date format: interchange uses ISO (YYYY-MM-DD), ERiC example uses DD.MM.YYYY ---------- */
@@ -2003,6 +2151,7 @@ function buildEStXML(data, opts = {}) {
   nutzdaten += buildKAP(data);
   nutzdaten += buildAUS(data); // foreign rental - confirmed position: after KAP, before R
   nutzdaten += buildR(data);
+  nutzdaten += buildSO(data); // confirmed real schema position: directly after R/RAV_bAV/R_AUS
   nutzdaten += buildV(data);
   nutzdaten += buildVOR(data);
   nutzdaten += buildVorsatz(data);

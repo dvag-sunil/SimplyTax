@@ -1376,6 +1376,128 @@ check('No commute or Werbungskosten data present: none of the new fields appear 
   return !x.includes('E0203503') && !x.includes('E0203505') && !x.includes('E0203506') && !x.includes('E0203611') && !x.includes('E0204803') && !x.includes('<Wk>');
 })());
 
+/* --- Anlage SO (private sales gains) - newly wired via SO/Priv_VA_G/And_WG, confirmed identical across all five years 2021-2025 --- */
+check('Real private-sales gain produces the correct SO/Priv_VA_G/And_WG structure with the sale-price field set to the known gain', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.weitereAngaben = { anlageSO: { privateVeraeusserungsgeschaefte: 2500, erhaltenerUnterhalt: 0 } };
+  const x = buildEStXML(d).xml;
+  return x.includes('<SO><Priv_VA_G><And_WG><Person>PersonA</Person>') && x.includes('<E0307401>2500</E0307401>');
+})());
+check('Zero acquisition cost is correctly omitted rather than sent as an explicit 0, matching this codebase\'s established zero-value convention', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.weitereAngaben = { anlageSO: { privateVeraeusserungsgeschaefte: 2500, erhaltenerUnterhalt: 0 } };
+  const x = buildEStXML(d).xml;
+  return !x.includes('E0307501');
+})());
+check('No private-sales gain entered: no SO block at all, nothing sent', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.weitereAngaben = { anlageSO: { privateVeraeusserungsgeschaefte: 0, erhaltenerUnterhalt: 0 } };
+  const x = buildEStXML(d).xml;
+  return !x.includes('<SO>');
+})());
+
+/* --- Home office, DHH, and spouse disability fields - real gaps found and fixed via the systematic backend-wiring audit --- */
+check('Home office days are correctly wrapped in Homeoffice, not sent bare under Wk (a real bug caught and fixed before shipping)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.werbungskosten = { personA: { homeofficeTage: 60 }, einzelposten: [] };
+  const x = buildEStXML(d).xml;
+  return x.includes('<Homeoffice><E0204507>60</E0204507>') || x.includes('<Homeoffice>\n<E0204507>60</E0204507>');
+})());
+check('DHH accommodation cost and home-trip distance/count are transmitted, using the already-correct client-side monthly cap', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.werbungskosten = { personA: { doppelteHaushaltsfuehrung: { monatsmiete: 800, monate: 6, familienheimfahrten: 12, entfernungKm: 300 } }, einzelposten: [] };
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0207611>4800</E0207611>') && x.includes('<E0207116>300</E0207116>') && x.includes('<E0207117>12</E0207117>');
+})());
+check('Relocation costs are folded honestly into the itemized Werbungskosten total rather than left unsent', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.werbungskosten = { personA: { umzugskosten: 500 }, einzelposten: [] };
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0204803>500</E0204803>');
+})());
+check('Spouse disability grade (gdbB) is transmitted using the same real Kennzahl as PersonA, correctly wrapped with Person=PersonB', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'zusammenveranlagung';
+  d.hauptvordruck.personB = { idnr: '11122233344', name: 'Test', vorname: 'B', geburtsdatum: '1986-01-01', religion: '--' };
+  d.weitereAngaben = { behinderung: { gdbA: '50', gdbB: '30' } };
+  const x = buildEStXML(d).xml;
+  return x.includes('<Beh><Person>PersonA</Person><Ausw_Rentb_Besch><E0109708>50</E0109708>')
+    && x.includes('<Beh><Person>PersonB</Person><Ausw_Rentb_Besch><E0109708>30</E0109708>');
+})());
+check('Real bug caught before shipping: both spouses\' care-level entries combine into a single Pflege_PB wrapper with two Einz children, not two illegal separate Pflege_PB elements (schema confirmed maxOccurs=1 for Pflege_PB itself)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.weitereAngaben = { behinderung: { pflegeA: 600, pflegeB: 1100 } };
+  const x = buildEStXML(d).xml;
+  const pflegeBlocks = (x.match(/<Pflege_PB>/g) || []).length;
+  const einzCount = (x.match(/<Einz><Ang_pflegebeduerft_Pers>/g) || []).length;
+  return pflegeBlocks === 1 && einzCount === 2 && x.includes('<E0161606>2</E0161606>') && x.includes('<E0161606>3</E0161606>');
+})());
+
+check('Household services (Hhn_BV_DL) are now correctly wired as a genuine sibling to Handwerkerleistungen under St_Erm, using its own real Kennzahlen rather than incorrectly sharing Handw_L\'s (the real bug the previous version had)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.haushaltsnaheLeistungen = { haushaltsnaheDienstleistungen: 1200, handwerkerleistungen: 800 };
+  const x = buildEStXML(d).xml;
+  return x.includes('<Hhn_BV_DL><Einz>') && x.includes('<E0107207>1200</E0107207>') && x.includes('<E0107208>1200</E0107208>')
+    && x.includes('<Handw_L><Einz>') && x.includes('<E0170601>800</E0170601>')
+    && !x.includes('<E0111214>1200'); // confirms the two amounts are genuinely not cross-contaminated
+})());
+
+check('Unemployment insurance contributions (av) are now transmitted through the real Weit_Sons_VorAW/Pers structure - a Kennzahl that was already correctly identified in the fieldmap but never actually called before this fix', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageVorsorgeaufwand = { ausLohnsteuerbescheinigungen: { rv: 5000, gkv: 4000, pv: 800, av: 1200 } };
+  const x = buildEStXML(d).xml;
+  return x.includes('<Weit_Sons_VorAW>') && x.includes('<Pers><Person>PersonA</Person>') && x.includes('<E2004403>1200</E2004403>');
+})());
+
+check('Private health/care insurance (pkv type specifically) is transmitted net of reimbursement, while other, not-yet-confirmed insurance types are correctly excluded rather than bundled in incorrectly', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageVorsorgeaufwand = { ausLohnsteuerbescheinigungen: {}, privateVersicherungen: [
+    { person: 'A', typ: 'pkv', beitrag: 3600, erstattung: 200, netto: 3400 },
+    { person: 'A', typ: 'haftpflicht', beitrag: 100, erstattung: 0, netto: 100 },
+  ] };
+  const x = buildEStXML(d).xml;
+  return x.includes('<Beitr_p_KV_PV_Inl><Person>PersonA</Person>') && x.includes('<E2003104>3400</E2003104>') && !x.includes('3500');
+})());
+
+check('Accident/liability/term-life insurance types are combined into the real U_HP_Ris_Vers structure, found by actually opening a sibling element identified earlier but never checked', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageVorsorgeaufwand = { ausLohnsteuerbescheinigungen: {}, privateVersicherungen: [
+    { person: 'A', typ: 'haftpflicht', beitrag: 100, erstattung: 0, netto: 100 },
+    { person: 'A', typ: 'unfall', beitrag: 150, erstattung: 0, netto: 150 },
+  ] };
+  const x = buildEStXML(d).xml;
+  return x.includes('<U_HP_Ris_Vers><Einz>') && x.includes('<E2001802>250</E2001802>') && x.includes('<E2001803>250</E2001803>');
+})());
+check('Occupational disability insurance (bu) is transmitted through the real ErwU_BU_Vers structure', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageVorsorgeaufwand = { ausLohnsteuerbescheinigungen: {}, privateVersicherungen: [
+    { person: 'A', typ: 'bu', beitrag: 800, erstattung: 0, netto: 800 },
+  ] };
+  const x = buildEStXML(d).xml;
+  return x.includes('<ErwU_BU_Vers><Einz>') && x.includes('<E2001502>800</E2001502>');
+})());
+check('Real bug caught before shipping: when both unemployment insurance (av) and one of the new insurance categories are present together, they combine into exactly one Weit_Sons_VorAW wrapper, not two illegal separate ones (schema confirmed maxOccurs=1 for Weit_Sons_VorAW itself, the exact same class of bug already caught once with Pflege_PB)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageVorsorgeaufwand = { ausLohnsteuerbescheinigungen: { av: 1200 }, privateVersicherungen: [
+    { person: 'A', typ: 'bu', beitrag: 800, erstattung: 0, netto: 800 },
+  ] };
+  const x = buildEStXML(d).xml;
+  const wsvCount = (x.match(/<Weit_Sons_VorAW>/g) || []).length;
+  return wsvCount === 1 && x.includes('<E2004403>1200</E2004403>') && x.includes('<E2001502>800</E2001502>');
+})());
+
+check('Supplementary health and care insurance (kvzusatz, pflegezusatz) combine into the real WL_Zvers field, found by checking Beitr_p_KV_PV_Inl through to its actual last sibling this time - and correctly share one Beitr_p_KV_PV_Inl wrapper with pkv rather than a duplicate second one', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageVorsorgeaufwand = { ausLohnsteuerbescheinigungen: {}, privateVersicherungen: [
+    { person: 'A', typ: 'pkv', beitrag: 3600, erstattung: 200, netto: 3400 },
+    { person: 'A', typ: 'kvzusatz', beitrag: 500, erstattung: 0, netto: 500 },
+    { person: 'A', typ: 'pflegezusatz', beitrag: 300, erstattung: 0, netto: 300 },
+  ] };
+  const x = buildEStXML(d).xml;
+  const wrapCount = (x.match(/<Beitr_p_KV_PV_Inl>/g) || []).length;
+  return wrapCount === 1 && x.includes('<E2003104>3400</E2003104>') && x.includes('<E2003502>800</E2003502>');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);

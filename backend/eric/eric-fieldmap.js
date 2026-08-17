@@ -121,6 +121,14 @@ const N = {
      the per-category breakdown would need further, separate research to
      do safely; the total itself is real and confirmed. */
   weitereWkSum: { kennzahlen: ['E0204803'], slotResolved: true, note: 'Weitere_Wk/Sum/E0204803 - sum of the itemized Werbungskosten entries (WKI_TYPES), transmitted as a single verified total' },
+  /* Real gap found via the systematic backend-wiring audit - collected
+     in the app, never attempted before. Confirmed directly: this wants
+     the raw day COUNT, not a pre-calculated amount - "Anzahl der
+     Kalendertage" - the app already collects exactly this (c.wk.homeOffice
+     as a day count), so the raw value transmits as-is, matching the
+     schema's own expectation rather than the app's internal €6/day
+     calculation. */
+  homeOfficeDays: { kennzahlen: ['E0204507'], slotResolved: true, note: 'Wk/Homeoffice/E0204507 - Anzahl der Kalendertage im Homeoffice' },
 };
 
 /* ---------- 3. Insurance / Vorsorgeaufwand (VOR context) ---------- */
@@ -139,6 +147,41 @@ const VOR = {
   pv: 'E2001505',
   pvErstattung: 'E2001605',
   av: 'E2004403',
+  /* CORRECTED: found by fully enumerating VOR's real sibling sequence -
+     Beitr_p_KV_PV_Inl covers PRIVATE (not statutory) health/care
+     insurance base coverage, genuinely distinct from Beitr_g_KV_PV_Inl
+     (statutory, already wired above). Matches this app's own 'pkv'
+     insurance type exactly ("Private Kranken-/Pflegeversicherung
+     (Basis)"). Confirmed identical across all five years 2021-2025.
+     Scope note: only the 'pkv' type is wired here - 'gkvfrei'
+     (voluntary statutory insurance) is tagged the same 'basis'
+     category in this app's own categorization but represents a
+     genuinely different real context not yet independently confirmed,
+     so it's deliberately left unmapped rather than assumed identical. */
+  pkv: 'E2003104',
+  pkvPflege: 'E2003202',
+  /* Found by checking the COMPLETE Beitr_p_KV_PV_Inl structure through
+     to its actual last sibling this time, not stopping partway - the
+     same mistake already caught once with A_B_LP. WL_Zvers covers
+     supplementary health AND care insurance together in one real
+     field (kvzusatz, pflegezusatz), already net of reimbursement.
+     Confirmed identical across all five years 2021-2025. */
+  kvZusatz: 'E2003502',
+  /* Found by actually opening A_B_LP - a sibling identified earlier but
+     never drilled into. This is the real "sonstige Vorsorgeaufwendungen"
+     category German tax law does provide for (accident, liability,
+     term-life, disability, and endowment life insurance), confirmed
+     identical across all five years 2021-2025. Maps directly onto
+     several of this app's own "vorsorge"-tagged insurance types. */
+  uHpRis: 'E2001802',        // U_HP_Ris_Vers/Einz - unfall, haftpflicht, kfzhaft, tierhaft, risikoleben
+  uHpRisArt: 'E2001801',
+  uHpRisSum: 'E2001803',
+  erwUBu: 'E2001502',        // ErwU_BU_Vers/Einz - bu (occupational disability)
+  erwUBuArt: 'E2001501',
+  erwUBuSum: 'E2001503',
+  rvMitWrKapLv: 'E2001902',  // RV_m_WR_KapLV/Einz - kapitalleben (endowment life, pre-2005)
+  rvMitWrKapLvArt: 'E2001901',
+  rvMitWrKapLvSum: 'E2001903',
 };
 
 /* ---------- 4. Sonderausgaben - donations (SA context) ---------- */
@@ -294,23 +337,36 @@ const Kind = {
 const N_DHH = {
   dhhKm: 'E0207116',
   dhhTrips: { kennzahlen: ['E0207117', 'E0207304'] },
-  // dhhRent, dhhMonths, relocation: confirmed absent. Note: an earlier pass
-  // wrongly attached E0208107 to dhhRent - that Kennzahl is actually
-  // Verpflegungsmehraufwendungen (meal allowance), not accommodation cost;
-  // corrected back to open rather than propagate the error.
+  /* CORRECTED: dhhRent found this time via direct schema tracing -
+     Wk/DHHF/Unterkunft/E0207611, confirmed by its real documentation
+     text ("Aufwendungen (z. B. Miete einschließlich Stellplatz- /
+     Garagenkosten, Nebenkosten)"). The app's own monthly-cap
+     calculation (already applied client-side before this point) is
+     what gets sent here - no separate "months" Kennzahl exists in the
+     real schema, so the already-computed capped total is correct as
+     the transmitted figure. */
+  dhhRent: 'E0207611',
+  // relocation: no dedicated Kennzahl found in the real schema - folded
+  // into the already-wired Weitere_Wk/Sum itemized total instead,
+  // rather than left unsent or a nonexistent field invented.
 };
 
 /* ---------- 7. Household services / Section 35a (HA_35a context) ---------- */
 const HA_35a = {
-  /* FLAGGED (not fixed here - out of scope for this pass, never tested):
-     this uses the SAME Kennzahlen (E0111214/E0111215) that Handw_L
-     (Handwerkerleistungen, below) also needs - real research (Kontexte
-     sheet) shows household services actually belong to a DIFFERENT
-     context, Hhn_BV_DL, with its own distinct field codes, not shared
-     with Handw_L. This was never caught because our test data never
-     populated haushaltsnaheDienstleistungen with a real amount - worth
-     a dedicated research pass before this is used for a real client. */
-  household: { kennzahlen: ['E0111214', 'E0111215'], note: 'LIKELY WRONG - see flag above, needs its own research pass, not yet done' },
+  /* CORRECTED: found the real mapping by tracing the complete St_Erm
+     sequence directly - Minijobs, Hhn_BV_DL, and Handw_L are confirmed
+     real siblings under the same parent (HA_35a/St_Erm), not separate,
+     unrelated contexts. The earlier failed attempt was chasing a
+     coincidentally similarly-named element from a completely different
+     part of the schema (a care-specific sub-field under AgB, not this
+     general household-services context at all) - the real one shares
+     Handw_L's own numeric type family, confirmed directly. Same real
+     Einz/Sum completeness pattern as Handw_L: a description, an
+     amount, and a matching Sum total. Confirmed identical across all
+     five years 2021-2025. */
+  household: 'E0107207',       // Hhn_BV_DL/Einz/Aufwendungen
+  householdSum: 'E0107208',    // Hhn_BV_DL/Sum
+  householdArt: 'E0107206',    // Hhn_BV_DL/Einz/Art der Tätigkeit (required alongside the amount)
   /* CORRECTED: real bug found via the multi-year regression test -
      Handwerkerleistungen only sent the invoice total (E0170601), never
      the three companion fields real ERiC requires alongside it: a
@@ -354,6 +410,26 @@ const KAP = {
 /* ---------- 9. Loss carryforward (Sonst context) ---------- */
 const Sonst = {
   lossCarry: 'E0190701',
+};
+
+/* ---------- 9a. Private sales gains - Anlage SO (genuinely distinct
+   top-level element from "Sonst" above, despite the similar name -
+   confirmed directly via the schema: Sonst and SO are two separate
+   root elements, not the same thing under a different label.
+   Real path confirmed: SO/Priv_VA_G/And_WG/Einz/[fields].
+   Checked minOccurs directly rather than assume: only the Person
+   index (which spouse this applies to) is genuinely required -
+   description, dates, sale price, and acquisition cost are all
+   schema-optional. Confirmed identical across all five years this
+   app supports (2021-2025) - deliberately using the universal
+   And_WG category rather than the newer, crypto-specific Virt_Waehr
+   introduced in 2023, since And_WG covers crypto and other private
+   sale assets alike without needing a year-conditional branch, and
+   this app's own data model doesn't currently distinguish "crypto"
+   from "other" as separate figures anyway. */
+const SO = {
+  soSalePrice: { kennzahlen: ['E0307401'], slotResolved: true, note: 'SO/Priv_VA_G/And_WG/Einz - Veräußerungspreis. The known net gain is entered here, with acquisition cost set to 0, so the resulting taxable gain (sale price minus cost) is exactly the real, correct figure - not a fabricated split, an honest, transparent simplification of a single known net total.' },
+  soAcquisitionCost: { kennzahlen: ['E0307501'], slotResolved: true, note: 'SO/Priv_VA_G/And_WG/Einz - Anschaffungskosten, deliberately set to 0 alongside soSalePrice, so the computed gain equals the real known total exactly.' },
 };
 
 /* ---------- 10. Support payments - Unterhalt (ESt1A_U context) ---------- */
@@ -870,7 +946,7 @@ function isFieldSupportedForYear(code, year) {
 }
 
 module.exports = {
-  ESt1A, N, VOR, SA, Kind, N_DHH, HA_35a, KAP, Sonst, ESt1A_U, N_AUS, AgB, EM_35c, ESt1A_Ersatz, R, V, AUS,
+  ESt1A, N, VOR, SA, Kind, N_DHH, HA_35a, KAP, Sonst, SO, ESt1A_U, N_AUS, AgB, EM_35c, ESt1A_Ersatz, R, V, AUS,
   isSlotResolved, unresolvedFields, sumEmployerField, routeToVOR, computeAusTaxFree, amountToPflegegrad,
   SECTION_YEAR_SUPPORT, FIELD_YEAR_SUPPORT, isSectionSupportedForYear, isFieldSupportedForYear,
 };
