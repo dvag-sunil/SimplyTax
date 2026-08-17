@@ -430,6 +430,13 @@ const Sonst = {
 const SO = {
   soSalePrice: { kennzahlen: ['E0307401'], slotResolved: true, note: 'SO/Priv_VA_G/And_WG/Einz - Veräußerungspreis. The known net gain is entered here, with acquisition cost set to 0, so the resulting taxable gain (sale price minus cost) is exactly the real, correct figure - not a fabricated split, an honest, transparent simplification of a single known net total.' },
   soAcquisitionCost: { kennzahlen: ['E0307501'], slotResolved: true, note: 'SO/Priv_VA_G/And_WG/Einz - Anschaffungskosten, deliberately set to 0 alongside soSalePrice, so the computed gain equals the real known total exactly.' },
+  /* CORRECTED: real bug found via an actual ERiC rejection (Regel
+     130829 and 101300034) - both schema-optional (minOccurs=0), but
+     genuinely required by real business rules once any Einz entry
+     exists at all, the exact same "schema-optional does not mean
+     business-rule-optional" lesson repeated throughout this project. */
+  soGewinnVerlust: { kennzahlen: ['E0307701'], slotResolved: true, note: 'SO/Priv_VA_G/And_WG/Einz - Gewinn/Verlust, the explicit net result ELSTER requires stated directly, not just derivable from sale price minus cost. Set equal to soSalePrice, matching the same zero-cost-basis simplification.' },
+  soDescription: { kennzahlen: ['E0307101'], slotResolved: true, note: 'SO/Priv_VA_G/And_WG/Einz - Art des Wirtschaftsguts, confirmed genuinely required once an amount is entered (Regel 101300034), despite being schema-optional. A generic, honest description is used since this app does not collect a specific item description.' },
 };
 
 /* ---------- 10. Support payments - Unterhalt (ESt1A_U context) ---------- */

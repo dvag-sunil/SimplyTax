@@ -1798,7 +1798,16 @@ function buildSO(data) {
   const so = (data.weitereAngaben && data.weitereAngaben.anlageSO) || null;
   if (!so || !(N(so.privateVeraeusserungsgeschaefte) > 0)) return '';
   const amt = Math.round(N(so.privateVeraeusserungsgeschaefte));
-  return `<SO><Priv_VA_G><And_WG><Person>PersonA</Person>\n<Einz>\n${wholeEuroTag(fm.SO.soSalePrice.kennzahlen[0], amt)}${wholeEuroTag(fm.SO.soAcquisitionCost.kennzahlen[0], 0)}</Einz>\n</And_WG></Priv_VA_G></SO>\n`;
+  /* CORRECTED: real ERiC rejection (Regel 130829, 101300034) confirmed
+     both the description and the explicit Gewinn/Verlust figure are
+     genuinely required once an entry exists, despite both being
+     schema-optional - added both rather than resend the same
+     incomplete entry. */
+  let einz = tag(fm.SO.soDescription.kennzahlen[0], 'Private Veräußerungsgeschäfte');
+  einz += wholeEuroTag(fm.SO.soSalePrice.kennzahlen[0], amt);
+  einz += wholeEuroTag(fm.SO.soAcquisitionCost.kennzahlen[0], 0);
+  einz += wholeEuroTag(fm.SO.soGewinnVerlust.kennzahlen[0], amt);
+  return `<SO><Priv_VA_G><And_WG><Person>PersonA</Person>\n<Einz>\n${einz}</Einz>\n</And_WG></Priv_VA_G></SO>\n`;
 }
 
 /* ---------- date format: interchange uses ISO (YYYY-MM-DD), ERiC example uses DD.MM.YYYY ---------- */
