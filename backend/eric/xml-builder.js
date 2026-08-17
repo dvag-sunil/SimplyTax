@@ -414,15 +414,25 @@ function buildAnlageN(data) {
          real schema; folded honestly into the itemized Werbungskosten
          total below rather than left unsent or invented. */
     }
-    /* Itemized Werbungskosten (WKI_TYPES) - transmitted as a single,
-       verified total (Wk/Weitere_Wk/Sum/E0204803), summed here from the
-       real per-entry amounts the app already collects and already
-       exports, rather than mapping each of the 11 individual
-       categories to its own Kennzahl, which would need further
-       dedicated research to do safely. */
+    /* CORRECTED: real ERiC rejection (Regel 100200112) - a Sum without
+       the underlying individual amounts is genuinely invalid, confirmed
+       directly. Each itemized entry the app already collects is now
+       sent as its own Sonst element (description plus amount), with
+       relocation costs folded in as one additional entry since it has
+       no dedicated Kennzahl of its own, alongside the same real Sum
+       total already correctly calculated. */
     const items = (data.werbungskosten && data.werbungskosten.einzelposten || []).filter(x => x.person === person);
+    let sonstXml = '';
+    for (const item of items) {
+      const amt = Math.round(N(item.betrag));
+      if (amt <= 0) continue;
+      sonstXml += `<Sonst>${tag(fm.N.weitereWkDesc.kennzahlen[0], item.bezeichnung || item.kategorie || 'Werbungskosten')}${wholeEuroTag(fm.N.weitereWkAmount.kennzahlen[0], amt)}</Sonst>\n`;
+    }
+    if (wk && N(wk.umzugskosten) > 0) {
+      sonstXml += `<Sonst>${tag(fm.N.weitereWkDesc.kennzahlen[0], 'Umzugskosten')}${wholeEuroTag(fm.N.weitereWkAmount.kennzahlen[0], Math.round(N(wk.umzugskosten)))}</Sonst>\n`;
+    }
     const itemsSum = items.reduce((a, x) => a + (N(x.betrag) || 0), 0) + (wk ? N(wk.umzugskosten) : 0);
-    if (itemsSum > 0) wkXml += `<Weitere_Wk><Sum>${wholeEuroTag(fm.N.weitereWkSum.kennzahlen[0], Math.round(itemsSum))}</Sum></Weitere_Wk>\n`;
+    if (sonstXml && itemsSum > 0) wkXml += `<Weitere_Wk>\n${sonstXml}<Sum>${wholeEuroTag(fm.N.weitereWkSum.kennzahlen[0], Math.round(itemsSum))}</Sum></Weitere_Wk>\n`;
     if (wkXml) xml += `<Wk>\n${wkXml}</Wk>\n`;
     xml += '</N>\n';
   }
@@ -447,135 +457,169 @@ function buildNAUS(data) {
   if (!entries.length) return '';
   const year = data.meta?.taxYear || 2025;
   let xml = '';
-  for (const a of entries) {
-    /* Year gate: confirmed via direct field-existence check against the
-       real 2021/2022 XSDs that E2600503 (legal basis) and E2600703
-       (dual residence) are genuinely missing that year - not renamed,
-       structurally different (2022 uses an opposite-polarity statement
-       PAIR for dual residence, same pattern as the legacy Anlage
-       Unterhalt/Kind structures already researched separately in this
-       project). Rather than guess that structure under time pressure,
-       this is honestly gated pending its own dedicated research pass -
-       the same discipline already applied to Unterhalt and Kind. */
-    if (year < 2023) continue;
+  /* CORRECTED: same real bug just found and fixed in buildKAP and
+     buildR - N_AUS has the exact same maxOccurs=2 constraint (one
+     block per person, confirmed directly against the schema), but the
+     previous version created a brand new N_AUS wrapper for every
+     foreign employment entry, so someone who worked in more than one
+     foreign country in the same year would have produced multiple
+     N_AUS blocks sharing the same Person tag - the identical
+     uniqueIndex violation. Confirmed the real, correct fix is
+     different from KAP/R though: this data genuinely can't be summed
+     together (each country has its own employer, dates, and
+     calculation) - the schema itself confirms Staat can repeat up to
+     99 times within a single N_AUS block, so each country's complete
+     content is now built as its own Staat entry, with all of one
+     person's countries collected inside one shared N_AUS/Person
+     wrapper. */
+  const byPerson = { A: [], B: [] };
+  for (const a of entries) byPerson[a.person === 'B' ? 'B' : 'A'].push(a);
+  for (const p of ['A', 'B']) {
+    const list = byPerson[p];
+    if (!list.length) continue;
+    let staatXml = '';
+    for (const a of list) {
+      /* Year gate: confirmed via direct field-existence check against the
+         real 2021/2022 XSDs that E2600503 (legal basis) and E2600703
+         (dual residence) are genuinely missing that year - not renamed,
+         structurally different (2022 uses an opposite-polarity statement
+         PAIR for dual residence, same pattern as the legacy Anlage
+         Unterhalt/Kind structures already researched separately in this
+         project). Rather than guess that structure under time pressure,
+         this is honestly gated pending its own dedicated research pass -
+         the same discipline already applied to Unterhalt and Kind. */
+      if (year < 2023) continue;
 
-    xml += `<N_AUS><Person>Person${a.person === 'B' ? 'B' : 'A'}</Person><Staat>\n`;
-    /* CORRECTED (major, second pass): confirmed via the raw XSD content
-       model that E2600401 (Staat/Staat) is the primary work country -
-       genuinely different from the field used before (E2601001, which
-       is the Wohnsitz/foreign-residence country, only relevant when
-       dual residence applies). */
-    if (a.land) xml += tag(fm.N_AUS.ausCountry, a.land);
+      let entryXml = '<Staat>\n';
+      /* CORRECTED (major, second pass): confirmed via the raw XSD content
+         model that E2600401 (Staat/Staat) is the primary work country -
+         genuinely different from the field used before (E2601001, which
+         is the Wohnsitz/foreign-residence country, only relevant when
+         dual residence applies). */
+      /* CORRECTED: real ERiC rejection (feldUnbekannt, Regel 100260001) -
+         confirmed directly against the schema that the country value
+         needs its own real inner wrapper, genuinely also named "Staat"
+         (a confusing but confirmed real structure: the outer Staat
+         context contains Allg/Ang_ArbL/ArbL_DBA/etc. as siblings, plus
+         its own nested Staat sub-element that actually holds the
+         country field). This was missing even before the recent
+         restructuring to fix the duplicate-wrapper issue - that fix
+         corrected the outer grouping, this corrects the inner
+         placement, a separate real mistake. */
+      if (a.land) entryXml += `<Staat>${tag(fm.N_AUS.ausCountry, a.land)}</Staat>\n`;
 
-    let allg = '';
-    /* Legal basis - confirmed required (Regel 14). Defaults to DBA
-       ("1"), the standard double-taxation-treaty basis and the common
-       case for German employees working abroad. ATE (special
-       intergovernmental development-aid agreements) and ZÜ (other
-       multilateral treaties, e.g. NATO/diplomatic postings) are
-       genuinely different, narrower legal bases this app does not
-       collect enough information to complete correctly - flagged via
-       skippedSections below rather than guessed if selected. */
-    const basis = a.legalBasis || 'dba';
-    allg += tag(fm.N_AUS.ausLegalBasis, basis === 'ate' ? '2' : basis === 'zu' ? '3' : '1');
+      let allg = '';
+      /* Legal basis - confirmed required (Regel 14). Defaults to DBA
+         ("1"), the standard double-taxation-treaty basis and the common
+         case for German employees working abroad. ATE (special
+         intergovernmental development-aid agreements) and ZÜ (other
+         multilateral treaties, e.g. NATO/diplomatic postings) are
+         genuinely different, narrower legal bases this app does not
+         collect enough information to complete correctly - flagged via
+         skippedSections below rather than guessed if selected. */
+      const basis = a.legalBasis || 'dba';
+      allg += tag(fm.N_AUS.ausLegalBasis, basis === 'ate' ? '2' : basis === 'zu' ? '3' : '1');
 
-    /* Dual residence - confirmed required (Regel 22). Defaults to
-       "Nein", the common case (foreign assignment without maintaining
-       a second residence abroad) - only asks for the foreign address
-       and center-of-interests declaration if the user says Yes. */
-    const dual = !!a.dualResidence;
-    allg += `<Wohnsitz>\n${tag(fm.N_AUS.ausDualResidence, dual ? '1' : '2')}`;
-    if (dual) {
-      if (a.foreignResStreet) allg += tag(fm.N_AUS.ausForeignResStreet, a.foreignResStreet);
-      if (a.foreignResPlz) allg += tag(fm.N_AUS.ausForeignResPlz, a.foreignResPlz);
-      if (a.foreignResCity) allg += tag(fm.N_AUS.ausForeignResCity, a.foreignResCity);
-      if (a.foreignResCountry) allg += tag(fm.N_AUS.ausForeignResCountry, a.foreignResCountry);
-      allg += tag(fm.N_AUS.ausCenterOfInterests, a.centerOfInterests ? '1' : '2');
-    }
-    allg += '</Wohnsitz>\n';
+      /* Dual residence - confirmed required (Regel 22). Defaults to
+         "Nein", the common case (foreign assignment without maintaining
+         a second residence abroad) - only asks for the foreign address
+         and center-of-interests declaration if the user says Yes. */
+      const dual = !!a.dualResidence;
+      allg += `<Wohnsitz>\n${tag(fm.N_AUS.ausDualResidence, dual ? '1' : '2')}`;
+      if (dual) {
+        if (a.foreignResStreet) allg += tag(fm.N_AUS.ausForeignResStreet, a.foreignResStreet);
+        if (a.foreignResPlz) allg += tag(fm.N_AUS.ausForeignResPlz, a.foreignResPlz);
+        if (a.foreignResCity) allg += tag(fm.N_AUS.ausForeignResCity, a.foreignResCity);
+        if (a.foreignResCountry) allg += tag(fm.N_AUS.ausForeignResCountry, a.foreignResCountry);
+        allg += tag(fm.N_AUS.ausCenterOfInterests, a.centerOfInterests ? '1' : '2');
+      }
+      allg += '</Wohnsitz>\n';
 
-    /* Employer - CORRECTED (major): confirmed via the raw XSD that the
-       real context is Allg/ArbG, not Unternehmen (a different,
-       unrelated field for a narrow related-company exception). Name
-       comes before street in the confirmed real field order.
-       CORRECTED (second pass): confirmed via the real Regel 24
-       (FelderNichtGemeinsamAngegeben across all five fields) that this
-       is genuinely all-or-nothing - sending name without a complete
-       address (or vice versa) is rejected the same as sending nothing,
-       so a partial set is now honestly omitted with a clear warning
-       rather than sent and rejected. */
-    const employerComplete = a.arbeitgeberName && a.arbeitgeberStreet && a.arbeitgeberPlz && a.arbeitgeberCity && a.arbeitgeberCountry;
-    if (employerComplete) {
-      allg += '<ArbG>\n';
-      allg += tag(fm.N_AUS.ausEmployerName, a.arbeitgeberName);
-      allg += tag(fm.N_AUS.ausEmployerStreet, a.arbeitgeberStreet);
-      allg += tag(fm.N_AUS.ausEmployerPlz, a.arbeitgeberPlz);
-      allg += tag(fm.N_AUS.ausEmployerCity, a.arbeitgeberCity);
-      allg += tag(fm.N_AUS.ausEmployerCountry, a.arbeitgeberCountry);
-      allg += '</ArbG>\n';
-    }
+      /* Employer - CORRECTED (major): confirmed via the raw XSD that the
+         real context is Allg/ArbG, not Unternehmen (a different,
+         unrelated field for a narrow related-company exception). Name
+         comes before street in the confirmed real field order.
+         CORRECTED (second pass): confirmed via the real Regel 24
+         (FelderNichtGemeinsamAngegeben across all five fields) that this
+         is genuinely all-or-nothing - sending name without a complete
+         address (or vice versa) is rejected the same as sending nothing,
+         so a partial set is now honestly omitted with a clear warning
+         rather than sent and rejected. */
+      const employerComplete = a.arbeitgeberName && a.arbeitgeberStreet && a.arbeitgeberPlz && a.arbeitgeberCity && a.arbeitgeberCountry;
+      if (employerComplete) {
+        allg += '<ArbG>\n';
+        allg += tag(fm.N_AUS.ausEmployerName, a.arbeitgeberName);
+        allg += tag(fm.N_AUS.ausEmployerStreet, a.arbeitgeberStreet);
+        allg += tag(fm.N_AUS.ausEmployerPlz, a.arbeitgeberPlz);
+        allg += tag(fm.N_AUS.ausEmployerCity, a.arbeitgeberCity);
+        allg += tag(fm.N_AUS.ausEmployerCountry, a.arbeitgeberCountry);
+        allg += '</ArbG>\n';
+      }
 
-    /* Activity description + period - confirmed required together
-       (Regel 26/28). Full date range including years, a genuinely
-       different type from the month-only ranges used elsewhere in
-       this schema - confirmed via the raw XSD, not assumed uniform. */
-    if (a.taetigkeitDesc && a.taetigkeitVon && a.taetigkeitBis) {
-      allg += `<Taetigk><Art_Zeitr>\n${tag(fm.N_AUS.ausActivityDesc, a.taetigkeitDesc)}${tag(fm.N_AUS.ausActivityPeriod, formatDateRangeFullDE(a.taetigkeitVon, a.taetigkeitBis))}</Art_Zeitr>\n`;
-      const daysAbroad = Math.round(N(a.arbeitstageAusland));
-      if (daysAbroad > 0) allg += `<Tage>\n${tag(fm.N_AUS.ausDaysAbroad, String(daysAbroad))}</Tage>\n`;
-      allg += '</Taetigk>\n';
-      /* Real requirement found via testing against a genuine client
-         file (Regel 30) - confirmed sibling of Taetigk, not nested
-         inside it. Only relevant/required under 184 days abroad;
-         above that, the standard 183-day exemption applies without
-         needing this. This is a genuine legal distinction the app
-         cannot safely guess - if the days are short and no basis is
-         given, this is flagged via skippedSections rather than
-         defaulted to any of the six options. */
-      if (daysAbroad > 0 && daysAbroad < 184 && a.shortStayBasis) {
-        const key = 'ausShortStay' + a.shortStayBasis;
-        if (a.shortStayBasis === 'Other') {
-          if (a.shortStayBasisText) allg += `<Taetigk_Vertr>\n${tag(fm.N_AUS.ausShortStayOther, a.shortStayBasisText)}</Taetigk_Vertr>\n`;
-        } else if (fm.N_AUS[key]) {
-          allg += `<Taetigk_Vertr>\n${tag(fm.N_AUS[key], 'X')}</Taetigk_Vertr>\n`;
+      /* Activity description + period - confirmed required together
+         (Regel 26/28). Full date range including years, a genuinely
+         different type from the month-only ranges used elsewhere in
+         this schema - confirmed via the raw XSD, not assumed uniform. */
+      let remaining = 0;
+      if (a.taetigkeitDesc && a.taetigkeitVon && a.taetigkeitBis) {
+        allg += `<Taetigk><Art_Zeitr>\n${tag(fm.N_AUS.ausActivityDesc, a.taetigkeitDesc)}${tag(fm.N_AUS.ausActivityPeriod, formatDateRangeFullDE(a.taetigkeitVon, a.taetigkeitBis))}</Art_Zeitr>\n`;
+        const daysAbroad = Math.round(N(a.arbeitstageAusland));
+        if (daysAbroad > 0) allg += `<Tage>\n${tag(fm.N_AUS.ausDaysAbroad, String(daysAbroad))}</Tage>\n`;
+        allg += '</Taetigk>\n';
+        /* Real requirement found via testing against a genuine client
+           file (Regel 30) - confirmed sibling of Taetigk, not nested
+           inside it. Only relevant/required under 184 days abroad;
+           above that, the standard 183-day exemption applies without
+           needing this. This is a genuine legal distinction the app
+           cannot safely guess - if the days are short and no basis is
+           given, this is flagged via skippedSections rather than
+           defaulted to any of the six options. */
+        if (daysAbroad > 0 && daysAbroad < 184 && a.shortStayBasis) {
+          const key = 'ausShortStay' + a.shortStayBasis;
+          if (a.shortStayBasis === 'Other') {
+            if (a.shortStayBasisText) allg += `<Taetigk_Vertr>\n${tag(fm.N_AUS.ausShortStayOther, a.shortStayBasisText)}</Taetigk_Vertr>\n`;
+          } else if (fm.N_AUS[key]) {
+            allg += `<Taetigk_Vertr>\n${tag(fm.N_AUS[key], 'X')}</Taetigk_Vertr>\n`;
+          }
         }
       }
-    }
-    if (allg) xml += `<Allg>\n${allg}</Allg>\n`;
+      if (allg) entryXml += `<Allg>\n${allg}</Allg>\n`;
 
-    let remaining = 0;
-    if (N(a.gesamtlohn) > 0) {
-      /* CORRECTED: real bug, genuinely my own mistake, not a
-         documentation gap - bypassing wholeEuroTag() to force explicit
-         zero-emission also meant bypassing its rounding, so a
-         non-integer result (from float subtraction, e.g. entered cents)
-         was sent as a raw decimal, which ERiC correctly rejects
-         ("zahlHatUngueltigeZeichen"). Rounded explicitly here instead. */
-      remaining = Math.max(0, Math.round(N(a.gesamtlohn) - N(a.steuerfreierBetrag)));
-      xml += `<Ang_ArbL><Sum_inl_ausl_AL>${wholeEuroTag(fm.N_AUS.ausTotalWage, a.gesamtlohn)}</Sum_inl_ausl_AL><Verbl><${fm.N_AUS.ausRemainingWage}>${remaining}</${fm.N_AUS.ausRemainingWage}></Verbl></Ang_ArbL>\n`;
-    }
+      if (N(a.gesamtlohn) > 0) {
+        /* CORRECTED: real bug, genuinely my own mistake, not a
+           documentation gap - bypassing wholeEuroTag() to force explicit
+           zero-emission also meant bypassing its rounding, so a
+           non-integer result (from float subtraction, e.g. entered cents)
+           was sent as a raw decimal, which ERiC correctly rejects
+           ("zahlHatUngueltigeZeichen"). Rounded explicitly here instead. */
+        remaining = Math.max(0, Math.round(N(a.gesamtlohn) - N(a.steuerfreierBetrag)));
+        entryXml += `<Ang_ArbL><Sum_inl_ausl_AL>${wholeEuroTag(fm.N_AUS.ausTotalWage, a.gesamtlohn)}</Sum_inl_ausl_AL><Verbl><${fm.N_AUS.ausRemainingWage}>${remaining}</${fm.N_AUS.ausRemainingWage}></Verbl></Ang_ArbL>\n`;
+      }
 
-    /* CORRECTED (major): the tax-free result was previously a direct
-       pass-through of the user's rough estimate (steuerfreierBetrag).
-       Confirmed via the real formula (Regel 52) that ELSTER expects
-       this computed via days-proportion: remaining wage × foreign work
-       days / total work days - the same two-step structure the real
-       Lohnsteuerbescheinigung uses (a rough estimate feeding the
-       "remaining" base, then a formula-based recalculation for the
-       actual transferred amount). Only computed when both day counts
-       are present - otherwise honestly flagged via skippedSections
-       rather than guessed. */
-    if (N(a.arbeitstageGesamt) > 0 && N(a.arbeitstageAusland) > 0) {
-      const totalDays = Math.round(N(a.arbeitstageGesamt));
-      const foreignDays = Math.round(N(a.arbeitstageAusland));
-      const calculated = fm.computeAusTaxFree(remaining, foreignDays, totalDays);
-      let dbaInner = tag(fm.N_AUS.ausWorkDaysTotal, String(totalDays));
-      dbaInner += tag(fm.N_AUS.ausWorkDaysForeign, String(foreignDays));
-      dbaInner += `<${fm.N_AUS.ausDbaCalculated}>${calculated}</${fm.N_AUS.ausDbaCalculated}>\n`;
-      dbaInner += `<${fm.N_AUS.ausTaxFreeResult}>${calculated}</${fm.N_AUS.ausTaxFreeResult}>\n`;
-      xml += `<ArbL_DBA>\n${dbaInner}</ArbL_DBA>\n`;
+      /* CORRECTED (major): the tax-free result was previously a direct
+         pass-through of the user's rough estimate (steuerfreierBetrag).
+         Confirmed via the real formula (Regel 52) that ELSTER expects
+         this computed via days-proportion: remaining wage × foreign work
+         days / total work days - the same two-step structure the real
+         Lohnsteuerbescheinigung uses (a rough estimate feeding the
+         "remaining" base, then a formula-based recalculation for the
+         actual transferred amount). Only computed when both day counts
+         are present - otherwise honestly flagged via skippedSections
+         rather than guessed. */
+      if (N(a.arbeitstageGesamt) > 0 && N(a.arbeitstageAusland) > 0) {
+        const totalDays = Math.round(N(a.arbeitstageGesamt));
+        const foreignDays = Math.round(N(a.arbeitstageAusland));
+        const calculated = fm.computeAusTaxFree(remaining, foreignDays, totalDays);
+        let dbaInner = tag(fm.N_AUS.ausWorkDaysTotal, String(totalDays));
+        dbaInner += tag(fm.N_AUS.ausWorkDaysForeign, String(foreignDays));
+        dbaInner += `<${fm.N_AUS.ausDbaCalculated}>${calculated}</${fm.N_AUS.ausDbaCalculated}>\n`;
+        dbaInner += `<${fm.N_AUS.ausTaxFreeResult}>${calculated}</${fm.N_AUS.ausTaxFreeResult}>\n`;
+        entryXml += `<ArbL_DBA>\n${dbaInner}</ArbL_DBA>\n`;
+      }
+      entryXml += '</Staat>\n';
+      staatXml += entryXml;
     }
-    xml += '</Staat></N_AUS>\n';
+    if (staatXml) xml += `<N_AUS><Person>Person${p}</Person>${staatXml}</N_AUS>\n`;
   }
   return xml;
 }
@@ -726,10 +770,24 @@ function buildKAP(data) {
   const anyGuenstiger = data.hauptvordruck?.personB && entries.some(k =>
     N(k.zeile7_kapitalertraege) > 0 || N(k.zeile8_aktiengewinne) > 0
     || N(k.zeile12_verlusteOhneAktien) > 0 || N(k.zeile13_verlusteAktien) > 0);
-  for (const k of entries) {
+  /* CORRECTED: real ERiC rejection (uniqueIndex on /KAP/Person) - the
+     previous version built one separate KAP block per entry, so a
+     person with capital income from more than one institution produced
+     multiple KAP blocks all carrying the same Person tag, which the
+     real schema requires to be unique across the whole document.
+     Grouping by person first and summing every numeric field across
+     all of that person's entries produces exactly one KAP block per
+     person - genuine, correct math, since a person's real total
+     capital income is exactly the sum across their accounts anyway. */
+  const byPerson = { A: [], B: [] };
+  for (const k of entries) byPerson[k.person === 'B' ? 'B' : 'A'].push(k);
+  const sum = (list, field) => list.reduce((a, k) => a + N(k[field]), 0);
+  for (const p of ['A', 'B']) {
+    const list = byPerson[p];
+    if (!list.length) continue;
     let inner = '';
-    const g1 = wholeEuroTag(fm.KAP.k7, k.zeile7_kapitalertraege) + wholeEuroTag(fm.KAP.k8, k.zeile8_aktiengewinne)
-      + wholeEuroTag(fm.KAP.k12, k.zeile12_verlusteOhneAktien) + wholeEuroTag(fm.KAP.k13, k.zeile13_verlusteAktien);
+    const g1 = wholeEuroTag(fm.KAP.k7, sum(list, 'zeile7_kapitalertraege')) + wholeEuroTag(fm.KAP.k8, sum(list, 'zeile8_aktiengewinne'))
+      + wholeEuroTag(fm.KAP.k12, sum(list, 'zeile12_verlusteOhneAktien')) + wholeEuroTag(fm.KAP.k13, sum(list, 'zeile13_verlusteAktien'));
     if (g1) inner += `<KapErt_inl_StAbz><Betr_lt_StBesch>\n${g1}</Betr_lt_StBesch></KapErt_inl_StAbz>\n`;
     /* CORRECTED: real bug found via the multi-year regression test
        (Regel 192036) - whenever Günstigerprüfung is requested (which
@@ -739,27 +797,28 @@ function buildKAP(data) {
        would otherwise silently omit a zero value, which is exactly
        what caused this error despite the field being "collected" (just
        never written when it was 0). */
-    const g2 = g1 ? `<${fm.KAP.k16}>${N(k.zeile16_sparerPauschbetragGenutzt)}</${fm.KAP.k16}>\n` : wholeEuroTag(fm.KAP.k16, k.zeile16_sparerPauschbetragGenutzt);
+    const pbUsed = sum(list, 'zeile16_sparerPauschbetragGenutzt');
+    const g2 = g1 ? `<${fm.KAP.k16}>${pbUsed}</${fm.KAP.k16}>\n` : wholeEuroTag(fm.KAP.k16, pbUsed);
     if (g2) inner += `<Sp_PB>\n${g2}</Sp_PB>\n`;
-    const g3 = wholeEuroTag(fm.KAP.k18, k.zeile18_inlaendischOhneSteuerabzug) + wholeEuroTag(fm.KAP.k19, k.zeile19_auslaendisch)
-      + wholeEuroTag(fm.KAP.k20, k.zeile20_aktiengewinne) + wholeEuroTag(fm.KAP.k21, k.zeile21_stillhalterTermingeschaefte)
-      + wholeEuroTag(fm.KAP.k22, k.zeile22_verlusteOhneAktien) + wholeEuroTag(fm.KAP.k23, k.zeile23_verlusteAktien);
+    const g3 = wholeEuroTag(fm.KAP.k18, sum(list, 'zeile18_inlaendischOhneSteuerabzug')) + wholeEuroTag(fm.KAP.k19, sum(list, 'zeile19_auslaendisch'))
+      + wholeEuroTag(fm.KAP.k20, sum(list, 'zeile20_aktiengewinne')) + wholeEuroTag(fm.KAP.k21, sum(list, 'zeile21_stillhalterTermingeschaefte'))
+      + wholeEuroTag(fm.KAP.k22, sum(list, 'zeile22_verlusteOhneAktien')) + wholeEuroTag(fm.KAP.k23, sum(list, 'zeile23_verlusteAktien'));
     if (g3) inner += `<KapErt_kein_inl_StAbz>\n${g3}</KapErt_kein_inl_StAbz>\n`;
-    const g4 = euroTag(fm.KAP.k43, k.zeile43_kapitalertragsteuer) + euroTag(fm.KAP.k44, k.zeile44_soli)
-      + euroTag(fm.KAP.k45, k.zeile45_kirchensteuer);
+    const g4 = euroTag(fm.KAP.k43, sum(list, 'zeile43_kapitalertragsteuer')) + euroTag(fm.KAP.k44, sum(list, 'zeile44_soli'))
+      + euroTag(fm.KAP.k45, sum(list, 'zeile45_kirchensteuer'));
     if (g4) inner += `<St_Abz_Betr_Inl_u_Inv_Ert>\n${g4}</St_Abz_Betr_Inl_u_Inv_Ert>\n`;
     /* CORRECTED: same class of bug found via the architectural review's
        empirical test (originally surfaced in buildVOR) - an entry with
        no actual populated amounts would still have produced an empty
        <KAP><Person>.../<KAP> wrapper, triggering ERiC's "kontextLeer"
-       error. Now only emits per-entry if there's genuinely content. */
+       error. Now only emits per-person if there's genuinely content. */
     if (inner) {
-      /* Applies whenever THIS entry triggered it directly, or the
+      /* Applies whenever THIS person triggered it directly, or the
          joint-filing requirement means it applies regardless (Regel
          193035 - see the anyGuenstiger computation above). */
       const antTag = (g1 || anyGuenstiger) ? `<Ant>\n${tag(fm.KAP.guenstigerpruefung, '1')}</Ant>\n` : '';
-      xml += `<KAP><Person>Person${k.person === 'B' ? 'B' : 'A'}</Person>\n${antTag}${inner}</KAP>\n`;
-      personsWithBlock.add(k.person === 'B' ? 'B' : 'A');
+      xml += `<KAP><Person>Person${p}</Person>\n${antTag}${inner}</KAP>\n`;
+      personsWithBlock.add(p);
     }
   }
   /* If the joint-filing requirement applies but one spouse has no KAP
@@ -789,45 +848,59 @@ function buildR(data) {
   const entries = data.anlageR || [];
   if (!entries.length) return '';
   let xml = '';
-  for (const r of entries) {
+  /* CORRECTED: same real bug just found and fixed in buildKAP - R has
+     the exact same maxOccurs=2 constraint (confirmed directly against
+     the schema), so someone with more than one pension source for the
+     same person (statutory plus private, or two different providers)
+     would have produced two separate R blocks sharing the same Person
+     tag - the identical uniqueIndex violation. Grouped by person first,
+     genuinely combining every pension entry that person has into one
+     shared block, rather than one block per entry. */
+  const byPerson = { A: [], B: [] };
+  for (const r of entries) byPerson[r.person === 'B' ? 'B' : 'A'].push(r);
+  for (const p of ['A', 'B']) {
+    const list = byPerson[p];
+    if (!list.length) continue;
     let inner = '';
     let hasContent = false;
-    if (r.art === 'gesetzlich' || !r.art) {
-      if (N(r.jahresbetrag) > 0) {
-        hasContent = true;
-        inner += '<Leibr_gesetzl><Einz>\n';
-        inner += wholeEuroTag(fm.R.gesetzlichAmount, r.jahresbetrag);
-        /* CORRECTED: real bug found via the multi-year regression test -
-           E1800501 ("Beginn der Rente") requires a genuine TT.MM.JJJJ
-           date (confirmed via the real error: "Bitte geben Sie ein
-           gültiges Datum TT.MM.JJJJ ein"), but the raw value was passed
-           through unformatted. Our app's data model only collects the
-           start YEAR (matching the existing rentePct(startYear)
-           percentage-calculation logic elsewhere) - converts that into
-           January 1st of that year as a reasonable, defensible default
-           when only a year is available, or formats a genuine full date
-           correctly if one is provided. */
-        if (r.rentenbeginn) {
-          const isYearOnly = /^\d{4}$/.test(String(r.rentenbeginn));
-          const startDate = isYearOnly ? `01.01.${r.rentenbeginn}` : formatDateDE(r.rentenbeginn);
-          if (startDate) inner += tag(fm.R.gesetzlichStart, startDate);
+    for (const r of list) {
+      if (r.art === 'gesetzlich' || !r.art) {
+        if (N(r.jahresbetrag) > 0) {
+          hasContent = true;
+          inner += '<Leibr_gesetzl><Einz>\n';
+          inner += wholeEuroTag(fm.R.gesetzlichAmount, r.jahresbetrag);
+          /* CORRECTED: real bug found via the multi-year regression test -
+             E1800501 ("Beginn der Rente") requires a genuine TT.MM.JJJJ
+             date (confirmed via the real error: "Bitte geben Sie ein
+             gültiges Datum TT.MM.JJJJ ein"), but the raw value was passed
+             through unformatted. Our app's data model only collects the
+             start YEAR (matching the existing rentePct(startYear)
+             percentage-calculation logic elsewhere) - converts that into
+             January 1st of that year as a reasonable, defensible default
+             when only a year is available, or formats a genuine full date
+             correctly if one is provided. */
+          if (r.rentenbeginn) {
+            const isYearOnly = /^\d{4}$/.test(String(r.rentenbeginn));
+            const startDate = isYearOnly ? `01.01.${r.rentenbeginn}` : formatDateDE(r.rentenbeginn);
+            if (startDate) inner += tag(fm.R.gesetzlichStart, startDate);
+          }
+          if (r.ertragsanteilProzent != null) inner += `<Oeff_Kl>${tag(fm.R.gesetzlichPercent, r.ertragsanteilProzent)}</Oeff_Kl>\n`;
+          inner += '</Einz></Leibr_gesetzl>\n';
         }
-        if (r.ertragsanteilProzent != null) inner += `<Oeff_Kl>${tag(fm.R.gesetzlichPercent, r.ertragsanteilProzent)}</Oeff_Kl>\n`;
-        inner += '</Einz></Leibr_gesetzl>\n';
-      }
-    } else if (r.art === 'privat') {
-      if (N(r.jahresbetrag) > 0) {
-        hasContent = true;
-        inner += '<Leibr_priv><Einz>\n';
-        inner += wholeEuroTag(fm.R.privatAmount, r.jahresbetrag);
-        /* Same fix as gesetzlichStart above - year-only value converted
-           to a full date, since ELSTER requires TT.MM.JJJJ. */
-        if (r.rentenbeginn) {
-          const isYearOnly = /^\d{4}$/.test(String(r.rentenbeginn));
-          const startDate = isYearOnly ? `01.01.${r.rentenbeginn}` : formatDateDE(r.rentenbeginn);
-          if (startDate) inner += tag(fm.R.privatStart, startDate);
+      } else if (r.art === 'privat') {
+        if (N(r.jahresbetrag) > 0) {
+          hasContent = true;
+          inner += '<Leibr_priv><Einz>\n';
+          inner += wholeEuroTag(fm.R.privatAmount, r.jahresbetrag);
+          /* Same fix as gesetzlichStart above - year-only value converted
+             to a full date, since ELSTER requires TT.MM.JJJJ. */
+          if (r.rentenbeginn) {
+            const isYearOnly = /^\d{4}$/.test(String(r.rentenbeginn));
+            const startDate = isYearOnly ? `01.01.${r.rentenbeginn}` : formatDateDE(r.rentenbeginn);
+            if (startDate) inner += tag(fm.R.privatStart, startDate);
+          }
+          inner += '</Einz></Leibr_priv>\n';
         }
-        inner += '</Einz></Leibr_priv>\n';
       }
     }
     /* CORRECTED: real bug found via the multi-year regression test -
@@ -839,7 +912,7 @@ function buildR(data) {
        the Person tag alone doesn't defeat the empty-wrapper protection
        (a real regression this same fix could have silently reintroduced
        if not checked carefully). */
-    if (hasContent) xml += `<R>\n<Person>Person${r.person === 'B' ? 'B' : 'A'}</Person>\n${inner}</R>\n`;
+    if (hasContent) xml += `<R>\n<Person>Person${p}</Person>\n${inner}</R>\n`;
   }
   return xml;
 }
@@ -1161,7 +1234,16 @@ function buildAUS(data) {
     inner += '</Einz>\n';
   });
   if (!inner) return '';
-  return `<AUS>\n<Stfr_Ek_ProgV><P32b><Mitt>\n${inner}</Mitt></P32b></Stfr_Ek_ProgV>\n</AUS>\n`;
+  /* CORRECTED: real, separate bug found while checking this area for
+     the same uniqueIndex issue confirmed elsewhere - Person is
+     genuinely required here too (minOccurs=1, confirmed directly), but
+     was never written at all. Property entries in this app's data
+     model don't currently track per-person ownership, so PersonA is
+     used as the honest, established default already used elsewhere in
+     this app whenever ownership isn't separately tracked - worth
+     revisiting if joint or spouse-owned foreign property support is
+     ever added. */
+  return `<AUS><Person>PersonA</Person>\n<Stfr_Ek_ProgV><P32b><Mitt>\n${inner}</Mitt></P32b></Stfr_Ek_ProgV>\n</AUS>\n`;
 }
 
 /* =============================================================================
@@ -1798,7 +1880,16 @@ function buildSO(data) {
   const so = (data.weitereAngaben && data.weitereAngaben.anlageSO) || null;
   if (!so || !(N(so.privateVeraeusserungsgeschaefte) > 0)) return '';
   const amt = Math.round(N(so.privateVeraeusserungsgeschaefte));
-  return `<SO><Priv_VA_G><And_WG><Person>PersonA</Person>\n<Einz>\n${wholeEuroTag(fm.SO.soSalePrice.kennzahlen[0], amt)}${wholeEuroTag(fm.SO.soAcquisitionCost.kennzahlen[0], 0)}</Einz>\n</And_WG></Priv_VA_G></SO>\n`;
+  /* CORRECTED: real ERiC rejection (Regel 130829, 101300034) confirmed
+     both the description and the explicit Gewinn/Verlust figure are
+     genuinely required once an entry exists, despite both being
+     schema-optional - added both rather than resend the same
+     incomplete entry. */
+  let einz = tag(fm.SO.soDescription.kennzahlen[0], 'Private Veräußerungsgeschäfte');
+  einz += wholeEuroTag(fm.SO.soSalePrice.kennzahlen[0], amt);
+  einz += wholeEuroTag(fm.SO.soAcquisitionCost.kennzahlen[0], 0);
+  einz += wholeEuroTag(fm.SO.soGewinnVerlust.kennzahlen[0], amt);
+  return `<SO><Priv_VA_G><And_WG><Person>PersonA</Person>\n<Einz>\n${einz}</Einz>\n</And_WG></Priv_VA_G></SO>\n`;
 }
 
 /* ---------- date format: interchange uses ISO (YYYY-MM-DD), ERiC example uses DD.MM.YYYY ---------- */

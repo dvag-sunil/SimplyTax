@@ -1346,15 +1346,16 @@ check('Real bug found via an actual ERiC rejection: Ziel des Weges (E0203003) ge
   return !x2022.includes('E0203003') && x2022.includes('E0203501') && x2022.includes('E0203504')
     && x2025.includes('<E0203003>1</E0203003>');
 })());
-check('Itemized Werbungskosten entries are summed and transmitted as a single verified total (E0204803), inside the real Wk/Weitere_Wk/Sum structure - not flat under ArbL', (() => {
+check('Real ERiC rejection fixed (Regel 100200112): itemized Werbungskosten entries are now sent as individual Sonst entries alongside the Sum total, not the Sum alone - a sum without the underlying amounts is genuinely invalid', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.werbungskosten = { personA: {}, einzelposten: [
-    { person: 'A', kategorie: 'bewerbung', betrag: 45 },
-    { person: 'A', kategorie: 'kommunikation', betrag: 180 },
+    { person: 'A', kategorie: 'bewerbung', bezeichnung: 'Bewerbungskosten', betrag: 45 },
+    { person: 'A', kategorie: 'kommunikation', bezeichnung: 'Kommunikationskosten', betrag: 180 },
   ] };
   const x = buildEStXML(d).xml;
   const wkMatch = x.match(/<Wk>[\s\S]*?<\/Wk>/)?.[0] || '';
-  return wkMatch.includes('<Weitere_Wk><Sum>') && wkMatch.includes('<E0204803>225</E0204803>');
+  const sonstCount = (wkMatch.match(/<Sonst>/g) || []).length;
+  return sonstCount === 2 && wkMatch.includes('<E0205406>45</E0205406>') && wkMatch.includes('<E0205406>180</E0205406>') && wkMatch.includes('<E0204803>225</E0204803>');
 })());
 check('Itemized Werbungskosten total is genuinely per-person, not pooled across both spouses', (() => {
   const married = JSON.parse(JSON.stringify(sample));
@@ -1377,11 +1378,12 @@ check('No commute or Werbungskosten data present: none of the new fields appear 
 })());
 
 /* --- Anlage SO (private sales gains) - newly wired via SO/Priv_VA_G/And_WG, confirmed identical across all five years 2021-2025 --- */
-check('Real private-sales gain produces the correct SO/Priv_VA_G/And_WG structure with the sale-price field set to the known gain', (() => {
+check('Real private-sales gain produces the correct SO/Priv_VA_G/And_WG structure with the sale-price field set to the known gain, AND includes the description and explicit Gewinn/Verlust fields genuinely required by real ERiC business rules (Regel 130829, 101300034) - confirmed via an actual rejection, not just the schema', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.weitereAngaben = { anlageSO: { privateVeraeusserungsgeschaefte: 2500, erhaltenerUnterhalt: 0 } };
   const x = buildEStXML(d).xml;
-  return x.includes('<SO><Priv_VA_G><And_WG><Person>PersonA</Person>') && x.includes('<E0307401>2500</E0307401>');
+  return x.includes('<SO><Priv_VA_G><And_WG><Person>PersonA</Person>') && x.includes('<E0307401>2500</E0307401>')
+    && x.includes('<E0307101>') && x.includes('<E0307701>2500</E0307701>');
 })());
 check('Zero acquisition cost is correctly omitted rather than sent as an explicit 0, matching this codebase\'s established zero-value convention', (() => {
   const d = JSON.parse(JSON.stringify(sample));
@@ -1496,6 +1498,53 @@ check('Supplementary health and care insurance (kvzusatz, pflegezusatz) combine 
   const x = buildEStXML(d).xml;
   const wrapCount = (x.match(/<Beitr_p_KV_PV_Inl>/g) || []).length;
   return wrapCount === 1 && x.includes('<E2003104>3400</E2003104>') && x.includes('<E2003502>800</E2003502>');
+})());
+
+check('Real ERiC rejection fixed (uniqueIndex on /KAP/Person): multiple capital income entries for the same person (e.g. two banks) now combine into exactly one KAP block with correctly summed totals, not two separate blocks sharing the same Person value', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageKAP = [
+    { person: 'A', zeile7_kapitalertraege: 1000, zeile16_sparerPauschbetragGenutzt: 500 },
+    { person: 'A', zeile7_kapitalertraege: 2000, zeile16_sparerPauschbetragGenutzt: 300 },
+  ];
+  const x = buildEStXML(d).xml;
+  const kapCount = (x.match(/<KAP>/g) || []).length;
+  return kapCount === 1 && x.includes('<E1900701>3000</E1900701>') && x.includes('<E1901401>800</E1901401>');
+})());
+
+check('Same real bug class as KAP, found via systematic audit: multiple pension sources (statutory plus private) for the same person now combine into exactly one R block, not two sharing the same Person value', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageR = [
+    { person: 'A', art: 'gesetzlich', jahresbetrag: 8000, rentenbeginn: '2020' },
+    { person: 'A', art: 'privat', jahresbetrag: 2000, rentenbeginn: '2021' },
+  ];
+  const x = buildEStXML(d).xml;
+  const rCount = (x.match(/<R>/g) || []).length;
+  return rCount === 1 && x.includes('<E1800301>8000</E1800301>') && x.includes('<E1801601>2000</E1801601>');
+})());
+check('Same real bug class as KAP, found via systematic audit: foreign employment in more than one country for the same person now combines into exactly one N_AUS block with a separate Staat entry per country, not two N_AUS blocks sharing the same Person value', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [
+    { person: 'A', land: 'USA', legalBasis: 'dba', gesamtlohn: 30000 },
+    { person: 'A', land: 'Frankreich', legalBasis: 'dba', gesamtlohn: 15000 },
+  ];
+  const x = buildEStXML(d).xml;
+  const nAusCount = (x.match(/<N_AUS>/g) || []).length;
+  const outerStaatCount = (x.match(/<Staat>\n<Staat>/g) || []).length;
+  return nAusCount === 1 && outerStaatCount === 2 && x.includes('<Staat><E2600401>USA</E2600401>\n</Staat>') && x.includes('<Staat><E2600401>Frankreich</E2600401>\n</Staat>');
+})());
+
+check('Real, separate bug found while checking for the uniqueIndex issue: AUS now correctly includes the genuinely required Person tag, which was never written at all before this fix', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ street: 'Rue Test', plz: '75001', ort: 'Paris', land: 'Frankreich', mieteinnahmen: 12000, nebenkosten: 0, werbungskosten: 2000 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<AUS><Person>PersonA</Person>');
+})());
+
+check('Real ERiC rejection fixed (feldUnbekannt on E2600401): the country field is now correctly wrapped in its own inner Staat sub-element, a genuine, separate mistake from the earlier duplicate-wrapper bug - the field was placed one level too shallow', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageNAUS = [{ person: 'A', land: 'USA', legalBasis: 'dba', gesamtlohn: 30000 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<Staat>\n<Staat><E2600401>USA</E2600401>');
 })());
 
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);

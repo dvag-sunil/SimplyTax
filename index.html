@@ -297,7 +297,7 @@ function showAusCalc(empId){
  slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal" style="max-width:560px">
  <h2>🌍 ${t('aus_calc_title')}</h2>
  <p style="color:var(--ink-soft);font-size:13.5px;margin:6px 0 16px">${t('aus_calc_sub')}</p>
- <div class="field"><label>${t('aus_country')} *</label><select id="aus-country">${NAUS_COUNTRIES.map(x=>`<option ${a.country===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
+ <div class="field${reqCls(a.country)}"><label>${t('aus_country')} *</label><select id="aus-country">${NAUS_COUNTRIES.map(x=>`<option ${a.country===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
  <div class="field"><label>${t('aus_legalbasis')} *</label><select id="aus-legalbasis">
  <option value="dba" ${a.legalBasis!=='ate'&&a.legalBasis!=='zu'?'selected':''}>${t('aus_basis_dba')}</option>
  <option value="ate" ${a.legalBasis==='ate'?'selected':''}>${t('aus_basis_ate')}</option>
@@ -306,7 +306,7 @@ function showAusCalc(empId){
  <div class="hint">${t('aus_legalbasis_hint')}</div></div>
  <div style="margin:10px 0 6px;font-size:13px;font-weight:600">${t('aus_employer_label')}</div>
  <div class="grid2">
- <div class="field"><label>${t('aus_employer_name')} *</label><input id="aus-emp-name" value="${esc(a.employerName)}"></div>
+ <div class="field${reqCls(a.employerName)}"><label>${t('aus_employer_name')} *</label><input id="aus-emp-name" value="${esc(a.employerName)}"></div>
  <div class="field"><label>${t('aus_employer_street')}</label><input id="aus-emp-street" value="${esc(a.employerStreet)}"></div>
  </div>
  <div class="grid3">
@@ -315,16 +315,16 @@ function showAusCalc(empId){
  <div class="field"><label>${t('aus_employer_country')}</label><select id="aus-emp-country"><option value="">-</option>${NAUS_COUNTRIES.map(x=>`<option ${a.employerCountry===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
  </div>
  <div style="margin:10px 0 6px;font-size:13px;font-weight:600">${t('aus_activity_label')}</div>
- <div class="field"><label>${t('aus_activity_desc')} *</label><input id="aus-activity-desc" value="${esc(a.activityDesc)}" placeholder="${t('aus_activity_desc_ph')}"></div>
+ <div class="field${reqCls(a.activityDesc)}"><label>${t('aus_activity_desc')} *</label><input id="aus-activity-desc" value="${esc(a.activityDesc)}" placeholder="${t('aus_activity_desc_ph')}"></div>
  <div class="grid2">
- <div class="field"><label>${t('aus_activity_from')} *</label><input id="aus-activity-from" type="date" value="${esc(a.activityFrom)}"></div>
- <div class="field"><label>${t('aus_activity_to')} *</label><input id="aus-activity-to" type="date" value="${esc(a.activityTo)}"></div>
+ <div class="field${reqCls(a.activityFrom)}"><label>${t('aus_activity_from')} *</label><input id="aus-activity-from" type="date" value="${esc(a.activityFrom)}"></div>
+ <div class="field${reqCls(a.activityTo)}"><label>${t('aus_activity_to')} *</label><input id="aus-activity-to" type="date" value="${esc(a.activityTo)}"></div>
  </div>
  <div class="grid2">
- <div class="field"><label>${t('aus_total_wage')} *</label><input id="aus-wage" value="${esc(a.totalWage)}" placeholder="0,00 €" onblur="this.value=formatDE(N(this.value))"></div>
- <div class="field"><label>${t('aus_days_total')} *</label><input id="aus-days-total" type="number" value="${esc(a.workDaysTotal)}" placeholder="220"></div>
+ <div class="field${reqCls(a.totalWage)}"><label>${t('aus_total_wage')} *</label><input id="aus-wage" value="${esc(a.totalWage)}" placeholder="0,00 €" onblur="this.value=formatDE(N(this.value))"></div>
+ <div class="field${reqCls(a.workDaysTotal)}"><label>${t('aus_days_total')} *</label><input id="aus-days-total" type="number" value="${esc(a.workDaysTotal)}" placeholder="220"></div>
  </div>
- <div class="field"><label>${t('aus_days_foreign')} *</label><input id="aus-days-foreign" type="number" value="${esc(a.workDaysForeign)}" placeholder="0"></div>
+ <div class="field${reqCls(a.workDaysForeign)}"><label>${t('aus_days_foreign')} *</label><input id="aus-days-foreign" type="number" value="${esc(a.workDaysForeign)}" placeholder="0"></div>
  <div id="aus-shortstay-fields"></div>
  <div class="hint" style="margin:10px 0">${t('aus_formula_hint')}</div>
  <div id="aus-result" class="infobox" style="background:var(--teal-soft);border-color:var(--teal);text-align:center;font-size:15px;font-weight:700"></div>
@@ -359,7 +359,7 @@ function renderAusShortStayFields(empId){
     this above that threshold. A genuine legal distinction the user
     must actually know, not something the app can safely guess. */
  if(!(foreign>0) || foreign>=184){ slot.innerHTML=''; return; }
- slot.innerHTML=`<div class="field" style="margin-top:8px">
+ slot.innerHTML=`<div class="field${reqCls(a.shortStayBasis)}" style="margin-top:8px">
  <label>${t('aus_shortstay_label')} *</label>
  <div class="hint" style="margin-bottom:6px">${t('aus_shortstay_hint')}</div>
  <select id="aus-shortstay-basis">
@@ -378,12 +378,12 @@ function renderAusDualFields(empId){
  const c=cur(); const a=c.aus[empId]; const slot=document.getElementById('aus-dual-fields'); if(!slot) return;
  const checked = document.getElementById('aus-dual')?.checked;
  slot.innerHTML = checked ? `<div class="grid2" style="margin-top:8px">
- <div class="field"><label>${t('aus_foreignres_street')} *</label><input id="aus-fr-street" value="${esc(a.foreignResStreet)}"></div>
- <div class="field"><label>${t('aus_foreignres_plz')} *</label><input id="aus-fr-plz" value="${esc(a.foreignResPlz)}"></div>
+ <div class="field${reqCls(a.foreignResStreet)}"><label>${t('aus_foreignres_street')} *</label><input id="aus-fr-street" value="${esc(a.foreignResStreet)}"></div>
+ <div class="field${reqCls(a.foreignResPlz)}"><label>${t('aus_foreignres_plz')} *</label><input id="aus-fr-plz" value="${esc(a.foreignResPlz)}"></div>
  </div>
  <div class="grid2">
- <div class="field"><label>${t('aus_foreignres_city')} *</label><input id="aus-fr-city" value="${esc(a.foreignResCity)}"></div>
- <div class="field"><label>${t('aus_foreignres_country')} *</label><select id="aus-fr-country"><option value="">-</option>${NAUS_COUNTRIES.map(x=>`<option ${a.foreignResCountry===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
+ <div class="field${reqCls(a.foreignResCity)}"><label>${t('aus_foreignres_city')} *</label><input id="aus-fr-city" value="${esc(a.foreignResCity)}"></div>
+ <div class="field${reqCls(a.foreignResCountry)}"><label>${t('aus_foreignres_country')} *</label><select id="aus-fr-country"><option value="">-</option>${NAUS_COUNTRIES.map(x=>`<option ${a.foreignResCountry===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
  </div>
  <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
  <input type="checkbox" id="aus-center" ${a.centerOfInterests?'checked':''}>
@@ -2993,7 +2993,7 @@ function finanzamtField(c){
  const hasDirectory = !!_faDirectory;
  const land = c.p.bundesland;
  const currentLabel = c.p.finanzamt ? `${esc(c.p.finanzamt)}${c.p.faNumber?' · '+esc(c.p.faNumber):''}` : '';
- return `<div class="field" style="position:relative">
+ return `<div class="field${reqCls(c.p.finanzamt)}" style="position:relative">
  <label>${t('fa_name')} *</label>
  ${!hasDirectory ? `
  <input value="${esc(c.p.finanzamt)}" placeholder="z. B. Finanzamt Offenbach am Main" onchange="upd('p','finanzamt',this.value)">
@@ -3096,6 +3096,16 @@ function isReqEmpty(label, v){
  if(!label || !label.trim().endsWith('*')) return false;
  return v==null || String(v).trim()==='';
 }
+/* CORRECTED: real, confirmed bug found via direct feedback - several
+ sections (N-AUS foreign employment, and similar) are built with raw,
+ custom HTML templates rather than the shared F()/CF()/LF() field
+ functions, so they never got the amber required-field background at
+ all, despite every one of them showing a hardcoded asterisk in the
+ label - the visual marker existed with no actual logic behind it.
+ This is the same real highlighting check as isReqEmpty, just usable
+ directly inside a raw template string rather than through the shared
+ field-rendering functions. */
+function reqCls(v){ return (v==null || String(v).trim()==='') ? ' req-empty' : ''; }
 function upd(group,key,val,fmt){
  val = validDate(val); val = validAmount(val, fmt);
  const c=cur();
@@ -4199,7 +4209,7 @@ async function submitElsterReal(c){
    the right *section*, which is the honestly achievable version of
    "land where the error is." */
 const ANLAGE_TO_STEP = {
- 'ESt1A': 0, 'Vorsatz': 0, 'N': 1, 'N_AUS': 1, 'N_DHH': 1, 'KAP': 2,
+ 'ESt1A': 0, 'Vorsatz': 0, 'N': 1, 'N_AUS': 1, 'N_DHH': 3, 'KAP': 2,
  'Kind': 4, 'ESt1A_U': 5, 'SA': 6, 'Sonst': 6, 'VOR': 7, 'R': 7,
  'AgB': 9, 'EM_35c': 9, 'V': 8, 'AUS': 8,
 };
@@ -4533,8 +4543,20 @@ function parseFehlerRegelpruefung(resultXml){
  let stepIndex = null, ausEntryIndex = null;
  if(fieldNode){
  const path = fieldNode.textContent;
+ /* CORRECTED: real bug found via direct feedback - fields nested
+ under N/Wk (commute, home office, double-household costs, the
+ itemized Werbungskosten total) share the same top-level "N"
+ path segment as genuine Employment income fields, but actually
+ belong to the Werbungskosten step, not Employment income.
+ Checked specifically before falling back to the naive
+ first-segment lookup below, which can't make this distinction
+ on its own. */
+ if(/^\/N\[\d+\]\/Wk\b/.test(path)){
+ stepIndex = 3;
+ } else {
  const m = path.match(/^\/([A-Za-z0-9_]+)/);
  if(m && ANLAGE_TO_STEP[m[1]] != null) stepIndex = ANLAGE_TO_STEP[m[1]];
+ }
  /* N_AUS entries live inside a modal, not as visible page fields -
     "jumping to the field" here means opening the calculator for the
     right entry, not scrolling. The index in the path (N_AUS[0], [1]...)
