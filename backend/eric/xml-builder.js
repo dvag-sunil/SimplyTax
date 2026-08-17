@@ -503,7 +503,14 @@ function buildNDHH(data) {
          TODO: needs a dedicated verification pass (checking an
          official example XML, or a careful single-field VALIDATE-only
          test) before re-enabling this field. */
-      // if (dhh.bestehtBis) allgXml += tag(fm.N_DHH.dhhContinuousUntil, String(dhh.bestehtBis).trim());
+      /* RE-ENABLED for active format testing: the previous 'safe omit'
+         choice correctly avoided the blank-crash risk, but also meant
+         no value the user typed ever actually reached ERiC - every
+         test was silently testing the same 'omitted' behavior
+         regardless of what was entered in the UI. Sending the raw
+         value exactly as typed now, with zero transformation, so real
+         candidate formats can actually be tested and observed. */
+      if (dhh.bestehtBis) allgXml += tag(fm.N_DHH.dhhContinuousUntil, String(dhh.bestehtBis).trim());
       if (dhh.grund) allgXml += tag(fm.N_DHH.dhhReason, dhh.grund);
       if (dhh.beschaeftigungsort) allgXml += tag(fm.N_DHH.dhhWorkplace, dhh.beschaeftigungsort);
       if (dhh.eigenerHausstand) allgXml += tag(fm.N_DHH.dhhOwnHousehold, dhh.eigenerHausstand === 'yes' ? '1' : '2');
