@@ -160,6 +160,13 @@ const VOR = {
      so it's deliberately left unmapped rather than assumed identical. */
   pkv: 'E2003104',
   pkvPflege: 'E2003202',
+  /* Found by checking the COMPLETE Beitr_p_KV_PV_Inl structure through
+     to its actual last sibling this time, not stopping partway - the
+     same mistake already caught once with A_B_LP. WL_Zvers covers
+     supplementary health AND care insurance together in one real
+     field (kvzusatz, pflegezusatz), already net of reimbursement.
+     Confirmed identical across all five years 2021-2025. */
+  kvZusatz: 'E2003502',
   /* Found by actually opening A_B_LP - a sibling identified earlier but
      never drilled into. This is the real "sonstige Vorsorgeaufwendungen"
      category German tax law does provide for (accident, liability,

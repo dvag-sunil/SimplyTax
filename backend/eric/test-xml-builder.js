@@ -1486,6 +1486,18 @@ check('Real bug caught before shipping: when both unemployment insurance (av) an
   return wsvCount === 1 && x.includes('<E2004403>1200</E2004403>') && x.includes('<E2001502>800</E2001502>');
 })());
 
+check('Supplementary health and care insurance (kvzusatz, pflegezusatz) combine into the real WL_Zvers field, found by checking Beitr_p_KV_PV_Inl through to its actual last sibling this time - and correctly share one Beitr_p_KV_PV_Inl wrapper with pkv rather than a duplicate second one', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageVorsorgeaufwand = { ausLohnsteuerbescheinigungen: {}, privateVersicherungen: [
+    { person: 'A', typ: 'pkv', beitrag: 3600, erstattung: 200, netto: 3400 },
+    { person: 'A', typ: 'kvzusatz', beitrag: 500, erstattung: 0, netto: 500 },
+    { person: 'A', typ: 'pflegezusatz', beitrag: 300, erstattung: 0, netto: 300 },
+  ] };
+  const x = buildEStXML(d).xml;
+  const wrapCount = (x.match(/<Beitr_p_KV_PV_Inl>/g) || []).length;
+  return wrapCount === 1 && x.includes('<E2003104>3400</E2003104>') && x.includes('<E2003502>800</E2003502>');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);

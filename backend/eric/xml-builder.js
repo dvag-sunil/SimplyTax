@@ -644,7 +644,20 @@ function buildVOR(data) {
      'gkvfrei' - a different, not-yet-independently-confirmed context). */
   const privIns = v.privateVersicherungen || [];
   const pkvNetA = privIns.filter(x => x.typ === 'pkv' && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
-  if (pkvNetA > 0) inner += `<Beitr_p_KV_PV_Inl><Person>PersonA</Person>\n${wholeEuroTag(fm.VOR.pkv, Math.round(pkvNetA))}</Beitr_p_KV_PV_Inl>\n`;
+  /* kvzusatz and pflegezusatz share one real field (WL_Zvers/E2003502)
+     - found by checking Beitr_p_KV_PV_Inl's complete structure through
+     to its actual last sibling this time. Combined into the SAME
+     single Beitr_p_KV_PV_Inl wrapper as pkv above, rather than a
+     second separate instance for the same person - the same real
+     discipline that caught the Weit_Sons_VorAW duplicate-wrapper
+     issue earlier. */
+  const kvZusatzNetA = privIns.filter(x => (x.typ === 'kvzusatz' || x.typ === 'pflegezusatz') && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
+  if (pkvNetA > 0 || kvZusatzNetA > 0) {
+    let pkvXml = `<Person>PersonA</Person>\n`;
+    if (pkvNetA > 0) pkvXml += wholeEuroTag(fm.VOR.pkv, Math.round(pkvNetA));
+    if (kvZusatzNetA > 0) pkvXml += wholeEuroTag(fm.VOR.kvZusatz, Math.round(kvZusatzNetA));
+    inner += `<Beitr_p_KV_PV_Inl>${pkvXml}</Beitr_p_KV_PV_Inl>\n`;
+  }
   /* Real "sonstige Vorsorgeaufwendungen" category (A_B_LP), found by
      actually opening a sibling element that had been identified in an
      earlier pass but never checked - exactly the gap a direct
