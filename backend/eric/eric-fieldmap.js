@@ -366,6 +366,15 @@ const N_DHH = {
   dhhWorkplace: 'E0206404',   // Allg - Beschäftigungsort (free text: PLZ, Ort)
   dhhOwnHousehold: 'E0206504', // Allg - eigener Hausstand am Lebensmittelpunkt (Ja=1/Nein=2)
   dhhTravelMode: 'E0206805',  // Fahrtk - Firmenwagen/Sammelbeförderung (1=Ja insgesamt, 2=Nein, 3=Ja teilweise)
+  /* CORRECTED (second real rejection, Regel 100200038, 100200061) -
+     three more fields genuinely required: the continuous-existence
+     date must be paired with the established date, and the
+     own-household PLZ/Ort and since-date are required once "own
+     household: yes" is declared. Confirmed identical across all five
+     years 2021-2025. */
+  dhhContinuousUntil: 'E0206304', // Allg - "bis" date (DD.MM only, within the tax year)
+  dhhOwnPlz: 'E0206505',          // Allg - PLZ, Ort des eigenen Hausstandes
+  dhhOwnSince: 'E0206506',        // Allg - seit (full date)
   // relocation: no dedicated Kennzahl found in the real schema - folded
   // into the already-wired Weitere_Wk/Sum itemized total instead,
   // rather than left unsent or a nonexistent field invented.

@@ -482,9 +482,17 @@ function buildNDHH(data) {
     let allgXml = '';
     if (hasRent) {
       if (dhh.datum) allgXml += tag(fm.N_DHH.dhhDate, formatDateDE(dhh.datum));
+      if (dhh.bestehtBis) allgXml += tag(fm.N_DHH.dhhContinuousUntil, dhh.bestehtBis);
       if (dhh.grund) allgXml += tag(fm.N_DHH.dhhReason, dhh.grund);
       if (dhh.beschaeftigungsort) allgXml += tag(fm.N_DHH.dhhWorkplace, dhh.beschaeftigungsort);
       if (dhh.eigenerHausstand) allgXml += tag(fm.N_DHH.dhhOwnHousehold, dhh.eigenerHausstand === 'yes' ? '1' : '2');
+      /* CORRECTED (second real rejection, Regel 100200038) - once
+         "own household: yes" is declared, its PLZ/Ort and since-date
+         are genuinely required alongside it. */
+      if (dhh.eigenerHausstand === 'yes') {
+        if (dhh.eigenerHausstandOrt) allgXml += tag(fm.N_DHH.dhhOwnPlz, dhh.eigenerHausstandOrt);
+        if (dhh.eigenerHausstandSeit) allgXml += tag(fm.N_DHH.dhhOwnSince, formatDateDE(dhh.eigenerHausstandSeit));
+      }
     }
     let dhhfXml = allgXml ? `<Allg>${allgXml}</Allg>` : '';
     if (hasTrips) {
@@ -493,7 +501,16 @@ function buildNDHH(data) {
         const travelCode = dhh.reiseart === 'yes' ? '1' : dhh.reiseart === 'partial' ? '3' : '2';
         fahrtkXml += tag(fm.N_DHH.dhhTravelMode, travelCode);
       }
-      fahrtkXml += `<Woech_Heimf>${wholeEuroTag(fm.N_DHH.dhhKm, Math.round(N(dhh.entfernungKm)))}${wholeEuroTag(fm.N_DHH.dhhTrips.kennzahlen[0], Math.round(N(dhh.familienheimfahrten)))}</Woech_Heimf>`;
+      /* CORRECTED (second real rejection, Regel 100200053) - when the
+         trips were entirely by company car or free employer group
+         transport (reiseart=yes), ELSTER correctly rejects any
+         accompanying cost claim at all - the two are a genuine
+         contradiction, not two independent facts. The amount fields
+         are now suppressed in that specific case, sending only the
+         declaration itself. */
+      if (dhh.reiseart !== 'yes') {
+        fahrtkXml += `<Woech_Heimf>${wholeEuroTag(fm.N_DHH.dhhKm, Math.round(N(dhh.entfernungKm)))}${wholeEuroTag(fm.N_DHH.dhhTrips.kennzahlen[0], Math.round(N(dhh.familienheimfahrten)))}</Woech_Heimf>`;
+      }
       dhhfXml += `<Fahrtk>${fahrtkXml}</Fahrtk>`;
     }
     if (hasRent) dhhfXml += `<Unterkunft>${wholeEuroTag(fm.N_DHH.dhhRent, Math.round(dhhRentTotal))}</Unterkunft>`;

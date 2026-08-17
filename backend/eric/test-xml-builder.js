@@ -1580,6 +1580,27 @@ check('Real ERiC rejection fixed (Regel 100200032, 100200041): the five fields g
     && ndhh.includes('<E0206805>2</E0206805>');
 })());
 
+check('Real ERiC rejection fixed (Regel 100200038, 100200061): the continuous-until date and own-household PLZ/Ort/since fields are now present when required', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.werbungskosten = { personA: { doppelteHaushaltsfuehrung: {
+    monatsmiete: 800, monate: 6, familienheimfahrten: 12, entfernungKm: 300,
+    grund: 'Neue Arbeitsstelle', datum: '2025-03-01', bestehtBis: '31.12', beschaeftigungsort: '60329 Frankfurt am Main',
+    eigenerHausstand: 'yes', eigenerHausstandOrt: '12345 Musterstadt', eigenerHausstandSeit: '2015-01-01', reiseart: 'no',
+  } }, einzelposten: [] };
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0206304>31.12</E0206304>') && x.includes('<E0206505>12345 Musterstadt</E0206505>') && x.includes('<E0206506>01.01.2015</E0206506>');
+})());
+check('Real ERiC rejection fixed (Regel 100200053): when travel was entirely by company car, no travel cost amounts are sent alongside that declaration - a genuine contradiction ELSTER correctly rejects, not two independent facts', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.werbungskosten = { personA: { doppelteHaushaltsfuehrung: {
+    monatsmiete: 800, monate: 6, familienheimfahrten: 12, entfernungKm: 300,
+    grund: 'x', datum: '2025-03-01', bestehtBis: '31.12', beschaeftigungsort: 'x',
+    eigenerHausstand: 'no', reiseart: 'yes',
+  } }, einzelposten: [] };
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0206805>1</E0206805>') && !x.includes('Woech_Heimf');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);
