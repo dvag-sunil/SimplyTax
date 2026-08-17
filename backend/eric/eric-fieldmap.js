@@ -160,6 +160,21 @@ const VOR = {
      so it's deliberately left unmapped rather than assumed identical. */
   pkv: 'E2003104',
   pkvPflege: 'E2003202',
+  /* Found by actually opening A_B_LP - a sibling identified earlier but
+     never drilled into. This is the real "sonstige Vorsorgeaufwendungen"
+     category German tax law does provide for (accident, liability,
+     term-life, disability, and endowment life insurance), confirmed
+     identical across all five years 2021-2025. Maps directly onto
+     several of this app's own "vorsorge"-tagged insurance types. */
+  uHpRis: 'E2001802',        // U_HP_Ris_Vers/Einz - unfall, haftpflicht, kfzhaft, tierhaft, risikoleben
+  uHpRisArt: 'E2001801',
+  uHpRisSum: 'E2001803',
+  erwUBu: 'E2001502',        // ErwU_BU_Vers/Einz - bu (occupational disability)
+  erwUBuArt: 'E2001501',
+  erwUBuSum: 'E2001503',
+  rvMitWrKapLv: 'E2001902',  // RV_m_WR_KapLV/Einz - kapitalleben (endowment life, pre-2005)
+  rvMitWrKapLvArt: 'E2001901',
+  rvMitWrKapLvSum: 'E2001903',
 };
 
 /* ---------- 4. Sonderausgaben - donations (SA context) ---------- */

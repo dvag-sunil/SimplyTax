@@ -1446,7 +1446,7 @@ check('Unemployment insurance contributions (av) are now transmitted through the
   const d = JSON.parse(JSON.stringify(sample));
   d.anlageVorsorgeaufwand = { ausLohnsteuerbescheinigungen: { rv: 5000, gkv: 4000, pv: 800, av: 1200 } };
   const x = buildEStXML(d).xml;
-  return x.includes('<Weit_Sons_VorAW><Pers><Person>PersonA</Person>') && x.includes('<E2004403>1200</E2004403>');
+  return x.includes('<Weit_Sons_VorAW>') && x.includes('<Pers><Person>PersonA</Person>') && x.includes('<E2004403>1200</E2004403>');
 })());
 
 check('Private health/care insurance (pkv type specifically) is transmitted net of reimbursement, while other, not-yet-confirmed insurance types are correctly excluded rather than bundled in incorrectly', (() => {
@@ -1457,6 +1457,33 @@ check('Private health/care insurance (pkv type specifically) is transmitted net 
   ] };
   const x = buildEStXML(d).xml;
   return x.includes('<Beitr_p_KV_PV_Inl><Person>PersonA</Person>') && x.includes('<E2003104>3400</E2003104>') && !x.includes('3500');
+})());
+
+check('Accident/liability/term-life insurance types are combined into the real U_HP_Ris_Vers structure, found by actually opening a sibling element identified earlier but never checked', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageVorsorgeaufwand = { ausLohnsteuerbescheinigungen: {}, privateVersicherungen: [
+    { person: 'A', typ: 'haftpflicht', beitrag: 100, erstattung: 0, netto: 100 },
+    { person: 'A', typ: 'unfall', beitrag: 150, erstattung: 0, netto: 150 },
+  ] };
+  const x = buildEStXML(d).xml;
+  return x.includes('<U_HP_Ris_Vers><Einz>') && x.includes('<E2001802>250</E2001802>') && x.includes('<E2001803>250</E2001803>');
+})());
+check('Occupational disability insurance (bu) is transmitted through the real ErwU_BU_Vers structure', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageVorsorgeaufwand = { ausLohnsteuerbescheinigungen: {}, privateVersicherungen: [
+    { person: 'A', typ: 'bu', beitrag: 800, erstattung: 0, netto: 800 },
+  ] };
+  const x = buildEStXML(d).xml;
+  return x.includes('<ErwU_BU_Vers><Einz>') && x.includes('<E2001502>800</E2001502>');
+})());
+check('Real bug caught before shipping: when both unemployment insurance (av) and one of the new insurance categories are present together, they combine into exactly one Weit_Sons_VorAW wrapper, not two illegal separate ones (schema confirmed maxOccurs=1 for Weit_Sons_VorAW itself, the exact same class of bug already caught once with Pflege_PB)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageVorsorgeaufwand = { ausLohnsteuerbescheinigungen: { av: 1200 }, privateVersicherungen: [
+    { person: 'A', typ: 'bu', beitrag: 800, erstattung: 0, netto: 800 },
+  ] };
+  const x = buildEStXML(d).xml;
+  const wsvCount = (x.match(/<Weit_Sons_VorAW>/g) || []).length;
+  return wsvCount === 1 && x.includes('<E2004403>1200</E2004403>') && x.includes('<E2001502>800</E2001502>');
 })());
 
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);

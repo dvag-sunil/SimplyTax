@@ -627,7 +627,15 @@ function buildVOR(data) {
      uncategorized "other insurance" amount likely isn't a real,
      transmittable Vorsorgeaufwand category at all, not a gap in this
      app's research. */
-  if (N(l.av) > 0) inner += `<Weit_Sons_VorAW><Pers><Person>PersonA</Person>\n${wholeEuroTag(fm.VOR.av, l.av)}</Pers></Weit_Sons_VorAW>\n`;
+  /* CORRECTED: Weit_Sons_VorAW itself can only appear once (maxOccurs=1) -
+     confirmed directly against the schema before shipping this, the
+     exact same class of bug already caught once with Pflege_PB above.
+     Both the av (Pers) content and the A_B_LP insurance content below
+     are collected separately and combined into one shared wrapper at
+     the end, rather than each emitting its own separate
+     Weit_Sons_VorAW block. */
+  let wsvXml = '';
+  if (N(l.av) > 0) wsvXml += `<Pers><Person>PersonA</Person>\n${wholeEuroTag(fm.VOR.av, l.av)}</Pers>\n`;
   /* Private health/care base insurance ('pkv' specifically) - real gap
      found via the systematic audit, now wired through the confirmed
      Beitr_p_KV_PV_Inl structure. Summed from the app's own itemized
@@ -637,6 +645,40 @@ function buildVOR(data) {
   const privIns = v.privateVersicherungen || [];
   const pkvNetA = privIns.filter(x => x.typ === 'pkv' && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
   if (pkvNetA > 0) inner += `<Beitr_p_KV_PV_Inl><Person>PersonA</Person>\n${wholeEuroTag(fm.VOR.pkv, Math.round(pkvNetA))}</Beitr_p_KV_PV_Inl>\n`;
+  /* Real "sonstige Vorsorgeaufwendungen" category (A_B_LP), found by
+     actually opening a sibling element that had been identified in an
+     earlier pass but never checked - exactly the gap a direct
+     challenge to look harder led to. Real path confirmed:
+     VOR/Weit_Sons_VorAW/A_B_LP/[category]/Einz+Sum. Each category maps
+     onto a specific real German tax law provision, matching this
+     app's own insurance-type categorization directly:
+       U_HP_Ris_Vers - accident, liability, term-life (unfall, haftpflicht, kfzhaft, tierhaft, risikoleben)
+       ErwU_BU_Vers  - occupational disability (bu)
+       RV_m_WR_KapLV - endowment life, pre-2005 (kapitalleben)
+     Confirmed identical across all five years 2021-2025. A generic
+     description default is used for the required "Bezeichnung" field
+     (safe to default, matching the same pattern already used for
+     Handwerkerleistungen above - a purely descriptive label, not a
+     fact-based declaration). */
+  const uHpRisTypes = ['unfall', 'haftpflicht', 'kfzhaft', 'tierhaft', 'risikoleben'];
+  const uHpRisNetA = privIns.filter(x => uHpRisTypes.includes(x.typ) && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
+  const buNetA = privIns.filter(x => x.typ === 'bu' && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
+  const kapLvNetA = privIns.filter(x => x.typ === 'kapitalleben' && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
+  let ablpXml = '';
+  if (uHpRisNetA > 0) {
+    const amt = Math.round(uHpRisNetA);
+    ablpXml += `<U_HP_Ris_Vers><Einz>\n${tag(fm.VOR.uHpRisArt, 'Unfall-/Haftpflicht-/Risikolebensversicherung')}${wholeEuroTag(fm.VOR.uHpRis, amt)}</Einz><Sum>\n${wholeEuroTag(fm.VOR.uHpRisSum, amt)}</Sum></U_HP_Ris_Vers>\n`;
+  }
+  if (buNetA > 0) {
+    const amt = Math.round(buNetA);
+    ablpXml += `<ErwU_BU_Vers><Einz>\n${tag(fm.VOR.erwUBuArt, 'Berufsunfähigkeitsversicherung')}${wholeEuroTag(fm.VOR.erwUBu, amt)}</Einz><Sum>\n${wholeEuroTag(fm.VOR.erwUBuSum, amt)}</Sum></ErwU_BU_Vers>\n`;
+  }
+  if (kapLvNetA > 0) {
+    const amt = Math.round(kapLvNetA);
+    ablpXml += `<RV_m_WR_KapLV><Einz>\n${tag(fm.VOR.rvMitWrKapLvArt, 'Kapitallebensversicherung')}${wholeEuroTag(fm.VOR.rvMitWrKapLv, amt)}</Einz><Sum>\n${wholeEuroTag(fm.VOR.rvMitWrKapLvSum, amt)}</Sum></RV_m_WR_KapLV>\n`;
+  }
+  if (ablpXml) wsvXml += `<A_B_LP>\n${ablpXml}</A_B_LP>\n`;
+  if (wsvXml) inner += `<Weit_Sons_VorAW>\n${wsvXml}</Weit_Sons_VorAW>\n`;
   /* NOTE: v.privateVersicherungen (Haftpflicht etc.) are collected by the
      app but not yet mapped to a VOR Kennzahl - most private insurance
      types outside statutory RV/KV/PV are either non-deductible or belong
