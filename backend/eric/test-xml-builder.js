@@ -1396,6 +1396,69 @@ check('No private-sales gain entered: no SO block at all, nothing sent', (() => 
   return !x.includes('<SO>');
 })());
 
+/* --- Home office, DHH, and spouse disability fields - real gaps found and fixed via the systematic backend-wiring audit --- */
+check('Home office days are correctly wrapped in Homeoffice, not sent bare under Wk (a real bug caught and fixed before shipping)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.werbungskosten = { personA: { homeofficeTage: 60 }, einzelposten: [] };
+  const x = buildEStXML(d).xml;
+  return x.includes('<Homeoffice><E0204507>60</E0204507>') || x.includes('<Homeoffice>\n<E0204507>60</E0204507>');
+})());
+check('DHH accommodation cost and home-trip distance/count are transmitted, using the already-correct client-side monthly cap', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.werbungskosten = { personA: { doppelteHaushaltsfuehrung: { monatsmiete: 800, monate: 6, familienheimfahrten: 12, entfernungKm: 300 } }, einzelposten: [] };
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0207611>4800</E0207611>') && x.includes('<E0207116>300</E0207116>') && x.includes('<E0207117>12</E0207117>');
+})());
+check('Relocation costs are folded honestly into the itemized Werbungskosten total rather than left unsent', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.werbungskosten = { personA: { umzugskosten: 500 }, einzelposten: [] };
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0204803>500</E0204803>');
+})());
+check('Spouse disability grade (gdbB) is transmitted using the same real Kennzahl as PersonA, correctly wrapped with Person=PersonB', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'zusammenveranlagung';
+  d.hauptvordruck.personB = { idnr: '11122233344', name: 'Test', vorname: 'B', geburtsdatum: '1986-01-01', religion: '--' };
+  d.weitereAngaben = { behinderung: { gdbA: '50', gdbB: '30' } };
+  const x = buildEStXML(d).xml;
+  return x.includes('<Beh><Person>PersonA</Person><Ausw_Rentb_Besch><E0109708>50</E0109708>')
+    && x.includes('<Beh><Person>PersonB</Person><Ausw_Rentb_Besch><E0109708>30</E0109708>');
+})());
+check('Real bug caught before shipping: both spouses\' care-level entries combine into a single Pflege_PB wrapper with two Einz children, not two illegal separate Pflege_PB elements (schema confirmed maxOccurs=1 for Pflege_PB itself)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.weitereAngaben = { behinderung: { pflegeA: 600, pflegeB: 1100 } };
+  const x = buildEStXML(d).xml;
+  const pflegeBlocks = (x.match(/<Pflege_PB>/g) || []).length;
+  const einzCount = (x.match(/<Einz><Ang_pflegebeduerft_Pers>/g) || []).length;
+  return pflegeBlocks === 1 && einzCount === 2 && x.includes('<E0161606>2</E0161606>') && x.includes('<E0161606>3</E0161606>');
+})());
+
+check('Household services (Hhn_BV_DL) are now correctly wired as a genuine sibling to Handwerkerleistungen under St_Erm, using its own real Kennzahlen rather than incorrectly sharing Handw_L\'s (the real bug the previous version had)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.haushaltsnaheLeistungen = { haushaltsnaheDienstleistungen: 1200, handwerkerleistungen: 800 };
+  const x = buildEStXML(d).xml;
+  return x.includes('<Hhn_BV_DL><Einz>') && x.includes('<E0107207>1200</E0107207>') && x.includes('<E0107208>1200</E0107208>')
+    && x.includes('<Handw_L><Einz>') && x.includes('<E0170601>800</E0170601>')
+    && !x.includes('<E0111214>1200'); // confirms the two amounts are genuinely not cross-contaminated
+})());
+
+check('Unemployment insurance contributions (av) are now transmitted through the real Weit_Sons_VorAW/Pers structure - a Kennzahl that was already correctly identified in the fieldmap but never actually called before this fix', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageVorsorgeaufwand = { ausLohnsteuerbescheinigungen: { rv: 5000, gkv: 4000, pv: 800, av: 1200 } };
+  const x = buildEStXML(d).xml;
+  return x.includes('<Weit_Sons_VorAW><Pers><Person>PersonA</Person>') && x.includes('<E2004403>1200</E2004403>');
+})());
+
+check('Private health/care insurance (pkv type specifically) is transmitted net of reimbursement, while other, not-yet-confirmed insurance types are correctly excluded rather than bundled in incorrectly', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageVorsorgeaufwand = { ausLohnsteuerbescheinigungen: {}, privateVersicherungen: [
+    { person: 'A', typ: 'pkv', beitrag: 3600, erstattung: 200, netto: 3400 },
+    { person: 'A', typ: 'haftpflicht', beitrag: 100, erstattung: 0, netto: 100 },
+  ] };
+  const x = buildEStXML(d).xml;
+  return x.includes('<Beitr_p_KV_PV_Inl><Person>PersonA</Person>') && x.includes('<E2003104>3400</E2003104>') && !x.includes('3500');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);

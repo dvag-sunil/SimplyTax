@@ -121,6 +121,14 @@ const N = {
      the per-category breakdown would need further, separate research to
      do safely; the total itself is real and confirmed. */
   weitereWkSum: { kennzahlen: ['E0204803'], slotResolved: true, note: 'Weitere_Wk/Sum/E0204803 - sum of the itemized Werbungskosten entries (WKI_TYPES), transmitted as a single verified total' },
+  /* Real gap found via the systematic backend-wiring audit - collected
+     in the app, never attempted before. Confirmed directly: this wants
+     the raw day COUNT, not a pre-calculated amount - "Anzahl der
+     Kalendertage" - the app already collects exactly this (c.wk.homeOffice
+     as a day count), so the raw value transmits as-is, matching the
+     schema's own expectation rather than the app's internal €6/day
+     calculation. */
+  homeOfficeDays: { kennzahlen: ['E0204507'], slotResolved: true, note: 'Wk/Homeoffice/E0204507 - Anzahl der Kalendertage im Homeoffice' },
 };
 
 /* ---------- 3. Insurance / Vorsorgeaufwand (VOR context) ---------- */
@@ -139,6 +147,19 @@ const VOR = {
   pv: 'E2001505',
   pvErstattung: 'E2001605',
   av: 'E2004403',
+  /* CORRECTED: found by fully enumerating VOR's real sibling sequence -
+     Beitr_p_KV_PV_Inl covers PRIVATE (not statutory) health/care
+     insurance base coverage, genuinely distinct from Beitr_g_KV_PV_Inl
+     (statutory, already wired above). Matches this app's own 'pkv'
+     insurance type exactly ("Private Kranken-/Pflegeversicherung
+     (Basis)"). Confirmed identical across all five years 2021-2025.
+     Scope note: only the 'pkv' type is wired here - 'gkvfrei'
+     (voluntary statutory insurance) is tagged the same 'basis'
+     category in this app's own categorization but represents a
+     genuinely different real context not yet independently confirmed,
+     so it's deliberately left unmapped rather than assumed identical. */
+  pkv: 'E2003104',
+  pkvPflege: 'E2003202',
 };
 
 /* ---------- 4. Sonderausgaben - donations (SA context) ---------- */
@@ -294,23 +315,36 @@ const Kind = {
 const N_DHH = {
   dhhKm: 'E0207116',
   dhhTrips: { kennzahlen: ['E0207117', 'E0207304'] },
-  // dhhRent, dhhMonths, relocation: confirmed absent. Note: an earlier pass
-  // wrongly attached E0208107 to dhhRent - that Kennzahl is actually
-  // Verpflegungsmehraufwendungen (meal allowance), not accommodation cost;
-  // corrected back to open rather than propagate the error.
+  /* CORRECTED: dhhRent found this time via direct schema tracing -
+     Wk/DHHF/Unterkunft/E0207611, confirmed by its real documentation
+     text ("Aufwendungen (z. B. Miete einschließlich Stellplatz- /
+     Garagenkosten, Nebenkosten)"). The app's own monthly-cap
+     calculation (already applied client-side before this point) is
+     what gets sent here - no separate "months" Kennzahl exists in the
+     real schema, so the already-computed capped total is correct as
+     the transmitted figure. */
+  dhhRent: 'E0207611',
+  // relocation: no dedicated Kennzahl found in the real schema - folded
+  // into the already-wired Weitere_Wk/Sum itemized total instead,
+  // rather than left unsent or a nonexistent field invented.
 };
 
 /* ---------- 7. Household services / Section 35a (HA_35a context) ---------- */
 const HA_35a = {
-  /* FLAGGED (not fixed here - out of scope for this pass, never tested):
-     this uses the SAME Kennzahlen (E0111214/E0111215) that Handw_L
-     (Handwerkerleistungen, below) also needs - real research (Kontexte
-     sheet) shows household services actually belong to a DIFFERENT
-     context, Hhn_BV_DL, with its own distinct field codes, not shared
-     with Handw_L. This was never caught because our test data never
-     populated haushaltsnaheDienstleistungen with a real amount - worth
-     a dedicated research pass before this is used for a real client. */
-  household: { kennzahlen: ['E0111214', 'E0111215'], note: 'LIKELY WRONG - see flag above, needs its own research pass, not yet done' },
+  /* CORRECTED: found the real mapping by tracing the complete St_Erm
+     sequence directly - Minijobs, Hhn_BV_DL, and Handw_L are confirmed
+     real siblings under the same parent (HA_35a/St_Erm), not separate,
+     unrelated contexts. The earlier failed attempt was chasing a
+     coincidentally similarly-named element from a completely different
+     part of the schema (a care-specific sub-field under AgB, not this
+     general household-services context at all) - the real one shares
+     Handw_L's own numeric type family, confirmed directly. Same real
+     Einz/Sum completeness pattern as Handw_L: a description, an
+     amount, and a matching Sum total. Confirmed identical across all
+     five years 2021-2025. */
+  household: 'E0107207',       // Hhn_BV_DL/Einz/Aufwendungen
+  householdSum: 'E0107208',    // Hhn_BV_DL/Sum
+  householdArt: 'E0107206',    // Hhn_BV_DL/Einz/Art der Tätigkeit (required alongside the amount)
   /* CORRECTED: real bug found via the multi-year regression test -
      Handwerkerleistungen only sent the invoice total (E0170601), never
      the three companion fields real ERiC requires alongside it: a

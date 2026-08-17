@@ -33,11 +33,11 @@ for (const [section, obj] of Object.entries({
   }
 }
 
-check('total mapped fields = 249 (was 247 - +2 for the newly wired Anlage SO fields, sale price and acquisition cost; this test was previously missing SO from its own aggregation entirely, a real gap fixed alongside adding these fields)', Object.values({
+check('total mapped fields = 255 (was 251 - +3 household services fields corrected to their real Kennzahlen, +2 private health/care insurance fields, all found by fully enumerating the real schema structures rather than keyword searching)', Object.values({
   ESt1A: fm.ESt1A, N: fm.N, VOR: fm.VOR, SA: fm.SA, Kind: fm.Kind, N_DHH: fm.N_DHH,
   KAP: fm.KAP, HA_35a: fm.HA_35a, Sonst: fm.Sonst, SO: fm.SO, ESt1A_U: fm.ESt1A_U, N_AUS: fm.N_AUS,
   AgB: fm.AgB, EM_35c: fm.EM_35c, ESt1A_Ersatz: fm.ESt1A_Ersatz, R: fm.R, V: fm.V,
-}).reduce((sum, o) => sum + Object.keys(o).length, 0) === 249);
+}).reduce((sum, o) => sum + Object.keys(o).length, 0) === 255);
 
 check('gross einz/sum correct', fm.N.gross.einz === 'E0200204' && fm.N.gross.sum === 'E0200201');
 check('taxClass corrected to Steuerklasse', fm.N.taxClass.kennzahlen[0] === 'E0200002');
