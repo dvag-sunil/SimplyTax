@@ -1376,6 +1376,26 @@ check('No commute or Werbungskosten data present: none of the new fields appear 
   return !x.includes('E0203503') && !x.includes('E0203505') && !x.includes('E0203506') && !x.includes('E0203611') && !x.includes('E0204803') && !x.includes('<Wk>');
 })());
 
+/* --- Anlage SO (private sales gains) - newly wired via SO/Priv_VA_G/And_WG, confirmed identical across all five years 2021-2025 --- */
+check('Real private-sales gain produces the correct SO/Priv_VA_G/And_WG structure with the sale-price field set to the known gain', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.weitereAngaben = { anlageSO: { privateVeraeusserungsgeschaefte: 2500, erhaltenerUnterhalt: 0 } };
+  const x = buildEStXML(d).xml;
+  return x.includes('<SO><Priv_VA_G><And_WG><Person>PersonA</Person>') && x.includes('<E0307401>2500</E0307401>');
+})());
+check('Zero acquisition cost is correctly omitted rather than sent as an explicit 0, matching this codebase\'s established zero-value convention', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.weitereAngaben = { anlageSO: { privateVeraeusserungsgeschaefte: 2500, erhaltenerUnterhalt: 0 } };
+  const x = buildEStXML(d).xml;
+  return !x.includes('E0307501');
+})());
+check('No private-sales gain entered: no SO block at all, nothing sent', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.weitereAngaben = { anlageSO: { privateVeraeusserungsgeschaefte: 0, erhaltenerUnterhalt: 0 } };
+  const x = buildEStXML(d).xml;
+  return !x.includes('<SO>');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);

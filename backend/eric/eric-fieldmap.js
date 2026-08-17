@@ -356,6 +356,26 @@ const Sonst = {
   lossCarry: 'E0190701',
 };
 
+/* ---------- 9a. Private sales gains - Anlage SO (genuinely distinct
+   top-level element from "Sonst" above, despite the similar name -
+   confirmed directly via the schema: Sonst and SO are two separate
+   root elements, not the same thing under a different label.
+   Real path confirmed: SO/Priv_VA_G/And_WG/Einz/[fields].
+   Checked minOccurs directly rather than assume: only the Person
+   index (which spouse this applies to) is genuinely required -
+   description, dates, sale price, and acquisition cost are all
+   schema-optional. Confirmed identical across all five years this
+   app supports (2021-2025) - deliberately using the universal
+   And_WG category rather than the newer, crypto-specific Virt_Waehr
+   introduced in 2023, since And_WG covers crypto and other private
+   sale assets alike without needing a year-conditional branch, and
+   this app's own data model doesn't currently distinguish "crypto"
+   from "other" as separate figures anyway. */
+const SO = {
+  soSalePrice: { kennzahlen: ['E0307401'], slotResolved: true, note: 'SO/Priv_VA_G/And_WG/Einz - Veräußerungspreis. The known net gain is entered here, with acquisition cost set to 0, so the resulting taxable gain (sale price minus cost) is exactly the real, correct figure - not a fabricated split, an honest, transparent simplification of a single known net total.' },
+  soAcquisitionCost: { kennzahlen: ['E0307501'], slotResolved: true, note: 'SO/Priv_VA_G/And_WG/Einz - Anschaffungskosten, deliberately set to 0 alongside soSalePrice, so the computed gain equals the real known total exactly.' },
+};
+
 /* ---------- 10. Support payments - Unterhalt (ESt1A_U context) ---------- */
 const ESt1A_U = {
   /* CORRECTED: 'support' (E0125007) was the WRONG field entirely - it's
@@ -870,7 +890,7 @@ function isFieldSupportedForYear(code, year) {
 }
 
 module.exports = {
-  ESt1A, N, VOR, SA, Kind, N_DHH, HA_35a, KAP, Sonst, ESt1A_U, N_AUS, AgB, EM_35c, ESt1A_Ersatz, R, V, AUS,
+  ESt1A, N, VOR, SA, Kind, N_DHH, HA_35a, KAP, Sonst, SO, ESt1A_U, N_AUS, AgB, EM_35c, ESt1A_Ersatz, R, V, AUS,
   isSlotResolved, unresolvedFields, sumEmployerField, routeToVOR, computeAusTaxFree, amountToPflegegrad,
   SECTION_YEAR_SUPPORT, FIELD_YEAR_SUPPORT, isSectionSupportedForYear, isFieldSupportedForYear,
 };

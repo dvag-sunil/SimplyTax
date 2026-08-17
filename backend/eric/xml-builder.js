@@ -1653,6 +1653,25 @@ function buildSonst(data) {
   return `<Sonst><Verl_Abz><Vortrag><Person>PersonA</Person>\n${tag(fm.Sonst.lossCarry, '1')}</Vortrag></Verl_Abz></Sonst>\n`;
 }
 
+/* Anlage SO - private sales gains (crypto, gold, and similar).
+   Genuinely distinct top-level XML element from "Sonst" above despite
+   the confusingly similar name - confirmed directly via the schema
+   these are two separate root elements, not the same thing.
+   Real path confirmed: SO/Priv_VA_G/And_WG/Einz - checked directly
+   against the schema for all five years 2021-2025, identical across
+   all of them, so no year-gating needed here.
+   Only the amount is transmitted (sale price = the known net gain,
+   acquisition cost = 0, so the resulting taxable gain works out to
+   exactly the correct real figure) - the optional description field
+   is deliberately left out, since only the person and the amount
+   itself are what actually matters for this app's own data model. */
+function buildSO(data) {
+  const so = (data.weitereAngaben && data.weitereAngaben.anlageSO) || null;
+  if (!so || !(N(so.privateVeraeusserungsgeschaefte) > 0)) return '';
+  const amt = Math.round(N(so.privateVeraeusserungsgeschaefte));
+  return `<SO><Priv_VA_G><And_WG><Person>PersonA</Person>\n<Einz>\n${wholeEuroTag(fm.SO.soSalePrice.kennzahlen[0], amt)}${wholeEuroTag(fm.SO.soAcquisitionCost.kennzahlen[0], 0)}</Einz>\n</And_WG></Priv_VA_G></SO>\n`;
+}
+
 /* ---------- date format: interchange uses ISO (YYYY-MM-DD), ERiC example uses DD.MM.YYYY ---------- */
 function formatDateDE(iso) {
   if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '';
@@ -2003,6 +2022,7 @@ function buildEStXML(data, opts = {}) {
   nutzdaten += buildKAP(data);
   nutzdaten += buildAUS(data); // foreign rental - confirmed position: after KAP, before R
   nutzdaten += buildR(data);
+  nutzdaten += buildSO(data); // confirmed real schema position: directly after R/RAV_bAV/R_AUS
   nutzdaten += buildV(data);
   nutzdaten += buildVOR(data);
   nutzdaten += buildVorsatz(data);
