@@ -2016,7 +2016,7 @@ function computeEstimate(c){
  childcare = N(c.fam.childcare)>0 ? Math.min(N(c.fam.childcare)*ccRate.r, ccRate.cap*kidsN) : 0;
  school = Math.min(N(c.fam.schoolFees)*0.30, 5000);
  }
- const sa = Math.max(joint?72:36, N(c.sa.donations)+N(c.sa.other)) + childcare + school // § 10c Pauschbetrag 36/72
+ const sa = Math.max(joint?72:36, N(c.sa.donations)) + childcare + school // § 10c Pauschbetrag 36/72
  + Math.min(pins.A.riester, 2100) + (joint ? Math.min(pins.B.riester, 2100) : 0)
  + Math.min(N(c.oth.realsplitting), 13805); // Realsplitting § 10 (1a) Nr. 1 (Anlage U)
  // § 33a support to needy relatives: capped at Grundfreibetrag × country-group factor (no zumutbare Belastung)
@@ -2159,7 +2159,7 @@ function computeEstimatePerPerson(c, person){
  clone.ex = clone.ex||{}; clone.ex.medical = half(c.ex?.medical); clone.ex.household = half(c.ex?.household); clone.ex.handwerker = half(c.ex?.handwerker);
  clone.fam = clone.fam||{}; clone.fam.support = half(c.fam?.support);
  (clone.fam.children||[]).forEach((k,i)=>{ const orig=(c.fam.children||[])[i]; if(orig){ k.childcare=half(orig.childcare); k.schoolFees=half(orig.schoolFees); } });
- clone.sa = clone.sa||{}; clone.sa.donations = half(c.sa?.donations); clone.sa.other = half(c.sa?.other);
+ clone.sa = clone.sa||{}; clone.sa.donations = half(c.sa?.donations);
  clone.props = (clone.props||[]).map((p,i)=>{ const orig=(c.props||[])[i]; if(orig){ p.rent=half(orig.rent); } return p; });
  clone.oth = clone.oth||{};
  ['realsplitting','soGain','soUnterhalt','lossCarry','ersatz','emWalls','emRoof','emCeiling','emWindows','emVentilation','emHeating'].forEach(k=>{ clone.oth[k]=half(c.oth?.[k]); });
@@ -2561,7 +2561,7 @@ function stepDone(c,i){
  return ok?'done':'incomplete';
  }
  case 6: {
- if(!(N(c.sa.donations)+N(c.sa.other)+N(c.ins.other)+N(c.oth.realsplitting)>0)) return 'empty';
+ if(!(N(c.sa.donations)+N(c.ins.other)+N(c.oth.realsplitting)>0)) return 'empty';
  /* CORRECTED: real gap found via direct feedback - this case previously
  had no way to return 'incomplete' at all, so the Realsplitting
  ex-spouse Tax ID/name (required by ELSTER once an amount is entered,
@@ -4048,10 +4048,7 @@ function stepFamilySupport(c){
 /* --- step 5: special expenses --- */
 function stepSpecial(c){
  return `<h2>${t('step5')}</h2><p class="lead">${t('s5_lead')}</p>
- <div class="grid2">
  ${F('sa','donations',t('donations'),{euro:true,ph:'0,00 €'})}
- ${F('sa','other',t('other_sa'),{euro:true,ph:'0,00 €'})}
- </div>
  <div class="grid2">
  ${F('oth','realsplitting',t('realsplit'),{euro:true,ph:'0,00 €',hint:t('realsplit_hint')})}
  ${F('oth','lossCarry',t('loss_carry'),{euro:true,ph:'0,00 €',hint:t('loss_hint')})}
@@ -4212,7 +4209,7 @@ function stepSummary(c){
  ${sumGroup(t('step_unt'),5,[
  [t('support_amount'),m(c.fam.support)],
  [t('support_where'),N(c.fam.support)>0?{1:t('grp1'),2:t('grp2'),3:t('grp3'),4:t('grp4')}[c.fam.supportGroup]:'']])}
- ${sumGroup(t('special_exp'),6,[[t('donations'),m(c.sa.donations)],[t('other_sa'),m(c.sa.other)],[t('other_ins'),m(c.ins.other)]])}
+ ${sumGroup(t('special_exp'),6,[[t('donations'),m(c.sa.donations)],[t('other_ins'),m(c.ins.other)]])}
  ${sumGroup(t('step_priv'),7,(c.privIns||[]).map(x=>[
  esc(insLabel(x.type)||t('ins_type')),
  esc(`${eur(N(x.beitrag))} − ${eur(N(x.erstattung))} = ${eur(Math.max(0,N(x.beitrag)-N(x.erstattung)))}${INS_CAT[x.type]==='none'?' ('+t('cat_none')+')':''}`)]))}
@@ -4954,7 +4951,7 @@ function buildElsterDataset(c){
  cohabitation:c.fam.untCohabitation==='ja', kindergeldEntitlement:c.fam.untKindergeld==='ja', otherContributor:c.fam.untOtherContributor==='ja',
  hasAssets:c.fam.untHasAssets==='ja', hasOwnIncome:c.fam.untHasIncome==='ja',
  country:c.fam.untCountry||'', foreignNeedConfirmed:c.fam.untForeignConfirmed==='ja' }:null,
- sonderausgaben:{ spenden:N(c.sa.donations), sonstige:N(c.sa.other) },
+ sonderausgaben:{ spenden:N(c.sa.donations) },
  aussergewoehnlicheBelastungen:{ krankheitskosten:N(c.ex.medical) },
  haushaltsnaheLeistungen:{ haushaltsnaheDienstleistungen:N(c.ex.household), handwerkerleistungen:N(c.ex.handwerker) },
  anlageKAP:(c.kap||[]).map(k=>({ person:k.person==='B'?'B':'A', institut:k.platform,
@@ -5142,7 +5139,7 @@ function buildPDF(c){
  row(t('support_amount'),m(c.fam.support));
  if(N(c.fam.support)>0) row(t('support_where'), {1:t('grp1'),2:t('grp2'),3:t('grp3'),4:t('grp4')}[c.fam.supportGroup]);
  y+=3; section(t('special_exp'));
- row(t('donations'),m(c.sa.donations)); row(t('other_sa'),m(c.sa.other)); row(t('other_ins'),m(c.ins.other));
+ row(t('donations'),m(c.sa.donations)); row(t('other_ins'),m(c.ins.other));
  if((c.privIns||[]).length){ y+=3; section(t('step_priv'));
  (c.privIns||[]).forEach(x=>{ if(!x.type && N(x.beitrag)===0) return;
  row(insLabel(x.type)||t('ins_type'),
