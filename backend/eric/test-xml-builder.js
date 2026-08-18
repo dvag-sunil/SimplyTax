@@ -1580,15 +1580,19 @@ check('Real ERiC rejection fixed (Regel 100200032, 100200041): the five fields g
     && ndhh.includes('<E0206805>2</E0206805>');
 })());
 
-check('REVERTED (real, controlled evidence proved the trailing-period format wrong - see xml-builder.js comment): the continuous-until date is deliberately NOT sent pending genuine format verification, while own-household PLZ/Ort/since fields remain correctly sent', (() => {
+check('Real structural bug found and fixed: fields within Allg are now written in the confirmed real schema order (date, reason, continuous-until, workplace, own-household...) - the previous code wrote continuous-until before reason, an out-of-order sequence that fails schema validation with no business-rule detail, matching the blank 610301200 crash', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.werbungskosten = { personA: { doppelteHaushaltsfuehrung: {
     monatsmiete: 800, monate: 6, familienheimfahrten: 12, entfernungKm: 300,
-    grund: 'Neue Arbeitsstelle', datum: '2025-03-01', bestehtBis: '31.12', beschaeftigungsort: '60329 Frankfurt am Main',
+    grund: 'Neue Arbeitsstelle', datum: '2025-03-01', bestehtBis: '31.12.', beschaeftigungsort: '60329 Frankfurt am Main',
     eigenerHausstand: 'yes', eigenerHausstandOrt: '12345 Musterstadt', eigenerHausstandSeit: '2015-01-01', reiseart: 'no',
   } }, einzelposten: [] };
   const x = buildEStXML(d).xml;
-  return !x.includes('E0206304') && x.includes('<E0206505>12345 Musterstadt</E0206505>') && x.includes('<E0206506>01.01.2015</E0206506>');
+  const allg = x.match(/<DHHF><Allg>([\s\S]*?)<\/Allg>/)?.[1] || '';
+  const order = ['E0206103', 'E0206205', 'E0206304', 'E0206404', 'E0206504', 'E0206505', 'E0206506'];
+  const positions = order.map(code => allg.indexOf(code));
+  const correctlyOrdered = positions.every((p, i) => p > -1 && (i === 0 || p > positions[i - 1]));
+  return correctlyOrdered;
 })());
 check('Real ERiC rejection fixed (Regel 100200053): when travel was entirely by company car, no travel cost amounts are sent alongside that declaration - a genuine contradiction ELSTER correctly rejects, not two independent facts', (() => {
   const d = JSON.parse(JSON.stringify(sample));

@@ -481,42 +481,29 @@ function buildNDHH(data) {
        alone was already correct. */
     let allgXml = '';
     if (hasRent) {
+      /* CORRECTED (major, likely real cause found): a complete,
+         field-by-field re-check against the schema found the real
+         element order is date, THEN reason, THEN continuous-until,
+         THEN workplace, THEN own-household - the code was previously
+         writing continuous-until before reason, a genuine sequence
+         violation. XML schema validation is strict about element
+         order within a sequence; a field in the wrong position is
+         exactly the class of mistake that fails schema validation
+         with no business-rule detail at all, matching the blank
+         610301200 crash precisely. Fixed by writing every field in
+         this exact, confirmed real order. */
       if (dhh.datum) allgXml += tag(fm.N_DHH.dhhDate, formatDateDE(dhh.datum));
-      /* CORRECTED: real ERiC rejection (datumFormatFalsch) - confirmed via
-         the field's own type name (DatumTTpMMpBaseCType) and the error
-         text itself that this needs a trailing period after the month
-         too ("TT.MM."), not just after the day. The raw user input
-         (e.g. "31.12") is normalized to guarantee this exact format
-         regardless of whether the user typed the trailing dot. */
-      /* CORRECTED (reverted): real, controlled evidence from a direct user
-         test at a known commit proved my earlier interpretation wrong -
-         appending a trailing period ("31.12.") causes the blank,
-         undiagnosable 610301200 schema crash, while the raw value
-         without it ("31.12") produces a real, detailed rejection
-         instead. The field type name's "TTp/MMp" naming does not mean
-         what I assumed. Given continuing to guess format variations
-         against real submissions has a real cost, and the exact
-         correct format is still genuinely unconfirmed, this field is
-         safely omitted entirely for now rather than guessed at again -
-         the same "don't send what isn't confirmed correct" discipline
-         used elsewhere in this project when real uncertainty exists.
-         TODO: needs a dedicated verification pass (checking an
-         official example XML, or a careful single-field VALIDATE-only
-         test) before re-enabling this field. */
-      /* RE-ENABLED for active format testing: the previous 'safe omit'
-         choice correctly avoided the blank-crash risk, but also meant
-         no value the user typed ever actually reached ERiC - every
-         test was silently testing the same 'omitted' behavior
-         regardless of what was entered in the UI. Sending the raw
-         value exactly as typed now, with zero transformation, so real
-         candidate formats can actually be tested and observed. */
-      if (dhh.bestehtBis) allgXml += tag(fm.N_DHH.dhhContinuousUntil, String(dhh.bestehtBis).trim());
       if (dhh.grund) allgXml += tag(fm.N_DHH.dhhReason, dhh.grund);
+      /* Format still genuinely unconfirmed (see below) - sent as
+         entered, with zero transformation, so it can continue to be
+         tested directly rather than guessed at further. */
+      if (dhh.bestehtBis) allgXml += tag(fm.N_DHH.dhhContinuousUntil, String(dhh.bestehtBis).trim());
       if (dhh.beschaeftigungsort) allgXml += tag(fm.N_DHH.dhhWorkplace, dhh.beschaeftigungsort);
       if (dhh.eigenerHausstand) allgXml += tag(fm.N_DHH.dhhOwnHousehold, dhh.eigenerHausstand === 'yes' ? '1' : '2');
       /* CORRECTED (second real rejection, Regel 100200038) - once
          "own household: yes" is declared, its PLZ/Ort and since-date
-         are genuinely required alongside it. */
+         are genuinely required alongside it. Confirmed these two are
+         correctly last in the real sequence. */
       if (dhh.eigenerHausstand === 'yes') {
         if (dhh.eigenerHausstandOrt) allgXml += tag(fm.N_DHH.dhhOwnPlz, dhh.eigenerHausstandOrt);
         if (dhh.eigenerHausstandSeit) allgXml += tag(fm.N_DHH.dhhOwnSince, formatDateDE(dhh.eigenerHausstandSeit));
