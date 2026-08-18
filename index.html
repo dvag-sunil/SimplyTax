@@ -733,6 +733,8 @@ en: {
  bundesland:"Federal state (Bundesland)", fa_name:"Tax office name", fa_number:"Tax office number (BUFA, 4 digits)",
  fa_hint:"The 4-digit federal tax office number identifies the receiving Finanzamt.",
  fa_manual_hint:"Official directory not loaded yet - please enter the exact office name and number manually.",
+ fa_manual_switch:"Can't find the right office? Enter it manually instead (e.g. for a designated test Finanzamt)",
+ fa_search_switch:"Switch back to searching the official directory",
  fa_select_land_first:"Select your Bundesland above first",
  fa_search_ph:"Type to search your Finanzamt...", fa_no_match:"No match found - try a different search term",
  err_fa:"Please enter the 4-digit Finanzamt number (BUFA) in Personal data before submitting.",
@@ -1150,6 +1152,8 @@ de: {
  bundesland:"Bundesland", fa_name:"Name des Finanzamts", fa_number:"Finanzamtsnummer (BUFA, 4-stellig)",
  fa_hint:"Die 4-stellige Bundesfinanzamtsnummer identifiziert das empfangende Finanzamt.",
  fa_manual_hint:"Offizielles Verzeichnis noch nicht geladen - bitte Name und Nummer des Finanzamts manuell eingeben.",
+ fa_manual_switch:"Finden Sie das richtige Finanzamt nicht? Manuell eingeben (z. B. für ein Test-Finanzamt)",
+ fa_search_switch:"Zurück zur Suche im offiziellen Verzeichnis",
  fa_select_land_first:"Bitte zuerst oben das Bundesland auswählen",
  fa_search_ph:"Finanzamt suchen...", fa_no_match:"Kein Treffer - anderen Suchbegriff versuchen",
  err_fa:"Bitte vor der Übermittlung die 4-stellige Finanzamtsnummer (BUFA) in den persönlichen Daten eintragen.",
@@ -3052,7 +3056,15 @@ async function loadFinanzamtDirectory(){
  return _faDirectoryLoading;
 }
 function finanzamtField(c){
- const hasDirectory = !!_faDirectory;
+ /* CORRECTED: real, confirmed gap found via direct user feedback - when
+    the real directory loads successfully (the normal case), there was
+    no way to manually enter a BUFA number that genuinely isn't in it,
+    such as ELSTER's own designated test-only Finanzämter used for test
+    submissions. c.p.faManualMode lets the person deliberately switch
+    into the same manual-entry UI already built for the no-directory
+    fallback case below, regardless of whether the real directory is
+    available. */
+ const hasDirectory = !!_faDirectory && !c.p.faManualMode;
  const land = c.p.bundesland;
  const currentLabel = c.p.finanzamt ? `${esc(c.p.finanzamt)}${c.p.faNumber?' · '+esc(c.p.faNumber):''}` : '';
  return `<div class="field${reqCls(c.p.finanzamt)}" style="position:relative">
@@ -3069,7 +3081,9 @@ function finanzamtField(c){
  onblur="setTimeout(closeFaDropdown,150)">
  <div id="fa-dropdown-slot"></div>
  ${c.p.faNumber ? `<div class="hint">${t('fa_number')}: <b>${esc(c.p.faNumber)}</b></div>` : ''}
+ <button type="button" class="link-btn" style="margin-top:4px;font-size:12.5px" onclick="upd('p','faManualMode',true)">${t('fa_manual_switch')}</button>
  `}
+ ${!hasDirectory && _faDirectory ? `<button type="button" class="link-btn" style="margin-top:4px;font-size:12.5px" onclick="upd('p','faManualMode',false)">${t('fa_search_switch')}</button>` : ''}
  </div>`;
 }
 /* CRITICAL: this updates ONLY the dropdown container directly via the DOM,
