@@ -475,6 +475,11 @@ const SO = {
      business-rule-optional" lesson repeated throughout this project. */
   soGewinnVerlust: { kennzahlen: ['E0307701'], slotResolved: true, note: 'SO/Priv_VA_G/And_WG/Einz - Gewinn/Verlust, the explicit net result ELSTER requires stated directly, not just derivable from sale price minus cost. Set equal to soSalePrice, matching the same zero-cost-basis simplification.' },
   soDescription: { kennzahlen: ['E0307101'], slotResolved: true, note: 'SO/Priv_VA_G/And_WG/Einz - Art des Wirtschaftsguts, confirmed genuinely required once an amount is entered (Regel 101300034), despite being schema-optional. A generic, honest description is used since this app does not collect a specific item description.' },
+  /* Real gap found via a full client-data audit, fixed by fully
+     re-checking the complete SO structure this time rather than
+     stopping after finding Priv_VA_G alone. Confirmed identical
+     across all five years 2021-2025. */
+  soUnterhalt: { kennzahlen: ['E0304601'], slotResolved: true, note: 'SO/Unt_Leist/E0304601 - Unterhaltsleistungen, soweit sie vom Geber als Sonderausgaben abgezogen werden können (received support, the recipient side of Realsplitting - the payer side is already correctly wired via Anlage U)' },
 };
 
 /* ---------- 10. Support payments - Unterhalt (ESt1A_U context) ---------- */

@@ -1996,18 +1996,38 @@ function buildSonst(data) {
    itself are what actually matters for this app's own data model. */
 function buildSO(data) {
   const so = (data.weitereAngaben && data.weitereAngaben.anlageSO) || null;
-  if (!so || !(N(so.privateVeraeusserungsgeschaefte) > 0)) return '';
-  const amt = Math.round(N(so.privateVeraeusserungsgeschaefte));
-  /* CORRECTED: real ERiC rejection (Regel 130829, 101300034) confirmed
-     both the description and the explicit Gewinn/Verlust figure are
-     genuinely required once an entry exists, despite both being
-     schema-optional - added both rather than resend the same
-     incomplete entry. */
-  let einz = tag(fm.SO.soDescription.kennzahlen[0], 'Private Veräußerungsgeschäfte');
-  einz += wholeEuroTag(fm.SO.soSalePrice.kennzahlen[0], amt);
-  einz += wholeEuroTag(fm.SO.soAcquisitionCost.kennzahlen[0], 0);
-  einz += wholeEuroTag(fm.SO.soGewinnVerlust.kennzahlen[0], amt);
-  return `<SO><Priv_VA_G><And_WG><Person>PersonA</Person>\n<Einz>\n${einz}</Einz>\n</And_WG></Priv_VA_G></SO>\n`;
+  if (!so) return '';
+  const gainAmt = Math.round(N(so.privateVeraeusserungsgeschaefte));
+  const unterhaltAmt = Math.round(N(so.erhaltenerUnterhalt));
+  if (!(gainAmt > 0) && !(unterhaltAmt > 0)) return '';
+  let soXml = '';
+  /* Real gap found via a full client-data audit and fixed by fully
+     re-checking the complete SO structure (not just the Priv_VA_G
+     part already implemented) - Unt_Leist (received support payments,
+     the recipient's side of Realsplitting) is a genuine sibling to
+     Priv_VA_G within the same SO section, confirmed at
+     E0304601. Confirmed the real sibling order places Unt_Leist
+     before Priv_VA_G, and confirmed SO itself has the same
+     one-block-per-person constraint already fixed for several other
+     sections, so both pieces are combined into the same single SO
+     wrapper rather than two separate ones. Confirmed identical across
+     all five years 2021-2025. */
+  if (unterhaltAmt > 0) {
+    soXml += `<Unt_Leist><Person>PersonA</Person>\n${wholeEuroTag(fm.SO.soUnterhalt.kennzahlen[0], unterhaltAmt)}</Unt_Leist>\n`;
+  }
+  if (gainAmt > 0) {
+    /* CORRECTED: real ERiC rejection (Regel 130829, 101300034) confirmed
+       both the description and the explicit Gewinn/Verlust figure are
+       genuinely required once an entry exists, despite both being
+       schema-optional - added both rather than resend the same
+       incomplete entry. */
+    let einz = tag(fm.SO.soDescription.kennzahlen[0], 'Private Veräußerungsgeschäfte');
+    einz += wholeEuroTag(fm.SO.soSalePrice.kennzahlen[0], gainAmt);
+    einz += wholeEuroTag(fm.SO.soAcquisitionCost.kennzahlen[0], 0);
+    einz += wholeEuroTag(fm.SO.soGewinnVerlust.kennzahlen[0], gainAmt);
+    soXml += `<Priv_VA_G><And_WG><Person>PersonA</Person>\n<Einz>\n${einz}</Einz>\n</And_WG></Priv_VA_G>\n`;
+  }
+  return `<SO>${soXml}</SO>\n`;
 }
 
 /* ---------- date format: interchange uses ISO (YYYY-MM-DD), ERiC example uses DD.MM.YYYY ---------- */

@@ -98,7 +98,7 @@ check('VOR uses Beitr_g_KV_PV_Inl/AN wrapper for kv/pv', xml.includes('<Beitr_g_
 check('gesetzlich pension amount written', xml.includes('<E1800301>18000</E1800301>'));
 check('R uses Leibr_gesetzl/Einz wrapper', xml.includes('<Leibr_gesetzl><Einz>'));
 check('R uses Leibr_priv/Einz wrapper', xml.includes('<Leibr_priv><Einz>'));
-check('gesetzlich pension gets the percentage field', xml.includes('<E1800701>82</E1800701>'));
+check('gesetzlich pension gets the percentage field, correctly formatted with a comma-decimal (real ERiC rejection fixed)', xml.includes('<E1800701>82,00</E1800701>'));
 check('privat pension amount written (different Kennzahl)', xml.includes('<E1801601>6000</E1801601>'));
 check('privat pension does NOT get a percentage field (correct - none exists in the real schema)',
   !xml.includes('<E1801701>') || !xml.slice(xml.indexOf('<E1801601>'), xml.indexOf('<E1801601>') + 200).includes('E1800701'));
@@ -1622,6 +1622,14 @@ check('Real bug caught via direct inspection of actual client data: the direct "
   const weitereWk = x.match(/<Weitere_Wk>[\s\S]*?<\/Weitere_Wk>/)?.[0] || '';
   const sonstCount = (weitereWk.match(/<Sonst>/g) || []).length;
   return sonstCount === 1 && weitereWk.includes('<E0205406>1000</E0205406>') && weitereWk.includes('<E0204803>1000</E0204803>');
+})());
+
+check('Real gap found via a complete re-check of the SO structure: received support payments (Unt_Leist) are now transmitted, correctly combined with private sales gains into a single SO wrapper, not two separate ones - and correctly reads the real Kennzahl string rather than the raw fieldmap object (a real bug caught by inspecting the actual output)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.weitereAngaben = { anlageSO: { privateVeraeusserungsgeschaefte: 3000, erhaltenerUnterhalt: 1000 } };
+  const x = buildEStXML(d).xml;
+  const soCount = (x.match(/<SO>/g) || []).length;
+  return soCount === 1 && x.includes('<E0304601>1000</E0304601>') && x.includes('<E0307401>3000</E0307401>') && !x.includes('[object Object]');
 })());
 
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
