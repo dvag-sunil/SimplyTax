@@ -163,20 +163,6 @@ function init() {
 const ERIC_VALIDIERE = 2;
 const ERIC_SENDE = 4;
 
-/* Real mapping from this app's Bundesland names to their official
-   2-letter codes, confirmed directly - EricMtMakeElsterStnr genuinely
-   requires this (Steuernummer format length varies by state), but was
-   previously called with an empty string, causing correctly-entered
-   values to be wrongly rejected regardless of how correct they
-   actually were. */
-const BUNDESLAND_CODES = {
-  'Baden-Württemberg': 'BW', 'Bayern': 'BY', 'Berlin': 'BE', 'Brandenburg': 'BB',
-  'Bremen': 'HB', 'Hamburg': 'HH', 'Hessen': 'HE', 'Mecklenburg-Vorpommern': 'MV',
-  'Niedersachsen': 'NI', 'Nordrhein-Westfalen': 'NW', 'Rheinland-Pfalz': 'RP',
-  'Saarland': 'SL', 'Sachsen': 'SN', 'Sachsen-Anhalt': 'ST',
-  'Schleswig-Holstein': 'SH', 'Thüringen': 'TH',
-};
-
 function handleValidateFields(msg) {
   /* real ERiC checksum validation for a few key fields - rc===0 means
      valid, any other code means invalid. Only checks fields actually
@@ -200,26 +186,20 @@ function handleValidateFields(msg) {
        app's already-populated faNumber field (via the Finanzamt directory) */
     const bufaNr = msg.bufaNr ? String(msg.bufaNr) : '';
     const outBuf = global.EricMtRueckgabepufferErzeugen(instanz);
-    /* CORRECTED: real, confirmed bug found via direct user feedback -
-       this call passed an empty string for the state, but the real
-       function signature (found by reading the actual declared
-       parameter name, "landesnr") confirms a state identifier is
-       genuinely required - Steuernummer format length varies by
-       state, so ERiC can't correctly interpret an input without
-       knowing which state's rules apply. Correctly-entered values
-       were being wrongly rejected because of this, not because of
-       anything wrong with what was typed.
-       Honest limitation: the exact format ERiC expects for this
-       specific parameter isn't in the documentation available here -
-       using the standard 2-letter state code (the widely-used
-       convention, e.g. "HE" for Hessen) as the best-reasoned attempt,
-       not a confirmed-correct value the way the rest of this fix is.
-       If checks continue failing after this deploys, the real
-       expected format (which may be numeric rather than a letter
-       code) needs to be confirmed via a real, direct test rather than
-       guessed at again. */
-    const landesnr = BUNDESLAND_CODES[msg.bundesland] || '';
-    const rc = global.EricMtMakeElsterStnr(instanz, String(msg.steuernummer), landesnr, bufaNr, outBuf);
+    /* Real, confirmed bug found via direct user feedback led to trying
+       a state-code parameter here (the function's real signature does
+       have a "landesnr" parameter) - but that guess was itself
+       unconfirmed, and a real submission was rejected while it was
+       active. Reverted to this original, empty value, since growing
+       evidence suggests the BUFA number itself already encodes the
+       state (observed Hessen BUFA numbers sharing the same leading
+       digits as Hessen's own official Bundesschema prefix), and this
+       exact call was already confirmed working for real validation
+       checks before the guess was introduced. The real rejection this
+       was chasing needs a properly confirmed answer - via a direct,
+       verified source or a safe, validate-only empirical test - not
+       another guess deployed against a real client's actual filing. */
+    const rc = global.EricMtMakeElsterStnr(instanz, String(msg.steuernummer), '', bufaNr, outBuf);
     out.steuernummer = { rc, valid: rc === 0 };
     if (rc === 0) out.steuernummer.elsterFormat = global.EricMtRueckgabepufferInhalt(instanz, outBuf) || null;
     global.EricMtRueckgabepufferFreigeben(instanz, outBuf);
