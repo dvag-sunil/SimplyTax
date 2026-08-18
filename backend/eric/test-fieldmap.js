@@ -33,11 +33,11 @@ for (const [section, obj] of Object.entries({
   }
 }
 
-check('total mapped fields = 277 (was 274 - +3 for the continuous-until date and own-household PLZ/Ort/since fields, confirmed genuinely required via a second real ERiC rejection)', Object.values({
+check('total mapped fields = 283 (was 277 - +6 for Arbeitsmittel and Fortbildung, found via a full real client-data audit)', Object.values({
   ESt1A: fm.ESt1A, N: fm.N, VOR: fm.VOR, SA: fm.SA, Kind: fm.Kind, N_DHH: fm.N_DHH,
   KAP: fm.KAP, HA_35a: fm.HA_35a, Sonst: fm.Sonst, SO: fm.SO, ESt1A_U: fm.ESt1A_U, N_AUS: fm.N_AUS,
   AgB: fm.AgB, EM_35c: fm.EM_35c, ESt1A_Ersatz: fm.ESt1A_Ersatz, R: fm.R, V: fm.V,
-}).reduce((sum, o) => sum + Object.keys(o).length, 0) === 277);
+}).reduce((sum, o) => sum + Object.keys(o).length, 0) === 283);
 
 check('gross einz/sum correct', fm.N.gross.einz === 'E0200204' && fm.N.gross.sum === 'E0200201');
 check('taxClass corrected to Steuerklasse', fm.N.taxClass.kennzahlen[0] === 'E0200002');

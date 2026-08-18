@@ -131,6 +131,15 @@ const N = {
      across all five years 2021-2025. */
   weitereWkDesc: { kennzahlen: ['E0205405'], slotResolved: true, note: 'Weitere_Wk/Sonst/E0205405 - Bezeichnung, genuinely free text' },
   weitereWkAmount: { kennzahlen: ['E0205406'], slotResolved: true, note: 'Weitere_Wk/Sonst/E0205406 - Betrag, the individual item amount' },
+  /* Real gap found via a full client-data audit - Arbeitsmittel (work
+     equipment) and Fortbildung (continuing education) are their own
+     dedicated top-level Wk sections, genuinely distinct from
+     Weitere_Wk, and were never wired at all - the app's own direct
+     entry fields for these (separate from the itemized list) were
+     being silently dropped. Confirmed identical across all five years
+     2021-2025. */
+  arbeitsmittelArt: 'E0204401', arbeitsmittelAmount: 'E0204402', arbeitsmittelSum: 'E0204403',
+  fortbildungArt: 'E0204804', fortbildungAmount: 'E0204808', fortbildungSum: 'E0204812',
   weitereWkSum: { kennzahlen: ['E0204803'], slotResolved: true, note: 'Weitere_Wk/Sum/E0204803 - sum of the itemized Werbungskosten entries (WKI_TYPES), transmitted as a single verified total' },
   /* Real gap found via the systematic backend-wiring audit - collected
      in the app, never attempted before. Confirmed directly: this wants

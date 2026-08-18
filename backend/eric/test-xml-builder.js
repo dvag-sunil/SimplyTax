@@ -1605,6 +1605,25 @@ check('Real ERiC rejection fixed (Regel 100200053): when travel was entirely by 
   return x.includes('<E0206805>1</E0206805>') && !x.includes('Woech_Heimf');
 })());
 
+check('Real gap found via a full client-data audit: Arbeitsmittel and Fortbildung (direct entry fields, distinct from the itemized list) are now transmitted, in the confirmed real element order (Arbeitsmittel before Homeoffice before Fortb)', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.werbungskosten = { personA: { arbeitsmittel: 1000, fortbildung: 800, homeofficeTage: 20 }, einzelposten: [] };
+  const x = buildEStXML(d).xml;
+  const wk = x.match(/<Wk>[\s\S]*?<\/Wk>/)?.[0] || '';
+  const order = ['<Arbeitsmittel>', '<Homeoffice>', '<Fortb>'];
+  const positions = order.map(tag => wk.indexOf(tag));
+  const correctOrder = positions.every((p, i) => p > -1 && (i === 0 || p > positions[i - 1]));
+  return correctOrder && wk.includes('<E0204402>1000</E0204402>') && wk.includes('<E0204808>800</E0204808>');
+})());
+check('Real bug caught via direct inspection of actual client data: the direct "sonstige" field is now given its own visible Sonst entry, not just folded into the Sum total silently - which would have triggered the same "sum without matching entries" rejection already fixed once', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.werbungskosten = { personA: { sonstige: 1000 }, einzelposten: [] };
+  const x = buildEStXML(d).xml;
+  const weitereWk = x.match(/<Weitere_Wk>[\s\S]*?<\/Weitere_Wk>/)?.[0] || '';
+  const sonstCount = (weitereWk.match(/<Sonst>/g) || []).length;
+  return sonstCount === 1 && weitereWk.includes('<E0205406>1000</E0205406>') && weitereWk.includes('<E0204803>1000</E0204803>');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);

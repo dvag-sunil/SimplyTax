@@ -397,11 +397,23 @@ function buildAnlageN(data) {
         wkXml += `<EP><Erste_Taetig>${epXml}</Erste_Taetig></EP>\n`;
       }
     }
-    /* Real gaps found via the systematic backend-wiring audit - home
-       office days and double-household costs were collected by the
-       app but never transmitted at all before this fix. */
+    /* Real gaps found via the systematic backend-wiring audit and a
+       full client-data audit - all written here in the confirmed real
+       schema order (EP already written above, then Arbeitsmittel,
+       Homeoffice, Fortb, Weitere_Wk below) - checked directly against
+       the schema this time before writing any of it, given the exact
+       same ordering mistake was just found and fixed in the DHH
+       section. */
     if (wk) {
+      if (N(wk.arbeitsmittel) > 0) {
+        const amt = Math.round(N(wk.arbeitsmittel));
+        wkXml += `<Arbeitsmittel><Einz>${tag(fm.N.arbeitsmittelArt, 'Arbeitsmittel')}${wholeEuroTag(fm.N.arbeitsmittelAmount, amt)}</Einz><Sum>${wholeEuroTag(fm.N.arbeitsmittelSum, amt)}</Sum></Arbeitsmittel>\n`;
+      }
       if (N(wk.homeofficeTage) > 0) wkXml += `<Homeoffice>${wholeEuroTag(fm.N.homeOfficeDays.kennzahlen[0], Math.round(N(wk.homeofficeTage)))}</Homeoffice>\n`;
+      if (N(wk.fortbildung) > 0) {
+        const amt = Math.round(N(wk.fortbildung));
+        wkXml += `<Fortb><Einz>${tag(fm.N.fortbildungArt, 'Fortbildungskosten')}${wholeEuroTag(fm.N.fortbildungAmount, amt)}</Einz><Sum>${wholeEuroTag(fm.N.fortbildungSum, amt)}</Sum></Fortb>\n`;
+      }
       /* CORRECTED: real ERiC rejection (feldUnbekannt on all three DHH
          fields at once) confirmed DHHF genuinely does NOT belong under
          N/Wk at all - its real parent is N_DHH, a completely separate
@@ -432,7 +444,17 @@ function buildAnlageN(data) {
     if (wk && N(wk.umzugskosten) > 0) {
       sonstXml += `<Sonst>${tag(fm.N.weitereWkDesc.kennzahlen[0], 'Umzugskosten')}${wholeEuroTag(fm.N.weitereWkAmount.kennzahlen[0], Math.round(N(wk.umzugskosten)))}</Sonst>\n`;
     }
-    const itemsSum = items.reduce((a, x) => a + (N(x.betrag) || 0), 0) + (wk ? N(wk.umzugskosten) : 0);
+    /* CORRECTED: real bug caught by direct inspection of a real
+       client's generated XML - this was being added to the numeric
+       Sum total without a matching visible Sonst entry, which would
+       trigger the exact same "sum without individual amounts"
+       rejection already fixed once for this section (Regel
+       100200112). Added as its own explicit entry now, same as
+       relocation above. */
+    if (wk && N(wk.sonstige) > 0) {
+      sonstXml += `<Sonst>${tag(fm.N.weitereWkDesc.kennzahlen[0], 'Sonstige Werbungskosten')}${wholeEuroTag(fm.N.weitereWkAmount.kennzahlen[0], Math.round(N(wk.sonstige)))}</Sonst>\n`;
+    }
+    const itemsSum = items.reduce((a, x) => a + (N(x.betrag) || 0), 0) + (wk ? N(wk.umzugskosten) + N(wk.sonstige) : 0);
     if (sonstXml && itemsSum > 0) wkXml += `<Weitere_Wk>\n${sonstXml}<Sum>${wholeEuroTag(fm.N.weitereWkSum.kennzahlen[0], Math.round(itemsSum))}</Sum></Weitere_Wk>\n`;
     if (wkXml) xml += `<Wk>\n${wkXml}</Wk>\n`;
     xml += '</N>\n';
@@ -822,8 +844,14 @@ function buildVOR(data) {
      app but not yet mapped to a VOR Kennzahl - most private insurance
      types outside statutory RV/KV/PV are either non-deductible or belong
      to a different context not yet researched. Not written here rather
-     than guessed. kvOther (pkv28) also not yet placed in this corrected
-     structure - needs its own confirmed nesting before use. */
+     than guessed. kvOther (pkv28, the PKV Mindestvorsorgepauschale
+     amount from the Lohnsteuerbescheinigung) - checked directly this
+     time, not just flagged as pending: the Kennzahl it was pointing to
+     (E2001805) is confirmed to be a different field entirely (covers a
+     dependent's own contributions, not this concept at all). Genuinely
+     still needs its own dedicated research pass - correctly not
+     written here rather than sent through a mapping now confirmed
+     wrong. */
   /* CORRECTED: real bug found via the architectural review's empirical
      test - anlageVorsorgeaufwand being an empty object ({}, truthy) but
      with no actual contribution amounts still produced a bare, empty
