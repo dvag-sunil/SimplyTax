@@ -1632,6 +1632,24 @@ check('Real gap found via a complete re-check of the SO structure: received supp
   return soCount === 1 && x.includes('<E0304601>1000</E0304601>') && x.includes('<E0307401>3000</E0307401>') && !x.includes('[object Object]');
 })());
 
+check('Real fix backed by an independent source (steuern.de Ausfüllhilfe): travel health insurance (auslandkv) and sick-pay insurance (krankentagegeld) now correctly fold into the same Wahlleistungen line as supplementary health/care coverage', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageVorsorgeaufwand = { ausLohnsteuerbescheinigungen: {}, privateVersicherungen: [
+    { person: 'A', typ: 'auslandkv', beitrag: 200, erstattung: 100, netto: 100 },
+    { person: 'A', typ: 'krankentagegeld', beitrag: 300, erstattung: 0, netto: 300 },
+  ] };
+  const x = buildEStXML(d).xml;
+  return x.includes('<E2003502>400</E2003502>');
+})());
+check('Real fix backed by an independent source (WISO Steuer\'s own published list): funeral insurance (sterbegeld) is grouped with term-life insurance in the same real category, not left unmapped', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageVorsorgeaufwand = { ausLohnsteuerbescheinigungen: {}, privateVersicherungen: [
+    { person: 'A', typ: 'sterbegeld', beitrag: 2000, erstattung: 0, netto: 2000 },
+  ] };
+  const x = buildEStXML(d).xml;
+  return x.includes('<E2001802>2000</E2001802>');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);

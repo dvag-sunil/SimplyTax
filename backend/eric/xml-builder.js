@@ -799,7 +799,16 @@ function buildVOR(data) {
      second separate instance for the same person - the same real
      discipline that caught the Weit_Sons_VorAW duplicate-wrapper
      issue earlier. */
-  const kvZusatzNetA = privIns.filter(x => (x.typ === 'kvzusatz' || x.typ === 'pflegezusatz') && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
+  /* CORRECTED: real, independent confirmation found via direct research
+     (steuern.de's own Ausfüllhilfe for this exact form) that
+     Auslandskrankenversicherung and Krankenhaustagegeld-type coverage
+     are both explicitly described as belonging on this same
+     Wahlleistungen line, not a separate one - "Auch Aufwendungen für
+     zusätzliche Krankenversicherung (z.B. Auslandskrankenversicherungen
+     oder Versicherungen für Krankenhaustagegeld) können hier erklärt
+     werden." Folded in alongside kvzusatz/pflegezusatz rather than
+     left unmapped. */
+  const kvZusatzNetA = privIns.filter(x => ['kvzusatz', 'pflegezusatz', 'auslandkv', 'krankentagegeld'].includes(x.typ) && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
   if (pkvNetA > 0 || kvZusatzNetA > 0) {
     let pkvXml = `<Person>PersonA</Person>\n`;
     if (pkvNetA > 0) pkvXml += wholeEuroTag(fm.VOR.pkv, Math.round(pkvNetA));
@@ -821,7 +830,13 @@ function buildVOR(data) {
      (safe to default, matching the same pattern already used for
      Handwerkerleistungen above - a purely descriptive label, not a
      fact-based declaration). */
-  const uHpRisTypes = ['unfall', 'haftpflicht', 'kfzhaft', 'tierhaft', 'risikoleben'];
+  /* CORRECTED: real, independent confirmation found via direct research
+     (WISO Steuer's own published list of deductible insurance types)
+     that Sterbegeldversicherung is explicitly grouped alongside
+     Risikolebensversicherung as the same real category, not a
+     separate, unrecognized one. Folded in here rather than left
+     unmapped. */
+  const uHpRisTypes = ['unfall', 'haftpflicht', 'kfzhaft', 'tierhaft', 'risikoleben', 'sterbegeld'];
   const uHpRisNetA = privIns.filter(x => uHpRisTypes.includes(x.typ) && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
   const buNetA = privIns.filter(x => x.typ === 'bu' && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
   const kapLvNetA = privIns.filter(x => x.typ === 'kapitalleben' && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
