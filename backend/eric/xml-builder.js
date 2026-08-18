@@ -994,7 +994,15 @@ function buildR(data) {
             const startDate = isYearOnly ? `01.01.${r.rentenbeginn}` : formatDateDE(r.rentenbeginn);
             if (startDate) inner += tag(fm.R.gesetzlichStart, startDate);
           }
-          if (r.ertragsanteilProzent != null) inner += `<Oeff_Kl>${tag(fm.R.gesetzlichPercent, r.ertragsanteilProzent)}</Oeff_Kl>\n`;
+          /* CORRECTED: real ERiC rejection (zahlOhneDezimalTrenner) - this
+             percentage field genuinely requires the same '0,00'
+             comma-decimal format already used correctly for monetary
+             amounts elsewhere (via euro()), but was being sent as a
+             raw, unformatted number. */
+          if (r.ertragsanteilProzent != null) {
+            const pct = euro(r.ertragsanteilProzent);
+            if (pct) inner += `<Oeff_Kl>${tag(fm.R.gesetzlichPercent, pct)}</Oeff_Kl>\n`;
+          }
           inner += '</Einz></Leibr_gesetzl>\n';
         }
       } else if (r.art === 'privat') {
