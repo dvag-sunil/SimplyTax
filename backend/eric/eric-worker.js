@@ -32,6 +32,43 @@ function log(msg) {
   console.log('[eric-worker] ' + msg);
 }
 
+/* Module-level so both init() and the new readEricLogTail() helper below
+   can reach it - previously a local const inside init(), inaccessible
+   anywhere else. */
+let LOGDIR = null;
+
+/* Real fix for a genuine, real problem: when ERiC returns an empty
+   resultXml (confirmed this happens specifically for low-level schema
+   validation failures like rc 610301200), its own error text says the
+   actual detail lives in eric.log - but that file lives on Render's
+   ephemeral filesystem, and Shell/Logs access isn't available on every
+   plan. Rather than depend on infrastructure access that may not exist,
+   the app itself now reads and returns the tail of this file directly
+   in the API response, so the real diagnostic content reaches the
+   app's own error display no matter what Render access is or isn't
+   available. */
+function readEricLogTail(maxLines = 60) {
+  /* CORRECTED: real bug found via direct feedback - this previously
+     returned null (silently omitting the whole section from the UI)
+     whenever LOGDIR wasn't set or the file didn't exist, which looks
+     identical to the fix never having deployed at all - genuinely
+     confusing, not a helpful diagnostic. Now always returns an honest
+     string explaining exactly what happened, so the section reliably
+     appears and tells the truth, whether or not real log content is
+     actually available at that moment. */
+  if (!LOGDIR) return '[eric.log location not available - LOGDIR was never set, meaning the ERiC library never finished initializing]';
+  const logPath = path.join(LOGDIR, 'eric.log');
+  try {
+    if (!fs.existsSync(logPath)) return `[no eric.log file exists yet at ${logPath} - ERiC may not have written to it for this specific error, or the file was cleared by a recent deploy/restart on this ephemeral filesystem]`;
+    const content = fs.readFileSync(logPath, 'utf8');
+    if (!content.trim()) return `[eric.log exists at ${logPath} but is currently empty]`;
+    const lines = content.split('\n');
+    return lines.slice(-maxLines).join('\n');
+  } catch (e) {
+    return `[could not read eric.log at ${logPath}: ${e.message}]`;
+  }
+}
+
 function init() {
   if (!ERIC_HOME) { initError = 'ERIC_HOME not set'; return; }
   try {
@@ -42,7 +79,7 @@ function init() {
     const PLUGINS = [path.join(ERIC_HOME, 'lib', 'plugins'), path.join(ERIC_HOME, 'plugins')].find(p => fs.existsSync(p));
     if (!LIB || !PLUGINS) { initError = 'ERiC library or plugins not found under ERIC_HOME'; return; }
 
-    const LOGDIR = process.env.ERIC_LOG_DIR || path.join(process.cwd(), 'eric-logs');
+    LOGDIR = process.env.ERIC_LOG_DIR || path.join(process.cwd(), 'eric-logs');
     fs.mkdirSync(LOGDIR, { recursive: true });
 
     lib = koffi.load(LIB);
@@ -126,6 +163,20 @@ function init() {
 const ERIC_VALIDIERE = 2;
 const ERIC_SENDE = 4;
 
+/* Real mapping from this app's Bundesland names to their official
+   2-letter codes, confirmed directly - EricMtMakeElsterStnr genuinely
+   requires this (Steuernummer format length varies by state), but was
+   previously called with an empty string, causing correctly-entered
+   values to be wrongly rejected regardless of how correct they
+   actually were. */
+const BUNDESLAND_CODES = {
+  'Baden-Württemberg': 'BW', 'Bayern': 'BY', 'Berlin': 'BE', 'Brandenburg': 'BB',
+  'Bremen': 'HB', 'Hamburg': 'HH', 'Hessen': 'HE', 'Mecklenburg-Vorpommern': 'MV',
+  'Niedersachsen': 'NI', 'Nordrhein-Westfalen': 'NW', 'Rheinland-Pfalz': 'RP',
+  'Saarland': 'SL', 'Sachsen': 'SN', 'Sachsen-Anhalt': 'ST',
+  'Schleswig-Holstein': 'SH', 'Thüringen': 'TH',
+};
+
 function handleValidateFields(msg) {
   /* real ERiC checksum validation for a few key fields - rc===0 means
      valid, any other code means invalid. Only checks fields actually
@@ -149,7 +200,26 @@ function handleValidateFields(msg) {
        app's already-populated faNumber field (via the Finanzamt directory) */
     const bufaNr = msg.bufaNr ? String(msg.bufaNr) : '';
     const outBuf = global.EricMtRueckgabepufferErzeugen(instanz);
-    const rc = global.EricMtMakeElsterStnr(instanz, String(msg.steuernummer), '', bufaNr, outBuf);
+    /* CORRECTED: real, confirmed bug found via direct user feedback -
+       this call passed an empty string for the state, but the real
+       function signature (found by reading the actual declared
+       parameter name, "landesnr") confirms a state identifier is
+       genuinely required - Steuernummer format length varies by
+       state, so ERiC can't correctly interpret an input without
+       knowing which state's rules apply. Correctly-entered values
+       were being wrongly rejected because of this, not because of
+       anything wrong with what was typed.
+       Honest limitation: the exact format ERiC expects for this
+       specific parameter isn't in the documentation available here -
+       using the standard 2-letter state code (the widely-used
+       convention, e.g. "HE" for Hessen) as the best-reasoned attempt,
+       not a confirmed-correct value the way the rest of this fix is.
+       If checks continue failing after this deploys, the real
+       expected format (which may be numeric rather than a letter
+       code) needs to be confirmed via a real, direct test rather than
+       guessed at again. */
+    const landesnr = BUNDESLAND_CODES[msg.bundesland] || '';
+    const rc = global.EricMtMakeElsterStnr(instanz, String(msg.steuernummer), landesnr, bufaNr, outBuf);
     out.steuernummer = { rc, valid: rc === 0 };
     if (rc === 0) out.steuernummer.elsterFormat = global.EricMtRueckgabepufferInhalt(instanz, outBuf) || null;
     global.EricMtRueckgabepufferFreigeben(instanz, outBuf);
@@ -222,7 +292,12 @@ function handleValidate(msg) {
   );
   const resultXml = global.EricMtRueckgabepufferInhalt(instanz, rueckgabeBuf);
   global.EricMtRueckgabepufferFreigeben(instanz, rueckgabeBuf);
-  return { rc, resultXml, sent: false };
+  /* Real fix - see readEricLogTail() above. Only attached when resultXml
+     is genuinely empty, since that's specifically when ERiC's own error
+     text points to this file for the real detail instead of providing
+     it directly. */
+  const ericLogTail = (rc !== 0 && !resultXml) ? readEricLogTail() : undefined;
+  return { rc, resultXml, sent: false, ...(ericLogTail ? { ericLogTail } : {}) };
 }
 
 function handleSubmit(msg) {
@@ -256,8 +331,9 @@ function handleSubmit(msg) {
      pull the Transferticket and error details out of the server answer,
      rather than regex-parsing serverXml ourselves. */
   const answer = extractServerAnswer(serverXml);
+  const ericLogTail = (rc !== 0 && !resultXml) ? readEricLogTail() : undefined;
 
-  return { rc, resultXml, serverXml, sent: rc === 0, ...answer };
+  return { rc, resultXml, serverXml, sent: rc === 0, ...answer, ...(ericLogTail ? { ericLogTail } : {}) };
 }
 
 init();

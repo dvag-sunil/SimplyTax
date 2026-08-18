@@ -2,6 +2,30 @@
    Security: JWT auth, bcrypt, Helmet, CORS locked to the frontend origin, rate limiting, parameterized queries.
    Flexibility: client data stored as JSONB — new frontend fields need no schema change. */
 require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
+/* Certificate loading - prefers ERIC_CERT_B64 (a base64-encoded copy of
+   the .pfx, set as a plain env var) over ERIC_CERT_PATH directly.
+   CONFIRMED real reason: uploading the raw binary .pfx via Render's
+   Secret Files produced a corrupted copy (23,888 bytes vs the real
+   13,175 - the classic signature of binary data being mangled by a
+   text/UTF-8 reinterpretation somewhere in the upload path). Base64 is
+   plain ASCII and can't be corrupted this way, so it's decoded back
+   into a real binary file fresh at every startup instead. */
+if (process.env.ERIC_CERT_B64) {
+  const certPath = path.join('/tmp', 'certificate.pfx');
+  fs.writeFileSync(certPath, Buffer.from(process.env.ERIC_CERT_B64, 'base64'));
+  process.env.ERIC_CERT_PATH = certPath;
+  const stats = fs.statSync(certPath);
+  console.log('[debug] decoded certificate file size:', stats.size, 'bytes');
+} else if (process.env.ERIC_CERT_PATH) {
+  try {
+    const stats = fs.statSync(process.env.ERIC_CERT_PATH);
+    console.log('[debug] certificate file size:', stats.size, 'bytes');
+  } catch (e) {
+    console.log('[debug] could not read certificate file:', e.message);
+  }
+}
 const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
@@ -124,7 +148,15 @@ app.use(express.json({ limit: '10mb' }));
    in public JS, which is why the earlier direct-fetch version silently failed once deployed. */
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 const EXTRACT_MODEL = process.env.EXTRACT_MODEL || 'claude-haiku-4-5-20251001';   // cheapest current tier, plenty for structured OCR-style extraction
+/* Operator-only control, not a user-facing setting - explicitly requested to live here rather
+   than as a UI toggle. Independent of ANTHROPIC_API_KEY, so this can be switched off in
+   production without touching credentials (e.g. to temporarily disable auto-fill while keeping
+   the key configured for later), the same explicit-opt-out pattern already used for
+   SKIP_PAYMENT_CHECK elsewhere in this file. Defaults to enabled unless explicitly set to
+   'false', so existing deployments that never touch this variable see no behavior change. */
+const AI_AUTOFILL_ENABLED = process.env.AI_AUTOFILL_ENABLED !== 'false';
 app.post('/api/extract-doc', auth, async (req, res) => {
+  if(!AI_AUTOFILL_ENABLED) return res.status(501).json({ error: 'extraction_disabled', note: 'AI_AUTOFILL_ENABLED is set to false' });
   if(!ANTHROPIC_API_KEY) return res.status(501).json({ error: 'extraction_disabled', note: 'set ANTHROPIC_API_KEY to activate' });
   const { dataUrl, prompt } = req.body || {};
   const m = /^data:([^;]+);base64,(.+)$/.exec(dataUrl || '');
@@ -386,10 +418,10 @@ app.post('/api/eric/validate-fields', auth, async (req, res) => {
   if (!ericService.isReady()) {
     return res.status(501).json({ error: 'eric_unavailable', detail: ericService.getInitError() });
   }
-  const { taxId, iban, bic, steuernummer, bufaNr } = req.body || {};
+  const { taxId, iban, bic, steuernummer, bufaNr, bundesland } = req.body || {};
   if (taxId == null && iban == null && bic == null && steuernummer == null) return res.status(400).json({ error: 'invalid_input' });
   try {
-    const result = await ericService.validateFields({ taxId, iban, bic, steuernummer, bufaNr });
+    const result = await ericService.validateFields({ taxId, iban, bic, steuernummer, bufaNr, bundesland });
     res.json(result);
   } catch (e) {
     console.error('[eric/validate-fields]', e.message);
@@ -414,7 +446,7 @@ async function convertSteuernummerForSubmission(interchangeData) {
   const h = interchangeData.hauptvordruck;
   if (!h || !h.steuernummer || !h.finanzamt?.bufaNr) return interchangeData;
   try {
-    const result = await ericService.validateFields({ steuernummer: h.steuernummer, bufaNr: h.finanzamt.bufaNr });
+    const result = await ericService.validateFields({ steuernummer: h.steuernummer, bufaNr: h.finanzamt.bufaNr, bundesland: h.bundesland });
     if (result?.steuernummer?.valid && result.steuernummer.elsterFormat) {
       return { ...interchangeData, hauptvordruck: { ...h, steuernummer: result.steuernummer.elsterFormat } };
     }
@@ -447,6 +479,13 @@ app.post('/api/eric/validate', auth, async (req, res) => {
       rc: result.rc,
       resultXml: result.resultXml,
       skippedSections,
+      /* CORRECTED: real bug found via direct feedback - this response
+         was built naming only specific fields, silently dropping
+         ericLogTail even though the worker already returns it
+         correctly. The worker-side and frontend-side fixes were both
+         genuinely deployed and correct; this route in between was the
+         actual break. */
+      ...(result.ericLogTail ? { ericLogTail: result.ericLogTail } : {}),
     });
   } catch (e) {
     if (e instanceof InterchangeDataError) return res.status(400).json({ error: 'invalid_interchange_data', detail: e.message });
@@ -472,7 +511,13 @@ app.post('/api/eric/submit', auth, async (req, res) => {
   const { rows } = await pool.query('SELECT data FROM clients WHERE id=$1 AND user_id=$2', [clientId, req.user.sub]);
   if (!rows.length) return res.status(404).json({ error: 'not_found' });
   const stored = rows[0].data;
-  if (!stored.pay || stored.pay.status !== 'paid') {
+  /* TEMPORARY, testing-only bypass - gated behind an explicit env var so
+     it requires deliberate configuration to enable and can never be
+     silently left on in production. Set SKIP_PAYMENT_CHECK=true only
+     while testing the ERiC pipeline end-to-end; remove this block (and
+     the env var) once real payment enforcement is needed again. */
+  const skipPayment = process.env.SKIP_PAYMENT_CHECK === 'true';
+  if (!skipPayment && (!stored.pay || stored.pay.status !== 'paid')) {
     return res.status(402).json({ error: 'payment_required' });
   }
 
@@ -510,6 +555,9 @@ app.post('/api/eric/submit', auth, async (req, res) => {
       returncodeTH: result.returncodeTH || null,
       fehlertextTH: result.fehlertextTH || null,
       skippedSections,
+      /* Same real fix as /api/eric/validate above - ericLogTail was
+         being silently dropped here too. */
+      ...(result.ericLogTail ? { ericLogTail: result.ericLogTail } : {}),
     });
   } catch (e) {
     if (e instanceof InterchangeDataError) return res.status(400).json({ error: 'invalid_interchange_data', detail: e.message });

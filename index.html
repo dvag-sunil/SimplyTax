@@ -3184,6 +3184,17 @@ function upd(group,key,val,fmt){
     field visibly empties out the moment the state changes, prompting a
     fresh search rather than silently keeping an inconsistent selection. */
  if(group==='p' && key==='bundesland'){ c.p.finanzamt=''; c.p.faNumber=''; }
+ /* Real, confirmed bug found via direct user feedback - switching
+    marital status away from married never cleared the spouse's own
+    fields, so a stale spouse Tax ID (entered during earlier testing,
+    for instance) kept silently sitting in the data even for a
+    currently-single filer - exactly the same class of staleness bug
+    already fixed once for Bundesland/Finanzamt above, just never
+    caught here until it caused a confusing, wrongly-labeled
+    validation error at submission time. */
+ if(group==='p' && key==='marital' && val!=='married' && val!=='married_sep'){
+   c.p.spouseTaxId=''; c.p.spouseFirst=''; c.p.spouseLast=''; c.p.spouseBirth=''; c.p.spouseReligion='';
+ }
  scheduleSave(); render();
  if(group==='p' && key==='taxId') checkTaxIdChecksum(val);
  if(group==='p' && key==='spouseTaxId') checkTaxIdChecksum(val, 'spousetaxid-check-msg');
@@ -3225,10 +3236,10 @@ async function checkSteuernummerChecksum(){
  const stnr=(c.p.steuernummer||'').trim();
  const bufaNr=(c.p.faNumber||'').trim();
  const msgEl=()=>document.getElementById('stnr-check-msg');
- if(!stnr || !/^\d{4}$/.test(bufaNr)){ const el=msgEl(); if(el) el.innerHTML=''; return; }
+ if(!stnr || !/^\d{4}$/.test(bufaNr) || !c.p.bundesland){ const el=msgEl(); if(el) el.innerHTML=''; return; }
  const seq = ++_stnrCheckSeq;
  try{
- const r = await api('/api/eric/validate-fields','POST',{steuernummer:stnr, bufaNr});
+ const r = await api('/api/eric/validate-fields','POST',{steuernummer:stnr, bufaNr, bundesland: c.p.bundesland});
  if(seq!==_stnrCheckSeq) return;
  const el=msgEl(); if(!el) return;
  if(r && r.steuernummer && r.steuernummer.valid===false){
@@ -4293,11 +4304,18 @@ async function submitElster(){
  actually checked before reaching a real submission. This re-checks
  every Tax ID this app collects at the one point that can't be
  bypassed: right before submission itself. */
+ const married = c0.p.marital==='married' || c0.p.marital==='married_sep';
  const idFields = [
  { val: c0.p.taxId, step: 0, key: 'p.taxId', label: t('dup_idnr_filer') },
- { val: c0.p.spouseTaxId, step: 0, key: 'p.spouseTaxId', label: t('dup_idnr_spouse') },
- { val: c0.fam?.untIdnr, step: 5, key: 'fam.untIdnr', label: t('dup_idnr_unt') },
- { val: c0.oth.realsplitIdnr, step: 6, key: 'oth.realsplitIdnr', label: t('dup_idnr_realsplit') },
+ /* CORRECTED: real, confirmed bug found via direct user feedback - a
+ stale spouse ID left over from earlier testing (marital status
+ briefly toggled at some point, then switched back) was being
+ validated and flagged even for a single filer, since nothing
+ checked whether the field is actually relevant right now. Same real
+ fix applied to the two conditional fields below. */
+ ...(married ? [{ val: c0.p.spouseTaxId, step: 0, key: 'p.spouseTaxId', label: t('dup_idnr_spouse') }] : []),
+ ...(N(c0.fam?.support) > 0 ? [{ val: c0.fam?.untIdnr, step: 5, key: 'fam.untIdnr', label: t('dup_idnr_unt') }] : []),
+ ...(N(c0.oth.realsplitting) > 0 ? [{ val: c0.oth.realsplitIdnr, step: 6, key: 'oth.realsplitIdnr', label: t('dup_idnr_realsplit') }] : []),
  ];
  for(const f of idFields){
  const digits = (f.val||'').replace(/\s/g,'');
