@@ -1639,7 +1639,7 @@ check('Real fix backed by an independent source (steuern.de Ausfüllhilfe): trav
     { person: 'A', typ: 'krankentagegeld', beitrag: 300, erstattung: 0, netto: 300 },
   ] };
   const x = buildEStXML(d).xml;
-  return x.includes('<E2003502>400</E2003502>');
+  return x.includes('<WL_Zvers><E2003502>400</E2003502>');
 })());
 check('Real fix backed by an independent source (WISO Steuer\'s own published list): funeral insurance (sterbegeld) is grouped with term-life insurance in the same real category, not left unmapped', (() => {
   const d = JSON.parse(JSON.stringify(sample));
@@ -1648,6 +1648,17 @@ check('Real fix backed by an independent source (WISO Steuer\'s own published li
   ] };
   const x = buildEStXML(d).xml;
   return x.includes('<E2001802>2000</E2001802>');
+})());
+
+check('Real ERiC rejection fixed (feldUnbekannt on E2003502, plus the related "nothing but Person" error): kvZusatz now correctly sits inside its own WL_Zvers wrapper rather than as a bare sibling, and exactly one VOR block is produced when both pkv and kvzusatz are present together', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageVorsorgeaufwand = { ausLohnsteuerbescheinigungen: {}, privateVersicherungen: [
+    { person: 'A', typ: 'pkv', beitrag: 3600, erstattung: 200, netto: 3400 },
+    { person: 'A', typ: 'kvzusatz', beitrag: 500, erstattung: 0, netto: 500 },
+  ] };
+  const x = buildEStXML(d).xml;
+  const vorCount = (x.match(/<VOR>/g) || []).length;
+  return vorCount === 1 && x.includes('<E2003104>3400</E2003104>') && x.includes('<WL_Zvers><E2003502>500</E2003502>\n</WL_Zvers>');
 })());
 
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);

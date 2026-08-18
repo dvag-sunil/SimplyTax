@@ -812,7 +812,15 @@ function buildVOR(data) {
   if (pkvNetA > 0 || kvZusatzNetA > 0) {
     let pkvXml = `<Person>PersonA</Person>\n`;
     if (pkvNetA > 0) pkvXml += wholeEuroTag(fm.VOR.pkv, Math.round(pkvNetA));
-    if (kvZusatzNetA > 0) pkvXml += wholeEuroTag(fm.VOR.kvZusatz, Math.round(kvZusatzNetA));
+    /* CORRECTED: real ERiC rejection (feldUnbekannt) confirmed E2003502
+       genuinely needs its own WL_Zvers wrapper - a real nested
+       sub-element within Beitr_p_KV_PV_Inl, confirmed by a complete
+       re-check of its actual direct children this time, not sent as a
+       bare sibling to Person and pkv. This also explains the second,
+       related rejection seen alongside this one ("nothing but Person
+       provided") - the one real content field this block had was being
+       rejected as unrecognized, leaving the block looking empty. */
+    if (kvZusatzNetA > 0) pkvXml += `<WL_Zvers>${wholeEuroTag(fm.VOR.kvZusatz, Math.round(kvZusatzNetA))}</WL_Zvers>`;
     inner += `<Beitr_p_KV_PV_Inl>${pkvXml}</Beitr_p_KV_PV_Inl>\n`;
   }
   /* Real "sonstige Vorsorgeaufwendungen" category (A_B_LP), found by

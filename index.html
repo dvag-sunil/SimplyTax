@@ -681,6 +681,7 @@ en: {
  err_unt_required_legacy_idnr:"For this tax year, the supported person's Tax ID is also required (this year's rules require it unconditionally, unlike 2023 onward).",
  err_unt_foreign_required:"Because the supported household is abroad, please confirm you have the home-country authority's confirmation of need (required in addition to the Tax ID for foreign households).",
  err_realsplit_idnr_required:"Please fill in the ex-spouse's Tax ID for the Realsplitting amount you entered - required by the tax authority for this deduction.",
+ err_id_checksum_invalid:"One of the Tax ID numbers entered doesn't pass the official checksum check - please double-check it's typed correctly before submitting.",
  year_warn_no_schema:"⚠ The tax authority has not published this tax year's forms yet - returns for this year cannot be validated or submitted until they do.",
  year_warn_no_realsplit_country:"For this tax year, the ex-spouse's Tax ID is required regardless of where they live - there's no exception for a foreign residence yet (that exception starts in 2024).",
  school_hint:"30% deductible, max. €5,000.",
@@ -1097,6 +1098,7 @@ de: {
  err_unt_required_legacy_idnr:"Für dieses Steuerjahr ist zusätzlich die Steuer-ID der unterstützten Person erforderlich (für dieses Jahr zwingend vorgeschrieben, anders als ab 2023).",
  err_unt_foreign_required:"Da der unterstützte Haushalt im Ausland liegt, bestätigen Sie bitte, dass Ihnen die Unterhaltserklärung der Heimatbehörde vorliegt (zusätzlich zur Steuer-ID bei ausländischen Haushalten erforderlich).",
  err_realsplit_idnr_required:"Bitte geben Sie die Steuer-ID des Ex-Ehegatten für den eingetragenen Realsplitting-Betrag an - vom Finanzamt für diesen Abzug erforderlich.",
+ err_id_checksum_invalid:"Eine der eingegebenen Steuer-IDs besteht die offizielle Prüfziffernprüfung nicht - bitte überprüfen Sie die Eingabe vor dem Absenden.",
  year_warn_no_schema:"⚠ Das Finanzamt hat die Formulare für dieses Steuerjahr noch nicht veröffentlicht - Erklärungen für dieses Jahr können noch nicht geprüft oder übermittelt werden.",
  year_warn_no_realsplit_country:"Für dieses Steuerjahr ist die Steuer-ID des Ex-Ehegatten unabhängig vom Wohnsitz erforderlich - eine Ausnahme für Wohnsitz im Ausland gibt es noch nicht (diese Ausnahme gilt erst ab 2024).",
  school_hint:"30 % absetzbar, max. 5.000 €.",
@@ -4245,7 +4247,7 @@ function showSubmitValidationModal(message, stepIndex, fieldTabkey){
  </div>
  </div></div>`;
 }
-function submitElster(){
+async function submitElster(){
  const c0=cur();
  if(!isPaid(c0)){ showPayModal(); return; }
  if(!/^\d{4}$/.test((c0.p.faNumber||'').trim())){ showSubmitValidationModal(t('err_fa'), 0, 'p.faNumber'); return; }
@@ -4283,6 +4285,30 @@ function submitElster(){
  if(N(c0.oth.realsplitting)>0 && (!c0.oth.realsplitIdnr || !c0.oth.realsplitName)){
  showSubmitValidationModal(t('err_realsplit_idnr_required'), 6, 'oth.realsplitIdnr');
  return;
+ }
+ /* Real gap found via a genuine ERiC rejection (ungueltigeIDNummer) -
+ the existing checksum check only fires on live UI typing (an onchange
+ event), so a Tax ID entered a different way - most notably, loaded
+ from a raw JSON import rather than typed into the form - was never
+ actually checked before reaching a real submission. This re-checks
+ every Tax ID this app collects at the one point that can't be
+ bypassed: right before submission itself. */
+ const idFields = [
+ { val: c0.p.taxId, step: 0, key: 'p.taxId' },
+ { val: c0.p.spouseTaxId, step: 0, key: 'p.spouseTaxId' },
+ { val: c0.fam?.untIdnr, step: 5, key: 'fam.untIdnr' },
+ { val: c0.oth.realsplitIdnr, step: 6, key: 'oth.realsplitIdnr' },
+ ];
+ for(const f of idFields){
+ const digits = (f.val||'').replace(/\s/g,'');
+ if(!/^\d{11}$/.test(digits)) continue; // format-invalid IDs are already caught by the earlier required-field checks
+ try{
+ const r = await api('/api/eric/validate-fields','POST',{taxId:digits});
+ if(r && r.taxId && r.taxId.valid===false){
+ showSubmitValidationModal(t('err_id_checksum_invalid'), f.step, f.key);
+ return;
+ }
+ } catch(e){ /* service unavailable - don't block submission on a check that couldn't run; ERiC's own real validation is still the final safeguard */ }
  }
  submitElsterReal(c0);
 }
