@@ -740,6 +740,7 @@ en: {
  freigabe_title:"Release for transmission", freigabe_sub:"Please review the figures below carefully. Once you release this return, it is transmitted to the Finanzamt through the official electronic filing system.",
  freigabe_validate_failed:"ERiC could not confirm this return is ready to send yet.",
  freigabe_no_detail_from_eric:"ERiC did not provide further detail for this specific error - see below for what the app itself already knows is incomplete.",
+ freigabe_eric_log_summary:"Show technical detail from ERiC's own log (for support/debugging)",
  freigabe_incomplete_steps_title:"These steps are still missing required information",
  freigabe_incomplete_steps_sub:"This is very likely why the return above was not accepted - fill these in first, then try again.",
  freigabe_field_errors_title:"ERiC found specific problems", freigabe_go_to_section:"Go to this section", freigabe_go_to_field:"Go to this field",
@@ -1155,6 +1156,7 @@ de: {
  freigabe_title:"Zur Übermittlung freigeben", freigabe_sub:"Bitte prüfen Sie die folgenden Angaben sorgfältig. Mit der Freigabe wird diese Erklärung über die offizielle elektronische Schnittstelle an das Finanzamt übermittelt.",
  freigabe_validate_failed:"ERiC konnte noch nicht bestätigen, dass diese Erklärung versandbereit ist.",
  freigabe_no_detail_from_eric:"ERiC hat für diesen speziellen Fehler keine weiteren Details geliefert - siehe unten, was die App selbst bereits als unvollständig erkennt.",
+ freigabe_eric_log_summary:"Technische Details aus dem ERiC-Log anzeigen (für Support/Fehlersuche)",
  freigabe_incomplete_steps_title:"Diesen Schritten fehlen noch Pflichtangaben",
  freigabe_incomplete_steps_sub:"Das ist sehr wahrscheinlich der Grund, warum die obige Erklärung nicht angenommen wurde - bitte zuerst ausfüllen und dann erneut versuchen.",
  freigabe_field_errors_title:"ERiC hat konkrete Probleme gefunden", freigabe_go_to_section:"Zu diesem Abschnitt", freigabe_go_to_field:"Zu diesem Feld",
@@ -3852,7 +3854,6 @@ function stepWork(c){
  ${F('wk','dhhReason',t('dhh_reason')+' *',{ph:t('dhh_reason_ph')})}
  ${F('wk','dhhDate',t('dhh_date')+' *',{type:'date'})}
  </div>
- <div class="grid2">
  ${F('wk','dhhWorkplace',t('dhh_workplace')+' *',{ph:'60329 Frankfurt am Main'})}
  <div class="field${reqCls(c.wk.dhhOwnHousehold)}"><label>${t('dhh_ownhousehold')} *</label>
  <select onchange="upd('wk','dhhOwnHousehold',this.value);render();">
@@ -3861,13 +3862,10 @@ function stepWork(c){
  <option value="no" ${c.wk.dhhOwnHousehold==='no'?'selected':''}>${t('no')}</option>
  </select>
  <div class="hint">${t('dhh_ownhousehold_hint')}</div></div>
- </div>
- ${c.wk.dhhOwnHousehold==='yes'?`<div class="grid2">
- ${F('wk','dhhOwnPlz',t('dhh_ownhousehold_plz')+' *',{ph:'12345 Musterstadt'})}
- ${F('wk','dhhOwnSince',t('dhh_ownhousehold_since')+' *',{type:'date'})}
- </div>`:''}
+ ${c.wk.dhhOwnHousehold==='yes'?`${F('wk','dhhOwnPlz',t('dhh_ownhousehold_plz')+' *',{ph:'12345 Musterstadt'})}
+ ${F('wk','dhhOwnSince',t('dhh_ownhousehold_since')+' *',{type:'date'})}`:''}
  ${F('wk','dhhContinuousUntil',t('dhh_continuous_until')+' *',{ph:'31.12',hint:t('dhh_continuous_hint')})}
- </div>`:''}
+ `:''}
  ${N(c.wk.dhhTrips)>0?`<div class="field${reqCls(c.wk.dhhTravelMode)}">
  <label>${t('dhh_travelmode')} *</label>
  <select onchange="upd('wk','dhhTravelMode',this.value)">
@@ -3907,7 +3905,6 @@ function stepWork(c){
  ${F('wkB','dhhReason',t('dhh_reason')+' *',{ph:t('dhh_reason_ph')})}
  ${F('wkB','dhhDate',t('dhh_date')+' *',{type:'date'})}
  </div>
- <div class="grid2">
  ${F('wkB','dhhWorkplace',t('dhh_workplace')+' *',{ph:'60329 Frankfurt am Main'})}
  <div class="field${reqCls(c.wkB.dhhOwnHousehold)}"><label>${t('dhh_ownhousehold')} *</label>
  <select onchange="upd('wkB','dhhOwnHousehold',this.value);render();">
@@ -3916,13 +3913,10 @@ function stepWork(c){
  <option value="no" ${c.wkB.dhhOwnHousehold==='no'?'selected':''}>${t('no')}</option>
  </select>
  <div class="hint">${t('dhh_ownhousehold_hint')}</div></div>
- </div>
- ${c.wkB.dhhOwnHousehold==='yes'?`<div class="grid2">
- ${F('wkB','dhhOwnPlz',t('dhh_ownhousehold_plz')+' *',{ph:'12345 Musterstadt'})}
- ${F('wkB','dhhOwnSince',t('dhh_ownhousehold_since')+' *',{type:'date'})}
- </div>`:''}
+ ${c.wkB.dhhOwnHousehold==='yes'?`${F('wkB','dhhOwnPlz',t('dhh_ownhousehold_plz')+' *',{ph:'12345 Musterstadt'})}
+ ${F('wkB','dhhOwnSince',t('dhh_ownhousehold_since')+' *',{type:'date'})}`:''}
  ${F('wkB','dhhContinuousUntil',t('dhh_continuous_until')+' *',{ph:'31.12',hint:t('dhh_continuous_hint')})}
- </div>`:''}
+ `:''}
  ${N(c.wkB.dhhTrips)>0?`<div class="field${reqCls(c.wkB.dhhTravelMode)}">
  <label>${t('dhh_travelmode')} *</label>
  <select onchange="upd('wkB','dhhTravelMode',this.value)">
@@ -4743,6 +4737,8 @@ function showFreigabeModal(c, data, validateResult){
  ${!valid && !fieldErrors.length?`<div class="infobox" style="background:var(--red-soft);border-color:var(--red);margin-bottom:14px">
  ⚠ ${t('freigabe_validate_failed')} (${t('eric_code')}: ${validateResult?validateResult.rc:'?'})
  ${!incompleteSteps.length?`<div style="margin-top:6px;font-size:12.5px">${t('freigabe_no_detail_from_eric')}</div>`:''}
+ ${validateResult?.ericLogTail?`<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12.5px;font-weight:600">${t('freigabe_eric_log_summary')}</summary>
+ <pre style="white-space:pre-wrap;font-size:11px;background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:8px;margin-top:6px;max-height:240px;overflow:auto">${esc(validateResult.ericLogTail)}</pre></details>`:''}
  </div>`:''}
  ${incompleteSteps.length?`<div class="infobox" style="background:var(--red-soft);border-color:var(--red);margin-bottom:14px">
  <div style="font-weight:600;margin-bottom:6px">⚠ ${t('freigabe_incomplete_steps_title')} (${incompleteSteps.length})</div>
