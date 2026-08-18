@@ -1661,6 +1661,16 @@ check('Real ERiC rejection fixed (feldUnbekannt on E2003502, plus the related "n
   return vorCount === 1 && x.includes('<E2003104>3400</E2003104>') && x.includes('<WL_Zvers><E2003502>500</E2003502>\n</WL_Zvers>');
 })());
 
+check('Real ERiC rejection fixed (Regel 40, 41): the spouse religion field was completely missing from joint assessment, even though first name, birth date, and religion must all be sent together - added in the confirmed real position and format', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'zusammenveranlagung';
+  d.hauptvordruck.personB = { name: 'Muster', vorname: 'Anna', geburtsdatum: '1987-03-15', religion: 'EV' };
+  const x = buildEStXML(d).xml;
+  const bBlock = x.match(/<B>[\s\S]*?<\/B>/)?.[0] || '';
+  return bBlock.includes('<E0100801>Anna</E0100801>') && bBlock.includes('<E0101002>02</E0101002>')
+    && bBlock.indexOf('E0100801') < bBlock.indexOf('E0101002');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);

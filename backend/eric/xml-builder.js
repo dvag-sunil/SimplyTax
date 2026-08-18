@@ -171,7 +171,8 @@ function buildESt1A(data) {
      basic XML schema validation (ERIC_IO_READER_SCHEMA_VALIDIERUNG,
      610301200) - a more fundamental layer than the business-rule checks
      we'd been debugging, and a genuine regression from that specific fix. */
-  const bContent = B ? (tag(fm.ESt1A.spouseBirthDate, formatDateDE(B.geburtsdatum)) + tag(fm.ESt1A.spouseLastName, B.name) + tag(fm.ESt1A.spouseFirstName, B.vorname)) : '';
+  const bReligionCode = { '--': '11', RK: '03', EV: '02' }[B?.religion] || '11';
+  const bContent = B ? (tag(fm.ESt1A.spouseBirthDate, formatDateDE(B.geburtsdatum)) + tag(fm.ESt1A.spouseLastName, B.name) + tag(fm.ESt1A.spouseFirstName, B.vorname) + tag(fm.ESt1A.spouseReligion, bReligionCode)) : '';
   if (bContent) {
     xml += `<B>\n${bContent}</B>`;
   }

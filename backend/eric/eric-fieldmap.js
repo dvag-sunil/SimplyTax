@@ -18,6 +18,12 @@ const ESt1A = {
   spouseBirthDate: 'E0101001',
   spouseLastName: 'E0100901', // confirmed via the real official ELSTER example (est_e10_2025.xml) - was collected by the frontend but never wired into the XML
   spouseFirstName: 'E0100801',
+  /* Real, confirmed bug found via direct user feedback - a genuine real
+     ERiC rejection during joint assessment (Regel 40/41): the spouse's
+     first name, birth date, and religion must all be sent together, but
+     religion was completely missing from this block. Confirmed same
+     enum type as the filer's own religion field. */
+  spouseReligion: 'E0101002',
   lastName: 'E0100201',
   firstName: 'E0100301',
   street: 'E0101104',
