@@ -1429,13 +1429,13 @@ check('Spouse disability grade (gdbB) is transmitted using the same real Kennzah
   return x.includes('<Beh><Person>PersonA</Person><Ausw_Rentb_Besch><E0109708>50</E0109708>')
     && x.includes('<Beh><Person>PersonB</Person><Ausw_Rentb_Besch><E0109708>30</E0109708>');
 })());
-check('Real bug caught before shipping: both spouses\' care-level entries combine into a single Pflege_PB wrapper with two Einz children, not two illegal separate Pflege_PB elements (schema confirmed maxOccurs=1 for Pflege_PB itself)', (() => {
+check('Real, confirmed gap found via direct user feedback: Pflege-Pauschbetrag (care lump sum) is no longer transmitted at all - this section genuinely requires the cared-for person\'s own name, ID, relationship, and residence status alongside the grade, none of which this app collects, so sending the grade alone (the previous behavior) was itself the real bug. Now honestly flagged in skippedSections instead of sent incomplete.', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.weitereAngaben = { behinderung: { pflegeA: 600, pflegeB: 1100 } };
-  const x = buildEStXML(d).xml;
-  const pflegeBlocks = (x.match(/<Pflege_PB>/g) || []).length;
-  const einzCount = (x.match(/<Einz><Ang_pflegebeduerft_Pers>/g) || []).length;
-  return pflegeBlocks === 1 && einzCount === 2 && x.includes('<E0161606>2</E0161606>') && x.includes('<E0161606>3</E0161606>');
+  const result = buildEStXML(d);
+  const hasNoPflegePB = !result.xml.includes('Pflege_PB');
+  const isFlagged = result.skippedSections.some(s => s.includes('Pflege-Pauschbetrag'));
+  return hasNoPflegePB && isFlagged;
 })());
 
 check('Household services (Hhn_BV_DL) are now correctly wired as a genuine sibling to Handwerkerleistungen under St_Erm, using its own real Kennzahlen rather than incorrectly sharing Handw_L\'s (the real bug the previous version had)', (() => {
@@ -1669,6 +1669,13 @@ check('Real ERiC rejection fixed (Regel 40, 41): the spouse religion field was c
   const bBlock = x.match(/<B>[\s\S]*?<\/B>/)?.[0] || '';
   return bBlock.includes('<E0100801>Anna</E0100801>') && bBlock.includes('<E0101002>02</E0101002>')
     && bBlock.indexOf('E0100801') < bBlock.indexOf('E0101002');
+})());
+
+check('Real, additional gap found via a systematic check of the disability section: fahrtA/fahrtB and uebertragKind were being silently dropped with zero notice - only mentioned in a code comment, never actually flagged. Both now honestly appear in skippedSections rather than vanishing without a trace.', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.weitereAngaben = { behinderung: { fahrtA: 900, uebertragKind: 1000 } };
+  const result = buildEStXML(d);
+  return result.skippedSections.some(s => s.includes('commute allowance')) && result.skippedSections.some(s => s.includes('Transferring'));
 })());
 
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);

@@ -1482,23 +1482,22 @@ function buildAgB(data) {
      (<Beh><Person>...), not as a separate per-person field code, the
      same real pattern already proven correct for PersonA above. */
   if (b.gdbB) { xml += `<Beh><Person>PersonB</Person><Ausw_Rentb_Besch>${tag(fm.AgB.gdbA, b.gdbB)}</Ausw_Rentb_Besch></Beh>\n`; any = true; }
-  /* CORRECTED: Pflege_PB itself can only appear once (maxOccurs=1) -
-     confirmed directly against the schema before shipping this, since
-     the first draft would have produced two separate Pflege_PB blocks
-     if both spouses had a care-level entry, which the schema doesn't
-     allow. The real structure wants multiple Einz entries nested
-     inside one shared Pflege_PB wrapper instead (Einz itself allows
-     up to 5). */
-  let pflegeEinz = '';
-  if (b.pflegeA) {
-    const grad = fm.amountToPflegegrad(b.pflegeA);
-    if (grad) { pflegeEinz += `<Einz><Ang_pflegebeduerft_Pers>${tag(fm.AgB.pflegeGrad, grad)}</Ang_pflegebeduerft_Pers></Einz>\n`; any = true; }
-  }
-  if (b.pflegeB) {
-    const gradB = fm.amountToPflegegrad(b.pflegeB);
-    if (gradB) { pflegeEinz += `<Einz><Ang_pflegebeduerft_Pers>${tag(fm.AgB.pflegeGrad, gradB)}</Ang_pflegebeduerft_Pers></Einz>\n`; any = true; }
-  }
-  if (pflegeEinz) xml += `<Pflege_PB>\n${pflegeEinz}</Pflege_PB>\n`;
+  /* CORRECTED: real, confirmed gap found via direct user feedback and a
+     full investigation of the real schema - this section is genuinely
+     for claiming the "Pflege-Pauschbetrag" (care lump sum) for
+     providing unpaid care to a dependent relative, and requires that
+     person's own name, ID number, relationship, and residence status
+     alongside the care grade - confirmed directly in the schema's own
+     documentation for the sibling fields. The app's UI already labels
+     this correctly as caring for someone else, but never actually
+     collects any of those required details about that person - only
+     the grade amount. Sending the grade alone, with no person it
+     actually belongs to, is exactly the kind of incomplete entry that
+     gets rejected. Correctly not transmitted until the app collects
+     the cared-for person's details too - a real, genuine feature gap,
+     not something to guess a placeholder for. The skipped-section note
+     for this is added in buildEStXML below, where skippedSections is
+     actually in scope. */
   /* fahrtA/fahrtB (disability-related commute allowance) and
      uebertragKind (transferring the disability lump sum to a child) -
      both genuinely collected by the app, both still without a
@@ -2255,6 +2254,24 @@ function buildEStXML(data, opts = {}) {
     if (a.dualResidence && (!a.foreignResStreet || !a.foreignResCountry))
       skippedSections.push(`${label}: a foreign residence was indicated but its address is incomplete (Regel 20) - this entry will be rejected until filled in.`);
   });
+   /* Real, confirmed gap - see the detailed comment in buildAgB above.
+     Checked here since skippedSections is only in scope in this main
+     function, not inside buildAgB itself. Kept as its own independent
+     check, not nested inside the unrelated EM_35c block above (a real
+     bug in an earlier version of this fix - it would never have run
+     unless energetic renovation data also happened to be present). */
+  const beh = data.weitereAngaben?.behinderung || {};
+  if (N(beh.pflegeA) > 0 || N(beh.pflegeB) > 0)
+    skippedSections.push('Pflege-Pauschbetrag (care lump sum for providing unpaid care to a dependent relative) - a grade was entered, but this deduction genuinely requires that person\'s own name, ID, relationship, and residence status, which this app does not yet collect. Not transmitted, since sending the amount alone without who it belongs to is invalid - this needs a dedicated UI addition (collecting the cared-for person\'s details) before it can be filed.');
+  /* Real, additional gap found via a systematic check of this whole
+     section - these two were only ever mentioned in a code comment,
+     never actually flagged to the user, meaning they were being
+     silently dropped with zero notice - the exact trust problem
+     already fixed once for other sections. */
+  if (N(beh.fahrtA) > 0 || N(beh.fahrtB) > 0)
+    skippedSections.push('Disability-related commute allowance - an amount was entered, but no confirmed Kennzahl was found for this despite real research effort. Not transmitted rather than guessed at.');
+  if (N(beh.uebertragKind) > 0)
+    skippedSections.push('Transferring the disability lump sum to a child - an amount was entered, but no confirmed Kennzahl was found for this despite real research effort. Not transmitted rather than guessed at.');
   if (data.par35cEnergetisch?.street) {
     const em = data.par35cEnergetisch;
     const emTotal = ['walls','roof','ceiling','windows','ventilation','heating'].reduce((s2, k) => s2 + N(em[k]), 0);
