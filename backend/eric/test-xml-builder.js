@@ -1684,11 +1684,22 @@ check('Real ERiC rejection fixed (Regel 40, 41): the spouse religion field was c
     && bBlock.indexOf('E0100801') < bBlock.indexOf('E0101002');
 })());
 
-check('Real, additional gap found via a systematic check of the disability section: fahrtA/fahrtB and uebertragKind were being silently dropped with zero notice - only mentioned in a code comment, never actually flagged. Both now honestly appear in skippedSections rather than vanishing without a trace.', (() => {
+check('Transferring the disability lump sum to a child - still genuinely not implemented, honestly flagged in skippedSections rather than guessed at', (() => {
   const d = JSON.parse(JSON.stringify(sample));
-  d.weitereAngaben = { behinderung: { fahrtA: 900, uebertragKind: 1000 } };
+  d.weitereAngaben = { behinderung: { uebertragKind: 1000 } };
   const result = buildEStXML(d);
-  return result.skippedSections.some(s => s.includes('commute allowance')) && result.skippedSections.some(s => s.includes('Transferring'));
+  return result.skippedSections.some(s => s.includes('Transferring'));
+})());
+check('Disability-related commute allowance - now genuinely implemented: the two selectable amounts (900/4500) correctly map to their real thresholds, positioned right after Pflege_PB in the confirmed real element order, and no longer flagged as a gap', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.weitereAngaben = { behinderung: { fahrtA: 900, fahrtB: 4500 } };
+  const x_result = buildEStXML(d);
+  const xml = x_result.xml;
+  const behFkA = xml.includes('<Person>PersonA</Person>\n<E0161706>1</E0161706>');
+  const behFkB = xml.includes('<Person>PersonB</Person>\n<E0161806>1</E0161806>');
+  const notFlagged = !x_result.skippedSections.some(s => s.includes('commute allowance'));
+  const positions = { pflege: xml.indexOf('<Pflege_PB>'), fk: xml.indexOf('<Beh_Fk_Pausch>') };
+  return behFkA && behFkB && notFlagged && positions.fk > positions.pflege;
 })());
 
 check('Four newly-implemented rarer rental categories (special depreciation, financing costs, 5-year maintenance, VAT-liable letting) transmit in the confirmed real element order, and the required overall Se_WK total correctly includes all of them', (() => {

@@ -1547,6 +1547,17 @@ function buildAgB(data) {
     }
   }
   if (pflegeEinz) { xml += `<Pflege_PB>\n${pflegeEinz}</Pflege_PB>\n`; any = true; }
+  /* IMPLEMENTED: disability-related commute allowance - confirmed
+     directly against the schema (see the detailed comment in
+     eric-fieldmap.js). Genuinely a per-person flag, not an amount -
+     ELSTER computes the actual deduction itself from the flag alone.
+     The app's two selectable amounts map directly to the two real
+     thresholds; only one flag is ever sent per person, matching the
+     mutually-exclusive dropdown already in place. */
+  if (String(b.fahrtA) === '900') { xml += `<Beh_Fk_Pausch><Person>PersonA</Person>\n${tag(fm.AgB.fahrtFlagLow, '1')}</Beh_Fk_Pausch>\n`; any = true; }
+  else if (String(b.fahrtA) === '4500') { xml += `<Beh_Fk_Pausch><Person>PersonA</Person>\n${tag(fm.AgB.fahrtFlagHigh, '1')}</Beh_Fk_Pausch>\n`; any = true; }
+  if (String(b.fahrtB) === '900') { xml += `<Beh_Fk_Pausch><Person>PersonB</Person>\n${tag(fm.AgB.fahrtFlagLow, '1')}</Beh_Fk_Pausch>\n`; any = true; }
+  else if (String(b.fahrtB) === '4500') { xml += `<Beh_Fk_Pausch><Person>PersonB</Person>\n${tag(fm.AgB.fahrtFlagHigh, '1')}</Beh_Fk_Pausch>\n`; any = true; }
   /* fahrtA/fahrtB (disability-related commute allowance) and
      uebertragKind (transferring the disability lump sum to a child) -
      both genuinely collected by the app, both still without a
@@ -2322,8 +2333,6 @@ function buildEStXML(data, opts = {}) {
      never actually flagged to the user, meaning they were being
      silently dropped with zero notice - the exact trust problem
      already fixed once for other sections. */
-  if (N(beh.fahrtA) > 0 || N(beh.fahrtB) > 0)
-    skippedSections.push('Disability-related commute allowance - an amount was entered, but no confirmed Kennzahl was found for this despite real research effort. Not transmitted rather than guessed at.');
   if (N(beh.uebertragKind) > 0)
     skippedSections.push('Transferring the disability lump sum to a child - an amount was entered, but no confirmed Kennzahl was found for this despite real research effort. Not transmitted rather than guessed at.');
   if (data.par35cEnergetisch?.street) {

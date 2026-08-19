@@ -33,11 +33,11 @@ for (const [section, obj] of Object.entries({
   }
 }
 
-check('total mapped fields = 298 (was 285 - +4 for the care lump sum person details, +8 for the four newly-implemented rarer rental deduction categories)', Object.values({
+check('total mapped fields = 300 (was 298 - +2 for the disability-related commute allowance, resolved from earlier confusion with a differently-named element inside a child entry)', Object.values({
   ESt1A: fm.ESt1A, N: fm.N, VOR: fm.VOR, SA: fm.SA, Kind: fm.Kind, N_DHH: fm.N_DHH,
   KAP: fm.KAP, HA_35a: fm.HA_35a, Sonst: fm.Sonst, SO: fm.SO, ESt1A_U: fm.ESt1A_U, N_AUS: fm.N_AUS,
   AgB: fm.AgB, EM_35c: fm.EM_35c, ESt1A_Ersatz: fm.ESt1A_Ersatz, R: fm.R, V: fm.V,
-}).reduce((sum, o) => sum + Object.keys(o).length, 0) === 298);
+}).reduce((sum, o) => sum + Object.keys(o).length, 0) === 300);
 
 check('gross einz/sum correct', fm.N.gross.einz === 'E0200204' && fm.N.gross.sum === 'E0200201');
 check('taxClass corrected to Steuerklasse', fm.N.taxClass.kennzahlen[0] === 'E0200002');

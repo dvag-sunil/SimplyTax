@@ -675,6 +675,19 @@ const AgB = {
      residency(E0161607), grade(E0161606), then the "H" mark(E0161808). */
   pflegePersonInfo: 'E0110601', pflegePersonId: 'E0161506',
   pflegePersonResident: 'E0161607', pflegePersonH: 'E0161808',
+  /* Disability-related commute allowance - confirmed directly against
+     the schema to be a genuine sibling to the filer's own disability
+     grade (Beh) within the main AgB section, maxOccurs=2 (one per
+     person), NOT tied to a child entry - resolves earlier confusion
+     with a different element that happens to share the same name
+     within a child's own entry. Both are real, checkbox-style flags
+     (Ja1) - only sent when true, no separate amount field needed
+     since these are fixed statutory amounts ELSTER computes itself
+     from the flag alone. E0161706 matches the lower threshold (grade
+     70+ with mark G, or grade 80+) - the app's 900 EUR option.
+     E0161806 matches the higher threshold (aG/Bl/TBl/H marks) - the
+     app's 4,500 EUR option. */
+  fahrtFlagLow: 'E0161706', fahrtFlagHigh: 'E0161806',
   medical: { kennzahlen: ['E0161301', 'E0161302', 'E0161303', 'E0161304', 'E0161305'],
     note: 'Krankheitskosten: Art/Hoehe/Erstattung/Summe-Aufwand/Summe-Erstattung, confirmed via AgB - Kontexte hierarchy (/AgB/And_Aufw/Krankh is first in the position-matched list of 5 generic Art/Hoehe pairs)' },
 };
