@@ -1686,7 +1686,7 @@ async function loadState(){
  if(u){ S.user=u; await loadUserData(); S.loggedIn=true; S.view='dash'; } }
 }
 function migrateClient(c){
- c.p = Object.assign({faNumber:'',bundesland:'',spouseReligion:'none',singleParent:'no',deathYear:'',fullYearResident:'yes',arrivalDate:'',departureDate:''}, c.p||{});
+ c.p = Object.assign({faNumber:'',bundesland:'',spouseReligion:'none',singleParent:'no',deathYear:''}, c.p||{});
  c.wkB = Object.assign({commuteDays:'',commuteKm:'',commuteMode:'',commutePublicCost:'',commuteWorkplace:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'',dhhReason:'',dhhDate:'',dhhWorkplace:'',dhhOwnHousehold:'',dhhOwnPlz:'',dhhOwnSince:'',dhhContinuousUntil:'',dhhTravelMode:''}, c.wkB||{});
  (Array.isArray(c.privIns)?c.privIns:[]).forEach(x=>{ if(x.person!=='B') x.person='A'; });
  c.emps = Array.isArray(c.emps)?c.emps:[];
@@ -2539,11 +2539,10 @@ function stepDone(c,i){
  switch(i){
  case 0: {
  const married=['married','married_sep','getrennt_lebend'].includes(c.p.marital);
- const base=[c.p.firstName,c.p.lastName,c.p.birthDate,c.p.taxId,c.p.street,c.p.houseNo,c.p.plz,c.p.city,c.p.marital,c.p.fullYearResident];
+ const base=[c.p.firstName,c.p.lastName,c.p.birthDate,c.p.taxId,c.p.street,c.p.houseNo,c.p.plz,c.p.city,c.p.marital];
  const anyBase=base.some(has) || has(c.p.steuernummer);
  if(!anyBase) return 'empty';
  let ok=base.every(has) && has(c.p.steuernummer);
- if(ok && c.p.fullYearResident==='no') ok = has(c.p.arrivalDate) && has(c.p.departureDate);
  if(ok && married) ok = has(c.p.spouseFirst) && has(c.p.spouseBirth) && has(c.p.spouseTaxId);
  return ok?'done':'incomplete';
  }
@@ -2644,12 +2643,8 @@ function firstMissingFieldTabkey(c,i){
  const married=['married','married_sep','getrennt_lebend'].includes(c.p.marital);
  const order=[['firstName','p.firstName'],['lastName','p.lastName'],['birthDate','p.birthDate'],['taxId','p.taxId'],
    ['street','p.street'],['houseNo','p.houseNo'],['plz','p.plz'],['city','p.city'],['marital','p.marital'],
-   ['fullYearResident','p.fullYearResident'],['steuernummer','p.steuernummer']];
+   ['steuernummer','p.steuernummer']];
  for(const [field,tabkey] of order){ if(!has(c.p[field])) return tabkey; }
- if(c.p.fullYearResident==='no'){
- if(!has(c.p.arrivalDate)) return 'p.arrivalDate';
- if(!has(c.p.departureDate)) return 'p.departureDate';
- }
  if(married){
  if(!has(c.p.spouseFirst)) return 'p.spouseFirst';
  if(!has(c.p.spouseBirth)) return 'p.spouseBirth';
@@ -3533,15 +3528,10 @@ function stepPersonal(c){
  ${F('p','marital',t('marital')+' *',{select:[['single',t('single')],['married',t('married')],['married_sep',t('married_sep')],['verwitwet',t('widowed')],['getrennt_lebend',t('separated_living')]],hint:t('marital_hint'),hintMode:'toggle'})}
  ${c.p.marital==='verwitwet'?F('p','deathYear',t('death_year'),{type:'number',ph:String(new Date().getFullYear()-1),hint:t('death_year_hint')}):''}
  ${c.p.marital==='getrennt_lebend'?`<div class="hint" style="margin-top:-8px;margin-bottom:14px">${t('separated_hint')}</div>`:''}
- ${F('p','fullYearResident',t('full_year_resident')+' *',{select:[['yes',t('fy_yes')],['no',t('fy_no')]]})}
  ${c.p.marital!=='married' ? F('p','singleParent',t('single_parent'),{select:[['no',t('opt_no')],['yes',t('opt_yes')]],hint:t('single_parent_hint')}) : ''}
  ${F('p','religion',t('religion'),{select:[['none',t('rel_none')],['ev',t('rel_ev')],['rk',t('rel_rk')],['other',t('rel_other')]]})}
  ${F('p','profession',t('profession'))}
  </div>
- ${(c.p.fullYearResident==='no')?`<div class="grid2">
- ${F('p','arrivalDate',t('arrival_date')+' *',{type:'date',hint:t('partial_year_hint')})}
- ${F('p','departureDate',t('departure_date')+' *',{type:'date'})}
- </div>`:'' }
  <div class="section-label">${t('tax_info_h')}</div>
  <div class="grid2">
  ${F('p','bundesland',t('bundesland')+' *',{select:[['',t('select')],...BUNDESLAENDER.map(b=>[b,b])]})}
