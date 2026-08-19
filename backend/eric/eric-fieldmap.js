@@ -418,6 +418,26 @@ const N_DHH = {
   // rather than left unsent or a nonexistent field invented.
 };
 
+/* Legacy N_DHH structure for 2021/2022, confirmed via direct schema
+   research after a real ERiC rejection revealed N_DHH doesn't exist as
+   an element at all for those years. Nested within Wk/DHHF (matching
+   this app's own original structure before the 2023+ restructuring to
+   a separate top-level element was discovered) - not a top-level
+   sibling for these years. Confirmed identical between 2021 and 2022.
+   One real, confirmed structural difference from 2023+: there is
+   genuinely no "own household since" date field for these years - only
+   the yes/no declaration and PLZ/Ort, not a date. Not invented here.
+   Unlike the 2023+ fields (iteratively confirmed against real ERiC
+   rejections), these business-rule requirements (which fields are
+   required together) haven't been verified against a real submission -
+   sent following the same real pattern as 2023+ as the best-available
+   evidence, but worth treating as provisional until tested for real. */
+const N_DHH_LEGACY = {
+  dhhDate: 'E0224902', dhhReason: 'E0225003', dhhContinuousUntil: 'E0225108',
+  dhhWorkplace: 'E0225202', dhhOwnHousehold: 'E0225302', dhhOwnPlz: 'E0225404',
+  dhhTravelMode: 'E0226305', dhhRent: 'E0227203',
+};
+
 /* ---------- 7. Household services / Section 35a (HA_35a context) ---------- */
 const HA_35a = {
   /* CORRECTED: found the real mapping by tracing the complete St_Erm
@@ -1071,7 +1091,7 @@ function isFieldSupportedForYear(code, year) {
 }
 
 module.exports = {
-  ESt1A, N, VOR, SA, Kind, N_DHH, HA_35a, KAP, Sonst, SO, ESt1A_U, N_AUS, AgB, EM_35c, ESt1A_Ersatz, R, V, AUS,
+  ESt1A, N, VOR, SA, Kind, N_DHH, N_DHH_LEGACY, HA_35a, KAP, Sonst, SO, ESt1A_U, N_AUS, AgB, EM_35c, ESt1A_Ersatz, R, V, AUS,
   isSlotResolved, unresolvedFields, sumEmployerField, routeToVOR, computeAusTaxFree, amountToPflegegrad,
   SECTION_YEAR_SUPPORT, FIELD_YEAR_SUPPORT, isSectionSupportedForYear, isFieldSupportedForYear,
 };

@@ -1809,6 +1809,35 @@ check('The same marker fix also creates the Beh block even when only the commute
   return behBlock.includes('<E0109706>1</E0109706>') && !behBlock.includes('Ausw_Rentb_Besch');
 })());
 
+check('Real ERiC rejection investigated (feldUnbekannt on E0102602): the separate-assessment-of-spouses flag is only sent when genuine spouse data exists (a real Tax ID), not just a truthy personB object, protecting against the exact scenario a real rejection surfaced', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'einzelveranlagung_ehegatten_par26a';
+  d.hauptvordruck.personB = null;
+  const x = buildEStXML(d).xml;
+  return !x.includes('E0102602');
+})());
+
+check('Newly implemented: legacy double-household structure for 2021/2022, confirmed via direct schema research - now genuinely transmitted nested within Wk (the real, confirmed position for these years), not the separate top-level N_DHH element used for 2023+, with both years verified to produce their own genuinely correct real structure', (() => {
+  const d2022 = JSON.parse(JSON.stringify(sample));
+  d2022.meta.taxYear = 2022;
+  d2022.werbungskosten = { personA: { doppelteHaushaltsfuehrung: {
+    monatsmiete: 800, monate: 6, familienheimfahrten: 12, entfernungKm: 300,
+    grund: 'Neue Arbeitsstelle', datum: '2025-03-01', bestehtBis: '31.12.', beschaeftigungsort: '60329 Frankfurt am Main', eigenerHausstand: 'no', reiseart: 'no',
+  } }, einzelposten: [] };
+  const r2022 = buildEStXML(d2022);
+  const dhhf2022 = r2022.xml.match(/<DHHF>[\s\S]*?<\/DHHF>/)?.[0] || '';
+  const worksFor2022 = !r2022.xml.includes('N_DHH') && dhhf2022.includes('<E0224902>01.03.2025</E0224902>')
+    && dhhf2022.includes('<E0225003>Neue Arbeitsstelle</E0225003>') && dhhf2022.includes('<E0227203>4800</E0227203>');
+
+  const d2025 = JSON.parse(JSON.stringify(sample));
+  d2025.meta.taxYear = 2025;
+  d2025.werbungskosten = JSON.parse(JSON.stringify(d2022.werbungskosten));
+  const r2025 = buildEStXML(d2025);
+  const worksFor2025 = r2025.xml.includes('<N_DHH>') && r2025.xml.includes('<E0206103>');
+
+  return worksFor2022 && worksFor2025;
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);

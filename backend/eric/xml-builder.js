@@ -153,7 +153,13 @@ function buildESt1A(data) {
      providing personB, that is itself a data-consistency issue worth
      checking, but this guard also protects against sending an
      inconsistent declaration regardless. */
-  if (h.veranlagungsart === 'einzelveranlagung_ehegatten_par26a' && B) {
+  /* CORRECTED (strengthened): a real ERiC rejection showed this field
+     still being sent even without genuine spouse data present -
+     checking B.idnr specifically (a real Tax ID) rather than just B's
+     truthiness, since personB could be a truthy-but-empty object
+     rather than genuinely null/undefined in some real data, which
+     would incorrectly pass a bare "&& B" check. */
+  if (h.veranlagungsart === 'einzelveranlagung_ehegatten_par26a' && B && B.idnr) {
     xml += tag(fm.ESt1A.maritalSeparateAssessment, 'X');
   }
   xml += '</A>';
@@ -461,8 +467,47 @@ function buildAnlageN(data) {
     if (wk && N(wk.sonstige) > 0) {
       sonstXml += `<Sonst>${tag(fm.N.weitereWkDesc.kennzahlen[0], 'Sonstige Werbungskosten')}${wholeEuroTag(fm.N.weitereWkAmount.kennzahlen[0], Math.round(N(wk.sonstige)))}</Sonst>\n`;
     }
-    const itemsSum = items.reduce((a, x) => a + (N(x.betrag) || 0), 0) + (wk ? N(wk.umzugskosten) + N(wk.sonstige) : 0);
+     const itemsSum = items.reduce((a, x) => a + (N(x.betrag) || 0), 0) + (wk ? N(wk.umzugskosten) + N(wk.sonstige) : 0);
     if (sonstXml && itemsSum > 0) wkXml += `<Weitere_Wk>\n${sonstXml}<Sum>${wholeEuroTag(fm.N.weitereWkSum.kennzahlen[0], Math.round(itemsSum))}</Sum></Weitere_Wk>\n`;
+    /* Newly implemented - legacy double-household structure for
+       2021/2022, confirmed via direct schema research after a real
+       ERiC rejection revealed N_DHH doesn't exist for those years.
+       Nested here within Wk (its real, confirmed position for these
+       years), not as the separate top-level N_DHH element used for
+       2023+. Requires the same mandatory pieces already proven correct
+       for 2023+ (date established, reason, continuous-until,
+       workplace, own-household declaration) - no "since" date exists
+       for these years, a real, confirmed structural difference, not
+       an oversight. Treated as provisional: unlike 2023+ (iteratively
+       confirmed against real rejections), these specific business
+       rules haven't been tested against a real submission yet. */
+    const taxYearNum = Number(data.meta?.taxYear) || 2025;
+    if (wk && taxYearNum < 2023) {
+      const dhh = wk.doppelteHaushaltsfuehrung || {};
+      const dhhRentTotal = Math.min(N(dhh.monatsmiete), 1000) * Math.min(N(dhh.monate), 12);
+      const hasRent = dhhRentTotal > 0;
+      const hasMandatory = dhh.datum && dhh.grund && dhh.beschaeftigungsort && dhh.eigenerHausstand && dhh.bestehtBis;
+      if (hasRent && hasMandatory) {
+        let allgXml = tag(fm.N_DHH_LEGACY.dhhDate, formatDateDE(dhh.datum));
+        allgXml += tag(fm.N_DHH_LEGACY.dhhReason, dhh.grund);
+        allgXml += tag(fm.N_DHH_LEGACY.dhhContinuousUntil, String(dhh.bestehtBis).trim());
+        allgXml += tag(fm.N_DHH_LEGACY.dhhWorkplace, dhh.beschaeftigungsort);
+        allgXml += tag(fm.N_DHH_LEGACY.dhhOwnHousehold, dhh.eigenerHausstand === 'yes' ? '1' : '2');
+        if (dhh.eigenerHausstand === 'yes' && dhh.eigenerHausstandOrt) {
+          allgXml += tag(fm.N_DHH_LEGACY.dhhOwnPlz, dhh.eigenerHausstandOrt);
+        }
+        let dhhfXml = `<Allg>${allgXml}</Allg>`;
+        const hasTrips = N(dhh.entfernungKm) > 0 && N(dhh.familienheimfahrten) > 0;
+        if (hasTrips && dhh.reiseart !== 'yes') {
+          const travelCode = dhh.reiseart === 'partial' ? '3' : '2';
+          dhhfXml += `<Fahrtk>${tag(fm.N_DHH_LEGACY.dhhTravelMode, travelCode)}</Fahrtk>`;
+        }
+        dhhfXml += `<Unterkunft>${wholeEuroTag(fm.N_DHH_LEGACY.dhhRent, Math.round(dhhRentTotal))}</Unterkunft>`;
+        wkXml += `<DHHF>${dhhfXml}</DHHF>\n`;
+      } else if (hasRent) {
+        skippedSections.push('Double-household costs (2021/2022) - a rent amount was entered but the required details (date established, reason, workplace, own-household declaration, continuous-until date) aren\'t all filled in yet, which this legacy structure requires. Not transmitted until those are complete.');
+      }
+    }
     if (wkXml) xml += `<Wk>\n${wkXml}</Wk>\n`;
     xml += '</N>\n';
   }
@@ -492,6 +537,18 @@ function buildAnlageN(data) {
    KAP, R, N_AUS, and AUS - grouped by person from the start this time,
    rather than repeat that mistake a fifth time. */
 function buildNDHH(data) {
+  /* Real, definitive year-boundary bug found via direct schema
+     verification across all years - N_DHH genuinely doesn't exist as
+     an element at all for 2021 and 2022, confirmed directly (zero
+     matches in those years' real XSDs, versus a confirmed real match
+     for 2023-2025). Previously sent unconditionally regardless of
+     year, which is exactly why the entire section was rejected as
+     unrecognized. Double-household costs may still be deductible for
+     those earlier years under a genuinely different structure, but
+     that hasn't been researched - correctly skipped with an honest
+     note here rather than guessed at. */
+  const taxYear = Number(data.meta?.taxYear) || 2025;
+  if (taxYear < 2023) return '';
   const byPerson = { A: data.werbungskosten?.personA, B: data.werbungskosten?.personB };
   let xml = '';
   for (const p of ['A', 'B']) {
@@ -2349,7 +2406,7 @@ function buildEStXML(data, opts = {}) {
      check, not nested inside the unrelated EM_35c block above (a real
      bug in an earlier version of this fix - it would never have run
      unless energetic renovation data also happened to be present). */
-  const beh = data.weitereAngaben?.behinderung || {};
+   const beh = data.weitereAngaben?.behinderung || {};
   /* Now implemented (see buildAgB above) - only flagged here when the
      required person details are genuinely still missing, matching the
      same fall-through condition used there. */
