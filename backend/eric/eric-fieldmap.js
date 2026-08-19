@@ -145,6 +145,14 @@ const N = {
      being silently dropped. Confirmed identical across all five years
      2021-2025. */
   arbeitsmittelArt: 'E0204401', arbeitsmittelAmount: 'E0204402', arbeitsmittelSum: 'E0204403',
+  /* Real gap found via a complete field-audit - Arbeitszimmer (a
+     dedicated home office room, a separate deduction from the daily
+     home-office allowance) was collected by the app but never wired
+     at all, meaning it was silently discarded before even reaching
+     the backend. Confirmed real element order: right after
+     Arbeitsmittel, before Homeoffice. Confirmed identical across all
+     five years 2021-2025. */
+  arbeitszimmerArt: 'E0204503', arbeitszimmerAmount: 'E0204505', arbeitszimmerSum: 'E0204504',
   fortbildungArt: 'E0204804', fortbildungAmount: 'E0204808', fortbildungSum: 'E0204812',
   weitereWkSum: { kennzahlen: ['E0204803'], slotResolved: true, note: 'Weitere_Wk/Sum/E0204803 - sum of the itemized Werbungskosten entries (WKI_TYPES), transmitted as a single verified total' },
   /* Real gap found via the systematic backend-wiring audit - collected

@@ -410,6 +410,12 @@ function buildAnlageN(data) {
         const amt = Math.round(N(wk.arbeitsmittel));
         wkXml += `<Arbeitsmittel><Einz>${tag(fm.N.arbeitsmittelArt, 'Arbeitsmittel')}${wholeEuroTag(fm.N.arbeitsmittelAmount, amt)}</Einz><Sum>${wholeEuroTag(fm.N.arbeitsmittelSum, amt)}</Sum></Arbeitsmittel>\n`;
       }
+      /* IMPLEMENTED: real gap found via a complete field-audit - see
+         the detailed comment in eric-fieldmap.js. */
+      if (N(wk.arbeitszimmer) > 0) {
+        const amt = Math.round(N(wk.arbeitszimmer));
+        wkXml += `<Arb_Zim><Einz>${tag(fm.N.arbeitszimmerArt, 'Arbeitszimmer')}${wholeEuroTag(fm.N.arbeitszimmerAmount, amt)}</Einz><Sum>${wholeEuroTag(fm.N.arbeitszimmerSum, amt)}</Sum></Arb_Zim>\n`;
+      }
       if (N(wk.homeofficeTage) > 0) wkXml += `<Homeoffice>${wholeEuroTag(fm.N.homeOfficeDays.kennzahlen[0], Math.round(N(wk.homeofficeTage)))}</Homeoffice>\n`;
       if (N(wk.fortbildung) > 0) {
         const amt = Math.round(N(wk.fortbildung));

@@ -1756,6 +1756,18 @@ check('Pre-2023 years: only the first person is sent, since that structure is ge
   return x.includes('First Person') && !x.includes('Second Person');
 })());
 
+check('Real gap found via a complete field-audit: Arbeitszimmer (dedicated home office room, distinct from the daily home-office allowance) now transmits correctly for both people, in the confirmed real element order right after Arbeitsmittel and before Homeoffice', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'zusammenveranlagung';
+  d.hauptvordruck.personB = { name: 'Muster', vorname: 'Anna', geburtsdatum: '1987-03-15', religion: 'EV' };
+  d.anlageN.push({ person: 'B', zeile3_bruttoarbeitslohn: 40000, zeile4_lohnsteuer: 6000 });
+  d.werbungskosten = { personA: { arbeitsmittel: 500, arbeitszimmer: 1260, homeofficeTage: 50 }, personB: { arbeitszimmer: 900 }, einzelposten: [] };
+  const x = buildEStXML(d).xml;
+  const arbZimBlocks = x.match(/<Arb_Zim>[\s\S]*?<\/Arb_Zim>/g) || [];
+  const orderOk = x.indexOf('<Arbeitsmittel>') < x.indexOf('<Arb_Zim>') && x.indexOf('<Arb_Zim>') < x.indexOf('<Homeoffice>');
+  return arbZimBlocks.length === 2 && arbZimBlocks[0].includes('<E0204505>1260</E0204505>') && arbZimBlocks[1].includes('<E0204505>900</E0204505>') && orderOk;
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);
