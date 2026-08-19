@@ -1793,6 +1793,22 @@ check('Newly implemented: child disability/helplessness transfer - correctly not
   return !x.includes('Ueb_PB_Beh_Hbl');
 })());
 
+check('Real ERiC cross-validation rejection fixed (Regel 101160039): the disability marker is now declared consistently in both the main Beh block and Beh_Fk_Pausch, confirmed via the exact real scenario that was rejected', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.weitereAngaben = { behinderung: { gdbA: '80', fahrtA: '900' } };
+  const x = buildEStXML(d).xml;
+  const behBlock = x.match(/<Beh>[\s\S]*?<\/Beh>/)?.[0] || '';
+  return behBlock.includes('<E0109708>80</E0109708>') && behBlock.includes('<E0109707>1</E0109707>')
+    && x.includes('<E0161706>1</E0161706>');
+})());
+check('The same marker fix also creates the Beh block even when only the commute tier is selected, with no separate grade value - the marker needs somewhere to live', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.weitereAngaben = { behinderung: { fahrtA: '4500' } };
+  const x = buildEStXML(d).xml;
+  const behBlock = x.match(/<Beh>[\s\S]*?<\/Beh>/)?.[0] || '';
+  return behBlock.includes('<E0109706>1</E0109706>') && !behBlock.includes('Ausw_Rentb_Besch');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);

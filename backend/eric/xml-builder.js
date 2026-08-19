@@ -1512,7 +1512,22 @@ function buildAgB(data) {
   const agb = data.aussergewoehnlicheBelastungen || {};
   let xml = '<AgB>\n';
   let any = false;
-  if (b.gdbA) { xml += `<Beh><Person>PersonA</Person><Ausw_Rentb_Besch>${tag(fm.AgB.gdbA, b.gdbA)}</Ausw_Rentb_Besch></Beh>\n`; any = true; }
+  /* CORRECTED: real ERiC cross-validation rejection (Regel 101160039)
+     - whichever tier is selected for the commute allowance
+     (Beh_Fk_Pausch below) must be declared consistently here too, in
+     the main Beh block's own separate marker sub-block
+     (Geh_Steh_Blind_Hilfl) - confirmed via direct schema investigation
+     after the real rejection. The same marker meaning as the commute
+     tier, just required in this second location as well. Restructured
+     so this block is created whenever either the grade or the commute
+     tier is present - the marker needs a Beh block to live in even if
+     only the commute tier was selected without a separate grade value. */
+  const markerA = String(b.fahrtA) === '900' ? tag(fm.AgB.gdbMobilityMarker, '1')
+    : String(b.fahrtA) === '4500' ? tag(fm.AgB.gdbBlindHelplessMarker, '1') : '';
+  if (b.gdbA || markerA) {
+    xml += `<Beh><Person>PersonA</Person>${b.gdbA ? `<Ausw_Rentb_Besch>${tag(fm.AgB.gdbA, b.gdbA)}</Ausw_Rentb_Besch>` : ''}${markerA ? `<Geh_Steh_Blind_Hilfl>${markerA}</Geh_Steh_Blind_Hilfl>` : ''}</Beh>\n`;
+    any = true;
+  }
   /* Real gap found via the systematic backend-wiring audit - the
      spouse's own disability grade and care-level allowance were
      collected by the app but never transmitted at all. Confirmed safe
@@ -1520,7 +1535,12 @@ function buildAgB(data) {
      structure nests the Person selector at the wrapper level
      (<Beh><Person>...), not as a separate per-person field code, the
      same real pattern already proven correct for PersonA above. */
-  if (b.gdbB) { xml += `<Beh><Person>PersonB</Person><Ausw_Rentb_Besch>${tag(fm.AgB.gdbA, b.gdbB)}</Ausw_Rentb_Besch></Beh>\n`; any = true; }
+  const markerB = String(b.fahrtB) === '900' ? tag(fm.AgB.gdbMobilityMarker, '1')
+    : String(b.fahrtB) === '4500' ? tag(fm.AgB.gdbBlindHelplessMarker, '1') : '';
+  if (b.gdbB || markerB) {
+    xml += `<Beh><Person>PersonB</Person>${b.gdbB ? `<Ausw_Rentb_Besch>${tag(fm.AgB.gdbA, b.gdbB)}</Ausw_Rentb_Besch>` : ''}${markerB ? `<Geh_Steh_Blind_Hilfl>${markerB}</Geh_Steh_Blind_Hilfl>` : ''}</Beh>\n`;
+    any = true;
+  }
   /* IMPLEMENTED: the app now collects the cared-for person's required
      details, confirmed against the real schema (Ang_pflegebeduerft_Pers)
      - name/address/birthdate/relationship, ID, residency, and the

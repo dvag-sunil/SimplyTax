@@ -691,6 +691,13 @@ function computeAusTaxFree(remainingWage, workDaysForeign, workDaysTotal) {
 /* ---------- 12. Disability/care allowance - AgB context ---------- */
 const AgB = {
   gdbA: 'E0109708',
+  /* Real, confirmed cross-validation requirement found via a real
+     ERiC rejection (Regel 101160039) - the main Beh block has its own
+     separate marker sub-block (Geh_Steh_Blind_Hilfl) that must agree
+     with whatever tier is declared in Beh_Fk_Pausch. Same real
+     meaning as fahrtTier1/fahrtTier2, just required in this second
+     location too. Confirmed identical across all five years. */
+  gdbMobilityMarker: 'E0109707', gdbBlindHelplessMarker: 'E0109706',
   pflegeGrad: 'E0161606',
   /* Care lump sum follow-up fields, now implemented - confirmed
      directly against the real schema (Ang_pflegebeduerft_Pers). Real
