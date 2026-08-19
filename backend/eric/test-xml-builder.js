@@ -1429,13 +1429,26 @@ check('Spouse disability grade (gdbB) is transmitted using the same real Kennzah
   return x.includes('<Beh><Person>PersonA</Person><Ausw_Rentb_Besch><E0109708>50</E0109708>')
     && x.includes('<Beh><Person>PersonB</Person><Ausw_Rentb_Besch><E0109708>30</E0109708>');
 })());
-check('Real, confirmed gap found via direct user feedback: Pflege-Pauschbetrag (care lump sum) is no longer transmitted at all - this section genuinely requires the cared-for person\'s own name, ID, relationship, and residence status alongside the grade, none of which this app collects, so sending the grade alone (the previous behavior) was itself the real bug. Now honestly flagged in skippedSections instead of sent incomplete.', (() => {
+check('Pflege-Pauschbetrag (care lump sum), incomplete case: a grade alone with no person details still correctly falls through to skippedSections rather than sending an invalid, incomplete entry', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.weitereAngaben = { behinderung: { pflegeA: 600, pflegeB: 1100 } };
   const result = buildEStXML(d);
   const hasNoPflegePB = !result.xml.includes('Pflege_PB');
   const isFlagged = result.skippedSections.some(s => s.includes('Pflege-Pauschbetrag'));
   return hasNoPflegePB && isFlagged;
+})());
+check('Pflege-Pauschbetrag (care lump sum), now implemented: with all required person details present, the deduction transmits correctly in the confirmed real element order, with no skipped-section note - this test would have caught a real bug where the entry was silently discarded due to a missing "any" flag update', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.weitereAngaben = { behinderung: {
+    pflegeA: 600, pflegePersonA: 'Maria Muster, Hauptstr. 1, 12345 Musterstadt, geb. 03.05.1950, Mutter',
+    pflegePersonAId: '98765432109', pflegePersonAResident: 'yes', pflegePersonAH: true,
+  } };
+  const result = buildEStXML(d);
+  const pflegeBlock = result.xml.match(/<Pflege_PB>[\s\S]*?<\/Pflege_PB>/)?.[0] || '';
+  const notFlagged = !result.skippedSections.some(s => s.includes('Pflege-Pauschbetrag'));
+  return pflegeBlock.includes('<E0110601>Maria Muster') && pflegeBlock.includes('<E0161506>98765432109</E0161506>')
+    && pflegeBlock.includes('<E0161607>1</E0161607>') && pflegeBlock.includes('<E0161606>2</E0161606>')
+    && pflegeBlock.includes('<E0161808>1</E0161808>') && notFlagged;
 })());
 
 check('Household services (Hhn_BV_DL) are now correctly wired as a genuine sibling to Handwerkerleistungen under St_Erm, using its own real Kennzahlen rather than incorrectly sharing Handw_L\'s (the real bug the previous version had)', (() => {
@@ -1676,6 +1689,30 @@ check('Real, additional gap found via a systematic check of the disability secti
   d.weitereAngaben = { behinderung: { fahrtA: 900, uebertragKind: 1000 } };
   const result = buildEStXML(d);
   return result.skippedSections.some(s => s.includes('commute allowance')) && result.skippedSections.some(s => s.includes('Transferring'));
+})());
+
+check('Four newly-implemented rarer rental categories (special depreciation, financing costs, 5-year maintenance, VAT-liable letting) transmit in the confirmed real element order, and the required overall Se_WK total correctly includes all of them', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ street: 'Test', plz: '60000', ort: 'Frankfurt', land: 'Deutschland', mieteinnahmen: 12000, nebenkosten: 0,
+    wkAfa: 2000, wkSonderabschr: 1000, wkSchuldzins: 3000, wkGeldbeschaff: 500,
+    wkErhaltung: 800, wk5JAbzugsfaehig: 400, wkVerwaltung: 300, wkUstPflichtig: 200, wkSonst: 100,
+    wohneinheit: 'G', ergebnis: 3300 }];
+  const x = buildEStXML(d).xml;
+  const wk = x.match(/<Wk>[\s\S]*?<\/Wk>/)?.[0] || '';
+  const order = ['<AfA_Geb>', '<Sonderabschr_P7b>', '<Schuldzins>', '<Geldbeschaff>', '<Erhalt_AW_dir>', '<Erhalt_AW_5_J>', '<Verw_Ko>', '<Ust_stpfl_Verm>', '<Sonst>', '<Se_WK>'];
+  const positions = order.map(tag => wk.indexOf(tag));
+  const correctOrder = positions.every((p, i) => p > -1 && (i === 0 || p > positions[i - 1]));
+  return correctOrder && wk.includes('<E0703601>2</E0703601>') && wk.includes('<E0704814>500</E0704814>')
+    && wk.includes('<E0704812>200</E0704812>') && wk.includes('<E0705701>8300</E0705701>');
+})());
+check('Financing costs, pre-2023 year: Direkt fields (confirmed minYear=2023) are correctly omitted, but Sum still transmits so the deduction still works for earlier years', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2022;
+  d.anlageV = [{ street: 'Test', plz: '60000', ort: 'Frankfurt', land: 'Deutschland', mieteinnahmen: 12000, nebenkosten: 0,
+    wkGeldbeschaff: 500, wohneinheit: 'G', ergebnis: 11500 }];
+  const x = buildEStXML(d).xml;
+  const geldbeschaff = x.match(/<Geldbeschaff>[\s\S]*?<\/Geldbeschaff>/)?.[0] || '';
+  return !geldbeschaff.includes('E0704813') && !geldbeschaff.includes('E0704814') && geldbeschaff.includes('<E0704406>500</E0704406>');
 })());
 
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);

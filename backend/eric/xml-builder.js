@@ -1102,7 +1102,7 @@ function percentTag(name, n) {
    only emits when it has a real amount - an empty <Wk> with nothing
    inside it is never sent. */
 function wkCategoryTotal(p) {
-  return N(p.wkAfa) + N(p.wkSchuldzins) + N(p.wkErhaltung) + N(p.wkVerwaltung) + N(p.wkSonst);
+  return N(p.wkAfa) + N(p.wkSonderabschr) + N(p.wkSchuldzins) + N(p.wkGeldbeschaff) + N(p.wkErhaltung) + N(p.wk5JAbzugsfaehig) + N(p.wkVerwaltung) + N(p.wkUstPflichtig) + N(p.wkSonst);
 }
 /* CORRECTED (real bug found via a genuine ERiC rejection, Regel
    100750171/100750204/100750061/100750253/100750259 and 100700003):
@@ -1117,21 +1117,54 @@ function wkCategoryTotal(p) {
    buildings completed after 1924) rather than leave it blank, and
    returns a flag so the caller can honestly disclose this assumption
    rather than silently guess without telling anyone. */
-function buildWkBlock(p) {
+function buildWkBlock(p, taxYear) {
   let inner = '';
   let usedAfaDefault = false;
   if (N(p.wkAfa) > 0) {
     usedAfaDefault = true;
     inner += `<AfA_Geb><Direkt>\n${tag(fm.V.wkAfaArt, '1')}${percentTag(fm.V.wkAfaProzent, 2)}${wholeEuroTag(fm.V.wkAfaDirekt, p.wkAfa)}</Direkt><Sum>\n${wholeEuroTag(fm.V.wkAfaSum, p.wkAfa)}</Sum></AfA_Geb>\n`;
   }
+  /* Newly implemented - special depreciation (§7b EStG). This
+     category's real structure genuinely has no simple amount field in
+     Direkt - only a two-value declaration (confirmed real enum: "1"
+     same as prior year, "2" per explanation) plus free text. This app
+     doesn't track prior-year carryover, so "2" (per explanation) is
+     used with a generic explanation, alongside the real amount in Sum. */
+  if (N(p.wkSonderabschr) > 0) {
+    inner += `<Sonderabschr_P7b><Direkt>\n${tag(fm.V.wkSonderabschrArt, '2')}${tag(fm.V.wkSonderabschrErlaeuterung, 'Sonderabschreibung nach § 7b EStG')}</Direkt><Sum>\n${wholeEuroTag(fm.V.wkSonderabschrSum, p.wkSonderabschr)}</Sum></Sonderabschr_P7b>\n`;
+  }
   if (N(p.wkSchuldzins) > 0) {
     inner += `<Schuldzins><Direkt>\n${tag(fm.V.wkSchuldzinsAngaben, 'Darlehenszinsen')}${wholeEuroTag(fm.V.wkSchuldzinsDirekt, p.wkSchuldzins)}</Direkt><Sum>\n${wholeEuroTag(fm.V.wkSchuldzinsSum, p.wkSchuldzins)}</Sum></Schuldzins>\n`;
+  }
+  /* Newly implemented - financing costs (loan arrangement fees etc,
+     distinct from the interest itself). Direkt sub-fields confirmed
+     minYear=2023 - Sum works for every year, so earlier years still
+     get this deduction, just without the itemized backing entry. */
+  if (N(p.wkGeldbeschaff) > 0) {
+    const hasDirekt = fm.isFieldSupportedForYear(fm.V.wkGeldbeschaffAngaben, taxYear || 2025);
+    const direktPart = hasDirekt ? `<Direkt>\n${tag(fm.V.wkGeldbeschaffAngaben, 'Geldbeschaffungskosten')}${wholeEuroTag(fm.V.wkGeldbeschaffDirekt, p.wkGeldbeschaff)}</Direkt>` : '';
+    inner += `<Geldbeschaff>${direktPart}<Sum>\n${wholeEuroTag(fm.V.wkGeldbeschaffSum, p.wkGeldbeschaff)}</Sum></Geldbeschaff>\n`;
   }
   if (N(p.wkErhaltung) > 0) {
     inner += `<Erhalt_AW_dir><Einz>\n${tag(fm.V.wkErhaltungBezeichnung, 'Erhaltungsaufwand')}${wholeEuroTag(fm.V.wkErhaltungGesamt, p.wkErhaltung)}${wholeEuroTag(fm.V.wkErhaltungEinz, p.wkErhaltung)}</Einz><Sum>\n${wholeEuroTag(fm.V.wkErhaltungSum, p.wkErhaltung)}</Sum></Erhalt_AW_dir>\n`;
   }
+  /* Newly implemented - maintenance spread over 5 years (§82b
+     EStDV). Real structure is genuinely different: a total expense
+     figure plus this year's deductible portion, not a description+
+     amount pair. This app collects the amount actually deductible
+     this year and sends it as both figures, since it doesn't yet
+     track the original total across the full 5-year spread. */
+  if (N(p.wk5JAbzugsfaehig) > 0) {
+    inner += `<Erhalt_AW_5_J><Aufw_Sum>\n${wholeEuroTag(fm.V.wk5JGesamt, p.wk5JAbzugsfaehig)}${wholeEuroTag(fm.V.wk5JAbzugsfaehig, p.wk5JAbzugsfaehig)}</Aufw_Sum></Erhalt_AW_5_J>\n`;
+  }
   if (N(p.wkVerwaltung) > 0) {
     inner += `<Verw_Ko><Direkt>\n${tag(fm.V.wkVerwaltungAngaben, 'Verwaltungskosten')}${wholeEuroTag(fm.V.wkVerwaltungDirekt, p.wkVerwaltung)}</Direkt><Sum>\n${wholeEuroTag(fm.V.wkVerwaltungSum, p.wkVerwaltung)}</Sum></Verw_Ko>\n`;
+  }
+  /* Newly implemented - VAT-liable letting (Umsatzsteuerpflichtige
+     Vermietung, e.g. commercial lets where VAT was charged). Real
+     structure has just this one field, no Direkt/Sum split at all. */
+  if (N(p.wkUstPflichtig) > 0) {
+    inner += wholeEuroTag(fm.V.wkUstPflichtig, p.wkUstPflichtig).replace(/^/, '<Ust_stpfl_Verm>\n').replace(/$/, '</Ust_stpfl_Verm>\n');
   }
   if (N(p.wkSonst) > 0) {
     inner += `<Sonst><Direkt>\n${tag(fm.V.wkSonstAngaben, 'Sonstige Werbungskosten')}${wholeEuroTag(fm.V.wkSonstDirekt, p.wkSonst)}</Direkt><Sum>\n${wholeEuroTag(fm.V.wkSonstSum, p.wkSonst)}</Sum></Sonst>\n`;
@@ -1193,7 +1226,7 @@ function buildVLegacy(data, entries) {
       }
       xml += '</Einn>\n';
 
-      const wkResult = buildWkBlock(p);
+      const wkResult = buildWkBlock(p, data.meta?.taxYear);
       xml += wkResult.xml;
       const wkTotal = wkCategoryTotal(p);
 
@@ -1311,7 +1344,7 @@ function buildV(data) {
       xml += `<Sum>\n${wholeEuroTag(fm.V.einnahmenSum, totalIncome)}</Sum>\n`;
       xml += '</Einn>\n';
 
-      const wkResult = buildWkBlock(p);
+      const wkResult = buildWkBlock(p, data.meta?.taxYear);
       xml += wkResult.xml;
       const wkTotal = wkCategoryTotal(p);
 
@@ -1482,22 +1515,38 @@ function buildAgB(data) {
      (<Beh><Person>...), not as a separate per-person field code, the
      same real pattern already proven correct for PersonA above. */
   if (b.gdbB) { xml += `<Beh><Person>PersonB</Person><Ausw_Rentb_Besch>${tag(fm.AgB.gdbA, b.gdbB)}</Ausw_Rentb_Besch></Beh>\n`; any = true; }
-  /* CORRECTED: real, confirmed gap found via direct user feedback and a
-     full investigation of the real schema - this section is genuinely
-     for claiming the "Pflege-Pauschbetrag" (care lump sum) for
-     providing unpaid care to a dependent relative, and requires that
-     person's own name, ID number, relationship, and residence status
-     alongside the care grade - confirmed directly in the schema's own
-     documentation for the sibling fields. The app's UI already labels
-     this correctly as caring for someone else, but never actually
-     collects any of those required details about that person - only
-     the grade amount. Sending the grade alone, with no person it
-     actually belongs to, is exactly the kind of incomplete entry that
-     gets rejected. Correctly not transmitted until the app collects
-     the cared-for person's details too - a real, genuine feature gap,
-     not something to guess a placeholder for. The skipped-section note
-     for this is added in buildEStXML below, where skippedSections is
-     actually in scope. */
+  /* IMPLEMENTED: the app now collects the cared-for person's required
+     details, confirmed against the real schema (Ang_pflegebeduerft_Pers)
+     - name/address/birthdate/relationship, ID, residency, and the
+     optional "H" mark. Sent in the confirmed real element order.
+     Only sent when the required fields are genuinely present - if
+     someone entered a grade but hasn't filled in the person's details
+     yet, this correctly falls through to the skipped-section note
+     below rather than sending an incomplete entry. */
+  let pflegeEinz = '';
+  if (N(b.pflegeA) > 0 && b.pflegePersonA && b.pflegePersonAId && b.pflegePersonAResident) {
+    const gradA = fm.amountToPflegegrad(b.pflegeA);
+    if (gradA) {
+      let einzA = tag(fm.AgB.pflegePersonInfo, b.pflegePersonA);
+      einzA += tag(fm.AgB.pflegePersonId, b.pflegePersonAId.replace(/\s/g, ''));
+      einzA += tag(fm.AgB.pflegePersonResident, b.pflegePersonAResident === 'yes' ? '1' : '2');
+      einzA += tag(fm.AgB.pflegeGrad, gradA);
+      if (b.pflegePersonAH) einzA += tag(fm.AgB.pflegePersonH, '1');
+      pflegeEinz += `<Einz><Ang_pflegebeduerft_Pers>${einzA}</Ang_pflegebeduerft_Pers></Einz>\n`;
+    }
+  }
+  if (N(b.pflegeB) > 0 && b.pflegePersonB && b.pflegePersonBId && b.pflegePersonBResident) {
+    const gradB = fm.amountToPflegegrad(b.pflegeB);
+    if (gradB) {
+      let einzB = tag(fm.AgB.pflegePersonInfo, b.pflegePersonB);
+      einzB += tag(fm.AgB.pflegePersonId, b.pflegePersonBId.replace(/\s/g, ''));
+      einzB += tag(fm.AgB.pflegePersonResident, b.pflegePersonBResident === 'yes' ? '1' : '2');
+      einzB += tag(fm.AgB.pflegeGrad, gradB);
+      if (b.pflegePersonBH) einzB += tag(fm.AgB.pflegePersonH, '1');
+      pflegeEinz += `<Einz><Ang_pflegebeduerft_Pers>${einzB}</Ang_pflegebeduerft_Pers></Einz>\n`;
+    }
+  }
+  if (pflegeEinz) { xml += `<Pflege_PB>\n${pflegeEinz}</Pflege_PB>\n`; any = true; }
   /* fahrtA/fahrtB (disability-related commute allowance) and
      uebertragKind (transferring the disability lump sum to a child) -
      both genuinely collected by the app, both still without a
@@ -2261,8 +2310,13 @@ function buildEStXML(data, opts = {}) {
      bug in an earlier version of this fix - it would never have run
      unless energetic renovation data also happened to be present). */
   const beh = data.weitereAngaben?.behinderung || {};
-  if (N(beh.pflegeA) > 0 || N(beh.pflegeB) > 0)
-    skippedSections.push('Pflege-Pauschbetrag (care lump sum for providing unpaid care to a dependent relative) - a grade was entered, but this deduction genuinely requires that person\'s own name, ID, relationship, and residence status, which this app does not yet collect. Not transmitted, since sending the amount alone without who it belongs to is invalid - this needs a dedicated UI addition (collecting the cared-for person\'s details) before it can be filed.');
+  /* Now implemented (see buildAgB above) - only flagged here when the
+     required person details are genuinely still missing, matching the
+     same fall-through condition used there. */
+  if (N(beh.pflegeA) > 0 && !(beh.pflegePersonA && beh.pflegePersonAId && beh.pflegePersonAResident))
+    skippedSections.push('Pflege-Pauschbetrag (care lump sum) for Person A - a grade was entered, but the cared-for person\'s name, ID, and residence status are not all filled in yet, which this deduction genuinely requires. Not transmitted until those details are complete.');
+  if (N(beh.pflegeB) > 0 && !(beh.pflegePersonB && beh.pflegePersonBId && beh.pflegePersonBResident))
+    skippedSections.push('Pflege-Pauschbetrag (care lump sum) for Person B - a grade was entered, but the cared-for person\'s name, ID, and residence status are not all filled in yet, which this deduction genuinely requires. Not transmitted until those details are complete.');
   /* Real, additional gap found via a systematic check of this whole
      section - these two were only ever mentioned in a code comment,
      never actually flagged to the user, meaning they were being
@@ -2312,8 +2366,6 @@ function buildEStXML(data, opts = {}) {
       skippedSections.push(`${label}: no service charges (Neben-/Betriebskosten) were entered, so the return declares that these were not separately agreed (Regel 100750265). If the tenant does pay service charges, that amount must be entered instead.`);
     if (N(p.werbungskosten) > 0 && wkCategoryTotal(p) === 0)
       skippedSections.push(`${label}: rental expenses were entered as one combined total but not transmitted - break the amount down by category (depreciation, loan interest, maintenance, management costs, other) instead of one figure, since the real schema requires itemization. The declared income is currently gross until this is done.`);
-    if (wkCategoryTotal(p) > 0)
-      skippedSections.push(`${label}: itemized rental deduction costs were transmitted for the five most common categories (depreciation, loan interest, immediately-deductible maintenance, management costs, other). Rarer categories - special depreciation, maintenance spread over 5 years, financing costs, VAT-liable letting - are not yet collected; if any of these apply to this property, the deduction is understated until they are added.`);
     if (N(p.mieteinnahmen) > 0 && data.hauptvordruck?.personB)
       skippedSections.push(`${label}: the full surplus was attributed to the primary filer (Person A). The app does not collect a per-property ownership split, so if this property is jointly owned with the spouse, the attribution should be reviewed and may need splitting between E0701801 and E0701802.`);
   });

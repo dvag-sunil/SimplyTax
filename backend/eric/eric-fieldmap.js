@@ -669,6 +669,12 @@ function computeAusTaxFree(remainingWage, workDaysForeign, workDaysTotal) {
 const AgB = {
   gdbA: 'E0109708',
   pflegeGrad: 'E0161606',
+  /* Care lump sum follow-up fields, now implemented - confirmed
+     directly against the real schema (Ang_pflegebeduerft_Pers). Real
+     element order: Name/address(E0110601), IdNr(E0161506),
+     residency(E0161607), grade(E0161606), then the "H" mark(E0161808). */
+  pflegePersonInfo: 'E0110601', pflegePersonId: 'E0161506',
+  pflegePersonResident: 'E0161607', pflegePersonH: 'E0161808',
   medical: { kennzahlen: ['E0161301', 'E0161302', 'E0161303', 'E0161304', 'E0161305'],
     note: 'Krankheitskosten: Art/Hoehe/Erstattung/Summe-Aufwand/Summe-Erstattung, confirmed via AgB - Kontexte hierarchy (/AgB/And_Aufw/Krankh is first in the position-matched list of 5 generic Art/Hoehe pairs)' },
 };
@@ -886,6 +892,24 @@ const V = {
   wkAfaDirekt: 'E0703306',     // Wk/AfA_Geb/Direkt - Werbungskosten (matches wkAfaSum)
   wkSchuldzinsAngaben: 'E0704507', // Wk/Schuldzins/Direkt - Einzelangaben (z.B. Kreditinstitut)
   wkSchuldzinsDirekt: 'E0704508',  // Wk/Schuldzins/Direkt - Werbungskosten (matches wkSchuldzinsSum)
+  /* Four newly-implemented rarer categories, confirmed directly
+     against the real schema. Special depreciation and 5-year-spread
+     maintenance genuinely lack a simple description+amount Direkt
+     structure (unlike the other categories) - special depreciation
+     uses a real, confirmed two-value enum (1=same as prior year,
+     2=per explanation) alongside free text, and this app correctly
+     uses "2" with a generic explanation since it doesn't track prior-
+     year carryover amounts. 5-year maintenance has a genuinely
+     different real structure (total expense + this year's deductible
+     portion). VAT-liable letting has only a single field, no Direkt/
+     Sum split at all. Financing costs matches the same
+     description+amount+sum pattern as loan interest exactly, but its
+     Direkt sub-fields are confirmed minYear=2023 (Sum works for all
+     years). Confirmed identical across years otherwise. */
+  wkSonderabschrArt: 'E0703601', wkSonderabschrErlaeuterung: 'E0703602', wkSonderabschrSum: 'E0703416',
+  wk5JGesamt: 'E0703907', wk5JAbzugsfaehig: 'E0704703',
+  wkGeldbeschaffAngaben: 'E0704813', wkGeldbeschaffDirekt: 'E0704814', wkGeldbeschaffSum: 'E0704406',
+  wkUstPflichtig: 'E0704812',
   wkErhaltungBezeichnung: 'E0703707', // Wk/Erhalt_AW_dir/Einz - Bezeichnung
   wkErhaltungAussteller: 'E0703708',  // Wk/Erhalt_AW_dir/Einz - Rechnungsaussteller
   wkErhaltungDatum: 'E0703709',       // Wk/Erhalt_AW_dir/Einz - Rechnungsdatum
@@ -988,6 +1012,8 @@ const FIELD_YEAR_SUPPORT = {
   E0201606: { minYear: 2025, section: 'N', note: 'granular multi-year pension income breakdown, genuinely new in 2025' },
   E0183001: { minYear: 2024, section: 'SA (Realsplitting)', note: 'domestic/foreign residence flag for Anlage U, genuinely new in 2024 - structure itself (SA/Weit_Aufw/U_Leist) confirmed stable across all three years' },
   E0203003: { minYear: 2023, section: 'N/Wk/EP/Erste_Taetig (commute destination type)', note: 'real bug found via an actual ERiC rejection ("Ziel des Weges" not supported for 2022) - checked directly against the schema for every year: genuinely absent for 2020-2022, present from 2023 onward. The rest of the commute field group (E0203501/503/504/505/506) is confirmed stable across all six years - this one field specifically is the only part of that group with a real year boundary.' },
+  E0704813: { minYear: 2023, section: 'V/Wk/Geldbeschaff/Direkt (financing costs description)', note: 'checked directly against the schema for every year - genuinely absent for 2021-2022, present from 2023 onward. The Sum field (E0704406) is stable across all years, so financing costs can still be sent for earlier years via Sum alone.' },
+  E0704814: { minYear: 2023, section: 'V/Wk/Geldbeschaff/Direkt (financing costs amount)', note: 'same real year boundary as E0704813, confirmed together.' },
 };
 
 function isSectionSupportedForYear(section, year) {

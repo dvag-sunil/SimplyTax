@@ -799,6 +799,9 @@ en: {
  gdb:"Degree of disability (GdB)", gdb_blind:"Blind / helpless / care grade 4-5 (€7,400)",
  fahrt_p:"Disability travel lump sum", fahrt_900:"€900 (GdB ≥ 80, or ≥ 70 + mark G)", fahrt_4500:"€4,500 (aG, Bl, TBl, H)",
  pflege_p:"Care lump sum (unpaid home care)", pflege_2:"€600 (care grade 2)", pflege_3:"€1,100 (care grade 3)", pflege_45:"€1,800 (grade 4-5)",
+ pflege_person:"Name, address, birth date, and relationship of the person you care for", pflege_person_ph:"e.g. Maria Muster, Hauptstr. 1, 12345 Musterstadt, born 03.05.1950, mother",
+ pflege_person_id:"Their Tax ID (IdNr, 11 digits)", pflege_person_resident:"Do they live in Germany?",
+ pflege_h:"Mark \"H\" (helplessness) has been officially determined for them",
  kid_transfer:"Disability allowance transferred from child(ren)",
  disab_hint:"Lump sums count WITHOUT the reasonable-burden threshold. A child's allowance can be transferred to the parents.",
  sec_so:"Private sales & other income (Anlage SO)",
@@ -895,6 +898,11 @@ en: {
  prop_wk_erhaltung:"Maintenance and repairs", prop_wk_erhaltung_hint:"Repairs and upkeep deductible in this same year - larger renovation costs may need to be spread over several years instead; ask your Steuerberater if unsure.",
  prop_wk_verwaltung:"Management costs", prop_wk_verwaltung_hint:"Fees paid to a property manager or management company for administering this rental, if you don't handle it yourself.",
  prop_wk_sonst:"Other costs", prop_wk_sonst_hint:"Anything else related to this property that doesn't fit the categories above - e.g. insurance, property management fees, advertising for tenants.",
+ prop_rarer_summary:"Rarer deduction categories (special depreciation, financing costs, and more)",
+ prop_wk_sonderabschr:"Special depreciation (§7b EStG)", prop_wk_sonderabschr_hint:"Only applies to specific new-build or renovation situations - most properties won't have this.",
+ prop_wk_geldbeschaff:"Financing costs (loan arrangement fees etc.)", prop_wk_geldbeschaff_hint:"Separate from the loan interest itself - e.g. a one-off fee your bank charged to set up the mortgage.",
+ prop_wk_5j:"Maintenance cost, this year's deductible portion (§82b, spread over 5 years)", prop_wk_5j_hint:"If you chose to spread a large maintenance expense over 5 years instead of deducting it all at once, enter just this year's portion here.",
+ prop_wk_ust:"VAT-liable letting costs", prop_wk_ust_hint:"Only applies if you charge VAT on this rental (e.g. certain commercial lets) - most residential lettings don't.",
  prop_country:"Country the property is in", prop_country_de:"Germany",
  prop_country_hint:"Property abroad is reported differently - usually tax-free in Germany, but it still raises the tax rate on your German income.",
  prop_address_hint:"Include the house number - the tax office requires street, postcode and city as three separate entries.",
@@ -1216,6 +1224,9 @@ de: {
  gdb:"Grad der Behinderung (GdB)", gdb_blind:"Blind / hilflos / Pflegegrad 4-5 (7.400 €)",
  fahrt_p:"Behinderungsbedingte Fahrtkostenpauschale", fahrt_900:"900 € (GdB ≥ 80, oder ≥ 70 + Merkzeichen G)", fahrt_4500:"4.500 € (aG, Bl, TBl, H)",
  pflege_p:"Pflege-Pauschbetrag (unentgeltliche häusliche Pflege)", pflege_2:"600 € (Pflegegrad 2)", pflege_3:"1.100 € (Pflegegrad 3)", pflege_45:"1.800 € (Grad 4-5)",
+ pflege_person:"Name, Anschrift, Geburtsdatum und Verwandtschaftsverhältnis der gepflegten Person", pflege_person_ph:"z. B. Maria Muster, Hauptstr. 1, 12345 Musterstadt, geb. 03.05.1950, Mutter",
+ pflege_person_id:"Deren Steuer-ID (IdNr, 11 Ziffern)", pflege_person_resident:"Wohnt diese Person in Deutschland?",
+ pflege_h:"Merkzeichen „H” (Hilflosigkeit) wurde für diese Person amtlich festgestellt",
  kid_transfer:"Vom Kind übertragener Behinderten-Pauschbetrag",
  disab_hint:"Pauschbeträge zählen OHNE zumutbare Belastung. Der Pauschbetrag eines Kindes kann auf die Eltern übertragen werden.",
  sec_so:"Private Veräußerungsgeschäfte & sonstige Einkünfte (Anlage SO)",
@@ -1312,6 +1323,11 @@ de: {
  prop_wk_erhaltung:"Erhaltungsaufwand", prop_wk_erhaltung_hint:"In diesem Jahr abzugsfähige Instandhaltungs- und Reparaturkosten - größere Renovierungen müssen unter Umständen über mehrere Jahre verteilt werden; im Zweifel den Steuerberater fragen.",
  prop_wk_verwaltung:"Verwaltungskosten", prop_wk_verwaltung_hint:"Gebühren an eine Hausverwaltung für die Verwaltung dieser Immobilie, falls Sie sich nicht selbst darum kümmern.",
  prop_wk_sonst:"Sonstige Kosten", prop_wk_sonst_hint:"Alles andere im Zusammenhang mit dieser Immobilie, das nicht in die obigen Kategorien passt - z. B. Versicherung, Hausverwaltungsgebühren, Mietersuche-Anzeigen.",
+ prop_rarer_summary:"Seltenere Abzugskategorien (Sonderabschreibung, Geldbeschaffungskosten und mehr)",
+ prop_wk_sonderabschr:"Sonderabschreibung (§7b EStG)", prop_wk_sonderabschr_hint:"Gilt nur für bestimmte Neubau- oder Sanierungsfälle - bei den meisten Immobilien nicht zutreffend.",
+ prop_wk_geldbeschaff:"Geldbeschaffungskosten (z. B. Bearbeitungsgebühren)", prop_wk_geldbeschaff_hint:"Getrennt von den eigentlichen Darlehenszinsen - z. B. eine einmalige Gebühr Ihrer Bank für die Kreditvergabe.",
+ prop_wk_5j:"Erhaltungsaufwand, diesjähriger abziehbarer Anteil (§82b, auf 5 Jahre verteilt)", prop_wk_5j_hint:"Wenn Sie einen größeren Erhaltungsaufwand auf 5 Jahre verteilt haben, statt ihn sofort abzusetzen, tragen Sie hier nur den diesjährigen Anteil ein.",
+ prop_wk_ust:"Umsatzsteuerpflichtige Vermietungskosten", prop_wk_ust_hint:"Gilt nur, wenn Sie für diese Vermietung Umsatzsteuer berechnen (z. B. bestimmte gewerbliche Vermietungen) - bei den meisten Wohnvermietungen nicht zutreffend.",
  prop_country:"Belegenheitsstaat der Immobilie", prop_country_de:"Deutschland",
  prop_country_hint:"Auslandsimmobilien werden anders erklärt - meist in Deutschland steuerfrei, erhöhen aber den Steuersatz auf Ihre inländischen Einkünfte.",
  prop_address_hint:"Bitte mit Hausnummer angeben - das Finanzamt benötigt Straße, PLZ und Ort als drei getrennte Angaben.",
@@ -1601,7 +1617,7 @@ function newClient(f,l,year,marital){
  spouseFirst:'',spouseLast:'',spouseBirth:'',spouseTaxId:'',spouseReligion:'none',singleParent:'no' },
  inc:{ employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:'' },
  emps:[], kap:[], props:[], privIns:[], wkItems:[], rente:[],
- oth:{ ersatz:'', gdbA:'', gdbB:'', fahrtA:'', fahrtB:'', pflegeA:'', pflegeB:'', kidTransfer:'',
+ oth:{ ersatz:'', gdbA:'', gdbB:'', fahrtA:'', fahrtB:'', pflegeA:'', pflegeB:'', pflegePersonA:'', pflegePersonAId:'', pflegePersonAResident:'', pflegePersonAH:false, pflegePersonB:'', pflegePersonBId:'', pflegePersonBResident:'', pflegePersonBH:false, kidTransfer:'',
  realsplitting:'', realsplitIdnr:'', realsplitName:'', lossCarry:'', soGain:'', soUnterhalt:'', energCost:'', energStage:'' },
  ins:{ rv:'',kv:'',pv:'',av:'',other:'' },
  wk:{ commuteDays:'',commuteKm:'',commuteMode:'',commutePublicCost:'',commuteWorkplace:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',
@@ -1682,7 +1698,7 @@ function migrateClient(c){
  });
  c.props = Array.isArray(c.props)?c.props:[];
  c.privIns = Array.isArray(c.privIns)?c.privIns:[];
- c.oth = Object.assign({ersatz:'',gdbA:'',gdbB:'',fahrtA:'',fahrtB:'',pflegeA:'',pflegeB:'',kidTransfer:'',
+ c.oth = Object.assign({ersatz:'',gdbA:'',gdbB:'',fahrtA:'',fahrtB:'',pflegeA:'',pflegeB:'',pflegePersonA:'',pflegePersonAId:'',pflegePersonAResident:'',pflegePersonAH:false,pflegePersonB:'',pflegePersonBId:'',pflegePersonBResident:'',pflegePersonBH:false,kidTransfer:'',
  realsplitting:'',realsplitIdnr:'',realsplitName:'',lossCarry:'',soGain:'',soUnterhalt:'',energCost:'',energStage:''}, c.oth||{});
  c.rente = Array.isArray(c.rente)?c.rente:[];
  c.rente.forEach(r=>{ if(r.person!=='B') r.person='A'; });
@@ -1878,7 +1894,7 @@ const N = v => {
 /* Shared everywhere the old single p.costs field used to be referenced -
    now sums the five real itemized categories instead of one combined
    total, confirmed against the real ERiC schema. */
-function propCosts(p){ return N(p.wkAfa)+N(p.wkSchuldzins)+N(p.wkErhaltung)+N(p.wkVerwaltung)+N(p.wkSonst); }
+function propCosts(p){ return N(p.wkAfa)+N(p.wkSonderabschr)+N(p.wkSchuldzins)+N(p.wkGeldbeschaff)+N(p.wkErhaltung)+N(p.wk5JAbzugsfaehig)+N(p.wkVerwaltung)+N(p.wkUstPflichtig)+N(p.wkSonst); }
 function formatDE(n){
  /* CORRECTED: real bug found via direct feedback - checked every call
     site of this function (five of them, all input-field commit
@@ -2775,8 +2791,8 @@ function buildSearchIndex(c){
       genuine entry with the real label text and a direct field-level
       tabkey, the same dynamic pattern already used for employer names
       just above. */
-   ['wkAfa','wkSchuldzins','wkErhaltung','wkVerwaltung','wkSonst'].forEach(f => {
-     const labelKey = {wkAfa:'prop_wk_afa', wkSchuldzins:'prop_wk_schuldzins', wkErhaltung:'prop_wk_erhaltung', wkVerwaltung:'prop_wk_verwaltung', wkSonst:'prop_wk_sonst'}[f];
+   ['wkAfa','wkSonderabschr','wkSchuldzins','wkGeldbeschaff','wkErhaltung','wk5JAbzugsfaehig','wkVerwaltung','wkUstPflichtig','wkSonst'].forEach(f => {
+     const labelKey = {wkAfa:'prop_wk_afa', wkSonderabschr:'prop_wk_sonderabschr', wkSchuldzins:'prop_wk_schuldzins', wkGeldbeschaff:'prop_wk_geldbeschaff', wkErhaltung:'prop_wk_erhaltung', wk5JAbzugsfaehig:'prop_wk_5j', wkVerwaltung:'prop_wk_verwaltung', wkUstPflichtig:'prop_wk_ust', wkSonst:'prop_wk_sonst'}[f];
      const hintKey = labelKey+'_hint';
      const fLabel = t(labelKey) + (label ? ` (${label})` : '');
      entries.push({ step:8, label:fLabel, hint:t(hintKey)||null, text:(t(labelKey)+' '+labelKey).toLowerCase(), tabkey:`props.${p.id}.${f}` });
@@ -3763,8 +3779,18 @@ function stepProp(c){
  <div class="grid2">
  ${LF('props',p,'wkSonst',t('prop_wk_sonst'),{euro:true,ph:'0,00 €',hint:i===0?t('prop_wk_sonst_hint'):''})}
  </div>
+ <details class="more" ${isSectionOpen('prop-rarer-'+p.id, (N(p.wkSonderabschr)+N(p.wkGeldbeschaff)+N(p.wk5JAbzugsfaehig)+N(p.wkUstPflichtig))>0)?'open':''} ontoggle="toggleSectionState('prop-rarer-${p.id}', this.open)"><summary>${t('prop_rarer_summary')}</summary>
+ <div class="grid2">
+ ${LF('props',p,'wkSonderabschr',t('prop_wk_sonderabschr'),{euro:true,ph:'0,00 €',hint:i===0?t('prop_wk_sonderabschr_hint'):''})}
+ ${LF('props',p,'wkGeldbeschaff',t('prop_wk_geldbeschaff'),{euro:true,ph:'0,00 €',hint:i===0?t('prop_wk_geldbeschaff_hint'):''})}
+ </div>
+ <div class="grid2">
+ ${LF('props',p,'wk5JAbzugsfaehig',t('prop_wk_5j'),{euro:true,ph:'0,00 €',hint:i===0?t('prop_wk_5j_hint'):''})}
+ ${LF('props',p,'wkUstPflichtig',t('prop_wk_ust'),{euro:true,ph:'0,00 €',hint:i===0?t('prop_wk_ust_hint'):''})}
+ </div>
+ </details>
  <div class="infobox" style="background:var(--paper-soft);margin:8px 0 0;padding:8px 10px;font-size:12.5px">
- ${t('prop_costs_total')}: <b>${eur(N(p.wkAfa)+N(p.wkSchuldzins)+N(p.wkErhaltung)+N(p.wkVerwaltung)+N(p.wkSonst))}</b>
+ ${t('prop_costs_total')}: <b>${eur(N(p.wkAfa)+N(p.wkSonderabschr)+N(p.wkSchuldzins)+N(p.wkGeldbeschaff)+N(p.wkErhaltung)+N(p.wk5JAbzugsfaehig)+N(p.wkVerwaltung)+N(p.wkUstPflichtig)+N(p.wkSonst))}</b>
  </div>
  </details>
  ${(!p.country||p.country==='Deutschland')?`
@@ -3783,7 +3809,7 @@ function stepProp(c){
  </div></div>`;}).join('');
  return `<h2>${t('step_prop')}</h2><p class="lead">${t('s_prop_lead')}</p>
  ${rows}
- <button class="btn btn-ghost btn-sm" onclick="addItem('props',{country:'Deutschland',street:'',plz:'',city:'',rent:'',wkAfa:'',wkSchuldzins:'',wkErhaltung:'',wkVerwaltung:'',wkSonst:'',unit:'',nebenkosten:'',ferienwohnung:'nein',kurzfristig:'nein',angehoerige:'nein'})">＋ ${t('add_prop')}</button>
+ <button class="btn btn-ghost btn-sm" onclick="addItem('props',{country:'Deutschland',street:'',plz:'',city:'',rent:'',wkAfa:'',wkSonderabschr:'',wkSchuldzins:'',wkGeldbeschaff:'',wkErhaltung:'',wk5JAbzugsfaehig:'',wkVerwaltung:'',wkUstPflichtig:'',wkSonst:'',unit:'',nebenkosten:'',ferienwohnung:'nein',kurzfristig:'nein',angehoerige:'nein'})">＋ ${t('add_prop')}</button>
  ${docSection('props')}
  ${navRow()}`;
 }
@@ -4142,11 +4168,42 @@ function stepHousehold(c){
  ${F('oth','fahrtA',t('fahrt_p')+' - '+(c.p.firstName||'A'),{select:[['',t('select')],['900',t('fahrt_900')],['4500',t('fahrt_4500')]]})}
  ${F('oth','pflegeA',t('pflege_p')+' - '+(c.p.firstName||'A'),{select:[['',t('select')],['600',t('pflege_2')],['1100',t('pflege_3')],['1800',t('pflege_45')]]})}
  </div>
+ ${N(c.oth.pflegeA)>0?`<div class="grid2">
+ ${F('oth','pflegePersonA',t('pflege_person')+' *',{ph:t('pflege_person_ph')})}
+ ${F('oth','pflegePersonAId',t('pflege_person_id')+' *',{ph:'12 345 678 901',maxlength:13,inputmode:'numeric'})}
+ </div>
+ <div class="grid2">
+ <div class="field${reqCls(c.oth.pflegePersonAResident)}"><label>${t('pflege_person_resident')} *</label>
+ <select onchange="upd('oth','pflegePersonAResident',this.value)">
+ <option value="">${t('select')}</option>
+ <option value="yes" ${c.oth.pflegePersonAResident==='yes'?'selected':''}>${t('yes')}</option>
+ <option value="no" ${c.oth.pflegePersonAResident==='no'?'selected':''}>${t('no')}</option>
+ </select></div>
+ <div class="field" style="display:flex;align-items:center;gap:8px;padding-top:26px">
+ <input type="checkbox" id="pflegeAH" ${c.oth.pflegePersonAH?'checked':''} onchange="upd('oth','pflegePersonAH',this.checked)">
+ <label for="pflegeAH" style="margin:0">${t('pflege_h')}</label></div>
+ </div>`:''}
  ${c.p.marital==='married'?`<div class="grid3">
  ${F('oth','gdbB',t('gdb')+' - B',{select:[['',t('select')],['20','GdB 20'],['30','GdB 30'],['40','GdB 40'],['50','GdB 50'],['60','GdB 60'],['70','GdB 70'],['80','GdB 80'],['90','GdB 90'],['100','GdB 100'],['blind',t('gdb_blind')]]})}
  ${F('oth','fahrtB',t('fahrt_p')+' - B',{select:[['',t('select')],['900',t('fahrt_900')],['4500',t('fahrt_4500')]]})}
  ${F('oth','pflegeB',t('pflege_p')+' - B',{select:[['',t('select')],['600',t('pflege_2')],['1100',t('pflege_3')],['1800',t('pflege_45')]]})}
+ </div>
+ ${N(c.oth.pflegeB)>0?`<div class="grid2">
+ ${F('oth','pflegePersonB',t('pflege_person')+' *',{ph:t('pflege_person_ph')})}
+ ${F('oth','pflegePersonBId',t('pflege_person_id')+' *',{ph:'12 345 678 901',maxlength:13,inputmode:'numeric'})}
+ </div>
+ <div class="grid2">
+ <div class="field${reqCls(c.oth.pflegePersonBResident)}"><label>${t('pflege_person_resident')} *</label>
+ <select onchange="upd('oth','pflegePersonBResident',this.value)">
+ <option value="">${t('select')}</option>
+ <option value="yes" ${c.oth.pflegePersonBResident==='yes'?'selected':''}>${t('yes')}</option>
+ <option value="no" ${c.oth.pflegePersonBResident==='no'?'selected':''}>${t('no')}</option>
+ </select></div>
+ <div class="field" style="display:flex;align-items:center;gap:8px;padding-top:26px">
+ <input type="checkbox" id="pflegeBH" ${c.oth.pflegePersonBH?'checked':''} onchange="upd('oth','pflegePersonBH',this.checked)">
+ <label for="pflegeBH" style="margin:0">${t('pflege_h')}</label></div>
  </div>`:''}
+ `:''}
  ${F('oth','kidTransfer',t('kid_transfer'),{euro:true,ph:'0,00 €'})}
  ${docSection('ex')}
  ${navRow()}`;
@@ -5012,9 +5069,10 @@ function buildElsterDataset(c){
  zeile43_kapitalertragsteuer:N(k.k43)+N(k.taxPaid), zeile44_soli:N(k.k44)+N(k.soliPaid), zeile45_kirchensteuer:N(k.k45) })),
  anlageV:(c.props||[]).map(p=>({ street:p.street||'', plz:p.plz||'', ort:p.city||'', land:p.country||'Deutschland',
  mieteinnahmen:N(p.rent), nebenkosten:N(p.nebenkosten),
- wkAfa:N(p.wkAfa), wkSchuldzins:N(p.wkSchuldzins), wkErhaltung:N(p.wkErhaltung), wkVerwaltung:N(p.wkVerwaltung), wkSonst:N(p.wkSonst),
+ wkAfa:N(p.wkAfa), wkSonderabschr:N(p.wkSonderabschr), wkSchuldzins:N(p.wkSchuldzins), wkGeldbeschaff:N(p.wkGeldbeschaff),
+ wkErhaltung:N(p.wkErhaltung), wk5JAbzugsfaehig:N(p.wk5JAbzugsfaehig), wkVerwaltung:N(p.wkVerwaltung), wkUstPflichtig:N(p.wkUstPflichtig), wkSonst:N(p.wkSonst),
  wohneinheit:p.unit||'', ferienwohnung:p.ferienwohnung==='ja', kurzfristig:p.kurzfristig==='ja',
- angehoerige:p.angehoerige==='ja', ergebnis:N(p.rent)-(N(p.wkAfa)+N(p.wkSchuldzins)+N(p.wkErhaltung)+N(p.wkVerwaltung)+N(p.wkSonst)) })),
+ angehoerige:p.angehoerige==='ja', ergebnis:N(p.rent)-propCosts(p) })),
  anlageR:(c.rente||[]).map(r=>({ person:r.person==='B'?'B':'A', art:r.type||'gesetzlich',
  jahresbetrag:N(r.amount), rentenbeginn:r.startYear||'',
  /* FIXED: was backwards (sent percentage only for privat). The real ERiC
@@ -5033,7 +5091,9 @@ function buildElsterDataset(c){
  weitereAngaben:{ ersatzleistungen:N(c.oth.ersatz), verlustvortrag:N(c.oth.lossCarry),
  realsplittingAnlageU:Math.min(N(c.oth.realsplitting),13805), realsplitIdnr:(c.oth.realsplitIdnr||'').replace(/\s/g,''), realsplitName:c.oth.realsplitName||'',
  behinderung:{ gdbA:c.oth.gdbA||'', gdbB:c.oth.gdbB||'', fahrtA:N(c.oth.fahrtA), fahrtB:N(c.oth.fahrtB),
- pflegeA:N(c.oth.pflegeA), pflegeB:N(c.oth.pflegeB), uebertragKind:N(c.oth.kidTransfer) },
+ pflegeA:N(c.oth.pflegeA), pflegeB:N(c.oth.pflegeB), uebertragKind:N(c.oth.kidTransfer),
+ pflegePersonA:c.oth.pflegePersonA||'', pflegePersonAId:c.oth.pflegePersonAId||'', pflegePersonAResident:c.oth.pflegePersonAResident||'', pflegePersonAH:!!c.oth.pflegePersonAH,
+ pflegePersonB:c.oth.pflegePersonB||'', pflegePersonBId:c.oth.pflegePersonBId||'', pflegePersonBResident:c.oth.pflegePersonBResident||'', pflegePersonBH:!!c.oth.pflegePersonBH },
  anlageSO:{ privateVeraeusserungsgeschaefte:N(c.oth.soGain), erhaltenerUnterhalt:N(c.oth.soUnterhalt) } },
  belege:(c.docs||[]).map(d=>({ id:d.id, name:d.name, bereich:d.section, datum:new Date(d.ts).toISOString() })),
  schaetzung:{ zvE:Math.round(e.zvE), einkommensteuer:Math.round(e.tax), par35aErmaessigung:Math.round(e.credit),
