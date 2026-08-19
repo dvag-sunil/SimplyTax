@@ -891,6 +891,7 @@ en: {
  m_kap:"Capital gains tax (est.)",
  step_prop:"Rental property", s_prop_lead:"Rental income (Anlage V) - one entry per property. Costs (loan interest, maintenance, depreciation, service charges...) count as expenses; a loss reduces the taxable income.",
  prop_address:"Property (address)", prop_street:"Street, house number", prop_plz:"Postcode", prop_city:"City", prop_rent:"Rental income (per year)", prop_costs:"Costs / expenses (per year)", add_prop:"Add property", prop_net:"Net result",
+ add_support_person:"Add another supported person",
  prop_costs_summary:"Rental deduction costs (Werbungskosten)", prop_costs_total:"Total deductible costs entered",
  prop_costs_hint:"The tax office requires these broken down by category, not one combined total.",
  prop_wk_afa:"Building depreciation (AfA)", prop_wk_afa_hint:"The standard yearly write-down on the building's value - usually 2% of the building's (not the land's) purchase or construction cost.",
@@ -1316,6 +1317,7 @@ de: {
  m_kap:"Kapitalertragsteuer (ca.)",
  step_prop:"Vermietung", s_prop_lead:"Einkünfte aus Vermietung (Anlage V) - ein Eintrag je Immobilie. Kosten (Darlehenszinsen, Instandhaltung, AfA, Nebenkosten...) zählen als Werbungskosten; ein Verlust mindert das zu versteuernde Einkommen.",
  prop_address:"Immobilie (Adresse)", prop_street:"Straße, Hausnummer", prop_plz:"Postleitzahl", prop_city:"Ort", prop_rent:"Mieteinnahmen (pro Jahr)", prop_costs:"Kosten / Aufwendungen (pro Jahr)", add_prop:"Immobilie hinzufügen", prop_net:"Ergebnis",
+ add_support_person:"Weitere unterstützte Person hinzufügen",
  prop_costs_summary:"Werbungskosten (Vermietung)", prop_costs_total:"Eingetragene abzugsfähige Kosten insgesamt",
  prop_costs_hint:"Das Finanzamt verlangt diese aufgeteilt nach Kategorie, nicht als eine Gesamtsumme.",
  prop_wk_afa:"Gebäudeabschreibung (AfA)", prop_wk_afa_hint:"Die jährliche Absetzung für Abnutzung - meist 2 % der Anschaffungs- oder Herstellungskosten des Gebäudes (ohne Grundstücksanteil).",
@@ -1698,6 +1700,23 @@ function migrateClient(c){
  });
  c.props = Array.isArray(c.props)?c.props:[];
  c.privIns = Array.isArray(c.privIns)?c.privIns:[];
+ /* Real gap found via direct user feedback - the app only ever
+    supported one supported person, but ELSTER genuinely allows up to
+    99, not tied to either spouse. Converting to a real repeatable
+    list, matching the same pattern already working for rental
+    properties. Migrates any existing single-entry data into the new
+    list's first entry, so nothing already filled in gets lost. */
+ if(!Array.isArray(c.unt)){
+   c.unt = (N(c.fam?.support)>0) ? [{
+     id: uid(), support:c.fam.support, supportGroup:c.fam.supportGroup||'1',
+     untName:c.fam.untName||'', untIdnr:c.fam.untIdnr||'', untProfession:c.fam.untProfession||'',
+     untBirthDate:c.fam.untBirthDate||'', untRelationship:c.fam.untRelationship||'', untAddress:c.fam.untAddress||'',
+     untHouseholdSize:c.fam.untHouseholdSize||'', untFrom:c.fam.untFrom||'', untTo:c.fam.untTo||'',
+     untCohabitation:c.fam.untCohabitation||'nein', untKindergeld:c.fam.untKindergeld||'nein',
+     untOtherContributor:c.fam.untOtherContributor||'nein', untHasAssets:c.fam.untHasAssets||'nein',
+     untHasIncome:c.fam.untHasIncome||'nein', untCountry:c.fam.untCountry||'', untForeignConfirmed:c.fam.untForeignConfirmed||'nein',
+   }] : [];
+ }
  c.oth = Object.assign({ersatz:'',gdbA:'',gdbB:'',fahrtA:'',fahrtB:'',pflegeA:'',pflegeB:'',pflegePersonA:'',pflegePersonAId:'',pflegePersonAResident:'',pflegePersonAH:false,pflegePersonB:'',pflegePersonBId:'',pflegePersonBResident:'',pflegePersonBH:false,kidTransfer:'',
  realsplitting:'',realsplitIdnr:'',realsplitName:'',lossCarry:'',soGain:'',soUnterhalt:'',energCost:'',energStage:''}, c.oth||{});
  c.rente = Array.isArray(c.rente)?c.rente:[];
@@ -2037,9 +2056,11 @@ function computeEstimate(c){
  const sa = Math.max(joint?72:36, N(c.sa.donations)) + childcare + school // § 10c Pauschbetrag 36/72
  + Math.min(pins.A.riester, 2100) + (joint ? Math.min(pins.B.riester, 2100) : 0)
  + Math.min(N(c.oth.realsplitting), 13805); // Realsplitting § 10 (1a) Nr. 1 (Anlage U)
- // § 33a support to needy relatives: capped at Grundfreibetrag × country-group factor (no zumutbare Belastung)
- const grpFactor = {1:1, 2:0.75, 3:0.5, 4:0.25}[c.fam.supportGroup] ?? 1;
- const support = Math.min(N(c.fam.support), (TARIFF[year]||TARIFF[2025]).gfb * grpFactor);
+ // § 33a support to needy relatives: capped per-person at Grundfreibetrag × that person's own country-group factor (no zumutbare Belastung), then summed across the whole list
+ const support = (c.unt||[]).reduce((sum, u) => {
+   const grpFactor = {1:1, 2:0.75, 3:0.5, 4:0.25}[u.supportGroup] ?? 1;
+   return sum + Math.min(N(u.support), (TARIFF[year]||TARIFF[2025]).gfb * grpFactor);
+ }, 0);
  // rental property (Anlage V): net result per property - losses reduce taxable income
  const propNet = (c.props||[]).reduce((a,p)=>a + (N(p.rent)-propCosts(p)), 0);
  // außergewöhnliche Belastung - zumutbare Belastung per § 33 Abs. 3 EStG, tier-wise (BFH VI R 75/14)
@@ -2572,10 +2593,13 @@ function stepDone(c,i){
  return ok?'done':'incomplete';
  }
  case 5: {
- if(!(N(c.fam.support)>0)) return 'empty';
- const ok=has(c.fam.untName)&&has(c.fam.untProfession)&&has(c.fam.untBirthDate)&&has(c.fam.untRelationship)
-   &&has(c.fam.untAddress)&&has(c.fam.untHouseholdSize)&&has(c.fam.untFrom)&&has(c.fam.untTo)
-   &&has(c.fam.untCohabitation)&&has(c.fam.untKindergeld)&&has(c.fam.untOtherContributor)&&has(c.fam.untHasAssets)&&has(c.fam.untHasIncome);
+ const list = c.unt||[];
+ if(!list.some(u=>N(u.support)>0)) return 'empty';
+ const ok = list.every(u => N(u.support)>0 ? (
+   has(u.untName)&&has(u.untProfession)&&has(u.untBirthDate)&&has(u.untRelationship)
+   &&has(u.untAddress)&&has(u.untHouseholdSize)&&has(u.untFrom)&&has(u.untTo)
+   &&has(u.untCohabitation)&&has(u.untKindergeld)&&has(u.untOtherContributor)&&has(u.untHasAssets)&&has(u.untHasIncome)
+ ) : true);
  return ok?'done':'incomplete';
  }
  case 6: {
@@ -3306,7 +3330,7 @@ function checkDuplicateIdNrs(){
  const ids=[
  {key:'taxId', label:t('dup_idnr_filer'), val:clean(c.p.taxId)},
  {key:'spouseTaxId', label:t('dup_idnr_spouse'), val:clean(c.p.spouseTaxId)},
- {key:'untIdnr', label:t('dup_idnr_unt'), val:clean(c.fam?.untIdnr)},
+ ...(c.unt||[]).map((u,i)=>({key:'unt'+u.id, label:`${t('dup_idnr_unt')} ${i+1}`, val:clean(u.untIdnr)})),
  {key:'realsplitIdnr', label:t('dup_idnr_realsplit'), val:clean(c.oth?.realsplitIdnr)},
  ...(c.fam?.children||[]).map((k,i)=>({key:'child'+k.id, label:`${t('dup_idnr_child')} ${i+1}`, val:clean(k.taxId)})),
  ].filter(x=>x.val.length===11);
@@ -3321,6 +3345,7 @@ function checkDuplicateIdNrs(){
     person switches steps mid-edit. Each slot gracefully no-ops if not
     present on the current page. */
  const el1=document.getElementById('dup-idnr-check-msg'); if(el1 && msg) el1.innerHTML=msg;
+ (c.unt||[]).forEach(u=>{ const el=document.getElementById('untidnr-check-msg-'+u.id); if(el && msg) el.innerHTML=msg; });
  (c.fam?.children||[]).forEach(k=>{ const el=document.getElementById('childtaxid-check-msg-'+k.id); if(el && msg) el.innerHTML=msg; });
 }
 /* Real gap: the 10-year building-age rule (Regel 102240003) already
@@ -3371,7 +3396,16 @@ function addItem(list,tpl){ const c=cur(); const item=Object.assign({id:uid()},t
 function delItem(list,id){ const c=cur(); c[list]=(c[list]||[]).filter(x=>x.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function updItem(list,id,f,v,fmt){ v = validDate(v); v = validAmount(v, fmt); const c=cur(); const it=(c[list]||[]).find(x=>x.id===id); if(!it) return;
  if(fmt && String(v).trim()!=='') v=formatDE(N(v));
- it[f]=v; delete S.aiFields[list+'.'+id+'.'+f]; c.updatedAt=Date.now(); scheduleSave(); render(); }
+ it[f]=v; delete S.aiFields[list+'.'+id+'.'+f]; c.updatedAt=Date.now();
+ /* Real gap found while converting family support to a repeatable
+    list - this checksum check already existed for the old
+    single-entry field via upd(), but updItem() (used by every
+    repeatable-list field via LF()) never had an equivalent hook at
+    all, so this safety feature would have silently stopped working
+    the moment this became a list. */
+ if(list==='unt' && f==='untIdnr') checkTaxIdChecksum(v, 'untidnr-check-msg-'+id);
+ if(list==='unt' && f==='untIdnr') checkDuplicateIdNrs();
+ scheduleSave(); render(); }
 
 /* --- documents (Belege) --- */
 const memDocs = {};
@@ -4039,48 +4073,57 @@ function stepChildren(c){
 }
 /* --- family support (Anlage Unterhalt, § 33a) --- */
 function stepFamilySupport(c){
- const hasAmount = N(c.fam.support)>0;
- return `<h2>${t('step_unt')}</h2><p class="lead">${t('s_unt_lead')}</p>
- <div class="section-label">${t('support_h')}</div>
+ c.unt = Array.isArray(c.unt) ? c.unt : [];
+ const rows = c.unt.map((u,i) => {
+   const hasAmount = N(u.support)>0;
+   return `<div class="sum-group" style="margin-bottom:12px">
+ <div class="head"><span>${t('support_h')} ${i+1}${u.untName?' · '+esc(u.untName):''}</span>
+ <span class="edit" onclick="delItem('unt','${u.id}')">🗑 ${t('remove')}</span></div>
+ <div style="padding:14px 16px">
  <div class="grid2">
- ${F('fam','support',t('support_amount'),{euro:true,ph:'0,00 €',hint:t('support_hint')})}
- ${F('fam','supportGroup',t('support_where'),{select:[['1',t('grp1')],['2',t('grp2')],['3',t('grp3')],['4',t('grp4')]]})}
+ ${LF('unt',u,'support',t('support_amount'),{euro:true,ph:'0,00 €',hint:i===0?t('support_hint'):''})}
+ ${LF('unt',u,'supportGroup',t('support_where'),{select:[['1',t('grp1')],['2',t('grp2')],['3',t('grp3')],['4',t('grp4')]]})}
  </div>
- <details class="more" ${isSectionOpen('unt-details', hasAmount)?'open':''} ontoggle="toggleSectionState('unt-details', this.open)"><summary>${t('unt_details_summary')}</summary>
+ <details class="more" ${isSectionOpen('unt-details-'+u.id, hasAmount)?'open':''} ontoggle="toggleSectionState('unt-details-${u.id}', this.open)"><summary>${t('unt_details_summary')}</summary>
  ${hasAmount?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
  ⚠ ${t('unt_required_hint')}
-
  </div>
  <div class="grid2">
- ${F('fam','untName',t('unt_name')+' *',{ph:t('unt_name_ph')})}
- ${F('fam','untProfession',t('unt_profession')+' *',{ph:t('unt_profession_ph')})}
- ${F('fam','untBirthDate',t('unt_birthdate')+' *',{type:'date'})}
- ${F('fam','untIdnr',t('unt_idnr')+(YEAR_LIMITATIONS[c.taxYear]?.legacyUnterhalt?' *':''),{ph:'12 345 678 901',hint:YEAR_LIMITATIONS[c.taxYear]?.legacyUnterhalt?t('unt_idnr_hint_legacy'):t('unt_idnr_hint'),maxlength:13,inputmode:'numeric'})}
- <div id="untidnr-check-msg" style="grid-column:1/-1"></div>
- ${F('fam','untRelationship',t('unt_relationship')+' *',{ph:t('unt_relationship_ph')})}
- ${F('fam','untAddress',t('unt_address')+' *',{ph:t('unt_address_ph')})}
- ${F('fam','untHouseholdSize',t('unt_household_size')+' *',{type:'number',ph:'1',min:1})}
- ${F('fam','untFrom',t('unt_from')+' *',{type:'date'})}
- ${F('fam','untTo',t('unt_to')+' *',{type:'date'})}
+ ${LF('unt',u,'untName',t('unt_name')+' *',{ph:t('unt_name_ph')})}
+ ${LF('unt',u,'untProfession',t('unt_profession')+' *',{ph:t('unt_profession_ph')})}
+ ${LF('unt',u,'untBirthDate',t('unt_birthdate')+' *',{type:'date'})}
+ ${LF('unt',u,'untIdnr',t('unt_idnr')+(YEAR_LIMITATIONS[c.taxYear]?.legacyUnterhalt?' *':''),{ph:'12 345 678 901',hint:YEAR_LIMITATIONS[c.taxYear]?.legacyUnterhalt?t('unt_idnr_hint_legacy'):t('unt_idnr_hint'),maxlength:13,inputmode:'numeric'})}
+ <div id="untidnr-check-msg-${u.id}" style="grid-column:1/-1"></div>
+ ${LF('unt',u,'untRelationship',t('unt_relationship')+' *',{ph:t('unt_relationship_ph')})}
+ ${LF('unt',u,'untAddress',t('unt_address')+' *',{ph:t('unt_address_ph')})}
+ ${LF('unt',u,'untHouseholdSize',t('unt_household_size')+' *',{type:'number',ph:'1',min:1})}
+ ${LF('unt',u,'untFrom',t('unt_from')+' *',{type:'date'})}
+ ${LF('unt',u,'untTo',t('unt_to')+' *',{type:'date'})}
  </div>
  <div class="grid3">
- ${F('fam','untCohabitation',t('unt_cohabitation')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
- ${F('fam','untKindergeld',t('unt_kindergeld')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
- ${F('fam','untOtherContributor',t('unt_other_contributor')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
- ${F('fam','untHasAssets',t('unt_has_assets')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
- ${F('fam','untHasIncome',t('unt_has_income')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
+ ${LF('unt',u,'untCohabitation',t('unt_cohabitation')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
+ ${LF('unt',u,'untKindergeld',t('unt_kindergeld')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
+ ${LF('unt',u,'untOtherContributor',t('unt_other_contributor')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
+ ${LF('unt',u,'untHasAssets',t('unt_has_assets')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
+ ${LF('unt',u,'untHasIncome',t('unt_has_income')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
  </div>
  <div class="grid2">
- ${F('fam','untCountry',t('unt_country'),{select:[['Deutschland',t('unt_country_de')],...(YEAR_LIMITATIONS[c.taxYear]?.legacyUnterhalt?UNT_COUNTRIES_LEGACY:UNT_COUNTRIES).filter(c=>c!=='Deutschland').map(c=>[c,c])]})}
+ ${LF('unt',u,'untCountry',t('unt_country'),{select:[['Deutschland',t('unt_country_de')],...(YEAR_LIMITATIONS[c.taxYear]?.legacyUnterhalt?UNT_COUNTRIES_LEGACY:UNT_COUNTRIES).filter(x=>x!=='Deutschland').map(x=>[x,x])]})}
  </div>
- ${c.fam.untCountry && c.fam.untCountry!=='Deutschland'?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
+ ${u.untCountry && u.untCountry!=='Deutschland'?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
  ⚠ ${t('unt_foreign_hint')}
  </div>
  <div class="grid2">
- ${F('fam','untForeignConfirmed',t('unt_foreign_confirmed')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
- </div>`:''}
- ${docSection('fam')}`:''}
+ ${LF('unt',u,'untForeignConfirmed',t('unt_foreign_confirmed')+' *',{select:[['nein',t('no')],['ja',t('yes')]]})}
+ </div>`:''}`:''}
  </details>
+ </div>
+ </div>`;
+ }).join('');
+ return `<h2>${t('step_unt')}</h2><p class="lead">${t('s_unt_lead')}</p>
+ ${rows}
+ <button class="btn btn-ghost btn-sm" onclick="addItem('unt',{support:'',supportGroup:'1',untName:'',untIdnr:'',untProfession:'',untBirthDate:'',untRelationship:'',untAddress:'',untHouseholdSize:'',untFrom:'',untTo:'',untCohabitation:'nein',untKindergeld:'nein',untOtherContributor:'nein',untHasAssets:'nein',untHasIncome:'nein',untCountry:'',untForeignConfirmed:'nein'})">＋ ${t('add_support_person')}</button>
+ ${docSection('fam')}
  ${navRow()}`;
 }
 
@@ -4276,9 +4319,9 @@ function stepSummary(c){
  `${marr?'('+(x.person==='B'?'B':'A')+') ':''}${esc(wkiLabel(x.type)||t('wki_type'))}${x.desc?' - '+esc(x.desc):''}`,
  m(x.amount)])])}
  ${sumGroup(t('step_kind'),4,kidRows)}
- ${sumGroup(t('step_unt'),5,[
- [t('support_amount'),m(c.fam.support)],
- [t('support_where'),N(c.fam.support)>0?{1:t('grp1'),2:t('grp2'),3:t('grp3'),4:t('grp4')}[c.fam.supportGroup]:'']])}
+ ${sumGroup(t('step_unt'),5,(c.unt||[]).flatMap((u,i)=>[
+ [`${t('support_amount')} ${i+1}${u.untName?' ('+esc(u.untName)+')':''}`,m(u.support)],
+ [t('support_where'),N(u.support)>0?{1:t('grp1'),2:t('grp2'),3:t('grp3'),4:t('grp4')}[u.supportGroup]:'']]))}
  ${sumGroup(t('special_exp'),6,[[t('donations'),m(c.sa.donations)],[t('other_ins'),m(c.ins.other)]])}
  ${sumGroup(t('step_priv'),7,(c.privIns||[]).map(x=>[
  esc(insLabel(x.type)||t('ins_type')),
@@ -5048,14 +5091,14 @@ function buildElsterDataset(c){
  kindergeld:N(k.kindergeld), betreuungskosten:N(k.childcare),
  betreuungAnbieter:k.ccProvider||'', betreuungVon:k.ccPeriodFrom||'', betreuungBis:k.ccPeriodTo||'',
  schulgeld:N(k.schoolFees) })),
- anlageUnterhalt: N(c.fam.support)>0?{ betrag:N(c.fam.support), laendergruppe:c.fam.supportGroup,
- personName:c.fam.untName||'', personIdnr:(c.fam.untIdnr||'').replace(/\s/g,''),
- profession:c.fam.untProfession||'', personBirthDate:c.fam.untBirthDate||'', relationship:c.fam.untRelationship||'',
- householdAddress:c.fam.untAddress||'', householdSize:N(c.fam.untHouseholdSize)||1,
- von:c.fam.untFrom||'', bis:c.fam.untTo||'',
- cohabitation:c.fam.untCohabitation==='ja', kindergeldEntitlement:c.fam.untKindergeld==='ja', otherContributor:c.fam.untOtherContributor==='ja',
- hasAssets:c.fam.untHasAssets==='ja', hasOwnIncome:c.fam.untHasIncome==='ja',
- country:c.fam.untCountry||'', foreignNeedConfirmed:c.fam.untForeignConfirmed==='ja' }:null,
+ anlageUnterhalt: (c.unt||[]).filter(u=>N(u.support)>0).map(u=>({ betrag:N(u.support), laendergruppe:u.supportGroup,
+ personName:u.untName||'', personIdnr:(u.untIdnr||'').replace(/\s/g,''),
+ profession:u.untProfession||'', personBirthDate:u.untBirthDate||'', relationship:u.untRelationship||'',
+ householdAddress:u.untAddress||'', householdSize:N(u.untHouseholdSize)||1,
+ von:u.untFrom||'', bis:u.untTo||'',
+ cohabitation:u.untCohabitation==='ja', kindergeldEntitlement:u.untKindergeld==='ja', otherContributor:u.untOtherContributor==='ja',
+ hasAssets:u.untHasAssets==='ja', hasOwnIncome:u.untHasIncome==='ja',
+ country:u.untCountry||'', foreignNeedConfirmed:u.untForeignConfirmed==='ja' })),
  sonderausgaben:{ spenden:N(c.sa.donations) },
  aussergewoehnlicheBelastungen:{ krankheitskosten:N(c.ex.medical) },
  haushaltsnaheLeistungen:{ haushaltsnaheDienstleistungen:N(c.ex.household), handwerkerleistungen:N(c.ex.handwerker) },
@@ -5244,8 +5287,10 @@ function buildPDF(c){
  if(N(k.schoolFees)>0) row(' '+t('sf_short'), eur(N(k.schoolFees)));
  });
  y+=3; section(t('step_unt'));
- row(t('support_amount'),m(c.fam.support));
- if(N(c.fam.support)>0) row(t('support_where'), {1:t('grp1'),2:t('grp2'),3:t('grp3'),4:t('grp4')}[c.fam.supportGroup]);
+ (c.unt||[]).forEach((u,i) => {
+ row(`${t('support_amount')} ${i+1}${u.untName?' ('+u.untName+')':''}`, m(u.support));
+ if(N(u.support)>0) row(t('support_where'), {1:t('grp1'),2:t('grp2'),3:t('grp3'),4:t('grp4')}[u.supportGroup]);
+ });
  y+=3; section(t('special_exp'));
  row(t('donations'),m(c.sa.donations)); row(t('other_ins'),m(c.ins.other));
  if((c.privIns||[]).length){ y+=3; section(t('step_priv'));

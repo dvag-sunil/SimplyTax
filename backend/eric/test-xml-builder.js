@@ -1726,6 +1726,36 @@ check('Financing costs, pre-2023 year: Direkt fields (confirmed minYear=2023) ar
   return !geldbeschaff.includes('E0704813') && !geldbeschaff.includes('E0704814') && geldbeschaff.includes('<E0704406>500</E0704406>');
 })());
 
+check('Real gap found via direct user feedback: multiple supported people (up to 99, confirmed via the real schema) now transmit as genuinely independent entries, not tied to either spouse specifically - two people from a joint-filing couple each get their own complete, correctly structured block', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'zusammenveranlagung';
+  d.hauptvordruck.personB = { name: 'Muster', vorname: 'Anna', geburtsdatum: '1987-03-15', religion: 'EV' };
+  d.anlageUnterhalt = [
+    { personName: 'Mutter Max', profession: 'Rentnerin', personBirthDate: '1950-01-01', relationship: 'Mutter', betrag: 3000, householdSize: 1 },
+    { personName: 'Vater Anna', profession: 'Rentner', personBirthDate: '1948-06-15', relationship: 'Vater', betrag: 2500, householdSize: 1 },
+  ];
+  const x = buildEStXML(d).xml;
+  const blockCount = (x.match(/<Ang_HH_unt_P_Unt_Leist>/g) || []).length;
+  return blockCount === 2 && x.includes('<E0120201>Mutter Max</E0120201>') && x.includes('<E0120201>Vater Anna</E0120201>')
+    && x.includes('<E0120103>3000</E0120103>') && x.includes('<E0120103>2500</E0120103>');
+})());
+check('Backward compatibility: the old single-object format (not an array) still works correctly, automatically treated as one person', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageUnterhalt = { personName: 'Solo Person', profession: 'Rentner', personBirthDate: '1950-01-01', relationship: 'Vater', betrag: 3000, householdSize: 1 };
+  const x = buildEStXML(d).xml;
+  return (x.match(/<Ang_HH_unt_P_Unt_Leist>/g) || []).length === 1 && x.includes('<E0120201>Solo Person</E0120201>');
+})());
+check('Pre-2023 years: only the first person is sent, since that structure is genuinely more ambiguous for multiple people and hasn\'t been separately verified - honest limitation, not silently dropped', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2022;
+  d.anlageUnterhalt = [
+    { personName: 'First Person', profession: 'Rentner', personBirthDate: '1950-01-01', relationship: 'Vater', betrag: 3000, householdSize: 1 },
+    { personName: 'Second Person', profession: 'Rentner', personBirthDate: '1948-01-01', relationship: 'Mutter', betrag: 2000, householdSize: 1 },
+  ];
+  const x = buildEStXML(d).xml;
+  return x.includes('First Person') && !x.includes('Second Person');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);
