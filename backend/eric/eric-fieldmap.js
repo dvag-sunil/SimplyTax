@@ -253,6 +253,21 @@ const Kind = {
   surnameIfDifferent: 'E0500108',
   birthDate:   { kennzahlen: ['E0500701'], required: true, note: 'Geburtsdatum - Pflichtfeld=Ja in the real schema' },
   altSurname:  'E0500108', // ggf. abweichender Familienname (only if different from parent)
+  /* Transfer of the child's own disability/helplessness lump sum to
+     the parent(s) (Ueb_PB_Beh_Hbl), confirmed via full schema
+     investigation - the actual deduction tier is determined by which
+     marker flags are set, not a directly-entered euro amount or
+     percentage grade. Mandatory (calculation-affecting) fields: at
+     least one of the two marker flags, and validity (either
+     indefinite or a specific date range). The split percentage is
+     genuinely optional - omitting it defaults to an even 50/50 split
+     automatically, so it's only sent when the person indicates a
+     different split. Confirmed identical across all five years. */
+  behMobilityMarker: 'E0505808', // erheblich/außergewöhnlich gehbehindert (G/aG)
+  behBlindHelplessMarker: 'E0505807', // blind/taubblind/ständig hilflos (Bl/TBl/H)
+  behValidIndefinite: 'E0505908', // unbefristet gültig
+  behValidFrom: 'E0504601', behValidTo: 'E0504602', // gültig von/bis (only if not indefinite)
+  behSplitPercent: 'E0506007', // optional - only if not the default 50/50
   /* CORRECTED: E0500807/E0500808 were previously grouped under one key
      with an incorrect comment claiming they're a "multi-child repeat
      pattern" - real research (the multi-year regression test surfacing

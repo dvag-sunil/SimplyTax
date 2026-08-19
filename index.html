@@ -685,6 +685,14 @@ en: {
  year_warn_no_schema:"⚠ The tax authority has not published this tax year's forms yet - returns for this year cannot be validated or submitted until they do.",
  year_warn_no_realsplit_country:"For this tax year, the ex-spouse's Tax ID is required regardless of where they live - there's no exception for a foreign residence yet (that exception starts in 2024).",
  school_hint:"30% deductible, max. €5,000.",
+ kind_beh_summary:"Child's own disability allowance (if this child has one)",
+ kind_beh_hint:"If this child has their own recognized disability, their disability/helplessness lump sum can be transferred to you as the parent. Only fill this in if that applies.",
+ kind_beh_mobility:"Significantly or exceptionally mobility-impaired (mark \"G\" or \"aG\")",
+ kind_beh_blind:"Blind, deaf-blind, or classed as constantly helpless (mark \"Bl\", \"TBl\", or \"H\")",
+ kind_beh_validity:"How long is this valid for?",
+ kind_beh_indefinite:"Valid indefinitely (no expiry date on the certificate)",
+ kind_beh_valid_from:"Valid from", kind_beh_valid_to:"Valid until",
+ kind_beh_split:"Split with the other parent, if not an even 50/50 (%)", kind_beh_split_hint:"Leave blank for the standard even split - only fill in if you and the other parent agreed to a different share.",
  support_h:"Support for parents / relatives", support_amount:"Support paid (per year)", support_where:"Where does the supported person live?",
  grp1:"Germany / country group 1 (full maximum)", grp2:"Country group 2 (¾ of maximum)", grp3:"Country group 3 (½ of maximum, e.g. India)", grp4:"Country group 4 (¼ of maximum)",
  support_hint:"Deductible up to the annual maximum (§ 33a EStG), reduced by country group. The recipient's own income can reduce the amount further.",
@@ -1111,6 +1119,14 @@ de: {
  year_warn_no_schema:"⚠ Das Finanzamt hat die Formulare für dieses Steuerjahr noch nicht veröffentlicht - Erklärungen für dieses Jahr können noch nicht geprüft oder übermittelt werden.",
  year_warn_no_realsplit_country:"Für dieses Steuerjahr ist die Steuer-ID des Ex-Ehegatten unabhängig vom Wohnsitz erforderlich - eine Ausnahme für Wohnsitz im Ausland gibt es noch nicht (diese Ausnahme gilt erst ab 2024).",
  school_hint:"30 % absetzbar, max. 5.000 €.",
+ kind_beh_summary:"Eigene Behinderung des Kindes (falls vorhanden)",
+ kind_beh_hint:"Wenn dieses Kind eine eigene anerkannte Behinderung hat, kann der Behinderten-/Pflege-Pauschbetrag auf Sie als Elternteil übertragen werden. Nur ausfüllen, falls zutreffend.",
+ kind_beh_mobility:"Erheblich oder außergewöhnlich gehbehindert (Merkzeichen „G” oder „aG”)",
+ kind_beh_blind:"Blind, taubblind oder ständig hilflos (Merkzeichen „Bl”, „TBl” oder „H”)",
+ kind_beh_validity:"Wie lange gilt dies?",
+ kind_beh_indefinite:"Unbefristet gültig (kein Ablaufdatum im Ausweis)",
+ kind_beh_valid_from:"Gültig von", kind_beh_valid_to:"Gültig bis",
+ kind_beh_split:"Aufteilung mit dem anderen Elternteil, falls nicht 50/50 (%)", kind_beh_split_hint:"Bei der üblichen hälftigen Aufteilung leer lassen - nur ausfüllen, wenn Sie und der andere Elternteil eine andere Aufteilung vereinbart haben.",
  support_h:"Unterhalt für Eltern / Angehörige", support_amount:"Gezahlter Unterhalt (pro Jahr)", support_where:"Wo lebt die unterstützte Person?",
  grp1:"Deutschland / Ländergruppe 1 (voller Höchstbetrag)", grp2:"Ländergruppe 2 (¾ des Höchstbetrags)", grp3:"Ländergruppe 3 (½ des Höchstbetrags, z. B. Indien)", grp4:"Ländergruppe 4 (¼ des Höchstbetrags)",
  support_hint:"Absetzbar bis zum Jahreshöchstbetrag (§ 33a EStG), gekürzt nach Ländergruppe. Eigene Einkünfte der unterstützten Person mindern den Betrag zusätzlich.",
@@ -1619,7 +1635,7 @@ function newClient(f,l,year,marital){
  spouseFirst:'',spouseLast:'',spouseBirth:'',spouseTaxId:'',spouseReligion:'none',singleParent:'no' },
  inc:{ employer:'',period:'',taxClass:'',gross:'',wageTax:'',soli:'',churchPaid:'' },
  emps:[], kap:[], props:[], privIns:[], wkItems:[], rente:[],
- oth:{ ersatz:'', gdbA:'', gdbB:'', fahrtA:'', fahrtB:'', pflegeA:'', pflegeB:'', pflegePersonA:'', pflegePersonAId:'', pflegePersonAResident:'', pflegePersonAH:false, pflegePersonB:'', pflegePersonBId:'', pflegePersonBResident:'', pflegePersonBH:false, kidTransfer:'',
+ oth:{ ersatz:'', gdbA:'', gdbB:'', fahrtA:'', fahrtB:'', pflegeA:'', pflegeB:'', pflegePersonA:'', pflegePersonAId:'', pflegePersonAResident:'', pflegePersonAH:false, pflegePersonB:'', pflegePersonBId:'', pflegePersonBResident:'', pflegePersonBH:false,
  realsplitting:'', realsplitIdnr:'', realsplitName:'', lossCarry:'', soGain:'', soUnterhalt:'', energCost:'', energStage:'' },
  ins:{ rv:'',kv:'',pv:'',av:'',other:'' },
  wk:{ commuteDays:'',commuteKm:'',commuteMode:'',commutePublicCost:'',commuteWorkplace:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',
@@ -1717,7 +1733,7 @@ function migrateClient(c){
      untHasIncome:c.fam.untHasIncome||'nein', untCountry:c.fam.untCountry||'', untForeignConfirmed:c.fam.untForeignConfirmed||'nein',
    }] : [];
  }
- c.oth = Object.assign({ersatz:'',gdbA:'',gdbB:'',fahrtA:'',fahrtB:'',pflegeA:'',pflegeB:'',pflegePersonA:'',pflegePersonAId:'',pflegePersonAResident:'',pflegePersonAH:false,pflegePersonB:'',pflegePersonBId:'',pflegePersonBResident:'',pflegePersonBH:false,kidTransfer:'',
+ c.oth = Object.assign({ersatz:'',gdbA:'',gdbB:'',fahrtA:'',fahrtB:'',pflegeA:'',pflegeB:'',pflegePersonA:'',pflegePersonAId:'',pflegePersonAResident:'',pflegePersonAH:false,pflegePersonB:'',pflegePersonBId:'',pflegePersonBResident:'',pflegePersonBH:false,
  realsplitting:'',realsplitIdnr:'',realsplitName:'',lossCarry:'',soGain:'',soUnterhalt:'',energCost:'',energStage:''}, c.oth||{});
  c.rente = Array.isArray(c.rente)?c.rente:[];
  c.rente.forEach(r=>{ if(r.person!=='B') r.person='A'; });
@@ -1744,7 +1760,7 @@ function migrateClient(c){
  c.fam.children.forEach(k=>{ if(!k.kinship) k.kinship='leiblich'; });
  /* legacy: convert old lump-sum childcare/school fees into a first child entry */
  if(c.fam.children.length===0 && (N(c.fam.childcare)>0 || N(c.fam.schoolFees)>0)){
- c.fam.children.push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',kindergeld:'',childcare:c.fam.childcare,ccProvider:'',ccPeriodFrom:'',ccPeriodTo:'',schoolFees:c.fam.schoolFees});
+ c.fam.children.push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',kindergeld:'',childcare:c.fam.childcare,ccProvider:'',ccPeriodFrom:'',ccPeriodTo:'',schoolFees:c.fam.schoolFees,behMobility:false,behBlindHelpless:false,behValidIndefinite:false,behValidFrom:'',behValidTo:'',behSplitPercent:''});
  c.fam.childcare=''; c.fam.schoolFees='';
  }
  c.docs = c.docs||[]; c.inq = c.inq||[];
@@ -2076,8 +2092,7 @@ function computeEstimate(c){
  const GDB={ '20':384,'30':620,'40':860,'50':1140,'60':1440,'70':1780,'80':2120,'90':2400,'100':2840,'blind':7400 };
  const disab = (GDB[c.oth.gdbA]||0) + (joint?(GDB[c.oth.gdbB]||0):0)
  + N(c.oth.fahrtA) + (joint?N(c.oth.fahrtB):0)
- + N(c.oth.pflegeA) + (joint?N(c.oth.pflegeB):0)
- + N(c.oth.kidTransfer);
+ + N(c.oth.pflegeA) + (joint?N(c.oth.pflegeB):0);
  const agb = Math.max(0, N(c.ex.medical) - zumutbar) + support + disab;
  // § 24b Entlastungsbetrag für Alleinerziehende: 4,260 € + 240 € per further child
  const entl = (!joint && c.p.singleParent==='yes' && kidsN>=1) ? 4260 + 240*(kidsN-1) : 0;
@@ -4009,7 +4024,7 @@ function CF(kid,field,label,opts={}){
  <input data-tabkey="${tk}" type="${type}" value="${esc(kid[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
  onchange="updChild('${kid.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
-function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',familienkasse:'',otherParentName:'',kindergeld:'',childcare:'',ccProvider:'',ccPeriodFrom:'',ccPeriodTo:'',schoolFees:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
+function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',familienkasse:'',otherParentName:'',kindergeld:'',childcare:'',ccProvider:'',ccPeriodFrom:'',ccPeriodTo:'',schoolFees:'',behMobility:false,behBlindHelpless:false,behValidIndefinite:false,behValidFrom:'',behValidTo:'',behSplitPercent:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function delChild(id){ const c=cur(); c.fam.children=(c.fam.children||[]).filter(k=>k.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function updChild(id,f,v,fmt){ v = validAmount(v, fmt); const c=cur(); const k=(c.fam.children||[]).find(x=>x.id===id); if(!k) return;
  if(fmt && String(v).trim()!=='') v=formatDE(N(v)); k[f]=v; c.updatedAt=Date.now(); scheduleSave(); render();
@@ -4053,6 +4068,28 @@ function stepChildren(c){
  ${CF(k,'ccPeriodFrom',t('cc_period_from')+' *',{type:'date'})}
  ${CF(k,'ccPeriodTo',t('cc_period_to')+' *',{type:'date'})}
  </div>`:''}
+ <details class="more" ${isSectionOpen('kind-beh-'+k.id, k.behMobility||k.behBlindHelpless)?'open':''} ontoggle="toggleSectionState('kind-beh-${k.id}', this.open)"><summary>${t('kind_beh_summary')}</summary>
+ <p class="hint" style="margin:0 0 8px">${t('kind_beh_hint')}</p>
+ <div class="grid2">
+ <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px">
+ <input type="checkbox" ${k.behMobility?'checked':''} onchange="updChild('${k.id}','behMobility',this.checked);">
+ ${t('kind_beh_mobility')}</label>
+ <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px">
+ <input type="checkbox" ${k.behBlindHelpless?'checked':''} onchange="updChild('${k.id}','behBlindHelpless',this.checked);">
+ ${t('kind_beh_blind')}</label>
+ </div>
+ ${(k.behMobility||k.behBlindHelpless)?`<div class="field${reqCls(k.behValidIndefinite||k.behValidFrom)}">
+ <label>${t('kind_beh_validity')} *</label>
+ <label style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:6px">
+ <input type="checkbox" ${k.behValidIndefinite?'checked':''} onchange="updChild('${k.id}','behValidIndefinite',this.checked);">
+ ${t('kind_beh_indefinite')}</label>
+ </div>
+ ${!k.behValidIndefinite?`<div class="grid2">
+ ${CF(k,'behValidFrom',t('kind_beh_valid_from')+' *',{type:'date'})}
+ ${CF(k,'behValidTo',t('kind_beh_valid_to')+' *',{type:'date'})}
+ </div>`:''}
+ ${CF(k,'behSplitPercent',t('kind_beh_split'),{ph:'50',hint:t('kind_beh_split_hint')})}`:''}
+ </details>
  </div></div>`).join('');
  return `<h2>${t('step_kind')}</h2><p class="lead">${t('s_kind_lead')}</p>
  <div class="section-label">${t('children_h')}</div>
@@ -4237,7 +4274,6 @@ function stepHousehold(c){
  <label for="pflegeBH" style="margin:0">${t('pflege_h')}</label></div>
  </div>`:''}
  `:''}
- ${F('oth','kidTransfer',t('kid_transfer'),{euro:true,ph:'0,00 €'})}
  ${docSection('ex')}
  ${navRow()}`;
 }
@@ -5080,7 +5116,9 @@ function buildElsterDataset(c){
  kinship:k.kinship||'leiblich', familienkasse:k.familienkasse||'', otherParentName:k.otherParentName||'',
  kindergeld:N(k.kindergeld), betreuungskosten:N(k.childcare),
  betreuungAnbieter:k.ccProvider||'', betreuungVon:k.ccPeriodFrom||'', betreuungBis:k.ccPeriodTo||'',
- schulgeld:N(k.schoolFees) })),
+ schulgeld:N(k.schoolFees),
+ behMobility:!!k.behMobility, behBlindHelpless:!!k.behBlindHelpless, behValidIndefinite:!!k.behValidIndefinite,
+ behValidFrom:k.behValidFrom||'', behValidTo:k.behValidTo||'', behSplitPercent:k.behSplitPercent||'' })),
  anlageUnterhalt: (c.unt||[]).filter(u=>N(u.support)>0).map(u=>({ betrag:N(u.support), laendergruppe:u.supportGroup,
  personName:u.untName||'', personIdnr:(u.untIdnr||'').replace(/\s/g,''),
  profession:u.untProfession||'', personBirthDate:u.untBirthDate||'', relationship:u.untRelationship||'',
@@ -5124,7 +5162,7 @@ function buildElsterDataset(c){
  weitereAngaben:{ ersatzleistungen:N(c.oth.ersatz), verlustvortrag:N(c.oth.lossCarry),
  realsplittingAnlageU:Math.min(N(c.oth.realsplitting),13805), realsplitIdnr:(c.oth.realsplitIdnr||'').replace(/\s/g,''), realsplitName:c.oth.realsplitName||'',
  behinderung:{ gdbA:c.oth.gdbA||'', gdbB:c.oth.gdbB||'', fahrtA:N(c.oth.fahrtA), fahrtB:N(c.oth.fahrtB),
- pflegeA:N(c.oth.pflegeA), pflegeB:N(c.oth.pflegeB), uebertragKind:N(c.oth.kidTransfer),
+ pflegeA:N(c.oth.pflegeA), pflegeB:N(c.oth.pflegeB),
  pflegePersonA:c.oth.pflegePersonA||'', pflegePersonAId:c.oth.pflegePersonAId||'', pflegePersonAResident:c.oth.pflegePersonAResident||'', pflegePersonAH:!!c.oth.pflegePersonAH,
  pflegePersonB:c.oth.pflegePersonB||'', pflegePersonBId:c.oth.pflegePersonBId||'', pflegePersonBResident:c.oth.pflegePersonBResident||'', pflegePersonBH:!!c.oth.pflegePersonBH },
  anlageSO:{ privateVeraeusserungsgeschaefte:N(c.oth.soGain), erhaltenerUnterhalt:N(c.oth.soUnterhalt) } },

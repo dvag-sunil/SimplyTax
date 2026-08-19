@@ -1684,12 +1684,6 @@ check('Real ERiC rejection fixed (Regel 40, 41): the spouse religion field was c
     && bBlock.indexOf('E0100801') < bBlock.indexOf('E0101002');
 })());
 
-check('Transferring the disability lump sum to a child - still genuinely not implemented, honestly flagged in skippedSections rather than guessed at', (() => {
-  const d = JSON.parse(JSON.stringify(sample));
-  d.weitereAngaben = { behinderung: { uebertragKind: 1000 } };
-  const result = buildEStXML(d);
-  return result.skippedSections.some(s => s.includes('Transferring'));
-})());
 check('Disability-related commute allowance - now genuinely implemented: the two selectable amounts (900/4500) correctly map to their real thresholds, positioned right after Pflege_PB in the confirmed real element order, and no longer flagged as a gap', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.weitereAngaben = { behinderung: { fahrtA: 900, fahrtB: 4500 } };
@@ -1766,6 +1760,37 @@ check('Real gap found via a complete field-audit: Arbeitszimmer (dedicated home 
   const arbZimBlocks = x.match(/<Arb_Zim>[\s\S]*?<\/Arb_Zim>/g) || [];
   const orderOk = x.indexOf('<Arbeitsmittel>') < x.indexOf('<Arb_Zim>') && x.indexOf('<Arb_Zim>') < x.indexOf('<Homeoffice>');
   return arbZimBlocks.length === 2 && arbZimBlocks[0].includes('<E0204505>1260</E0204505>') && arbZimBlocks[1].includes('<E0204505>900</E0204505>') && orderOk;
+})());
+
+check('Newly implemented: child disability/helplessness transfer (Ueb_PB_Beh_Hbl) - indefinite validity case, mandatory fields only', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageKind = [{ vorname: 'Emma', geburtsdatum: '2015-05-01', kinship: 'leiblich',
+    behMobility: true, behBlindHelpless: false, behValidIndefinite: true }];
+  const x = buildEStXML(d).xml;
+  const block = x.match(/<Ueb_PB_Beh_Hbl>[\s\S]*?<\/Ueb_PB_Beh_Hbl>/)?.[0] || '';
+  return block.includes('<E0505908>1</E0505908>') && block.includes('<E0505808>1</E0505808>') && !block.includes('E0506007');
+})());
+check('Newly implemented: child disability/helplessness transfer - date-range validity with a real, non-default split percentage, correctly formatted as month/year only', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageKind = [{ vorname: 'Emma', geburtsdatum: '2015-05-01', kinship: 'leiblich',
+    behBlindHelpless: true, behValidFrom: '2023-06-15', behValidTo: '2026-06-15', behSplitPercent: 70 }];
+  const x = buildEStXML(d).xml;
+  const block = x.match(/<Ueb_PB_Beh_Hbl>[\s\S]*?<\/Ueb_PB_Beh_Hbl>/)?.[0] || '';
+  return block.includes('<E0504601>06.2023</E0504601>') && block.includes('<E0504602>06.2026</E0504602>')
+    && block.includes('<E0505807>1</E0505807>') && block.includes('<E0506007>70</E0506007>');
+})());
+check('Newly implemented: child disability/helplessness transfer - a 50% split (ERiC\'s own default) is correctly omitted rather than sent redundantly', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageKind = [{ vorname: 'Emma', geburtsdatum: '2015-05-01', kinship: 'leiblich',
+    behMobility: true, behValidIndefinite: true, behSplitPercent: 50 }];
+  const x = buildEStXML(d).xml;
+  return !x.includes('E0506007');
+})());
+check('Newly implemented: child disability/helplessness transfer - correctly not sent at all when neither a marker nor validity is present, matching the "don\'t send an incomplete declaration" discipline', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageKind = [{ vorname: 'Emma', geburtsdatum: '2015-05-01', kinship: 'leiblich' }];
+  const x = buildEStXML(d).xml;
+  return !x.includes('Ueb_PB_Beh_Hbl');
 })());
 
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);

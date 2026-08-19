@@ -1564,12 +1564,6 @@ function buildAgB(data) {
   else if (String(b.fahrtA) === '4500') { xml += `<Beh_Fk_Pausch><Person>PersonA</Person>\n${tag(fm.AgB.fahrtFlagHigh, '1')}</Beh_Fk_Pausch>\n`; any = true; }
   if (String(b.fahrtB) === '900') { xml += `<Beh_Fk_Pausch><Person>PersonB</Person>\n${tag(fm.AgB.fahrtFlagLow, '1')}</Beh_Fk_Pausch>\n`; any = true; }
   else if (String(b.fahrtB) === '4500') { xml += `<Beh_Fk_Pausch><Person>PersonB</Person>\n${tag(fm.AgB.fahrtFlagHigh, '1')}</Beh_Fk_Pausch>\n`; any = true; }
-  /* fahrtA/fahrtB (disability-related commute allowance) and
-     uebertragKind (transferring the disability lump sum to a child) -
-     both genuinely collected by the app, both still without a
-     confirmed real Kennzahl despite real research effort this session.
-     Deliberately not sent rather than guessed at - a real, honestly
-     open gap, not silently dropped without record. */
   if (agb.krankheitskosten) {
     /* CORRECTED: real bug found via testing against a genuine client
        file - kennzahlen[2]/[4] (the "erhaltene/zu erwartende
@@ -1824,8 +1818,36 @@ function buildKind(data) {
       xml += '</Einz><Sum>\n';
       xml += wholeEuroTag(fm.Kind.schoolFeesSum, k.schulgeld);
       xml += '</Sum>';
-      if (!B) xml += `<Elt_k_ZV>${wholeEuroTag(fm.Kind.schoolFeesEltKZv, k.schulgeld)}</Elt_k_ZV>`;
+       if (!B) xml += `<Elt_k_ZV>${wholeEuroTag(fm.Kind.schoolFeesEltKZv, k.schulgeld)}</Elt_k_ZV>`;
       xml += '</Schulgeld>\n';
+    }
+
+    /* Newly implemented - transfer of the child's own disability/
+       helplessness lump sum to the parent(s), confirmed via full
+       schema investigation. Only sent when the mandatory,
+       calculation-affecting pieces are genuinely present: at least
+       one marker flag (mobility or blind/helpless), and a validity
+       declaration (either indefinite or a real date range) - matching
+       the "don't send an incomplete declaration" discipline used
+       throughout this app. The split percentage is genuinely optional
+       (omitting it means an even 50/50 split, ERiC's own default), so
+       it's only included when the person specifies something different. */
+    const hasMarker = k.behMobility || k.behBlindHelpless;
+    const hasValidity = k.behValidIndefinite || (k.behValidFrom && k.behValidTo);
+    if (hasMarker && hasValidity) {
+      let uebXml = '<Beh>';
+      if (k.behValidIndefinite) {
+        uebXml += `<Ausw_Rentb_Besch>${tag(fm.Kind.behValidIndefinite, '1')}</Ausw_Rentb_Besch>`;
+      } else {
+        uebXml += `<Ausw_Rentb_Besch>${tag(fm.Kind.behValidFrom, formatMonthYearDE(k.behValidFrom))}${tag(fm.Kind.behValidTo, formatMonthYearDE(k.behValidTo))}</Ausw_Rentb_Besch>`;
+      }
+      if (k.behMobility) uebXml += `<Geh_Steh>${tag(fm.Kind.behMobilityMarker, '1')}</Geh_Steh>`;
+      if (k.behBlindHelpless) uebXml += `<Blind_Hilfl>${tag(fm.Kind.behBlindHelplessMarker, '1')}</Blind_Hilfl>`;
+      uebXml += '</Beh>';
+      if (k.behSplitPercent && N(k.behSplitPercent) !== 50) {
+        uebXml += `<Elt_k_ZV>${tag(fm.Kind.behSplitPercent, Math.round(N(k.behSplitPercent)))}</Elt_k_ZV>`;
+      }
+      xml += `<Ueb_PB_Beh_Hbl>${uebXml}</Ueb_PB_Beh_Hbl>\n`;
     }
 
     /* childcare - now safe to write: the app's UI enforces provider+period
@@ -2098,6 +2120,14 @@ function formatDateDE(iso) {
   const [y, m, d] = iso.split('-');
   return `${d}.${m}.${y}`;
 }
+/* Confirmed via the real schema type (DATUM_MMJJBaseCType) - this
+   specific field genuinely wants month/year only, not a full date,
+   distinct from every other date field in this file. */
+function formatMonthYearDE(iso) {
+  if (!iso || !/^\d{4}-\d{2}(-\d{2})?$/.test(iso)) return '';
+  const [y, m] = iso.split('-');
+  return `${m}.${y}`;
+}
 /* CONFIRMED via real XSD (DatumBereichTTpMMbTTpMMBaseCType) and the actual
    ERiC validation error ("Bitte geben Sie einen gültigen Datumsbereich
    TT.MM-TT.MM ein") - day.month only, NO year, hyphen with no spaces.
@@ -2312,8 +2342,6 @@ function buildEStXML(data, opts = {}) {
      never actually flagged to the user, meaning they were being
      silently dropped with zero notice - the exact trust problem
      already fixed once for other sections. */
-  if (N(beh.uebertragKind) > 0)
-    skippedSections.push('Transferring the disability lump sum to a child - an amount was entered, but no confirmed Kennzahl was found for this despite real research effort. Not transmitted rather than guessed at.');
   if (data.par35cEnergetisch?.street) {
     const em = data.par35cEnergetisch;
     const emTotal = ['walls','roof','ceiling','windows','ventilation','heating'].reduce((s2, k) => s2 + N(em[k]), 0);
