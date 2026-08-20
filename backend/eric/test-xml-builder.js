@@ -507,13 +507,28 @@ check('V includes the required Überschuss attribution (E0701801) alongside E070
   const x = buildEStXML(d).xml;
   return x.includes('<E0701601>9000</E0701601>\n<E0701801>9000</E0701801>');
 })());
-check('V attributes the full surplus to Person A and warns (rather than guesses a split) when Person B exists on the return', (() => {
+check('V newly implemented: owner-split feature - defaults to full attribution to Person A when no owner is selected, with an updated warning (rather than guessing a split)', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Erika', geburtsdatum: '1987-05-20' };
   d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000 }];
   const result = buildEStXML(d);
   return result.xml.includes('<E0701801>9000</E0701801>') && !result.xml.includes('E0701802')
-    && result.skippedSections.some(s => s.includes('ownership split'));
+    && result.skippedSections.some(s => s.includes('no owner was selected'));
+})());
+check('V newly implemented: owner-split feature - full attribution to Person B when the property owner is explicitly set to B', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Erika', geburtsdatum: '1987-05-20' };
+  d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000, owner: 'B' }];
+  const result = buildEStXML(d);
+  return result.xml.includes('<E0701802>9000</E0701802>') && !result.xml.includes('E0701801')
+    && !result.skippedSections.some(s => s.includes('no owner was selected'));
+})());
+check('V newly implemented: owner-split feature - even 50/50 split for jointly-owned property, with any odd cent going to the second half', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Erika', geburtsdatum: '1987-05-20' };
+  d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9001, owner: 'joint' }];
+  const result = buildEStXML(d);
+  return result.xml.includes('<E0701801>4501</E0701801>') && result.xml.includes('<E0701802>4500</E0701802>');
 })());
 check('V does not emit E0701401 anywhere except Einn/Sum - the fabricated duplicate is gone', (() => {
   const d = JSON.parse(JSON.stringify(sample));

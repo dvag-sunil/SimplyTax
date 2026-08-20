@@ -1334,10 +1334,27 @@ function buildVLegacy(data, entries) {
          confirmed identical), so the Überschuss correctly subtracts
          them rather than reporting gross income. */
       const totalIncome = N(p.mieteinnahmen) + N(p.nebenkosten);
+      const ueberschuss = totalIncome - wkTotal;
+      /* CORRECTED: real, confirmed gap - the surplus was always
+         attributed entirely to Person A, never actually split, even
+         though the real schema has dedicated fields for exactly this
+         (E0701801/E0701802). Now uses the property's own owner
+         selection: fully to A (default, unchanged behavior when no
+         second person exists), fully to B, or split evenly for joint
+         ownership - matching the same 'A'/'B'/joint pattern already
+         used elsewhere in this app for shared items. */
       xml += '<Erm_Zuord_Ek>\n';
       xml += wholeEuroTag(fm.V.einnahmenSum, totalIncome);
-      xml += wholeEuroTag(fm.V.ueberschuss, totalIncome - wkTotal);
-      xml += wholeEuroTag(fm.V.ueberschussZuordA, totalIncome - wkTotal);
+      xml += wholeEuroTag(fm.V.ueberschuss, ueberschuss);
+      if (p.owner === 'B') {
+        xml += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss);
+      } else if (p.owner === 'joint') {
+        const half = Math.round(ueberschuss / 2);
+        xml += wholeEuroTag(fm.V.ueberschussZuordA, half);
+        xml += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss - half);
+      } else {
+        xml += wholeEuroTag(fm.V.ueberschussZuordA, ueberschuss);
+      }
       xml += '</Erm_Zuord_Ek>\n';
     }
     xml += '</Ek_b_Gst>\n</V>\n';
@@ -1464,9 +1481,26 @@ function buildV(data) {
          them instead of reporting gross income - the "declared income
          is too high" warning that used to accompany this is no longer
          needed once a real category amount is entered. */
+      const ueberschuss = totalIncome - wkTotal;
+      /* CORRECTED (fifth pass) - real, confirmed gap: the surplus was
+         always attributed entirely to Person A, never actually split,
+         even though the real schema has dedicated fields for exactly
+         this (E0701801/E0701802). Now uses the property's own owner
+         selection: fully to A (default, unchanged when no second
+         person exists), fully to B, or split evenly for joint
+         ownership - matching the same 'A'/'B'/joint pattern already
+         used elsewhere in this app for shared items. */
       xml += '<Erm_Zuord_Ek>\n';
-      xml += wholeEuroTag(fm.V.ueberschuss, totalIncome - wkTotal);
-      xml += wholeEuroTag(fm.V.ueberschussZuordA, totalIncome - wkTotal);
+      xml += wholeEuroTag(fm.V.ueberschuss, ueberschuss);
+      if (p.owner === 'B') {
+        xml += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss);
+      } else if (p.owner === 'joint') {
+        const half = Math.round(ueberschuss / 2);
+        xml += wholeEuroTag(fm.V.ueberschussZuordA, half);
+        xml += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss - half);
+      } else {
+        xml += wholeEuroTag(fm.V.ueberschussZuordA, ueberschuss);
+      }
       xml += '</Erm_Zuord_Ek>\n';
     }
     xml += '</V>\n';
@@ -2510,8 +2544,8 @@ function buildEStXML(data, opts = {}) {
       skippedSections.push(`${label}: no service charges (Neben-/Betriebskosten) were entered, so the return declares that these were not separately agreed (Regel 100750265). If the tenant does pay service charges, that amount must be entered instead.`);
     if (N(p.werbungskosten) > 0 && wkCategoryTotal(p) === 0)
       skippedSections.push(`${label}: rental expenses were entered as one combined total but not transmitted - break the amount down by category (depreciation, loan interest, maintenance, management costs, other) instead of one figure, since the real schema requires itemization. The declared income is currently gross until this is done.`);
-    if (N(p.mieteinnahmen) > 0 && data.hauptvordruck?.personB)
-      skippedSections.push(`${label}: the full surplus was attributed to the primary filer (Person A). The app does not collect a per-property ownership split, so if this property is jointly owned with the spouse, the attribution should be reviewed and may need splitting between E0701801 and E0701802.`);
+    if (N(p.mieteinnahmen) > 0 && data.hauptvordruck?.personB && !p.owner)
+      skippedSections.push(`${label}: a second person exists on this return, but no owner was selected for this property - defaulted to attributing the full surplus to Person A. If this property is jointly owned or belongs to the spouse, select the correct owner for accurate attribution.`);
   });
   if (data.anlageUnterhalt?.betrag > 0) {
     const uYear = data.meta?.taxYear || 2025;

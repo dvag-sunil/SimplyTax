@@ -920,6 +920,8 @@ en: {
  prop_nebenkosten:"Service charges paid by tenant (per year)",
  prop_nebenkosten_hint:"If left empty, the return declares that no service charges were separately agreed.",
  prop_ferien:"Used as a holiday let?", prop_kurzfristig:"Let short-term?", prop_angehoerige:"Rented to relatives?",
+ prop_owner:"Who owns this property?", prop_owner_a:"Person A", prop_owner_b:"Person B", prop_owner_joint:"Both, jointly (50/50)",
+ prop_owner_hint:"Determines how the rental surplus or deficit is split between you and your spouse for this property.",
  prop_foreign_hint:"For a property abroad, only the country, rental income and costs are needed here - it is reported as tax-free income with Progressionsvorbehalt. Please confirm the tax treaty with that country before filing.",
  sec_sv:"Social insurance (lines 22-28)", sec_more:"More fields (lines 8-21, 29-34)",
  sec_more_8_21:"More wage tax fields (lines 8-21)",
@@ -1354,6 +1356,8 @@ de: {
  prop_nebenkosten:"Umlagen / Nebenkosten vom Mieter (pro Jahr)",
  prop_nebenkosten_hint:"Bleibt das Feld leer, wird erklärt, dass Neben-/Betriebskosten nicht gesondert vereinbart wurden.",
  prop_ferien:"Als Ferienwohnung genutzt?", prop_kurzfristig:"Kurzfristig vermietet?", prop_angehoerige:"An Angehörige vermietet?",
+ prop_owner:"Wem gehört diese Immobilie?", prop_owner_a:"Person A", prop_owner_b:"Person B", prop_owner_joint:"Beiden, gemeinsam (50/50)",
+ prop_owner_hint:"Bestimmt, wie der Überschuss oder Verlust dieser Immobilie zwischen Ihnen und Ihrem Ehepartner aufgeteilt wird.",
  prop_foreign_hint:"Bei einer Auslandsimmobilie werden hier nur Staat, Mieteinnahmen und Kosten benötigt - die Erklärung erfolgt als steuerfreie Einkünfte mit Progressionsvorbehalt. Bitte prüfen Sie vorab das Doppelbesteuerungsabkommen mit dem betreffenden Staat.",
  sec_sv:"Sozialversicherung (Zeilen 22-28)", sec_more:"Weitere Felder (Zeilen 8-21, 29-34)",
  sec_more_8_21:"Weitere Lohnsteuerfelder (Zeilen 8-21)",
@@ -3832,6 +3836,16 @@ function stepProp(c){
  ${t('prop_costs_total')}: <b>${eur(N(p.wkAfa)+N(p.wkSonderabschr)+N(p.wkSchuldzins)+N(p.wkGeldbeschaff)+N(p.wkErhaltung)+N(p.wk5JAbzugsfaehig)+N(p.wkVerwaltung)+N(p.wkUstPflichtig)+N(p.wkSonst))}</b>
  </div>
  </details>
+ ${(c.p.marital==='married'||c.p.marital==='married_sep')?`<div class="field${reqCls(p.owner)}">
+ <label>${t('prop_owner')} *</label>
+ <select onchange="updItem('props','${p.id}','owner',this.value)">
+ <option value="">${t('select')}</option>
+ <option value="A" ${p.owner==='A'?'selected':''}>${t('prop_owner_a')}</option>
+ <option value="B" ${p.owner==='B'?'selected':''}>${t('prop_owner_b')}</option>
+ <option value="joint" ${p.owner==='joint'?'selected':''}>${t('prop_owner_joint')}</option>
+ </select>
+ <div class="hint">${t('prop_owner_hint')}</div>
+ </div>`:''}
  ${(!p.country||p.country==='Deutschland')?`
  <div class="grid2">
  ${LF('props',p,'unit',t('prop_unit'),{ph:t('prop_unit_ph'),hint:i===0?t('prop_unit_hint'):''})}
@@ -3848,7 +3862,7 @@ function stepProp(c){
  </div></div>`;}).join('');
  return `<h2>${t('step_prop')}</h2><p class="lead">${t('s_prop_lead')}</p>
  ${rows}
- <button class="btn btn-ghost btn-sm" onclick="addItem('props',{country:'Deutschland',street:'',plz:'',city:'',rent:'',wkAfa:'',wkSonderabschr:'',wkSchuldzins:'',wkGeldbeschaff:'',wkErhaltung:'',wk5JAbzugsfaehig:'',wkVerwaltung:'',wkUstPflichtig:'',wkSonst:'',unit:'',nebenkosten:'',ferienwohnung:'nein',kurzfristig:'nein',angehoerige:'nein'})">＋ ${t('add_prop')}</button>
+ <button class="btn btn-ghost btn-sm" onclick="addItem('props',{country:'Deutschland',street:'',plz:'',city:'',rent:'',wkAfa:'',wkSonderabschr:'',wkSchuldzins:'',wkGeldbeschaff:'',wkErhaltung:'',wk5JAbzugsfaehig:'',wkVerwaltung:'',wkUstPflichtig:'',wkSonst:'',unit:'',nebenkosten:'',ferienwohnung:'nein',kurzfristig:'nein',angehoerige:'nein',owner:''})">＋ ${t('add_prop')}</button>
  ${docSection('props')}
  ${navRow()}`;
 }
@@ -5143,7 +5157,7 @@ function buildElsterDataset(c){
  wkAfa:N(p.wkAfa), wkSonderabschr:N(p.wkSonderabschr), wkSchuldzins:N(p.wkSchuldzins), wkGeldbeschaff:N(p.wkGeldbeschaff),
  wkErhaltung:N(p.wkErhaltung), wk5JAbzugsfaehig:N(p.wk5JAbzugsfaehig), wkVerwaltung:N(p.wkVerwaltung), wkUstPflichtig:N(p.wkUstPflichtig), wkSonst:N(p.wkSonst),
  wohneinheit:p.unit||'', ferienwohnung:p.ferienwohnung==='ja', kurzfristig:p.kurzfristig==='ja',
- angehoerige:p.angehoerige==='ja', ergebnis:N(p.rent)-propCosts(p) })),
+ angehoerige:p.angehoerige==='ja', owner:p.owner||'', ergebnis:N(p.rent)-propCosts(p) })),
  anlageR:(c.rente||[]).map(r=>({ person:r.person==='B'?'B':'A', art:r.type||'gesetzlich',
  jahresbetrag:N(r.amount), rentenbeginn:r.startYear||'',
  /* FIXED: was backwards (sent percentage only for privat). The real ERiC
