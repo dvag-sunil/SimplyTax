@@ -1887,6 +1887,33 @@ check('Real ERiC rejection fixed (Regel 101900004): no Anlage KAP may be filed f
   return kapBlocks.length === 1 && kapBlocks[0].includes('PersonA') && !x.includes('PersonB</Person>\n<Ant>');
 })());
 
+check('Newly implemented: donations owner split for joint filing - even split correctly produces two entries, one per person, within the single required Zuw wrapper', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'zusammenveranlagung';
+  d.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Anna', geburtsdatum: '1987-01-01', religion: 'EV' };
+  d.sonderausgaben = { spenden: 1000, spendenOwner: 'joint' };
+  const x = buildEStXML(d).xml;
+  const zuw = x.match(/<Zuw>[\s\S]*?<\/Zuw>/)?.[0] || '';
+  return (zuw.match(/<Person>/g) || []).length === 2 && zuw.includes('PersonA') && zuw.includes('PersonB');
+})());
+check('Newly implemented: donations owner split for §26a separate assessment correctly sends only this filer\'s own half when jointly attributed, matching the same real rule already confirmed for Anlage KAP', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'einzelveranlagung_ehegatten_par26a';
+  d.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Anna', geburtsdatum: '1987-01-01', religion: 'EV' };
+  d.sonderausgaben = { spenden: 1000, spendenOwner: 'joint' };
+  const x = buildEStXML(d).xml;
+  const zuw = x.match(/<Zuw>[\s\S]*?<\/Zuw>/)?.[0] || '';
+  return (zuw.match(/<Person>/g) || []).length === 1 && zuw.includes('PersonA') && !zuw.includes('PersonB');
+})());
+check('Newly implemented: donations owner split for §26a correctly sends nothing at all when the donation belongs entirely to the spouse - it belongs on their own, separate return instead', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'einzelveranlagung_ehegatten_par26a';
+  d.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Anna', geburtsdatum: '1987-01-01', religion: 'EV' };
+  d.sonderausgaben = { spenden: 1000, spendenOwner: 'B' };
+  const x = buildEStXML(d).xml;
+  return !x.includes('<Zuw>');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);

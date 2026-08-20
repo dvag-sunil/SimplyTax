@@ -627,6 +627,7 @@ en: {
  equipment:"Work equipment (laptop, desk...)", training:"Training / professional development", other_wk:"Other work expenses",
  s5_lead:"Special expenses (Sonderausgaben). The minimum flat amount of €36 is applied automatically.",
  donations:"Donations (with receipt)", other_sa:"Other special expenses",
+ sa_owner:"Who should claim this?", sa_owner_hint:"German tax law lets couples freely allocate shared donations between themselves.",
  s6_lead:"Extraordinary burdens and household services (§ 35a EStG - 20% of labor costs are credited directly against the tax).",
  medical:"Medical costs (extraordinary burden)", household:"Household services (labor costs)", handwerker:"Craftsmen services (labor costs)",
  s7_lead:"Check all data. Submission goes to the tax authority - in this prototype the transmission is simulated.",
@@ -1063,6 +1064,7 @@ de: {
  equipment:"Arbeitsmittel (Laptop, Schreibtisch...)", training:"Fortbildung", other_wk:"Sonstige Werbungskosten",
  s5_lead:"Sonderausgaben. Der Pauschbetrag von 36 € wird automatisch berücksichtigt.",
  donations:"Spenden (mit Beleg)", other_sa:"Weitere Sonderausgaben",
+ sa_owner:"Wer soll dies geltend machen?", sa_owner_hint:"Das deutsche Steuerrecht erlaubt Paaren, gemeinsame Spenden frei untereinander aufzuteilen.",
  s6_lead:"Außergewöhnliche Belastungen und haushaltsnahe Leistungen (§ 35a EStG - 20 % der Arbeitskosten werden direkt von der Steuer abgezogen).",
  medical:"Krankheitskosten (außergew. Belastung)", household:"Haushaltsnahe Dienstleistungen (Arbeitskosten)", handwerker:"Handwerkerleistungen (Arbeitskosten)",
  s7_lead:"Alle Daten prüfen. Die Abgabe erfolgt an das Finanzamt - im Prototyp wird die Übermittlung simuliert.",
@@ -4172,6 +4174,15 @@ function stepFamilySupport(c){
 function stepSpecial(c){
  return `<h2>${t('step5')}</h2><p class="lead">${t('s5_lead')}</p>
  ${F('sa','donations',t('donations'),{euro:true,ph:'0,00 €'})}
+ ${(N(c.sa.donations)>0 && (c.p.marital==='married'||c.p.marital==='married_sep'))?`<div class="field">
+ <label>${t('sa_owner')}</label>
+ <select onchange="upd('sa','donationsOwner',this.value)">
+ <option value="">${t('prop_owner_a')}</option>
+ <option value="B" ${c.sa.donationsOwner==='B'?'selected':''}>${t('prop_owner_b')}</option>
+ <option value="joint" ${c.sa.donationsOwner==='joint'?'selected':''}>${t('prop_owner_joint')}</option>
+ </select>
+ <div class="hint">${t('sa_owner_hint')}</div>
+ </div>`:''}
  <div class="grid2">
  ${F('oth','realsplitting',t('realsplit'),{euro:true,ph:'0,00 €',hint:t('realsplit_hint')})}
  ${F('oth','lossCarry',t('loss_carry'),{euro:true,ph:'0,00 €',hint:t('loss_hint')})}
@@ -5141,7 +5152,7 @@ function buildElsterDataset(c){
  cohabitation:u.untCohabitation==='ja', kindergeldEntitlement:u.untKindergeld==='ja', otherContributor:u.untOtherContributor==='ja',
  hasAssets:u.untHasAssets==='ja', hasOwnIncome:u.untHasIncome==='ja',
  country:u.untCountry||'', foreignNeedConfirmed:u.untForeignConfirmed==='ja' })),
- sonderausgaben:{ spenden:N(c.sa.donations) },
+ sonderausgaben:{ spenden:N(c.sa.donations), spendenOwner:c.sa.donationsOwner||'' },
  aussergewoehnlicheBelastungen:{ krankheitskosten:N(c.ex.medical) },
  haushaltsnaheLeistungen:{ haushaltsnaheDienstleistungen:N(c.ex.household), handwerkerleistungen:N(c.ex.handwerker) },
  anlageKAP:(c.kap||[]).map(k=>({ person:k.person==='B'?'B':'A', institut:k.platform,

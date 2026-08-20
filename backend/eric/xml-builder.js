@@ -1581,8 +1581,38 @@ function buildSA(data) {
        donations can otherwise be legally spread across up to 10 years).
        Defaults to claiming the full amount in the current year (the simple,
        most common case) rather than spreading it - spreading would need
-       real UI for the user to choose. */
-    inner += `<Zuw><Sp_erh_Verm_Stift><Person>PersonA</Person>\n${wholeEuroTag(fm.SA.donationsDomestic, s.spenden)}${wholeEuroTag(fm.SA.donationsThisYear, s.spenden)}</Sp_erh_Verm_Stift></Zuw>\n`;
+       real UI for the user to choose.
+       CORRECTED (newly implemented): donations were always hardcoded to
+       PersonA regardless of who they actually belong to, even though the
+       real schema (Sp_erh_Verm_Stift, confirmed maxOccurs=2) genuinely
+       supports splitting between both people - German tax law lets
+       couples freely allocate shared items like this between themselves.
+       Now uses the same owner-based split already implemented for rental
+       property. Both entries nest within the single Zuw wrapper
+       (confirmed maxOccurs=1), not two separate wrappers. */
+    const isPar26aSA = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
+    if (s.spendenOwner === 'B') {
+      if (!isPar26aSA) {
+        inner += `<Zuw><Sp_erh_Verm_Stift><Person>PersonB</Person>\n${wholeEuroTag(fm.SA.donationsDomestic, s.spenden)}${wholeEuroTag(fm.SA.donationsThisYear, s.spenden)}</Sp_erh_Verm_Stift></Zuw>\n`;
+      }
+      /* §26a: this donation belongs entirely to the spouse, so nothing
+         is sent on this return at all - it belongs on their own,
+         separate return instead. */
+    } else if (s.spendenOwner === 'joint') {
+      const half = Math.round(N(s.spenden) / 2);
+      const otherHalf = N(s.spenden) - half;
+      if (isPar26aSA) {
+        /* §26a: only this filer's own half belongs on this return -
+           the other half belongs on the spouse's own, separate
+           return, matching the same real rule already confirmed for
+           Anlage KAP. */
+        inner += `<Zuw><Sp_erh_Verm_Stift><Person>PersonA</Person>\n${wholeEuroTag(fm.SA.donationsDomestic, half)}${wholeEuroTag(fm.SA.donationsThisYear, half)}</Sp_erh_Verm_Stift></Zuw>\n`;
+      } else {
+        inner += `<Zuw><Sp_erh_Verm_Stift><Person>PersonA</Person>\n${wholeEuroTag(fm.SA.donationsDomestic, half)}${wholeEuroTag(fm.SA.donationsThisYear, half)}</Sp_erh_Verm_Stift><Sp_erh_Verm_Stift><Person>PersonB</Person>\n${wholeEuroTag(fm.SA.donationsDomestic, otherHalf)}${wholeEuroTag(fm.SA.donationsThisYear, otherHalf)}</Sp_erh_Verm_Stift></Zuw>\n`;
+      }
+    } else {
+      inner += `<Zuw><Sp_erh_Verm_Stift><Person>PersonA</Person>\n${wholeEuroTag(fm.SA.donationsDomestic, s.spenden)}${wholeEuroTag(fm.SA.donationsThisYear, s.spenden)}</Sp_erh_Verm_Stift></Zuw>\n`;
+    }
   }
   if (w.realsplittingAnlageU) {
     /* Anlage U / Realsplitting - confirmed via the real Kennzahlen sheet,
