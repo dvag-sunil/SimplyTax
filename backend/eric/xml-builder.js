@@ -970,8 +970,16 @@ function buildVORForPerson(l, person, privIns) {
     ablpXml += `<RV_m_WR_KapLV><Einz>\n${tag(fm.VOR.rvMitWrKapLvArt, 'Kapitallebensversicherung')}${wholeEuroTag(fm.VOR.rvMitWrKapLv, amt)}</Einz><Sum>\n${wholeEuroTag(fm.VOR.rvMitWrKapLvSum, amt)}</Sum></RV_m_WR_KapLV>\n`;
   }
   if (ablpXml) wsvXml += `<A_B_LP>\n${ablpXml}</A_B_LP>\n`;
-  if (wsvXml) inner += `<Weit_Sons_VorAW>\n${wsvXml}</Weit_Sons_VorAW>\n`;
-  return inner;
+  /* CORRECTED: real, confirmed bug found via a real ERiC rejection
+     (zuGrosseKontextnummer on /VOR/Weit_Sons_VorAW) - this wrapper
+     genuinely can only appear once across the whole VOR section
+     (maxOccurs=1), not once per person, the exact same class of
+     duplicate-wrapper bug already caught once within a single
+     person's own av+A_B_LP content, but missed here at the
+     cross-person level when this function was split in two. Returns
+     the wsvXml content separately instead of wrapping it here, so the
+     caller can combine both people's content into one shared wrapper. */
+  return { inner, wsvXml };
 }
 
 function buildVOR(data) {
@@ -979,10 +987,20 @@ function buildVOR(data) {
   if (!v) return '';
   const isPar26aVOR = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
   const allPrivIns = v.privateVersicherungen || [];
-  let inner = buildVORForPerson(v.ausLohnsteuerbescheinigungen || {}, 'A', allPrivIns.filter(x => x.person !== 'B'));
+  const resultA = buildVORForPerson(v.ausLohnsteuerbescheinigungen || {}, 'A', allPrivIns.filter(x => x.person !== 'B'));
+  let inner = resultA.inner;
+  let wsvXml = resultA.wsvXml;
   if (!isPar26aVOR && v.ausLohnsteuerbescheinigungenB) {
-    inner += buildVORForPerson(v.ausLohnsteuerbescheinigungenB, 'B', allPrivIns.filter(x => x.person === 'B'));
+    const resultB = buildVORForPerson(v.ausLohnsteuerbescheinigungenB, 'B', allPrivIns.filter(x => x.person === 'B'));
+    inner += resultB.inner;
+    wsvXml += resultB.wsvXml;
   }
+  /* CORRECTED: real, confirmed fix for the same bug named in
+     buildVORForPerson above - both people's Weit_Sons_VorAW content
+     is combined here into one shared wrapper, matching its real
+     maxOccurs=1 constraint, rather than each person emitting their
+     own separate wrapper. */
+  if (wsvXml) inner += `<Weit_Sons_VorAW>\n${wsvXml}</Weit_Sons_VorAW>\n`;
   /* NOTE: kvOther (pkv28, the PKV Mindestvorsorgepauschale amount from
      the Lohnsteuerbescheinigung) - checked directly, not just flagged
      as pending: the Kennzahl it was pointing to (E2001805) is

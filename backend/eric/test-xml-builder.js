@@ -1973,6 +1973,21 @@ check('Vorsorgeaufwand correctly excludes Person B entirely under §26a separate
   return x.includes('<AVor><Person>PersonA</Person>') && !x.includes('PersonB');
 })());
 
+check('Real ERiC rejection fixed (zuGrosseKontextnummer on /VOR/Weit_Sons_VorAW): this wrapper appears exactly once even with both people present, with both people\'s av content correctly nested inside as separate Pers entries rather than each person producing their own duplicate wrapper', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'zusammenveranlagung';
+  d.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Anna', geburtsdatum: '1987-01-01', religion: 'EV' };
+  d.anlageVorsorgeaufwand = {
+    ausLohnsteuerbescheinigungen: { rv: 4533.75, gkv: 4411.89, pv: 1170, av: 633.78 },
+    ausLohnsteuerbescheinigungenB: { rv: 8983.8, gkv: 11437.44, pv: 2778.36, av: 1255.8 },
+  };
+  const x = buildEStXML(d).xml;
+  const wsvCount = (x.match(/<Weit_Sons_VorAW>/g) || []).length;
+  const wsvBlock = x.match(/<Weit_Sons_VorAW>[\s\S]*?<\/Weit_Sons_VorAW>/)?.[0] || '';
+  return wsvCount === 1 && wsvBlock.includes('PersonA') && wsvBlock.includes('PersonB')
+    && wsvBlock.includes('<E2004403>634</E2004403>') && wsvBlock.includes('<E2004403>1256</E2004403>');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);
