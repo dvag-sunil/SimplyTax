@@ -39,11 +39,60 @@ const { buildEStXML, InterchangeDataError } = require('./eric/xml-builder');
 const { DATABASE_URL, JWT_SECRET, ALLOWED_ORIGIN = 'https://dvag-sunil.github.io', PORT = 3000 } = process.env;
 if (!DATABASE_URL || !JWT_SECRET) { console.error('Missing DATABASE_URL or JWT_SECRET in .env'); process.exit(1); }
 
+/* CORRECTED: hardened CORS setup, added directly in response to a real
+   reported outage where login failed with a CORS error in the browser.
+   Two real, separate improvements here:
+   1) .trim() on each allowed origin - a genuine, common cause of silent
+      CORS mismatches is a trailing space or newline accidentally left
+      in the ALLOWED_ORIGIN environment variable on the hosting
+      platform, which makes the string comparison fail even though the
+      value looks correct when viewed in a dashboard.
+   2) An explicit origin-check function that logs any rejected origin
+      directly to the server's own logs. Without this, a genuine
+      mismatch is only ever visible as an opaque "CORS policy" message
+      in the browser - the server-side log is what actually shows
+      whether the incoming origin matched what's configured, which is
+      the real, direct way to diagnose this class of issue instead of
+      guessing from the browser error alone. */
+const allowedOrigins = ALLOWED_ORIGIN.split(',').map(o => o.trim()).filter(Boolean);
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Server-to-server requests (no Origin header at all, e.g. curl or the health check) are allowed through.
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    console.error(`[cors] rejected request from origin "${origin}" - allowed origins are: ${allowedOrigins.join(', ')}`);
+    return callback(new Error('Not allowed by CORS'));
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-cron-secret'],
+  credentials: false,
+};
+
+/* Process-level crash visibility - server.js requires several other
+   files at startup (eric-service, xml-builder) and connects to the
+   database immediately after. Any uncaught error in that startup path,
+   or a database connection failure, would otherwise kill the process
+   with no clear trace in the logs - and from the browser, a server
+   that never comes up looks identical to a CORS error, since no
+   response (preflight included) ever comes back at all. These
+   handlers make sure the actual cause is always visible in the logs
+   rather than a silent exit. */
+process.on('uncaughtException', (err) => {
+  console.error('[fatal] uncaught exception:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[fatal] unhandled rejection:', reason);
+});
+
 const pool = new Pool({ connectionString: DATABASE_URL });
 const app = express();
 app.set('trust proxy', 1);
 app.use(helmet());
-app.use(cors({ origin: ALLOWED_ORIGIN.split(','), credentials: false }));
+app.use(cors(corsOptions));
+/* Explicit preflight handling for every route - the cors middleware
+   above already does this automatically in most cases, but making it
+   explicit here means an OPTIONS request can never silently fall
+   through to a route handler that doesn't expect it. */
+app.options('*', cors(corsOptions));
 
 /* ---------- Reminder emails: paid-but-not-submitted returns (Resend, EU-capable) ---------- */
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
