@@ -4878,9 +4878,23 @@ function parseFehlerRegelpruefung(resultXml){
  return nodes.map(n=>{
  const textNode = n.getElementsByTagName('Text')[0];
  const fieldNode = n.getElementsByTagName('Feldidentifikator')[0];
+ const regelNode = n.getElementsByTagName('RegelName')[0];
  const rawText = textNode ? textNode.textContent : (n.getElementsByTagName('FachlicheFehlerId')[0]?.textContent || t('freigabe_unknown_error'));
  const text = translateEricError(rawText);
  let stepIndex = null, ausEntryIndex = null;
+ /* CORRECTED: real navigation bug found via direct user report - the
+ field a rejection is attached to (Feldidentifikator) doesn't always
+ reflect what the rejection is actually about. A real §26a rejection
+ about Anlage N was attached to a field inside ESt1A/Allg/B (since
+ that's the field ERiC happened to validate against), sending the
+ person to Personal Data instead of the actually-relevant Employment
+ income section. RegelName reliably names the real section a rule
+ belongs to (confirmed here: this exact rejection's RegelName was
+ "/N/Einzelveranlagung") - checked first, before falling back to the
+ field path, whenever it points to a different, known section. */
+ const regelPath = regelNode ? regelNode.textContent : '';
+ const regelMatch = regelPath.match(/^\/([A-Za-z0-9_]+)\//);
+ if(regelMatch && ANLAGE_TO_STEP[regelMatch[1]] != null) stepIndex = ANLAGE_TO_STEP[regelMatch[1]];
  if(fieldNode){
  const path = fieldNode.textContent;
  /* CORRECTED: real bug found via direct feedback - fields nested
@@ -4890,8 +4904,12 @@ function parseFehlerRegelpruefung(resultXml){
  belong to the Werbungskosten step, not Employment income.
  Checked specifically before falling back to the naive
  first-segment lookup below, which can't make this distinction
- on its own. */
- if(/^\/N\[\d+\]\/Wk\b/.test(path)){
+ on its own. Skipped entirely if RegelName above already
+ resolved a step, since that's the more reliable source when
+ available. */
+ if(stepIndex != null){
+ // already resolved from RegelName above
+ } else if(/^\/N\[\d+\]\/Wk\b/.test(path)){
  stepIndex = 3;
  } else {
  const m = path.match(/^\/([A-Za-z0-9_]+)/);

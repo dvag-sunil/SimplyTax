@@ -1914,6 +1914,18 @@ check('Newly implemented: donations owner split for §26a correctly sends nothin
   return !x.includes('<Zuw>');
 })());
 
+check('Real ERiC rejection fixed (Regel 100000, found via direct user report): no Anlage N (employment income) may be filed for PersonB under §26a separate assessment, matching the exact same rule already confirmed for Anlage KAP - this one had been missed', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'einzelveranlagung_ehegatten_par26a';
+  d.hauptvordruck.personB = { idnr: '59846301578', name: 'Mustermann', vorname: 'Frau', geburtsdatum: '1998-06-16', religion: '--' };
+  d.anlageN = [
+    { person: 'A', zeile3_bruttoarbeitslohn: 48750.03, zeile4_lohnsteuer: 8136 },
+    { person: 'B', zeile3_bruttoarbeitslohn: 381905.57, zeile4_lohnsteuer: 131282.64 },
+  ];
+  const x = buildEStXML(d).xml;
+  return !x.includes('PersonB') && (x.match(/<N><Person>/g) || []).length === 1;
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);

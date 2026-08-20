@@ -248,7 +248,16 @@ function computeNausDbaTotalForPerson(data, person) {
 
 function buildAnlageN(data) {
   const entries = data.anlageN || [];
-  const byPerson = { A: entries.filter(e => e.person !== 'B'), B: entries.filter(e => e.person === 'B') };
+  /* CORRECTED: real, confirmed gap found via direct user report -
+     Anlage N for Person B was never excluded for §26a separate
+     assessment, even though the exact same rule (Regel 100000, "this
+     is a separate assessment, therefore no Anlage N may be filled
+     out for the wife/PersonB") was already correctly applied to
+     Anlage KAP. No employment entries for the other spouse belong on
+     this return at all under this filing type - they file their own,
+     completely separate return. */
+  const isPar26aN = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
+  const byPerson = { A: entries.filter(e => e.person !== 'B'), B: isPar26aN ? [] : entries.filter(e => e.person === 'B') };
   let xml = '';
   const skippedSections = [];
 
