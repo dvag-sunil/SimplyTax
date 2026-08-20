@@ -418,24 +418,23 @@ const N_DHH = {
   // rather than left unsent or a nonexistent field invented.
 };
 
-/* Legacy N_DHH structure for 2021/2022, confirmed via direct schema
-   research after a real ERiC rejection revealed N_DHH doesn't exist as
-   an element at all for those years. Nested within Wk/DHHF (matching
-   this app's own original structure before the 2023+ restructuring to
-   a separate top-level element was discovered) - not a top-level
-   sibling for these years. Confirmed identical between 2021 and 2022.
-   One real, confirmed structural difference from 2023+: there is
-   genuinely no "own household since" date field for these years - only
-   the yes/no declaration and PLZ/Ort, not a date. Not invented here.
-   Unlike the 2023+ fields (iteratively confirmed against real ERiC
-   rejections), these business-rule requirements (which fields are
-   required together) haven't been verified against a real submission -
-   sent following the same real pattern as 2023+ as the best-available
-   evidence, but worth treating as provisional until tested for real. */
+/* CORRECTED (complete re-research): the previous version of this
+   object was built from the wrong XSD type entirely - tracing N's
+   actual real Wk child type for 2022 led to a completely different
+   DHHF structure than what was researched before, with completely
+   different field codes. Confirmed via direct real-submission
+   rejection evidence that the previous codes (E0224902 etc.) never
+   existed in this context at all.
+   The real, correct codes turn out to be almost identical to the
+   2023+ N_DHH ones - same date-established, reason, continuous-until,
+   workplace, travel-mode, and rent codes. The one genuine, confirmed
+   structural difference: there is no own-household yes/no declaration
+   at all for 2021/2022 (unlike 2023+) - instead there's a foreign-
+   residence flag and country field, which this app doesn't currently
+   collect. Confirmed identical between 2021 and 2022. */
 const N_DHH_LEGACY = {
-  dhhDate: 'E0224902', dhhReason: 'E0225003', dhhContinuousUntil: 'E0225108',
-  dhhWorkplace: 'E0225202', dhhOwnHousehold: 'E0225302', dhhOwnPlz: 'E0225404',
-  dhhTravelMode: 'E0226305', dhhRent: 'E0227203',
+  dhhDate: 'E0206103', dhhReason: 'E0206205', dhhContinuousUntil: 'E0206304',
+  dhhWorkplace: 'E0206404', dhhTravelMode: 'E0206805', dhhRent: 'E0207611',
 };
 
 /* ---------- 7. Household services / Section 35a (HA_35a context) ---------- */

@@ -159,9 +159,6 @@ function buildESt1A(data) {
      truthiness, since personB could be a truthy-but-empty object
      rather than genuinely null/undefined in some real data, which
      would incorrectly pass a bare "&& B" check. */
-  if (h.veranlagungsart === 'einzelveranlagung_ehegatten_par26a' && B && B.idnr) {
-    xml += tag(fm.ESt1A.maritalSeparateAssessment, 'X');
-  }
   xml += '</A>';
   /* CORRECTED: confirmed via real ERiC validation ("kontextLeer" - "the
      context is empty") that an empty <B></B> block (when B exists as an
@@ -181,6 +178,18 @@ function buildESt1A(data) {
   const bContent = B ? (tag(fm.ESt1A.spouseBirthDate, formatDateDE(B.geburtsdatum)) + tag(fm.ESt1A.spouseLastName, B.name) + tag(fm.ESt1A.spouseFirstName, B.vorname) + tag(fm.ESt1A.spouseReligion, bReligionCode)) : '';
   if (bContent) {
     xml += `<B>\n${bContent}</B>`;
+  }
+  /* CORRECTED (definitive root cause found via careful schema tracing
+     after a real ERiC rejection persisted even with genuine spouse
+     data present): E0102602 does not live inside A at all - it lives
+     in its own separate Vlg_Art element, a sibling of A and B,
+     confirmed in that exact position (right after B) across all five
+     years. The earlier placement inside A was wrong the whole time,
+     which is exactly why sending it with genuine spouse data still
+     didn't resolve the rejection - the field itself was never in the
+     right place to begin with. */
+  if (h.veranlagungsart === 'einzelveranlagung_ehegatten_par26a' && B && B.idnr) {
+    xml += `<Vlg_Art>${tag(fm.ESt1A.maritalSeparateAssessment, 'X')}</Vlg_Art>`;
   }
   /* CORRECTED: confirmed via real ERiC validation ("Bitte geben Sie Ihre
      Bankverbindungsdaten an oder erklären Sie...dass keine Bankverbindung
@@ -469,33 +478,30 @@ function buildAnlageN(data) {
     }
      const itemsSum = items.reduce((a, x) => a + (N(x.betrag) || 0), 0) + (wk ? N(wk.umzugskosten) + N(wk.sonstige) : 0);
     if (sonstXml && itemsSum > 0) wkXml += `<Weitere_Wk>\n${sonstXml}<Sum>${wholeEuroTag(fm.N.weitereWkSum.kennzahlen[0], Math.round(itemsSum))}</Sum></Weitere_Wk>\n`;
-    /* Newly implemented - legacy double-household structure for
-       2021/2022, confirmed via direct schema research after a real
-       ERiC rejection revealed N_DHH doesn't exist for those years.
-       Nested here within Wk (its real, confirmed position for these
-       years), not as the separate top-level N_DHH element used for
-       2023+. Requires the same mandatory pieces already proven correct
-       for 2023+ (date established, reason, continuous-until,
-       workplace, own-household declaration) - no "since" date exists
-       for these years, a real, confirmed structural difference, not
-       an oversight. Treated as provisional: unlike 2023+ (iteratively
-       confirmed against real rejections), these specific business
-       rules haven't been tested against a real submission yet. */
+    /* CORRECTED (complete re-research): the previous version of this
+       block used field codes traced from the wrong XSD type entirely,
+       confirmed wrong via a real ERiC rejection even after apparently
+       fixing the year-gating and nesting correctly. Traced N's actual
+       real Wk child type for 2022 directly this time rather than
+       trust the earlier research - the real, correct codes turn out
+       to be almost identical to the 2023+ N_DHH ones (date
+       established, reason, continuous-until, workplace, travel-mode,
+       rent), with one genuine, confirmed structural difference: there
+       is no own-household yes/no declaration at all for these years
+       - removed entirely here rather than sent to a field that
+       doesn't exist. Mandatory fields matches what's genuinely
+       required and available in this real structure. */
     const taxYearNum = Number(data.meta?.taxYear) || 2025;
     if (wk && taxYearNum < 2023) {
       const dhh = wk.doppelteHaushaltsfuehrung || {};
       const dhhRentTotal = Math.min(N(dhh.monatsmiete), 1000) * Math.min(N(dhh.monate), 12);
       const hasRent = dhhRentTotal > 0;
-      const hasMandatory = dhh.datum && dhh.grund && dhh.beschaeftigungsort && dhh.eigenerHausstand && dhh.bestehtBis;
+      const hasMandatory = dhh.datum && dhh.grund && dhh.beschaeftigungsort && dhh.bestehtBis;
       if (hasRent && hasMandatory) {
         let allgXml = tag(fm.N_DHH_LEGACY.dhhDate, formatDateDE(dhh.datum));
         allgXml += tag(fm.N_DHH_LEGACY.dhhReason, dhh.grund);
         allgXml += tag(fm.N_DHH_LEGACY.dhhContinuousUntil, String(dhh.bestehtBis).trim());
         allgXml += tag(fm.N_DHH_LEGACY.dhhWorkplace, dhh.beschaeftigungsort);
-        allgXml += tag(fm.N_DHH_LEGACY.dhhOwnHousehold, dhh.eigenerHausstand === 'yes' ? '1' : '2');
-        if (dhh.eigenerHausstand === 'yes' && dhh.eigenerHausstandOrt) {
-          allgXml += tag(fm.N_DHH_LEGACY.dhhOwnPlz, dhh.eigenerHausstandOrt);
-        }
         let dhhfXml = `<Allg>${allgXml}</Allg>`;
         const hasTrips = N(dhh.entfernungKm) > 0 && N(dhh.familienheimfahrten) > 0;
         if (hasTrips && dhh.reiseart !== 'yes') {
@@ -505,7 +511,7 @@ function buildAnlageN(data) {
         dhhfXml += `<Unterkunft>${wholeEuroTag(fm.N_DHH_LEGACY.dhhRent, Math.round(dhhRentTotal))}</Unterkunft>`;
         wkXml += `<DHHF>${dhhfXml}</DHHF>\n`;
       } else if (hasRent) {
-        skippedSections.push('Double-household costs (2021/2022) - a rent amount was entered but the required details (date established, reason, workplace, own-household declaration, continuous-until date) aren\'t all filled in yet, which this legacy structure requires. Not transmitted until those are complete.');
+        skippedSections.push('Double-household costs (2021/2022) - a rent amount was entered but the required details (date established, reason, workplace, continuous-until date) aren\'t all filled in yet, which this structure requires. Not transmitted until those are complete.');
       }
     }
     if (wkXml) xml += `<Wk>\n${wkXml}</Wk>\n`;

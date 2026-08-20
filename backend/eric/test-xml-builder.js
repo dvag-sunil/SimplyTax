@@ -1809,6 +1809,15 @@ check('The same marker fix also creates the Beh block even when only the commute
   return behBlock.includes('<E0109706>1</E0109706>') && !behBlock.includes('Ausw_Rentb_Besch');
 })());
 
+check('Real ERiC rejection resolved (feldUnbekannt on E0102602, persisting even with genuine spouse data): the field was being sent inside A, but genuinely lives in its own separate Vlg_Art element (a sibling of A and B) - confirmed via careful schema tracing. Now correctly absent from A and present in its own Vlg_Art block when genuine spouse data exists.', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'einzelveranlagung_ehegatten_par26a';
+  d.hauptvordruck.personB = { idnr: '59846301578', name: 'Mustermann', vorname: 'Frau', geburtsdatum: '1998-06-16', religion: '--' };
+  const x = buildEStXML(d).xml;
+  const aBlock = x.match(/<A>[\s\S]*?<\/A>/)?.[0] || '';
+  const vlgArtBlock = x.match(/<Vlg_Art>[\s\S]*?<\/Vlg_Art>/)?.[0] || '';
+  return !aBlock.includes('E0102602') && vlgArtBlock.includes('<E0102602>X</E0102602>');
+})());
 check('Real ERiC rejection investigated (feldUnbekannt on E0102602): the separate-assessment-of-spouses flag is only sent when genuine spouse data exists (a real Tax ID), not just a truthy personB object, protecting against the exact scenario a real rejection surfaced', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.hauptvordruck.veranlagungsart = 'einzelveranlagung_ehegatten_par26a';
@@ -1817,21 +1826,24 @@ check('Real ERiC rejection investigated (feldUnbekannt on E0102602): the separat
   return !x.includes('E0102602');
 })());
 
-check('Newly implemented: legacy double-household structure for 2021/2022, confirmed via direct schema research - now genuinely transmitted nested within Wk (the real, confirmed position for these years), not the separate top-level N_DHH element used for 2023+, with both years verified to produce their own genuinely correct real structure', (() => {
+check('CORRECTED: legacy double-household structure for 2021/2022 - the previous field codes were traced from the wrong XSD type entirely (confirmed via a real ERiC rejection even after the year-gating and nesting were already correct); now uses the genuinely correct codes, confirmed almost identical to the 2023+ ones, with the own-household fields correctly absent since they genuinely don\'t exist in this real structure', (() => {
   const d2022 = JSON.parse(JSON.stringify(sample));
   d2022.meta.taxYear = 2022;
   d2022.werbungskosten = { personA: { doppelteHaushaltsfuehrung: {
     monatsmiete: 800, monate: 6, familienheimfahrten: 12, entfernungKm: 300,
-    grund: 'Neue Arbeitsstelle', datum: '2025-03-01', bestehtBis: '31.12.', beschaeftigungsort: '60329 Frankfurt am Main', eigenerHausstand: 'no', reiseart: 'no',
+    grund: 'Neue Arbeitsstelle', datum: '2025-03-01', bestehtBis: '31.12.', beschaeftigungsort: '60329 Frankfurt am Main', reiseart: 'no',
   } }, einzelposten: [] };
   const r2022 = buildEStXML(d2022);
   const dhhf2022 = r2022.xml.match(/<DHHF>[\s\S]*?<\/DHHF>/)?.[0] || '';
-  const worksFor2022 = !r2022.xml.includes('N_DHH') && dhhf2022.includes('<E0224902>01.03.2025</E0224902>')
-    && dhhf2022.includes('<E0225003>Neue Arbeitsstelle</E0225003>') && dhhf2022.includes('<E0227203>4800</E0227203>');
+  const worksFor2022 = !r2022.xml.includes('N_DHH') && dhhf2022.includes('<E0206103>01.03.2025</E0206103>')
+    && dhhf2022.includes('<E0206205>Neue Arbeitsstelle</E0206205>') && dhhf2022.includes('<E0207611>4800</E0207611>');
 
   const d2025 = JSON.parse(JSON.stringify(sample));
   d2025.meta.taxYear = 2025;
-  d2025.werbungskosten = JSON.parse(JSON.stringify(d2022.werbungskosten));
+  d2025.werbungskosten = { personA: { doppelteHaushaltsfuehrung: {
+    monatsmiete: 800, monate: 6, familienheimfahrten: 12, entfernungKm: 300,
+    grund: 'Neue Arbeitsstelle', datum: '2025-03-01', bestehtBis: '31.12.', beschaeftigungsort: '60329 Frankfurt am Main', eigenerHausstand: 'no', reiseart: 'no',
+  } }, einzelposten: [] };
   const r2025 = buildEStXML(d2025);
   const worksFor2025 = r2025.xml.includes('<N_DHH>') && r2025.xml.includes('<E0206103>');
 
