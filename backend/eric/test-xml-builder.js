@@ -1202,8 +1202,9 @@ check('Kind childcare includes the Elt_k_ZV/Kosten declaration for non-jointly-a
   const xml = buildEStXML(singleFiler).xml;
   return xml.includes('<Elt_k_ZV><Kosten><Einz>') && xml.includes('<E0506605>1400</E0506605>') && xml.includes('<E0506604>1400</E0506604>');
 })());
-check('Kind childcare correctly OMITS Elt_k_ZV/Kosten when jointly assessed (Person B exists) - only needed when parents are NOT jointly assessed', (() => {
+check('Kind childcare correctly OMITS Elt_k_ZV/Kosten when genuinely jointly assessed (veranlagungsart is zusammenveranlagung) - only needed when parents are NOT jointly assessed', (() => {
   const married = JSON.parse(JSON.stringify(sample));
+  married.hauptvordruck.veranlagungsart = 'zusammenveranlagung';
   married.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Erika', geburtsdatum: '1987-05-20' };
   married.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich', familienkasse: 'Test',
     betreuungskosten: 1400, betreuungAnbieter: 'Kita', betreuungVon: '2025-01-01', betreuungBis: '2025-12-31' }];
@@ -1826,17 +1827,18 @@ check('Real ERiC rejection investigated (feldUnbekannt on E0102602): the separat
   return !x.includes('E0102602');
 })());
 
-check('CORRECTED: legacy double-household structure for 2021/2022 - the previous field codes were traced from the wrong XSD type entirely (confirmed via a real ERiC rejection even after the year-gating and nesting were already correct); now uses the genuinely correct codes, confirmed almost identical to the 2023+ ones, with the own-household fields correctly absent since they genuinely don\'t exist in this real structure', (() => {
+check('CORRECTED (again): legacy double-household structure for 2021/2022 - my own field extraction had been silently truncated by a chunk-size limit, causing me to wrongly conclude the own-household fields don\'t exist for these years. A real ERiC rejection confirmed they\'re genuinely required, using the exact same codes as 2023+. Now correctly included and required.', (() => {
   const d2022 = JSON.parse(JSON.stringify(sample));
   d2022.meta.taxYear = 2022;
   d2022.werbungskosten = { personA: { doppelteHaushaltsfuehrung: {
     monatsmiete: 800, monate: 6, familienheimfahrten: 12, entfernungKm: 300,
-    grund: 'Neue Arbeitsstelle', datum: '2025-03-01', bestehtBis: '31.12.', beschaeftigungsort: '60329 Frankfurt am Main', reiseart: 'no',
+    grund: 'Neue Arbeitsstelle', datum: '2025-03-01', bestehtBis: '31.12.', beschaeftigungsort: '60329 Frankfurt am Main', eigenerHausstand: 'no', reiseart: 'no',
   } }, einzelposten: [] };
   const r2022 = buildEStXML(d2022);
   const dhhf2022 = r2022.xml.match(/<DHHF>[\s\S]*?<\/DHHF>/)?.[0] || '';
   const worksFor2022 = !r2022.xml.includes('N_DHH') && dhhf2022.includes('<E0206103>01.03.2025</E0206103>')
-    && dhhf2022.includes('<E0206205>Neue Arbeitsstelle</E0206205>') && dhhf2022.includes('<E0207611>4800</E0207611>');
+    && dhhf2022.includes('<E0206205>Neue Arbeitsstelle</E0206205>') && dhhf2022.includes('<E0207611>4800</E0207611>')
+    && dhhf2022.includes('<E0206504>2</E0206504>');
 
   const d2025 = JSON.parse(JSON.stringify(sample));
   d2025.meta.taxYear = 2025;

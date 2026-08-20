@@ -175,7 +175,14 @@ function buildESt1A(data) {
      610301200) - a more fundamental layer than the business-rule checks
      we'd been debugging, and a genuine regression from that specific fix. */
   const bReligionCode = { '--': '11', RK: '03', EV: '02' }[B?.religion] || '11';
-  const bContent = B ? (tag(fm.ESt1A.spouseBirthDate, formatDateDE(B.geburtsdatum)) + tag(fm.ESt1A.spouseLastName, B.name) + tag(fm.ESt1A.spouseFirstName, B.vorname) + tag(fm.ESt1A.spouseReligion, bReligionCode)) : '';
+  /* CORRECTED: real, confirmed rule found via a real ERiC rejection
+     (Regel 101100043) - for §26a separate assessment specifically, no
+     details about the other spouse may be sent at all, only the flag
+     itself. Each spouse genuinely files their own, separate return in
+     this case - B's own details (name, birthdate, religion) belong on
+     that other return, not this one. */
+  const isPar26a = h.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
+  const bContent = (B && !isPar26a) ? (tag(fm.ESt1A.spouseBirthDate, formatDateDE(B.geburtsdatum)) + tag(fm.ESt1A.spouseLastName, B.name) + tag(fm.ESt1A.spouseFirstName, B.vorname) + tag(fm.ESt1A.spouseReligion, bReligionCode)) : '';
   if (bContent) {
     xml += `<B>\n${bContent}</B>`;
   }
@@ -478,30 +485,32 @@ function buildAnlageN(data) {
     }
      const itemsSum = items.reduce((a, x) => a + (N(x.betrag) || 0), 0) + (wk ? N(wk.umzugskosten) + N(wk.sonstige) : 0);
     if (sonstXml && itemsSum > 0) wkXml += `<Weitere_Wk>\n${sonstXml}<Sum>${wholeEuroTag(fm.N.weitereWkSum.kennzahlen[0], Math.round(itemsSum))}</Sum></Weitere_Wk>\n`;
-    /* CORRECTED (complete re-research): the previous version of this
-       block used field codes traced from the wrong XSD type entirely,
-       confirmed wrong via a real ERiC rejection even after apparently
-       fixing the year-gating and nesting correctly. Traced N's actual
-       real Wk child type for 2022 directly this time rather than
-       trust the earlier research - the real, correct codes turn out
-       to be almost identical to the 2023+ N_DHH ones (date
-       established, reason, continuous-until, workplace, travel-mode,
-       rent), with one genuine, confirmed structural difference: there
-       is no own-household yes/no declaration at all for these years
-       - removed entirely here rather than sent to a field that
-       doesn't exist. Mandatory fields matches what's genuinely
-       required and available in this real structure. */
+    /* CORRECTED (again): my previous conclusion that no own-household
+       fields exist for 2021/2022 was itself wrong - caused by my own
+       extraction being silently truncated by a chunk-size limit,
+       cutting off before reaching these fields. A real ERiC rejection
+       confirmed they're genuinely required. Re-verified with a larger
+       extraction this time and found E0206504/E0206505/E0206506 -
+       the exact same codes as the 2023+ version, reused directly here
+       rather than duplicated in the legacy fieldmap. */
     const taxYearNum = Number(data.meta?.taxYear) || 2025;
     if (wk && taxYearNum < 2023) {
       const dhh = wk.doppelteHaushaltsfuehrung || {};
       const dhhRentTotal = Math.min(N(dhh.monatsmiete), 1000) * Math.min(N(dhh.monate), 12);
       const hasRent = dhhRentTotal > 0;
-      const hasMandatory = dhh.datum && dhh.grund && dhh.beschaeftigungsort && dhh.bestehtBis;
+      const hasMandatory = dhh.datum && dhh.grund && dhh.beschaeftigungsort && dhh.bestehtBis && dhh.eigenerHausstand;
       if (hasRent && hasMandatory) {
         let allgXml = tag(fm.N_DHH_LEGACY.dhhDate, formatDateDE(dhh.datum));
         allgXml += tag(fm.N_DHH_LEGACY.dhhReason, dhh.grund);
         allgXml += tag(fm.N_DHH_LEGACY.dhhContinuousUntil, String(dhh.bestehtBis).trim());
         allgXml += tag(fm.N_DHH_LEGACY.dhhWorkplace, dhh.beschaeftigungsort);
+        allgXml += tag(fm.N_DHH.dhhOwnHousehold, dhh.eigenerHausstand === 'yes' ? '1' : '2');
+        if (dhh.eigenerHausstand === 'yes' && dhh.eigenerHausstandOrt) {
+          allgXml += tag(fm.N_DHH.dhhOwnPlz, dhh.eigenerHausstandOrt);
+        }
+        if (dhh.eigenerHausstand === 'yes' && dhh.eigenerHausstandSeit) {
+          allgXml += tag(fm.N_DHH.dhhOwnSince, formatDateDE(dhh.eigenerHausstandSeit));
+        }
         let dhhfXml = `<Allg>${allgXml}</Allg>`;
         const hasTrips = N(dhh.entfernungKm) > 0 && N(dhh.familienheimfahrten) > 0;
         if (hasTrips && dhh.reiseart !== 'yes') {
@@ -1766,6 +1775,15 @@ function buildKind(data) {
   const entries = data.anlageKind || [];
   if (!entries.length) return '';
   const B = data.hauptvordruck?.personB;
+  /* CORRECTED: real, confirmed rule found via a real ERiC rejection
+     (Regel 100500031, 100500024) - Elt_k_ZV (the parent's own-share
+     declaration) is required whenever the parents aren't jointly
+     assessed, which includes §26a separate assessment - a case where
+     B genuinely exists as data (the other spouse is a real person,
+     just filing separately), not just when B is absent entirely. The
+     real condition is the actual filing type, not merely whether a B
+     object exists. */
+  const isJoint = data.hauptvordruck?.veranlagungsart === 'zusammenveranlagung';
   let xml = '';
   for (const k of entries) {
     if (!k.vorname || !k.geburtsdatum) {
@@ -1901,7 +1919,7 @@ function buildKind(data) {
       xml += '</Einz><Sum>\n';
       xml += wholeEuroTag(fm.Kind.schoolFeesSum, k.schulgeld);
       xml += '</Sum>';
-       if (!B) xml += `<Elt_k_ZV>${wholeEuroTag(fm.Kind.schoolFeesEltKZv, k.schulgeld)}</Elt_k_ZV>`;
+       if (!isJoint) xml += `<Elt_k_ZV>${wholeEuroTag(fm.Kind.schoolFeesEltKZv, k.schulgeld)}</Elt_k_ZV>`;
       xml += '</Schulgeld>\n';
     }
 
@@ -1971,7 +1989,7 @@ function buildKind(data) {
          one taxpayer entering the cost (no splitting between two
          separately-filing parents), the same amount already collected
          is the correct value here too. */
-      if (!B) xml += `<Elt_k_ZV><Kosten><Einz>\n${tag(fm.Kind.eltKZvPeriod, formatDateRangeDE(k.betreuungVon, k.betreuungBis))}${wholeEuroTag(fm.Kind.eltKZvAmount, k.betreuungskosten)}</Einz><Sum>\n${wholeEuroTag(fm.Kind.eltKZvSum, k.betreuungskosten)}</Sum></Kosten></Elt_k_ZV>\n`;
+      if (!isJoint) xml += `<Elt_k_ZV><Kosten><Einz>\n${tag(fm.Kind.eltKZvPeriod, formatDateRangeDE(k.betreuungVon, k.betreuungBis))}${wholeEuroTag(fm.Kind.eltKZvAmount, k.betreuungskosten)}</Einz><Sum>\n${wholeEuroTag(fm.Kind.eltKZvSum, k.betreuungskosten)}</Sum></Kosten></Elt_k_ZV>\n`;
       xml += '</KBK>\n';
     } else if (k.betreuungskosten > 0) {
       console.warn('[eric xml-builder] childcare amount present but provider/period missing - skipped this entry\'s childcare block (should not happen if the app UI validation ran correctly)');
