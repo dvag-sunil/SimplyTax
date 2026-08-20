@@ -1987,6 +1987,20 @@ const rentePct = sy => { sy=parseInt(sy)||2005;
  if(sy<=2022) return 80+(sy-2020); return Math.min(100, 82+0.5*(sy-2022)); };
 
 function computeEstimate(c){
+ /* CORRECTED: real, significant bug found via direct user report - for
+    married_sep (§26a separate assessment), this function was always
+    using the full, unhalved shared household amounts (donations,
+    medical costs, childcare, etc.) even though each spouse's actual,
+    real return can only claim their own agreed share. The comparison
+    card's own "separate" figure already computed this correctly via
+    computeEstimatePerPerson - this was two genuinely different
+    calculations for what should be the same real filing status.
+    Redirects to that already-proven function so every caller of
+    computeEstimate gets the correct, consistent number. Safe against
+    infinite recursion: computeEstimatePerPerson clones with marital
+    forced to 'single' before calling back in, so this condition never
+    re-triggers on the inner call. */
+ if (c.p.marital === 'married_sep') return computeEstimatePerPerson(c, 'A');
  const year = c.taxYear || 2025;
  const inc = incTotals(c);
  const gross = inc.gross;
@@ -2228,7 +2242,16 @@ function computeEstimatePerPerson(c, person){
  return computeEstimate(clone);
 }
 function veranlagungCompareCard(c){
- const jointR = computeEstimate(c).refund;
+ /* CORRECTED: real, separate bug found alongside the same user report -
+    this never actually forced a joint-filing scenario, it just called
+    computeEstimate with whatever the real marital status already was.
+    For a married_sep client, that meant computing the real separate
+    figure, mislabeled as joint. Now genuinely clones with marital
+    forced to 'married' to represent the hypothetical this label
+    claims - the actual filing status this couple didn't choose. */
+ const jointClone = JSON.parse(JSON.stringify(c));
+ jointClone.p.marital = 'married';
+ const jointR = computeEstimate(jointClone).refund;
  const simA = computeEstimatePerPerson(c,'A');
  const simB = computeEstimatePerPerson(c,'B');
  const sepR = simA.refund + simB.refund;
