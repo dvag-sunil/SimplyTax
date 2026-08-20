@@ -55,6 +55,22 @@ if (!DATABASE_URL || !JWT_SECRET) { console.error('Missing DATABASE_URL or JWT_S
       the real, direct way to diagnose this class of issue instead of
       guessing from the browser error alone. */
 const allowedOrigins = ALLOWED_ORIGIN.split(',').map(o => o.trim()).filter(Boolean);
+/* CORRECTED: real, confirmed vulnerability found while investigating a
+   reported login failure with the service itself reporting healthy -
+   JavaScript's default-parameter syntax above (ALLOWED_ORIGIN = '...')
+   only ever applies when the variable is genuinely undefined, never
+   when it's an empty string. If ALLOWED_ORIGIN is set to an empty
+   value on the hosting platform - not unset, but literally blank, an
+   easy accidental dashboard state - the default never kicks in,
+   silently producing zero allowed origins here and rejecting every
+   single request. That matches a consistent, repeated CORS failure
+   with the service itself still reporting up exactly, since the
+   server genuinely started fine - only this one list ended up empty.
+   Explicit fallback added for this case, plus a startup log printing
+   the actual, effective list, so this is directly checkable in the
+   server's own logs instead of guessed at from the browser side. */
+if (allowedOrigins.length === 0) allowedOrigins.push('https://dvag-sunil.github.io');
+console.log('[cors] allowed origins:', allowedOrigins);
 const corsOptions = {
   origin: (origin, callback) => {
     // Server-to-server requests (no Origin header at all, e.g. curl or the health check) are allowed through.
