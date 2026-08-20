@@ -573,7 +573,13 @@ function buildNDHH(data) {
      note here rather than guessed at. */
   const taxYear = Number(data.meta?.taxYear) || 2025;
   if (taxYear < 2023) return '';
-  const byPerson = { A: data.werbungskosten?.personA, B: data.werbungskosten?.personB };
+  /* CORRECTED: real, confirmed gap found via a systematic audit -
+     this section had never received the §26a exclusion guard already
+     applied to KAP, Anlage N, and other per-person sections. No data
+     for the other spouse belongs on this return under separate
+     assessment - they file their own, completely separate return. */
+  const isPar26aDHH = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
+  const byPerson = { A: data.werbungskosten?.personA, B: isPar26aDHH ? null : data.werbungskosten?.personB };
   let xml = '';
   for (const p of ['A', 'B']) {
     const wk = byPerson[p];
@@ -664,8 +670,17 @@ function buildNAUS(data) {
      content is now built as its own Staat entry, with all of one
      person's countries collected inside one shared N_AUS/Person
      wrapper. */
+  /* CORRECTED: real, confirmed gap found via a systematic audit -
+     this section had never received the §26a exclusion guard already
+     applied to KAP, Anlage N, and other per-person sections. No data
+     for the other spouse belongs on this return under separate
+     assessment - they file their own, completely separate return. */
+  const isPar26aNAUS = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
   const byPerson = { A: [], B: [] };
-  for (const a of entries) byPerson[a.person === 'B' ? 'B' : 'A'].push(a);
+  for (const a of entries) {
+    if (isPar26aNAUS && a.person === 'B') continue;
+    byPerson[a.person === 'B' ? 'B' : 'A'].push(a);
+  }
   for (const p of ['A', 'B']) {
     const list = byPerson[p];
     if (!list.length) continue;
@@ -819,30 +834,37 @@ function buildNAUS(data) {
 /* =============================================================================
    Vorsorgeaufwand - pension/insurance, including the routed employment lines
 ============================================================================= */
-function buildVOR(data) {
-  const v = data.anlageVorsorgeaufwand;
-  if (!v) return '';
-  const l = v.ausLohnsteuerbescheinigungen || {};
+/* =============================================================================
+   Vorsorgeaufwand - pension/insurance, including the routed employment lines
+============================================================================= */
+/* CORRECTED (real, confirmed gap found via a direct user follow-up
+   after the systematic §26a audit): this entire section only ever
+   handled Person A, hardcoded throughout, regardless of filing
+   status - not a stale-data bug like the others found in that audit,
+   but a genuine missing feature. The real schema confirms both
+   sub-sections here (AVor, Beitr_g_KV_PV_Inl) allow maxOccurs=2, one
+   real entry per person. Refactored into a per-person helper so both
+   people's own, real contributions can be sent - reused for A always,
+   and for B whenever genuinely present and not excluded under §26a
+   separate assessment, where no data for the other spouse belongs on
+   this return at all. */
+function buildVORForPerson(l, person, privIns) {
   let inner = '';
   /* CORRECTED nesting - confirmed via the real Kennzahlen sheet paths.
      Was flat (<VOR><E2000601>), which caused ERIC_IO_READER_UNERWARTETE_ELEMENTE
      - ERiC could not find meta-information for ANY field at the wrong
      nesting depth, even fields with genuinely correct Kennzahl codes. */
-  /* CORRECTED: <Person> is a REQUIRED sibling in both sub-blocks below,
-     confirmed via real ERiC validation ("mandatoryField"). Defaults to
-     PersonA since the app currently collects insurance contributions as
-     one pooled figure, not split per spouse. */
   /* CONFIRMED via real ERiC validation (Regel 950020): E2000401
      (Arbeitnehmeranteil) and E2000801 (Arbeitgeberanteil) must be
      declared TOGETHER, explicitly with 0 if not otherwise available -
-     our app only collects one combined rv figure (the employee's own
-     contribution), so the employer portion is sent as 0 rather than
-     omitted, since omitting it entirely is exactly what caused this
-     error. wholeEuroTag() would otherwise silently drop a zero value,
-     so this writes the tag directly instead. */
-  if (N(l.rv) > 0) inner += `<AVor><Person>PersonA</Person>\n${wholeEuroTag(fm.VOR.rv, l.rv)}<${fm.VOR.rvArbeitgeber}>0</${fm.VOR.rvArbeitgeber}>\n</AVor>\n`;
+     the app only collects one combined rv figure per person (the
+     employee's own contribution), so the employer portion is sent as
+     0 rather than omitted, since omitting it entirely is exactly what
+     caused this error. wholeEuroTag() would otherwise silently drop a
+     zero value, so this writes the tag directly instead. */
+  if (N(l.rv) > 0) inner += `<AVor><Person>Person${person}</Person>\n${wholeEuroTag(fm.VOR.rv, l.rv)}<${fm.VOR.rvArbeitgeber}>0</${fm.VOR.rvArbeitgeber}>\n</AVor>\n`;
   if (N(l.gkv) > 0 || N(l.pv) > 0) {
-    inner += '<Beitr_g_KV_PV_Inl><Person>PersonA</Person><AN>\n';
+    inner += `<Beitr_g_KV_PV_Inl><Person>Person${person}</Person><AN>\n`;
     inner += wholeEuroTag(fm.VOR.kv, l.gkv);
     inner += wholeEuroTag(fm.VOR.pv, l.pv);
     inner += '</AN></Beitr_g_KV_PV_Inl>\n';
@@ -871,15 +893,13 @@ function buildVOR(data) {
      the end, rather than each emitting its own separate
      Weit_Sons_VorAW block. */
   let wsvXml = '';
-  if (N(l.av) > 0) wsvXml += `<Pers><Person>PersonA</Person>\n${wholeEuroTag(fm.VOR.av, l.av)}</Pers>\n`;
+  if (N(l.av) > 0) wsvXml += `<Pers><Person>Person${person}</Person>\n${wholeEuroTag(fm.VOR.av, l.av)}</Pers>\n`;
   /* Private health/care base insurance ('pkv' specifically) - real gap
      found via the systematic audit, now wired through the confirmed
      Beitr_p_KV_PV_Inl structure. Summed from the app's own itemized
-     privateVersicherungen list, filtered to genuinely just the 'pkv'
-     type (not the broader 'basis' category, which also includes
-     'gkvfrei' - a different, not-yet-independently-confirmed context). */
-  const privIns = v.privateVersicherungen || [];
-  const pkvNetA = privIns.filter(x => x.typ === 'pkv' && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
+     privateVersicherungen list, already filtered by the caller to
+     genuinely just this person's own entries. */
+  const pkvNet = privIns.filter(x => x.typ === 'pkv').reduce((a, x) => a + N(x.netto), 0);
   /* kvzusatz and pflegezusatz share one real field (WL_Zvers/E2003502)
      - found by checking Beitr_p_KV_PV_Inl's complete structure through
      to its actual last sibling this time. Combined into the SAME
@@ -896,10 +916,10 @@ function buildVOR(data) {
      oder Versicherungen für Krankenhaustagegeld) können hier erklärt
      werden." Folded in alongside kvzusatz/pflegezusatz rather than
      left unmapped. */
-  const kvZusatzNetA = privIns.filter(x => ['kvzusatz', 'pflegezusatz', 'auslandkv', 'krankentagegeld'].includes(x.typ) && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
-  if (pkvNetA > 0 || kvZusatzNetA > 0) {
-    let pkvXml = `<Person>PersonA</Person>\n`;
-    if (pkvNetA > 0) pkvXml += wholeEuroTag(fm.VOR.pkv, Math.round(pkvNetA));
+  const kvZusatzNet = privIns.filter(x => ['kvzusatz', 'pflegezusatz', 'auslandkv', 'krankentagegeld'].includes(x.typ)).reduce((a, x) => a + N(x.netto), 0);
+  if (pkvNet > 0 || kvZusatzNet > 0) {
+    let pkvXml = `<Person>Person${person}</Person>\n`;
+    if (pkvNet > 0) pkvXml += wholeEuroTag(fm.VOR.pkv, Math.round(pkvNet));
     /* CORRECTED: real ERiC rejection (feldUnbekannt) confirmed E2003502
        genuinely needs its own WL_Zvers wrapper - a real nested
        sub-element within Beitr_p_KV_PV_Inl, confirmed by a complete
@@ -908,7 +928,7 @@ function buildVOR(data) {
        related rejection seen alongside this one ("nothing but Person
        provided") - the one real content field this block had was being
        rejected as unrecognized, leaving the block looking empty. */
-    if (kvZusatzNetA > 0) pkvXml += `<WL_Zvers>${wholeEuroTag(fm.VOR.kvZusatz, Math.round(kvZusatzNetA))}</WL_Zvers>`;
+    if (kvZusatzNet > 0) pkvXml += `<WL_Zvers>${wholeEuroTag(fm.VOR.kvZusatz, Math.round(kvZusatzNet))}</WL_Zvers>`;
     inner += `<Beitr_p_KV_PV_Inl>${pkvXml}</Beitr_p_KV_PV_Inl>\n`;
   }
   /* Real "sonstige Vorsorgeaufwendungen" category (A_B_LP), found by
@@ -933,36 +953,43 @@ function buildVOR(data) {
      separate, unrecognized one. Folded in here rather than left
      unmapped. */
   const uHpRisTypes = ['unfall', 'haftpflicht', 'kfzhaft', 'tierhaft', 'risikoleben', 'sterbegeld'];
-  const uHpRisNetA = privIns.filter(x => uHpRisTypes.includes(x.typ) && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
-  const buNetA = privIns.filter(x => x.typ === 'bu' && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
-  const kapLvNetA = privIns.filter(x => x.typ === 'kapitalleben' && x.person !== 'B').reduce((a, x) => a + N(x.netto), 0);
+  const uHpRisNet = privIns.filter(x => uHpRisTypes.includes(x.typ)).reduce((a, x) => a + N(x.netto), 0);
+  const buNet = privIns.filter(x => x.typ === 'bu').reduce((a, x) => a + N(x.netto), 0);
+  const kapLvNet = privIns.filter(x => x.typ === 'kapitalleben').reduce((a, x) => a + N(x.netto), 0);
   let ablpXml = '';
-  if (uHpRisNetA > 0) {
-    const amt = Math.round(uHpRisNetA);
+  if (uHpRisNet > 0) {
+    const amt = Math.round(uHpRisNet);
     ablpXml += `<U_HP_Ris_Vers><Einz>\n${tag(fm.VOR.uHpRisArt, 'Unfall-/Haftpflicht-/Risikolebensversicherung')}${wholeEuroTag(fm.VOR.uHpRis, amt)}</Einz><Sum>\n${wholeEuroTag(fm.VOR.uHpRisSum, amt)}</Sum></U_HP_Ris_Vers>\n`;
   }
-  if (buNetA > 0) {
-    const amt = Math.round(buNetA);
+  if (buNet > 0) {
+    const amt = Math.round(buNet);
     ablpXml += `<ErwU_BU_Vers><Einz>\n${tag(fm.VOR.erwUBuArt, 'Berufsunfähigkeitsversicherung')}${wholeEuroTag(fm.VOR.erwUBu, amt)}</Einz><Sum>\n${wholeEuroTag(fm.VOR.erwUBuSum, amt)}</Sum></ErwU_BU_Vers>\n`;
   }
-  if (kapLvNetA > 0) {
-    const amt = Math.round(kapLvNetA);
+  if (kapLvNet > 0) {
+    const amt = Math.round(kapLvNet);
     ablpXml += `<RV_m_WR_KapLV><Einz>\n${tag(fm.VOR.rvMitWrKapLvArt, 'Kapitallebensversicherung')}${wholeEuroTag(fm.VOR.rvMitWrKapLv, amt)}</Einz><Sum>\n${wholeEuroTag(fm.VOR.rvMitWrKapLvSum, amt)}</Sum></RV_m_WR_KapLV>\n`;
   }
   if (ablpXml) wsvXml += `<A_B_LP>\n${ablpXml}</A_B_LP>\n`;
   if (wsvXml) inner += `<Weit_Sons_VorAW>\n${wsvXml}</Weit_Sons_VorAW>\n`;
-  /* NOTE: v.privateVersicherungen (Haftpflicht etc.) are collected by the
-     app but not yet mapped to a VOR Kennzahl - most private insurance
-     types outside statutory RV/KV/PV are either non-deductible or belong
-     to a different context not yet researched. Not written here rather
-     than guessed. kvOther (pkv28, the PKV Mindestvorsorgepauschale
-     amount from the Lohnsteuerbescheinigung) - checked directly this
-     time, not just flagged as pending: the Kennzahl it was pointing to
-     (E2001805) is confirmed to be a different field entirely (covers a
-     dependent's own contributions, not this concept at all). Genuinely
-     still needs its own dedicated research pass - correctly not
-     written here rather than sent through a mapping now confirmed
-     wrong. */
+  return inner;
+}
+
+function buildVOR(data) {
+  const v = data.anlageVorsorgeaufwand;
+  if (!v) return '';
+  const isPar26aVOR = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
+  const allPrivIns = v.privateVersicherungen || [];
+  let inner = buildVORForPerson(v.ausLohnsteuerbescheinigungen || {}, 'A', allPrivIns.filter(x => x.person !== 'B'));
+  if (!isPar26aVOR && v.ausLohnsteuerbescheinigungenB) {
+    inner += buildVORForPerson(v.ausLohnsteuerbescheinigungenB, 'B', allPrivIns.filter(x => x.person === 'B'));
+  }
+  /* NOTE: kvOther (pkv28, the PKV Mindestvorsorgepauschale amount from
+     the Lohnsteuerbescheinigung) - checked directly, not just flagged
+     as pending: the Kennzahl it was pointing to (E2001805) is
+     confirmed to be a different field entirely (covers a dependent's
+     own contributions, not this concept at all). Genuinely still
+     needs its own dedicated research pass - correctly not written
+     here rather than sent through a mapping now confirmed wrong. */
   /* CORRECTED: real bug found via the architectural review's empirical
      test - anlageVorsorgeaufwand being an empty object ({}, truthy) but
      with no actual contribution amounts still produced a bare, empty
@@ -1097,7 +1124,16 @@ function buildR(data) {
      genuinely combining every pension entry that person has into one
      shared block, rather than one block per entry. */
   const byPerson = { A: [], B: [] };
-  for (const r of entries) byPerson[r.person === 'B' ? 'B' : 'A'].push(r);
+  /* CORRECTED: real, confirmed gap found via a systematic audit -
+     this section had never received the §26a exclusion guard already
+     applied to KAP, Anlage N, and other per-person sections. No data
+     for the other spouse belongs on this return under separate
+     assessment - they file their own, completely separate return. */
+  const isPar26aR = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
+  for (const r of entries) {
+    if (isPar26aR && r.person === 'B') continue;
+    byPerson[r.person === 'B' ? 'B' : 'A'].push(r);
+  }
   for (const p of ['A', 'B']) {
     const list = byPerson[p];
     if (!list.length) continue;
@@ -1352,15 +1388,23 @@ function buildVLegacy(data, entries) {
          second person exists), fully to B, or split evenly for joint
          ownership - matching the same 'A'/'B'/joint pattern already
          used elsewhere in this app for shared items. */
-      xml += '<Erm_Zuord_Ek>\n';
+       xml += '<Erm_Zuord_Ek>\n';
       xml += wholeEuroTag(fm.V.einnahmenSum, totalIncome);
       xml += wholeEuroTag(fm.V.ueberschuss, ueberschuss);
+      /* CORRECTED: real, confirmed gap found via a systematic audit -
+         this owner split allowed sending Person B's share even under
+         §26a separate assessment, where no data for the other spouse
+         belongs on this return at all. Matching the same real rule
+         already applied to donations: owner B now sends nothing here
+         (belongs on the spouse's own return), and joint now sends
+         only this filer's own half. */
+      const isPar26aVLegacy = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
       if (p.owner === 'B') {
-        xml += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss);
+        if (!isPar26aVLegacy) xml += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss);
       } else if (p.owner === 'joint') {
         const half = Math.round(ueberschuss / 2);
         xml += wholeEuroTag(fm.V.ueberschussZuordA, half);
-        xml += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss - half);
+        if (!isPar26aVLegacy) xml += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss - half);
       } else {
         xml += wholeEuroTag(fm.V.ueberschussZuordA, ueberschuss);
       }
@@ -1499,14 +1543,18 @@ function buildV(data) {
          person exists), fully to B, or split evenly for joint
          ownership - matching the same 'A'/'B'/joint pattern already
          used elsewhere in this app for shared items. */
-      xml += '<Erm_Zuord_Ek>\n';
+       xml += '<Erm_Zuord_Ek>\n';
       xml += wholeEuroTag(fm.V.ueberschuss, ueberschuss);
+      /* CORRECTED: same real gap just fixed in buildVLegacy - see the
+         detailed comment there. For §26a, owner B sends nothing here
+         and joint sends only this filer's own half. */
+      const isPar26aVMain = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
       if (p.owner === 'B') {
-        xml += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss);
+        if (!isPar26aVMain) xml += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss);
       } else if (p.owner === 'joint') {
         const half = Math.round(ueberschuss / 2);
         xml += wholeEuroTag(fm.V.ueberschussZuordA, half);
-        xml += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss - half);
+        if (!isPar26aVMain) xml += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss - half);
       } else {
         xml += wholeEuroTag(fm.V.ueberschussZuordA, ueberschuss);
       }
@@ -1674,6 +1722,11 @@ function buildAgB(data) {
   const w = data.weitereAngaben || {};
   const b = w.behinderung || {};
   const agb = data.aussergewoehnlicheBelastungen || {};
+  /* Real, confirmed rule reused across every per-person sub-section
+     in this function - no data for the other spouse belongs on this
+     return under §26a separate assessment, since they file their
+     own, completely separate return. */
+  const isPar26aAgB = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
   let xml = '<AgB>\n';
   let any = false;
   /* CORRECTED: real ERiC cross-validation rejection (Regel 101160039)
@@ -1699,9 +1752,9 @@ function buildAgB(data) {
      structure nests the Person selector at the wrapper level
      (<Beh><Person>...), not as a separate per-person field code, the
      same real pattern already proven correct for PersonA above. */
-  const markerB = String(b.fahrtB) === '900' ? tag(fm.AgB.gdbMobilityMarker, '1')
+   const markerB = String(b.fahrtB) === '900' ? tag(fm.AgB.gdbMobilityMarker, '1')
     : String(b.fahrtB) === '4500' ? tag(fm.AgB.gdbBlindHelplessMarker, '1') : '';
-  if (b.gdbB || markerB) {
+  if (!isPar26aAgB && (b.gdbB || markerB)) {
     xml += `<Beh><Person>PersonB</Person>${b.gdbB ? `<Ausw_Rentb_Besch>${tag(fm.AgB.gdbA, b.gdbB)}</Ausw_Rentb_Besch>` : ''}${markerB ? `<Geh_Steh_Blind_Hilfl>${markerB}</Geh_Steh_Blind_Hilfl>` : ''}</Beh>\n`;
     any = true;
   }
@@ -1725,7 +1778,7 @@ function buildAgB(data) {
       pflegeEinz += `<Einz><Ang_pflegebeduerft_Pers>${einzA}</Ang_pflegebeduerft_Pers></Einz>\n`;
     }
   }
-  if (N(b.pflegeB) > 0 && b.pflegePersonB && b.pflegePersonBId && b.pflegePersonBResident) {
+   if (!isPar26aAgB && N(b.pflegeB) > 0 && b.pflegePersonB && b.pflegePersonBId && b.pflegePersonBResident) {
     const gradB = fm.amountToPflegegrad(b.pflegeB);
     if (gradB) {
       let einzB = tag(fm.AgB.pflegePersonInfo, b.pflegePersonB);
@@ -1746,8 +1799,8 @@ function buildAgB(data) {
      mutually-exclusive dropdown already in place. */
   if (String(b.fahrtA) === '900') { xml += `<Beh_Fk_Pausch><Person>PersonA</Person>\n${tag(fm.AgB.fahrtFlagLow, '1')}</Beh_Fk_Pausch>\n`; any = true; }
   else if (String(b.fahrtA) === '4500') { xml += `<Beh_Fk_Pausch><Person>PersonA</Person>\n${tag(fm.AgB.fahrtFlagHigh, '1')}</Beh_Fk_Pausch>\n`; any = true; }
-  if (String(b.fahrtB) === '900') { xml += `<Beh_Fk_Pausch><Person>PersonB</Person>\n${tag(fm.AgB.fahrtFlagLow, '1')}</Beh_Fk_Pausch>\n`; any = true; }
-  else if (String(b.fahrtB) === '4500') { xml += `<Beh_Fk_Pausch><Person>PersonB</Person>\n${tag(fm.AgB.fahrtFlagHigh, '1')}</Beh_Fk_Pausch>\n`; any = true; }
+   if (!isPar26aAgB && String(b.fahrtB) === '900') { xml += `<Beh_Fk_Pausch><Person>PersonB</Person>\n${tag(fm.AgB.fahrtFlagLow, '1')}</Beh_Fk_Pausch>\n`; any = true; }
+  else if (!isPar26aAgB && String(b.fahrtB) === '4500') { xml += `<Beh_Fk_Pausch><Person>PersonB</Person>\n${tag(fm.AgB.fahrtFlagHigh, '1')}</Beh_Fk_Pausch>\n`; any = true; }
   if (agb.krankheitskosten) {
     /* CORRECTED: real bug found via testing against a genuine client
        file - kennzahlen[2]/[4] (the "erhaltene/zu erwartende

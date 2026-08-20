@@ -1926,6 +1926,53 @@ check('Real ERiC rejection fixed (Regel 100000, found via direct user report): n
   return !x.includes('PersonB') && (x.match(/<N><Person>/g) || []).length === 1;
 })());
 
+check('Systematic §26a audit (requested directly by the user after the Anlage N gap): every remaining per-person section that had not yet received the exclusion guard now correctly excludes Person B - N_DHH, N_AUS, Anlage R, rental property owner split, and all three AgB disability sub-sections', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'einzelveranlagung_ehegatten_par26a';
+  d.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Anna', geburtsdatum: '1987-01-01', religion: 'EV' };
+  d.anlageNAUS = [{ person: 'B', staat: 'Schweiz', taetigkeitsbeginn: '2025-01-01', taetigkeitsende: '2025-12-31', taetigkeitsbeschreibung: 'x', rechtsgrundlage: 'dba', arbeitstageGesamt: 200, arbeitstageAusland: 200 }];
+  d.anlageR = [{ person: 'B', jahresbetrag: 12000 }];
+  d.anlageV = [{ objekt: 'x', mieteinnahmen: 9000, owner: 'B' }];
+  d.weitereAngaben = { behinderung: {
+    gdbB: '80', fahrtB: '900', pflegeB: 600,
+    pflegePersonB: 'Maria', pflegePersonBId: '55555555555', pflegePersonBResident: 'yes',
+  } };
+  d.werbungskosten = { personA: {}, personB: { doppelteHaushaltsfuehrung: {
+    monatsmiete: 800, monate: 6, datum: '2025-01-01', grund: 'x', beschaeftigungsort: 'x', bestehtBis: '31.12.', eigenerHausstand: 'no',
+  } } };
+  const x = buildEStXML(d).xml;
+  return !(x.includes('N_AUS') && x.includes('PersonB'))
+    && !/<R>[\s\S]*?PersonB/.test(x)
+    && !x.includes('E0701802')
+    && !(x.includes('N_DHH') && x.includes('PersonB'))
+    && !/<Beh>[\s\S]*?PersonB/.test(x)
+    && !/<Beh_Fk_Pausch>[\s\S]*?PersonB/.test(x)
+    && !x.includes('55555555555');
+})());
+
+check('Newly implemented: Vorsorgeaufwand (pension/insurance) now genuinely supports Person B, refactored from a Person-A-only function that never sent the other spouse\'s own real contributions regardless of filing status', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'zusammenveranlagung';
+  d.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Anna', geburtsdatum: '1987-01-01', religion: 'EV' };
+  d.anlageVorsorgeaufwand = {
+    ausLohnsteuerbescheinigungen: { rv: 4650, gkv: 3300, pv: 500, av: 400 },
+    ausLohnsteuerbescheinigungenB: { rv: 3720, gkv: 2640, pv: 400, av: 320 },
+  };
+  const x = buildEStXML(d).xml;
+  return x.includes('<AVor><Person>PersonA</Person>') && x.includes('<AVor><Person>PersonB</Person>');
+})());
+check('Vorsorgeaufwand correctly excludes Person B entirely under §26a separate assessment, matching the same rule confirmed across every other section in the systematic audit', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'einzelveranlagung_ehegatten_par26a';
+  d.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Anna', geburtsdatum: '1987-01-01', religion: 'EV' };
+  d.anlageVorsorgeaufwand = {
+    ausLohnsteuerbescheinigungen: { rv: 4650, gkv: 3300, pv: 500, av: 400 },
+    ausLohnsteuerbescheinigungenB: { rv: 3720, gkv: 2640, pv: 400, av: 320 },
+  };
+  const x = buildEStXML(d).xml;
+  return x.includes('<AVor><Person>PersonA</Person>') && !x.includes('PersonB');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);
