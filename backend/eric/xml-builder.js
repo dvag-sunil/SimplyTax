@@ -849,11 +849,18 @@ function buildNAUS(data) {
    separate assessment, where no data for the other spouse belongs on
    this return at all. */
 function buildVORForPerson(l, person, privIns) {
-  let inner = '';
-  /* CORRECTED nesting - confirmed via the real Kennzahlen sheet paths.
-     Was flat (<VOR><E2000601>), which caused ERIC_IO_READER_UNERWARTETE_ELEMENTE
-     - ERiC could not find meta-information for ANY field at the wrong
-     nesting depth, even fields with genuinely correct Kennzahl codes. */
+  /* CORRECTED (real root cause of the 610301200 schema-validation
+     crash, found by checking the real top-level VOR sequence
+     directly): AVor, Beitr_g_KV_PV_Inl, and Beitr_p_KV_PV_Inl must
+     each be grouped together across both people - every AVor entry
+     first (both people's), then every Beitr_g_KV_PV_Inl entry, then
+     every Beitr_p_KV_PV_Inl entry - not interleaved per person. The
+     previous version combined all three types for one person before
+     moving to the next, which produces an invalid element order the
+     moment both people have data in more than one category. Returns
+     each type separately now, so the caller can reassemble them in
+     the confirmed real order instead. */
+  let avorXml = '', beitrGXml = '', beitrPXml = '';
   /* CONFIRMED via real ERiC validation (Regel 950020): E2000401
      (Arbeitnehmeranteil) and E2000801 (Arbeitgeberanteil) must be
      declared TOGETHER, explicitly with 0 if not otherwise available -
@@ -862,12 +869,12 @@ function buildVORForPerson(l, person, privIns) {
      0 rather than omitted, since omitting it entirely is exactly what
      caused this error. wholeEuroTag() would otherwise silently drop a
      zero value, so this writes the tag directly instead. */
-  if (N(l.rv) > 0) inner += `<AVor><Person>Person${person}</Person>\n${wholeEuroTag(fm.VOR.rv, l.rv)}<${fm.VOR.rvArbeitgeber}>0</${fm.VOR.rvArbeitgeber}>\n</AVor>\n`;
+  if (N(l.rv) > 0) avorXml = `<AVor><Person>Person${person}</Person>\n${wholeEuroTag(fm.VOR.rv, l.rv)}<${fm.VOR.rvArbeitgeber}>0</${fm.VOR.rvArbeitgeber}>\n</AVor>\n`;
   if (N(l.gkv) > 0 || N(l.pv) > 0) {
-    inner += `<Beitr_g_KV_PV_Inl><Person>Person${person}</Person><AN>\n`;
-    inner += wholeEuroTag(fm.VOR.kv, l.gkv);
-    inner += wholeEuroTag(fm.VOR.pv, l.pv);
-    inner += '</AN></Beitr_g_KV_PV_Inl>\n';
+    beitrGXml = `<Beitr_g_KV_PV_Inl><Person>Person${person}</Person><AN>\n`;
+    beitrGXml += wholeEuroTag(fm.VOR.kv, l.gkv);
+    beitrGXml += wholeEuroTag(fm.VOR.pv, l.pv);
+    beitrGXml += '</AN></Beitr_g_KV_PV_Inl>\n';
   }
   /* CORRECTED: found by fully enumerating the real VOR sibling sequence
      rather than keyword-searching - av (unemployment insurance
@@ -929,7 +936,7 @@ function buildVORForPerson(l, person, privIns) {
        provided") - the one real content field this block had was being
        rejected as unrecognized, leaving the block looking empty. */
     if (kvZusatzNet > 0) pkvXml += `<WL_Zvers>${wholeEuroTag(fm.VOR.kvZusatz, Math.round(kvZusatzNet))}</WL_Zvers>`;
-    inner += `<Beitr_p_KV_PV_Inl>${pkvXml}</Beitr_p_KV_PV_Inl>\n`;
+    beitrPXml = `<Beitr_p_KV_PV_Inl>${pkvXml}</Beitr_p_KV_PV_Inl>\n`;
   }
   /* Real "sonstige Vorsorgeaufwendungen" category (A_B_LP), found by
      actually opening a sibling element that had been identified in an
@@ -965,7 +972,7 @@ function buildVORForPerson(l, person, privIns) {
      function entirely and computed once, combined, in the caller
      instead, where both people's private insurance entries are
      already available together. */
-  return { inner, wsvXml };
+   return { avorXml, beitrGXml, beitrPXml, wsvXml };
 }
 
 function buildVOR(data) {
@@ -974,7 +981,6 @@ function buildVOR(data) {
   const isPar26aVOR = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
   const allPrivIns = v.privateVersicherungen || [];
   const resultA = buildVORForPerson(v.ausLohnsteuerbescheinigungen || {}, 'A', allPrivIns.filter(x => x.person !== 'B'));
-  let inner = resultA.inner;
   let wsvXml = resultA.wsvXml;
   const bPrivIns = allPrivIns.filter(x => x.person === 'B');
   /* CORRECTED: real, confirmed gap found while verifying the A_B_LP
@@ -983,11 +989,22 @@ function buildVOR(data) {
      person with private insurance but no separate wage-statement
      contributions would have those entries silently dropped
      entirely. Now processes Person B whenever either piece exists. */
+  let resultB = null;
   if (!isPar26aVOR && (v.ausLohnsteuerbescheinigungenB || bPrivIns.length)) {
-    const resultB = buildVORForPerson(v.ausLohnsteuerbescheinigungenB || {}, 'B', bPrivIns);
-    inner += resultB.inner;
+    resultB = buildVORForPerson(v.ausLohnsteuerbescheinigungenB || {}, 'B', bPrivIns);
     wsvXml += resultB.wsvXml;
   }
+  /* CORRECTED (actual root cause of the 610301200 schema-validation
+     crash): the real top-level VOR sequence requires every AVor entry
+     first (both people's), then every Beitr_g_KV_PV_Inl entry, then
+     every Beitr_p_KV_PV_Inl entry - confirmed directly against the
+     schema. Reassembled here grouped by element type across both
+     people, rather than the previous per-person interleaving (all of
+     A's entries, then all of B's), which produced an invalid element
+     order the moment both people had data in more than one category. */
+  let inner = resultA.avorXml + (resultB ? resultB.avorXml : '');
+  inner += resultA.beitrGXml + (resultB ? resultB.beitrGXml : '');
+  inner += resultA.beitrPXml + (resultB ? resultB.beitrPXml : '');
   /* CORRECTED (complete fix this time): A_B_LP and every one of its
      three real sub-categories (U_HP_Ris_Vers, ErwU_BU_Vers,
      RV_m_WR_KapLV) each genuinely have maxOccurs=1 across the whole

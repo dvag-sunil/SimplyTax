@@ -2020,6 +2020,24 @@ check('Two different real categories from different people each still correctly 
     && x.includes('<E2001802>500</E2001802>') && x.includes('<E2001502>300</E2001502>');
 })());
 
+check('Real root cause of the 610301200 schema-validation crash fixed: VOR children are grouped by element type across both people (all AVor entries first, then all Beitr_g_KV_PV_Inl), not interleaved per person - confirmed against the actual real top-level VOR sequence', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'zusammenveranlagung';
+  d.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Anna', geburtsdatum: '1987-01-01', religion: 'EV' };
+  d.anlageVorsorgeaufwand = {
+    ausLohnsteuerbescheinigungen: { rv: 4533.75, gkv: 4411.89, pv: 1170 },
+    ausLohnsteuerbescheinigungenB: { rv: 8983.8, gkv: 11437.44, pv: 2778.36 },
+  };
+  const x = buildEStXML(d).xml;
+  const vorBlock = x.match(/<VOR>[\s\S]*?<\/VOR>/)?.[0] || '';
+  // Every AVor tag must appear before every Beitr_g_KV_PV_Inl tag - not one person's full set, then the next person's.
+  const lastAvorIdx = vorBlock.lastIndexOf('<AVor>');
+  const firstBeitrGIdx = vorBlock.indexOf('<Beitr_g_KV_PV_Inl>');
+  const avorCount = (vorBlock.match(/<AVor>/g) || []).length;
+  const beitrGCount = (vorBlock.match(/<Beitr_g_KV_PV_Inl>/g) || []).length;
+  return avorCount === 2 && beitrGCount === 2 && lastAvorIdx < firstBeitrGIdx;
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);
