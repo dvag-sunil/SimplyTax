@@ -637,6 +637,8 @@ en: {
  veranlagung_compare_title:"Joint or separate - which is better?", veranlagung_compare_hint:"A comparison based on everything entered so far. Shared household items (donations, property, children's costs, insurance) are split evenly between the two individual estimates below, since German tax law lets couples allocate these themselves - treat the separate figure as a close approximation, not an exact calculation.",
  veranlagung_better:"Better", veranlagung_refund:"refund", veranlagung_owed:"owed",
  veranlagung_diff_note:"Difference: {amount}",
+ veranlagung_tie_note:"Both options come out the same here - usually because taxable income is low enough that no income tax is owed either way, so there's nothing for the tariff choice to change.",
+ veranlagung_scope_note:"Note: the \"Estimated Refund\" in the sidebar shows this one return only. The separate-assessment figure above adds both spouses' own, independent returns together.",
  m_zve:"Taxable income (est.)", m_tax:"Income tax (est.)", m_soli:"Solidarity surch.", m_kist:"Church tax", m_paid:"Already paid", m_credit:"§ 35a credit",
  meter_foot:"Non-binding estimate (unverbindliche Schätzung). The final assessment (Bescheid) by the Finanzamt may differ.",
  next:"Next", back:"Back",
@@ -1074,6 +1076,8 @@ de: {
  veranlagung_compare_title:"Zusammen oder einzeln - was ist günstiger?", veranlagung_compare_hint:"Ein Vergleich auf Basis der bisher eingegebenen Daten. Gemeinsame Haushaltsposten (Spenden, Immobilie, Kinderkosten, Versicherungen) werden in den beiden Einzelschätzungen unten hälftig aufgeteilt, da das Gesetz Paaren hier eine eigene Aufteilung erlaubt - die Einzelveranlagungs-Zahl ist daher eine gute Näherung, keine exakte Berechnung.",
  veranlagung_better:"Günstiger", veranlagung_refund:"Erstattung", veranlagung_owed:"Nachzahlung",
  veranlagung_diff_note:"Unterschied: {amount}",
+ veranlagung_tie_note:"Beide Varianten ergeben hier den gleichen Betrag - meist, weil das zu versteuernde Einkommen so niedrig ist, dass ohnehin keine Einkommensteuer anfällt und der Tarif keinen Unterschied macht.",
+ veranlagung_scope_note:"Hinweis: Die „Geschätzte Erstattung” in der Seitenleiste zeigt nur diese eine Erklärung. Die Zahl zur Einzelveranlagung oben addiert die eigenständigen Erklärungen beider Ehepartner.",
  m_zve:"Zu verst. Einkommen (ca.)", m_tax:"Einkommensteuer (ca.)", m_soli:"Solidaritätszuschlag", m_kist:"Kirchensteuer", m_paid:"Bereits gezahlt", m_credit:"§ 35a-Ermäßigung",
  meter_foot:"Unverbindliche Schätzung. Der endgültige Bescheid des Finanzamts kann abweichen.",
  next:"Weiter", back:"Zurück",
@@ -2255,7 +2259,14 @@ function veranlagungCompareCard(c){
  const simA = computeEstimatePerPerson(c,'A');
  const simB = computeEstimatePerPerson(c,'B');
  const sepR = simA.refund + simB.refund;
- const jointBetter = jointR >= sepR;
+ /* CORRECTED: real trust issue found via direct user feedback - a
+    genuine tie was being shown with joint marked "better" anyway,
+    which looks like a real error to anyone checking the numbers.
+    Now a tie is its own explicit, honestly-labeled state, and the
+    "better" label only appears when the two genuinely differ. */
+ const isTie = Math.abs(jointR - sepR) < 0.5;
+ const jointBetter = !isTie && jointR > sepR;
+ const sepBetter = !isTie && sepR > jointR;
  const diff = Math.abs(jointR - sepR);
  const fmt = r => `<div class="num" style="font-size:20px;margin-top:2px">${eur(Math.abs(r))}</div><div class="hint" style="margin-top:1px">${r>=0?t('veranlagung_refund'):t('veranlagung_owed')}</div>`;
  return `<div class="infobox" style="margin-bottom:16px">
@@ -2266,12 +2277,13 @@ function veranlagungCompareCard(c){
  <div style="font-size:12.5px;font-weight:600">${t('married')}${jointBetter?' ✓ '+t('veranlagung_better'):''}</div>
  ${fmt(jointR)}
  </div>
- <div style="padding:10px 12px;border-radius:10px;background:${!jointBetter?'var(--teal-soft)':'var(--paper-soft)'};border:1px solid ${!jointBetter?'var(--teal)':'var(--border)'}">
- <div style="font-size:12.5px;font-weight:600">${t('married_sep')}${!jointBetter?' ✓ '+t('veranlagung_better'):''}</div>
+ <div style="padding:10px 12px;border-radius:10px;background:${sepBetter?'var(--teal-soft)':'var(--paper-soft)'};border:1px solid ${sepBetter?'var(--teal)':'var(--border)'}">
+ <div style="font-size:12.5px;font-weight:600">${t('married_sep')}${sepBetter?' ✓ '+t('veranlagung_better'):''}</div>
  ${fmt(sepR)}
  </div>
  </div>
- ${diff>0?`<p class="hint" style="margin-top:10px">${t('veranlagung_diff_note').replace('{amount}',eur(diff))}</p>`:''}
+ ${isTie ? `<p class="hint" style="margin-top:10px">${t('veranlagung_tie_note')}</p>` : diff>0?`<p class="hint" style="margin-top:10px">${t('veranlagung_diff_note').replace('{amount}',eur(diff))}</p>`:''}
+ ${c.p.marital==='married_sep'?`<p class="hint" style="margin-top:6px">${t('veranlagung_scope_note')}</p>`:''}
  </div>`;
 }
 
@@ -3072,6 +3084,7 @@ function meter(c){
  ${e.kap>0?`<div class="row"><span>${t('m_kap')}</span><b class="num">${eur(e.kap)}</b></div>`:''}
  <div class="row"><span>${t('m_paid')}</span><b class="num">${eur(e.paid)}</b></div>
  <div class="foot">${t('meter_foot')}</div>
+ ${c.p.marital==='married_sep'?`<div class="foot" style="margin-top:4px">${t('veranlagung_scope_note')}</div>`:''}
  </div>`;
 }
 
