@@ -1852,6 +1852,26 @@ check('CORRECTED (again): legacy double-household structure for 2021/2022 - my o
   return worksFor2022 && worksFor2025;
 })());
 
+check('Real ERiC rejection fixed (Regel 101100156): PersonB\'s Tax ID was still leaking at the Vorsatz level for §26a separate assessment, a completely separate code path from the ESt1A/Allg/B guard fixed earlier', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'einzelveranlagung_ehegatten_par26a';
+  d.hauptvordruck.personB = { idnr: '59846301578', name: 'Mustermann', vorname: 'Frau', geburtsdatum: '1998-06-16', religion: '--' };
+  const x = buildEStXML(d).xml;
+  return !x.includes('IDEhefrau');
+})());
+check('Real ERiC rejection fixed (Regel 101900004): no Anlage KAP may be filed for PersonB under §26a separate assessment - including the trickier root cause, a separate Günstigerprüfung-only block that was still being created for PersonB even after their real entries were correctly filtered out', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'einzelveranlagung_ehegatten_par26a';
+  d.hauptvordruck.personB = { idnr: '59846301578', name: 'Mustermann', vorname: 'Frau', geburtsdatum: '1998-06-16', religion: '--' };
+  d.anlageKAP = [
+    { person: 'A', institut: 'TR', zeile7_kapitalertraege: 3000 },
+    { person: 'B', institut: 'ING', zeile7_kapitalertraege: 2000 },
+  ];
+  const x = buildEStXML(d).xml;
+  const kapBlocks = (x.match(/<KAP>[\s\S]*?<\/KAP>/g) || []);
+  return kapBlocks.length === 1 && kapBlocks[0].includes('PersonA') && !x.includes('PersonB</Person>\n<Ant>');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);

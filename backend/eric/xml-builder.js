@@ -979,7 +979,15 @@ function buildKAP(data) {
      triggered it. Computed once up front, applied consistently below -
      to every existing block, not just the one that happened to have g1
      itself. */
-  const anyGuenstiger = data.hauptvordruck?.personB && entries.some(k =>
+  /* CORRECTED: real, confirmed rule found via a real ERiC rejection
+     (Regel 101900004) - for §26a separate assessment, no capital
+     gains entries or declarations may be made for the other spouse at
+     all, since they file their own, completely separate return.
+     Moved earlier so it can guard anyGuenstiger below too - the
+     "both spouses must declare" rule that computation implements
+     only genuinely applies to real joint filing. */
+  const isPar26aKAP = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
+  const anyGuenstiger = !isPar26aKAP && data.hauptvordruck?.personB && entries.some(k =>
     N(k.zeile7_kapitalertraege) > 0 || N(k.zeile8_aktiengewinne) > 0
     || N(k.zeile12_verlusteOhneAktien) > 0 || N(k.zeile13_verlusteAktien) > 0);
   /* CORRECTED: real ERiC rejection (uniqueIndex on /KAP/Person) - the
@@ -992,7 +1000,18 @@ function buildKAP(data) {
      person - genuine, correct math, since a person's real total
      capital income is exactly the sum across their accounts anyway. */
   const byPerson = { A: [], B: [] };
-  for (const k of entries) byPerson[k.person === 'B' ? 'B' : 'A'].push(k);
+  /* CORRECTED: real, confirmed rule found via a real ERiC rejection
+     (Regel 101900004, "this is a separate assessment, therefore no
+     Anlage KAP may be filled out for the wife/PersonB") - for §26a
+     separate assessment, no capital gains entries may be filed for
+     the other spouse at all here, since they file their own,
+     completely separate return. Any entries marked person B are
+     correctly excluded entirely for this filing type (isPar26aKAP is
+     already defined above, alongside anyGuenstiger). */
+  for (const k of entries) {
+    if (isPar26aKAP && k.person === 'B') continue;
+    byPerson[k.person === 'B' ? 'B' : 'A'].push(k);
+  }
   const sum = (list, field) => list.reduce((a, k) => a + N(k[field]), 0);
   for (const p of ['A', 'B']) {
     const list = byPerson[p];
@@ -2297,7 +2316,15 @@ function buildVorsatz(data) {
     xml += tag('StNr', String(h.steuernummer).replace(/\D/g, ''));
   }
   xml += tag('ID', A.idnr);
-  if (B && B.idnr) xml += tag('IDEhefrau', B.idnr);
+  /* CORRECTED: real, confirmed leak found via a real ERiC rejection
+     (Regel 101100156, "the ID number of the wife was given, but no
+     wife/PersonB was given") - PersonB's Tax ID was still being sent
+     here even for §26a separate assessment, where no details about
+     the other spouse may appear anywhere in the submission. This is a
+     completely separate code path from the ESt1A/Allg/B guard added
+     earlier - that fix never touched this Vorsatz-level declaration. */
+  const isPar26aVorsatz = h.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
+  if (B && B.idnr && !isPar26aVorsatz) xml += tag('IDEhefrau', B.idnr);
   xml += tag('Zeitraum', year);
   /* sender = the preparer (self-filer's own name, or the consultant/
      Kanzlei name for the consultant workspace) - reuses the same
