@@ -32,6 +32,14 @@ const ESt1A = {
   religion: 'E0100402',
   maritalMarried: 'E0100701',
   maritalSeparateAssessment: 'E0102602',
+  /* Real, confirmed requirement found via a real ERiC rejection
+     (Regel 101100199) - whenever a Veranlagungsart is explicitly
+     selected (joint or §26a separate), the marriage/partnership date
+     must also be declared. Traced to its actual location within A
+     itself (the filer's own block) after two rounds of extraction
+     truncation - not within Vlg_Art as the error's field path first
+     suggested. Confirmed identical across all five years. */
+  marriageDate: 'E0100701',
   maritalWidowed: 'E0100702',
   maritalDivorced: 'E0100703',
   // Allg/BV (Bankverbindung) - confirmed via real ERiC validation

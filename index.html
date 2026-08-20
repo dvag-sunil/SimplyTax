@@ -887,6 +887,7 @@ en: {
  marital_hint:"Separated or in a divorce? Each spouse then files their OWN return - choose 'separate assessment' (§ 26a, individual tariff; spouse identity is still recorded). In the YEAR of separation, joint assessment is usually still allowed. After the separation year or divorce, choose 'Single'.",
  widowed:"Widowed", separated_living:"Separated (living apart)",
  death_year:"Year your spouse passed away",
+ marriage_date:"Date of marriage", marriage_date_hint:"ELSTER requires this whenever a joint or separate-assessment filing type is selected.",
  death_year_hint:"In the tax year immediately following the year of death, you can still use the splitting tariff once more (Witwensplitting / Gnadensplitting, § 32a Abs. 6 EStG) - applied automatically below. From the second year after death onward, the individual tariff applies like for a single person.",
  separated_hint:"Married but permanently living apart (dauernd getrennt lebend) - taxed individually like separate assessment; spouse identity is still recorded on the main form. In the YEAR the separation began, joint assessment may still be chosen - pick 'Married' instead for that specific filing year.",
  single_parent_hint:"Yes = at least one child lives in your household and no other adult lives with you. Relief: €4,260 + €240 per further child - applied automatically.",
@@ -1326,6 +1327,7 @@ de: {
  marital_hint:"Getrennt lebend oder in Scheidung? Dann gibt jeder Ehegatte eine EIGENE Erklärung ab - 'Einzelveranlagung' wählen (§ 26a, Grundtarif; die Daten des Ehegatten werden trotzdem erfasst). Im Trennungsjahr ist die Zusammenveranlagung meist noch möglich. Nach dem Trennungsjahr bzw. der Scheidung: 'Ledig'.",
  widowed:"Verwitwet", separated_living:"Getrennt lebend",
  death_year:"Todesjahr des Ehepartners",
+ marriage_date:"Datum der Eheschließung", marriage_date_hint:"ELSTER verlangt dies, sobald eine Zusammen- oder Einzelveranlagung gewählt wird.",
  death_year_hint:"Im Steuerjahr direkt nach dem Todesjahr können Sie noch einmal den Splittingtarif nutzen (Witwensplitting / Gnadensplitting, § 32a Abs. 6 EStG) - wird unten automatisch angewendet. Ab dem zweiten Jahr nach dem Tod gilt der Grundtarif wie bei Ledigen.",
  separated_hint:"Verheiratet, aber dauernd getrennt lebend - Einzelveranlagung wie bei getrennter Veranlagung; die Daten des Ehegatten werden weiterhin auf dem Hauptvordruck erfasst. Im Jahr des Trennungsbeginns ist die Zusammenveranlagung meist noch möglich - für dieses Jahr stattdessen 'Verheiratet' wählen.",
  single_parent_hint:"Ja = mindestens ein Kind lebt in Ihrem Haushalt und keine weitere volljährige Person wohnt bei Ihnen. Entlastung: 4.260 € + 240 € je weiteres Kind - wird automatisch angesetzt.",
@@ -3591,6 +3593,7 @@ function stepPersonal(c){
  <div class="section-label">${t('status_h')}</div>
  <div class="grid2">
  ${F('p','marital',t('marital')+' *',{select:[['single',t('single')],['married',t('married')],['married_sep',t('married_sep')],['verwitwet',t('widowed')],['getrennt_lebend',t('separated_living')]],hint:t('marital_hint'),hintMode:'toggle'})}
+ ${(c.p.marital==='married'||c.p.marital==='married_sep')?F('p','marriageDate',t('marriage_date')+' *',{type:'date',hint:t('marriage_date_hint')}):''}
  ${c.p.marital==='verwitwet'?F('p','deathYear',t('death_year'),{type:'number',ph:String(new Date().getFullYear()-1),hint:t('death_year_hint')}):''}
  ${c.p.marital==='getrennt_lebend'?`<div class="hint" style="margin-top:-8px;margin-bottom:14px">${t('separated_hint')}</div>`:''}
  ${c.p.marital!=='married' ? F('p','singleParent',t('single_parent'),{select:[['no',t('opt_no')],['yes',t('opt_yes')]],hint:t('single_parent_hint')}) : ''}
@@ -5134,7 +5137,7 @@ function buildElsterDataset(c){
  : (c.p.marital==='verwitwet' && parseInt(c.p.deathYear||0)===(c.taxYear-1)) ? 'einzelveranlagung_verwitwete_gnadensplitting_par32a6'
  : 'einzelveranlagung',
  finanzamt:{ name:c.p.finanzamt||'', bufaNr:c.p.faNumber||'' },
- steuernummer:c.p.steuernummer||'', neuaufnahmeConfirmed:c.p.neuaufnahmeConfirmed===true, bundesland:c.p.bundesland||'',
+ steuernummer:c.p.steuernummer||'', neuaufnahmeConfirmed:c.p.neuaufnahmeConfirmed===true, bundesland:c.p.bundesland||'', marriageDate:c.p.marriageDate||'',
  personA:{ idnr:(c.p.taxId||'').replace(/\s/g,''), name:c.p.lastName, vorname:c.p.firstName,
  geburtsdatum:c.p.birthDate, beruf:c.p.profession, religion:rel,
  anschrift:{ strasse:c.p.street, hausnummer:c.p.houseNo, plz:c.p.plz, ort:c.p.city } },

@@ -132,6 +132,15 @@ function buildESt1A(data) {
   xml += tag('E0101104', [A.anschrift?.strasse, A.anschrift?.hausnummer].filter(Boolean).join(' '));
   xml += tag(fm.ESt1A.plz, A.anschrift?.plz);
   xml += tag(fm.ESt1A.ort, A.anschrift?.ort);
+  /* IMPLEMENTED: real, confirmed requirement found via a real ERiC
+     rejection (Regel 101100199) - whenever a Veranlagungsart is
+     explicitly selected (joint or §26a separate), the marriage date
+     must also be declared. This was previously an honestly-documented
+     gap (see the comment below) rather than guessed at - now sent
+     whenever the app has genuinely collected this date. */
+  if ((h.veranlagungsart === 'zusammenveranlagung' || h.veranlagungsart === 'einzelveranlagung_ehegatten_par26a') && h.marriageDate) {
+    xml += tag(fm.ESt1A.marriageDate, formatDateDE(h.marriageDate));
+  }
   /* CORRECTED (structural): marital status flags belong INSIDE Allg/A.
      CORRECTED (semantic, confirmed via real XSD): maritalMarried
      (E0100701) and maritalWidowed (E0100702) are actually DATE fields
@@ -2637,7 +2646,13 @@ function buildEStXML(data, opts = {}) {
      check, not nested inside the unrelated EM_35c block above (a real
      bug in an earlier version of this fix - it would never have run
      unless energetic renovation data also happened to be present). */
-   const beh = data.weitereAngaben?.behinderung || {};
+   /* Real, confirmed requirement - see the detailed comment in
+     buildESt1A above. Checked here since skippedSections is only in
+     scope in this main function. */
+  const veranlagungsartNeedsMarriageDate = data.hauptvordruck?.veranlagungsart === 'zusammenveranlagung' || data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
+  if (veranlagungsartNeedsMarriageDate && !data.hauptvordruck?.marriageDate)
+    skippedSections.push('Marriage/partnership date - ELSTER genuinely requires this whenever a joint or §26a separate assessment filing type is explicitly selected (Regel 101100199), but this app does not yet collect it. The submission will likely be rejected until this date is entered.');
+  const beh = data.weitereAngaben?.behinderung || {};
   /* Now implemented (see buildAgB above) - only flagged here when the
      required person details are genuinely still missing, matching the
      same fall-through condition used there. */
