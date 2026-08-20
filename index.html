@@ -2568,7 +2568,7 @@ function stepDone(c,i){
  }
  case 2: return (c.kap||[]).length>0?'done':'empty';
  case 3: {
- if(!((N(c.wk.commuteDays)+N(c.wk.equipment)+N(c.wk.homeOffice)+N(c.wk.training)+N(c.wk.other)+N(c.wk.arbeitszimmer)+N(c.wk.dhhRent)+N(c.wk.relocation)>0) || (c.wkItems||[]).length>0 || (c.p.marital==='married' && N(c.wkB.commuteDays)+N(c.wkB.equipment)+N(c.wkB.homeOffice)+N(c.wkB.training)+N(c.wkB.other)+N(c.wkB.arbeitszimmer)+N(c.wkB.dhhRent)+N(c.wkB.relocation)>0))) return 'empty';
+ if(!((N(c.wk.commuteDays)+N(c.wk.equipment)+N(c.wk.homeOffice)+N(c.wk.training)+N(c.wk.other)+N(c.wk.arbeitszimmer)+N(c.wk.dhhRent)+N(c.wk.relocation)>0) || (c.wkItems||[]).length>0 || ((c.p.marital==='married'||c.p.marital==='married_sep') && N(c.wkB.commuteDays)+N(c.wkB.equipment)+N(c.wkB.homeOffice)+N(c.wkB.training)+N(c.wkB.other)+N(c.wkB.arbeitszimmer)+N(c.wkB.dhhRent)+N(c.wkB.relocation)>0))) return 'empty';
  /* CORRECTED: real gap found via direct feedback - this case previously
  had no way to return 'incomplete' at all, so the commute workplace
  address (confirmed genuinely required by ELSTER once a distance is
@@ -2580,7 +2580,7 @@ function stepDone(c,i){
  independently, since each has their own commute distance and
  workplace address. */
  if(N(c.wk.commuteKm)>0 && !has(c.wk.commuteWorkplace)) return 'incomplete';
- if(c.p.marital==='married' && N(c.wkB.commuteKm)>0 && !has(c.wkB.commuteWorkplace)) return 'incomplete';
+ if((c.p.marital==='married'||c.p.marital==='married_sep') && N(c.wkB.commuteKm)>0 && !has(c.wkB.commuteWorkplace)) return 'incomplete';
  /* Real, confirmed ERiC business-rule requirement (not just schema-
     optional) - once double-household rent is entered, the reason,
     date established, employment location, own-household declaration,
@@ -2592,7 +2592,7 @@ function stepDone(c,i){
  if(N(c.wk.dhhRent)>0 && (!has(c.wk.dhhReason) || !has(c.wk.dhhDate) || !has(c.wk.dhhWorkplace) || !has(c.wk.dhhOwnHousehold) || !has(c.wk.dhhContinuousUntil))) return 'incomplete';
  if(c.wk.dhhOwnHousehold==='yes' && (!has(c.wk.dhhOwnPlz) || !has(c.wk.dhhOwnSince))) return 'incomplete';
  if(N(c.wk.dhhTrips)>0 && !has(c.wk.dhhTravelMode)) return 'incomplete';
- if(c.p.marital==='married'){
+ if((c.p.marital==='married'||c.p.marital==='married_sep')){
  if(N(c.wkB.dhhRent)>0 && (!has(c.wkB.dhhReason) || !has(c.wkB.dhhDate) || !has(c.wkB.dhhWorkplace) || !has(c.wkB.dhhOwnHousehold) || !has(c.wkB.dhhContinuousUntil))) return 'incomplete';
  if(c.wkB.dhhOwnHousehold==='yes' && (!has(c.wkB.dhhOwnPlz) || !has(c.wkB.dhhOwnSince))) return 'incomplete';
  if(N(c.wkB.dhhTrips)>0 && !has(c.wkB.dhhTravelMode)) return 'incomplete';
@@ -2672,7 +2672,7 @@ function firstMissingFieldTabkey(c,i){
  }
  if(i===3){
  if(N(c.wk.commuteKm)>0 && !has(c.wk.commuteWorkplace)) return 'wk.commuteWorkplace';
- if(c.p.marital==='married' && N(c.wkB.commuteKm)>0 && !has(c.wkB.commuteWorkplace)) return 'wkB.commuteWorkplace';
+ if((c.p.marital==='married'||c.p.marital==='married_sep') && N(c.wkB.commuteKm)>0 && !has(c.wkB.commuteWorkplace)) return 'wkB.commuteWorkplace';
  if(N(c.wk.dhhRent)>0){
  if(!has(c.wk.dhhReason)) return 'wk.dhhReason';
  if(!has(c.wk.dhhDate)) return 'wk.dhhDate';
@@ -2683,7 +2683,7 @@ function firstMissingFieldTabkey(c,i){
  if(!has(c.wk.dhhContinuousUntil)) return 'wk.dhhContinuousUntil';
  }
  if(N(c.wk.dhhTrips)>0 && !has(c.wk.dhhTravelMode)) return 'wk.dhhTravelMode';
- if(c.p.marital==='married'){
+ if((c.p.marital==='married'||c.p.marital==='married_sep')){
  if(N(c.wkB.dhhRent)>0){
  if(!has(c.wkB.dhhReason)) return 'wkB.dhhReason';
  if(!has(c.wkB.dhhDate)) return 'wkB.dhhDate';
@@ -3579,7 +3579,7 @@ function stepIncome(c){
  else if(S.scanState==='ok') scan=`<div class="extract-ok">✓ ${t('scan_ok')}</div>`;
  else if(S.scanState==='err') scan=`<div class="extract-err">${t('scan_err')}</div>`;
  const emps=c.emps||[];
- const married=c.p.marital==='married';
+ const married=(c.p.marital==='married'||c.p.marital==='married_sep');
  const personOpts=[['A','A - '+(c.p.firstName||'Person A')],['B','B - '+((c.p.spouseFirst||'')+' '+(c.p.spouseLast||'')).trim()||'B - Person B']];
 const cards=emps.map((emp,i)=>`<div class="sum-group" style="margin-bottom:12px">
  <div class="head"><span>${t('statement')} ${i+1}
@@ -3667,11 +3667,11 @@ const cards=emps.map((emp,i)=>`<div class="sum-group" style="margin-bottom:12px"
  ${F('oth','ersatz',t('ersatz_lbl'),{euro:true,ph:'0,00 €',hint:t('ersatz_hint')})}
  <div class="section-label">${t('sec_rente')}</div>
  ${(c.rente||[]).map((r,i)=>`<div class="sum-group" style="margin-bottom:12px">
- <div class="head"><span>${t('sec_rente')} ${i+1}${c.p.marital==='married'?` <span class="chip ${r.person==='B'?'review':'submitted'}">${r.person==='B'?'B':'A'}</span>`:''}</span>
+ <div class="head"><span>${t('sec_rente')} ${i+1}${(c.p.marital==='married'||c.p.marital==='married_sep')?` <span class="chip ${r.person==='B'?'review':'submitted'}">${r.person==='B'?'B':'A'}</span>`:''}</span>
  <span class="edit" onclick="delItem('rente','${r.id}')">🗑 ${t('remove')}</span></div>
  <div style="padding:14px 16px">
  <div class="grid3">
- ${c.p.marital==='married'?LF('rente',r,'person',t('person'),{select:[['A','A - '+(c.p.firstName||'A')],['B','B - '+((c.p.spouseFirst||'')+' '+(c.p.spouseLast||'')).trim()]]}):''}
+ ${(c.p.marital==='married'||c.p.marital==='married_sep')?LF('rente',r,'person',t('person'),{select:[['A','A - '+(c.p.firstName||'A')],['B','B - '+((c.p.spouseFirst||'')+' '+(c.p.spouseLast||'')).trim()]]}):''}
  ${LF('rente',r,'type',t('rente_type'),{select:[['gesetzlich',t('rente_ges')],['privat',t('rente_priv')]]})}
  ${LF('rente',r,'amount',t('rente_amount'),{euro:true,ph:'0,00 €',hint:i===0?t('rente_hint'):''})}
  </div>
@@ -3700,7 +3700,7 @@ function insSelect(item){
 }
 function stepPrivIns(c){
  const list=c.privIns||[];
- const married=c.p.marital==='married';
+ const married=(c.p.marital==='married'||c.p.marital==='married_sep');
  const personOpts=[['A','A - '+(c.p.firstName||'Person A')],['B',('B - '+((c.p.spouseFirst||'')+' '+(c.p.spouseLast||'')).trim()).trim()]];
  const cards=list.map((x,i)=>{
  const net=Math.max(0,N(x.beitrag)-N(x.erstattung));
@@ -3742,7 +3742,7 @@ function stepPrivIns(c){
 
 /* --- step 8: capital gains (Anlage KAP) - official line structure --- */
 function stepKap(c){
- const married=c.p.marital==='married';
+ const married=(c.p.marital==='married'||c.p.marital==='married_sep');
  const personOpts=[['A','A - '+(c.p.firstName||'Person A')],['B',('B - '+((c.p.spouseFirst||'')+' '+(c.p.spouseLast||'')).trim()).trim()]];
  const rows=(c.kap||[]).map((k,i)=>`<div class="sum-group" style="margin-bottom:12px">
  <div class="head"><span>${t('platform')} ${i+1}${married?` <span class="chip ${k.person==='B'?'review':'submitted'}">${k.person==='B'?'B':'A'}</span>`:''}${k.platform?' · '+esc(k.platform):''}</span>
@@ -3871,7 +3871,7 @@ function stepInsurance(c){
 /* --- step 3: Werbungskosten (structured + itemized, merged) --- */
 function stepWork(c){
  const warnDays = N(c.wk.commuteDays)>300;
- const married=c.p.marital==='married';
+ const married=(c.p.marital==='married'||c.p.marital==='married_sep');
  const personOpts=[['A','A - '+(c.p.firstName||'Person A')],['B',('B - '+((c.p.spouseFirst||'')+' '+(c.p.spouseLast||'')).trim()).trim()]];
  const wkiCards=(c.wkItems||[]).map((x,i)=>`<div class="sum-group" style="margin-bottom:12px">
  <div class="head"><span>${t('wki_type')} ${i+1}${married?` <span class="chip ${x.person==='B'?'review':'submitted'}">${x.person==='B'?'B':'A'}</span>`:''}${x.type?' · '+esc(wkiLabel(x.type)):''}</span>
@@ -3953,7 +3953,7 @@ function stepWork(c){
  <option value="partial" ${c.wk.dhhTravelMode==='partial'?'selected':''}>${t('dhh_travelmode_partial')}</option>
  </select></div>`:''}
  ${F('wk','relocation',t('relocation'),{euro:true,ph:'0,00 €'})}
- ${c.p.marital==='married'?`
+ ${(c.p.marital==='married'||c.p.marital==='married_sep')?`
  <div class="section-label">Person B - ${esc((c.p.spouseFirst||'')+' '+(c.p.spouseLast||'')).trim()||t('spouse')}</div>
  <div class="section-label">${t('wk_cat_travel')}</div>
  <div class="grid2">
@@ -4253,7 +4253,7 @@ function stepHousehold(c){
  <input type="checkbox" id="pflegeAH" ${c.oth.pflegePersonAH?'checked':''} onchange="upd('oth','pflegePersonAH',this.checked)">
  <label for="pflegeAH" style="margin:0">${t('pflege_h')}</label></div>
  </div>`:''}
- ${c.p.marital==='married'?`<div class="grid3">
+ ${(c.p.marital==='married'||c.p.marital==='married_sep')?`<div class="grid3">
  ${F('oth','gdbB',t('gdb')+' - B',{select:[['',t('select')],['20','GdB 20'],['30','GdB 30'],['40','GdB 40'],['50','GdB 50'],['60','GdB 60'],['70','GdB 70'],['80','GdB 80'],['90','GdB 90'],['100','GdB 100'],['blind',t('gdb_blind')]]})}
  ${F('oth','fahrtB',t('fahrt_p')+' - B',{select:[['',t('select')],['900',t('fahrt_900')],['4500',t('fahrt_4500')]]})}
  ${F('oth','pflegeB',t('pflege_p')+' - B',{select:[['',t('select')],['600',t('pflege_2')],['1100',t('pflege_3')],['1800',t('pflege_45')]]})}
@@ -4296,7 +4296,7 @@ function stepSummary(c){
  N(k.schoolFees)>0?t('sf_short')+': '+eur(N(k.schoolFees)):''
  ].filter(Boolean).join(' · '))]);
  const empRows=[];
- const marr=c.p.marital==='married';
+ const marr=(c.p.marital==='married'||c.p.marital==='married_sep');
  (c.emps||[]).forEach((k,i)=>{
  empRows.push([`${t('statement')} ${i+1}${marr?' ('+(k.person==='B'?'B':'A')+')':''}${k.employer?' - '+esc(k.employer):''}`,
  esc([k.taxClass?'StKl '+k.taxClass:'',
@@ -4321,7 +4321,7 @@ function stepSummary(c){
  esc([p.street,p.plz,p.city].filter(Boolean).join(', ')||t('prop_address')+' '+(i+1)),
  esc(`${eur(N(p.rent))} − ${eur(propCosts(p))} = ${eur(N(p.rent)-propCosts(p))}`)]);
  return `<h2>${t('step7')}</h2><p class="lead">${t('s7_lead')}</p>
- ${c.p.marital==='married' ? veranlagungCompareCard(c) : ''}
+ ${(c.p.marital==='married'||c.p.marital==='married_sep') ? veranlagungCompareCard(c) : ''}
  ${sumGroup(t('personal'),0,[
  [t('client'),esc(c.p.firstName+' '+c.p.lastName)],
  [t('birth_date'),esc(c.p.birthDate)],
@@ -5102,7 +5102,7 @@ function buildElsterDataset(c){
  homeofficeTage:N(c.wk.homeOffice), arbeitsmittel:N(c.wk.equipment), fortbildung:N(c.wk.training),
  sonstige:N(c.wk.other), doppelteHaushaltsfuehrung:{ monatsmiete:N(c.wk.dhhRent), monate:N(c.wk.dhhMonths),
  familienheimfahrten:N(c.wk.dhhTrips), entfernungKm:N(c.wk.dhhKm), grund:c.wk.dhhReason||'', datum:c.wk.dhhDate||'', beschaeftigungsort:c.wk.dhhWorkplace||'', eigenerHausstand:c.wk.dhhOwnHousehold||'', eigenerHausstandOrt:c.wk.dhhOwnPlz||'', eigenerHausstandSeit:c.wk.dhhOwnSince||'', bestehtBis:c.wk.dhhContinuousUntil||'', reiseart:c.wk.dhhTravelMode||'' }, umzugskosten:N(c.wk.relocation) },
- personB: c.p.marital==='married' ? { entfernungspauschale:{ arbeitstage:N(c.wkB.commuteDays), einfacheEntfernungKm:N(c.wkB.commuteKm), verkehrsmittel:c.wkB.commuteMode||'', oeffentlicheKosten:N(c.wkB.commutePublicCost), arbeitsstaette:c.wkB.commuteWorkplace||'' },
+ personB: (c.p.marital==='married'||c.p.marital==='married_sep') ? { entfernungspauschale:{ arbeitstage:N(c.wkB.commuteDays), einfacheEntfernungKm:N(c.wkB.commuteKm), verkehrsmittel:c.wkB.commuteMode||'', oeffentlicheKosten:N(c.wkB.commutePublicCost), arbeitsstaette:c.wkB.commuteWorkplace||'' },
  homeofficeTage:N(c.wkB.homeOffice), arbeitsmittel:N(c.wkB.equipment), fortbildung:N(c.wkB.training),
  sonstige:N(c.wkB.other), doppelteHaushaltsfuehrung:{ monatsmiete:N(c.wkB.dhhRent), monate:N(c.wkB.dhhMonths),
  familienheimfahrten:N(c.wkB.dhhTrips), entfernungKm:N(c.wkB.dhhKm), grund:c.wkB.dhhReason||'', datum:c.wkB.dhhDate||'', beschaeftigungsort:c.wkB.dhhWorkplace||'', eigenerHausstand:c.wkB.dhhOwnHousehold||'', eigenerHausstandOrt:c.wkB.dhhOwnPlz||'', eigenerHausstandSeit:c.wkB.dhhOwnSince||'', bestehtBis:c.wkB.dhhContinuousUntil||'', reiseart:c.wkB.dhhTravelMode||'' }, umzugskosten:N(c.wkB.relocation) } : null,
@@ -5283,7 +5283,7 @@ function buildPDF(c){
  row(t('iban'), c.p.iban);
  y+=3; section(t('income'));
  (c.emps||[]).forEach((k,i)=>{
- const ab=c.p.marital==='married'?' ('+(k.person==='B'?'B':'A')+')':'';
+ const ab=(c.p.marital==='married'||c.p.marital==='married_sep')?' ('+(k.person==='B'?'B':'A')+')':'';
  row(`${t('statement')} ${i+1}${ab}${k.employer?' - '+k.employer:''}`, [k.taxClass?'StKl '+k.taxClass:'', N(k.gross)>0?eur(N(k.gross)):''].filter(Boolean).join(' · ')||' ');
  if(N(k.gross)>0) row(' '+t('gross_short'), eur(N(k.gross)));
  if(N(k.wageTax)>0) row(' '+t('wage_tax'), eur(N(k.wageTax)));
@@ -5299,13 +5299,13 @@ function buildPDF(c){
  row(t('commute_days'),c.wk.commuteDays); row(t('commute_km'),c.wk.commuteKm); row(t('home_office'),c.wk.homeOffice);
  row(t('equipment'),m(c.wk.equipment)); row(t('training'),m(c.wk.training)); row(t('other_wk'),m(c.wk.other));
  row(t('dhh_rent'),m(c.wk.dhhRent)); row(t('dhh_trips'),c.wk.dhhTrips); row(t('relocation'),m(c.wk.relocation));
- if(c.p.marital==='married'){
+ if((c.p.marital==='married'||c.p.marital==='married_sep')){
  row('(B) '+t('commute_days'),c.wkB.commuteDays); row('(B) '+t('commute_km'),c.wkB.commuteKm); row('(B) '+t('home_office'),c.wkB.homeOffice);
  row('(B) '+t('equipment'),m(c.wkB.equipment)); row('(B) '+t('training'),m(c.wkB.training)); row('(B) '+t('other_wk'),m(c.wkB.other));
  row('(B) '+t('dhh_rent'),m(c.wkB.dhhRent)); row('(B) '+t('relocation'),m(c.wkB.relocation));
  }
  (c.wkItems||[]).forEach(x=>{ if(!x.type && N(x.amount)===0) return;
- const ab=c.p.marital==='married'?'('+(x.person==='B'?'B':'A')+') ':'';
+ const ab=(c.p.marital==='married'||c.p.marital==='married_sep')?'('+(x.person==='B'?'B':'A')+') ':'';
  row(ab+(wkiLabel(x.type)||t('wki_type'))+(x.desc?' - '+x.desc:''), m(x.amount)||' '); });
  y+=3; section(t('step_kind'));
  (c.fam.children||[]).forEach((k,i)=>{
@@ -5329,7 +5329,7 @@ function buildPDF(c){
  row(t('tot_net'), eur(totN)); }
  if((c.kap||[]).length){ y+=3; section(t('step_kap'));
  (c.kap||[]).forEach((k,i)=>{
- const ab=c.p.marital==='married'?'('+(k.person==='B'?'B':'A')+') ':'';
+ const ab=(c.p.marital==='married'||c.p.marital==='married_sep')?'('+(k.person==='B'?'B':'A')+') ':'';
  const loss=N(k.k12)+N(k.k13);
  row(ab+`${t('platform')} ${i+1}${k.platform?' - '+k.platform:''}`,
  [N(k.k7)>0?'Z7 '+eur(N(k.k7)):'', N(k.k18)>0?'Z18 '+eur(N(k.k18)):'', N(k.k19)>0?'Z19 '+eur(N(k.k19)):'',
@@ -5630,7 +5630,7 @@ Return this exact JSON structure (use "" for any field not found or empty on the
  const idnrClean=/^\d{11}$/.test(idnrRaw) ? idnrRaw : ''; // Identifikationsnummer is ALWAYS exactly 11 digits;
  // anything else (e.g. a Steuernummer like 181/815/08155) is silently rejected here
  const aId=(c.p.taxId||'').replace(/\s/g,''), bId=(c.p.spouseTaxId||'').replace(/\s/g,'');
- if(c.p.marital==='married' && idnrClean){
+ if((c.p.marital==='married'||c.p.marital==='married_sep') && idnrClean){
  if(bId && idnrClean===bId){ emp.person='B'; }
  else if(aId && idnrClean!==aId){
  emp.person='B';
