@@ -952,10 +952,59 @@ function buildVORForPerson(l, person, privIns) {
      Risikolebensversicherung as the same real category, not a
      separate, unrecognized one. Folded in here rather than left
      unmapped. */
+   /* CORRECTED (complete fix this time): the previous fix only combined
+     the outer A_B_LP wrapper, but each of its three sub-categories
+     (U_HP_Ris_Vers, ErwU_BU_Vers, RV_m_WR_KapLV) also genuinely has
+     maxOccurs=1 across the whole VOR section - confirmed directly
+     against the schema, not assumed this time. Computing this content
+     per-person was always going to produce two of the same category
+     whenever both people had entries in it, exactly what the second
+     real rejection showed. This whole category genuinely has no
+     per-person distinction in the real schema at all - no Person tag
+     anywhere within it - so it's removed from this per-person
+     function entirely and computed once, combined, in the caller
+     instead, where both people's private insurance entries are
+     already available together. */
+  return { inner, wsvXml };
+}
+
+function buildVOR(data) {
+  const v = data.anlageVorsorgeaufwand;
+  if (!v) return '';
+  const isPar26aVOR = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
+  const allPrivIns = v.privateVersicherungen || [];
+  const resultA = buildVORForPerson(v.ausLohnsteuerbescheinigungen || {}, 'A', allPrivIns.filter(x => x.person !== 'B'));
+  let inner = resultA.inner;
+  let wsvXml = resultA.wsvXml;
+  const bPrivIns = allPrivIns.filter(x => x.person === 'B');
+  /* CORRECTED: real, confirmed gap found while verifying the A_B_LP
+     fix above - Person B's data was only ever processed when
+     ausLohnsteuerbescheinigungenB genuinely existed, meaning a real
+     person with private insurance but no separate wage-statement
+     contributions would have those entries silently dropped
+     entirely. Now processes Person B whenever either piece exists. */
+  if (!isPar26aVOR && (v.ausLohnsteuerbescheinigungenB || bPrivIns.length)) {
+    const resultB = buildVORForPerson(v.ausLohnsteuerbescheinigungenB || {}, 'B', bPrivIns);
+    inner += resultB.inner;
+    wsvXml += resultB.wsvXml;
+  }
+  /* CORRECTED (complete fix this time): A_B_LP and every one of its
+     three real sub-categories (U_HP_Ris_Vers, ErwU_BU_Vers,
+     RV_m_WR_KapLV) each genuinely have maxOccurs=1 across the whole
+     VOR section, confirmed directly against the schema - not once
+     per person. Computed once here, combined, from every private
+     insurance entry that genuinely belongs on this return (honestly
+     excluding Person B's own entries under §26a, matching the same
+     rule already applied everywhere else - their entries belong on
+     their own, separate return instead). This category has no
+     Person-level distinction anywhere in the real schema, so there's
+     no meaningful "whose amount is this" question once combined -
+     it's genuinely just one household-level total per category. */
+  const ablpPrivIns = isPar26aVOR ? allPrivIns.filter(x => x.person !== 'B') : allPrivIns;
   const uHpRisTypes = ['unfall', 'haftpflicht', 'kfzhaft', 'tierhaft', 'risikoleben', 'sterbegeld'];
-  const uHpRisNet = privIns.filter(x => uHpRisTypes.includes(x.typ)).reduce((a, x) => a + N(x.netto), 0);
-  const buNet = privIns.filter(x => x.typ === 'bu').reduce((a, x) => a + N(x.netto), 0);
-  const kapLvNet = privIns.filter(x => x.typ === 'kapitalleben').reduce((a, x) => a + N(x.netto), 0);
+  const uHpRisNet = ablpPrivIns.filter(x => uHpRisTypes.includes(x.typ)).reduce((a, x) => a + N(x.netto), 0);
+  const buNet = ablpPrivIns.filter(x => x.typ === 'bu').reduce((a, x) => a + N(x.netto), 0);
+  const kapLvNet = ablpPrivIns.filter(x => x.typ === 'kapitalleben').reduce((a, x) => a + N(x.netto), 0);
   let ablpXml = '';
   if (uHpRisNet > 0) {
     const amt = Math.round(uHpRisNet);
@@ -969,49 +1018,6 @@ function buildVORForPerson(l, person, privIns) {
     const amt = Math.round(kapLvNet);
     ablpXml += `<RV_m_WR_KapLV><Einz>\n${tag(fm.VOR.rvMitWrKapLvArt, 'Kapitallebensversicherung')}${wholeEuroTag(fm.VOR.rvMitWrKapLv, amt)}</Einz><Sum>\n${wholeEuroTag(fm.VOR.rvMitWrKapLvSum, amt)}</Sum></RV_m_WR_KapLV>\n`;
   }
-   /* CORRECTED: the same real bug one level deeper, found via a second
-     real ERiC rejection (zuGrosseKontextnummer on
-     /VOR/Weit_Sons_VorAW/A_B_LP) - this wrapper also genuinely has
-     maxOccurs=1 across the whole VOR section, not once per person,
-     confirmed directly against the schema. The Weit_Sons_VorAW fix
-     above combined both people's av content correctly, but each
-     person was still producing their own separate A_B_LP wrapper
-     inside that shared section - exactly the same class of issue,
-     one nesting level further in. Returns ablpXml separately instead
-     of wrapping it here, so the caller can combine both people's
-     content into one shared A_B_LP wrapper. */
-  return { inner, wsvXml, ablpXml };
-}
-
-function buildVOR(data) {
-  const v = data.anlageVorsorgeaufwand;
-  if (!v) return '';
-  const isPar26aVOR = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
-  const allPrivIns = v.privateVersicherungen || [];
-   const resultA = buildVORForPerson(v.ausLohnsteuerbescheinigungen || {}, 'A', allPrivIns.filter(x => x.person !== 'B'));
-  let inner = resultA.inner;
-  let wsvXml = resultA.wsvXml;
-  let ablpXml = resultA.ablpXml;
-   const bPrivIns = allPrivIns.filter(x => x.person === 'B');
-  /* CORRECTED: real, confirmed gap found while verifying the A_B_LP
-     fix above - Person B's data was only ever processed when
-     ausLohnsteuerbescheinigungenB genuinely existed, meaning a real
-     person with private insurance but no separate wage-statement
-     contributions would have those entries silently dropped
-     entirely. Now processes Person B whenever either piece exists. */
-  if (!isPar26aVOR && (v.ausLohnsteuerbescheinigungenB || bPrivIns.length)) {
-    const resultB = buildVORForPerson(v.ausLohnsteuerbescheinigungenB || {}, 'B', bPrivIns);
-    inner += resultB.inner;
-    wsvXml += resultB.wsvXml;
-    ablpXml += resultB.ablpXml;
-  }
-  /* CORRECTED: real, confirmed fix for the same bug named in
-     buildVORForPerson above, at both nesting levels - both people's
-     A_B_LP content is combined here into one shared wrapper first
-     (matching its own real maxOccurs=1 constraint), which is then
-     added as part of the already-shared Weit_Sons_VorAW wrapper,
-     rather than each person producing their own separate A_B_LP
-     inside that shared section. */
   if (ablpXml) wsvXml += `<A_B_LP>\n${ablpXml}</A_B_LP>\n`;
   if (wsvXml) inner += `<Weit_Sons_VorAW>\n${wsvXml}</Weit_Sons_VorAW>\n`;
   /* NOTE: kvOther (pkv28, the PKV Mindestvorsorgepauschale amount from

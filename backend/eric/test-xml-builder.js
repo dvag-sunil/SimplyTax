@@ -1988,7 +1988,7 @@ check('Real ERiC rejection fixed (zuGrosseKontextnummer on /VOR/Weit_Sons_VorAW)
     && wsvBlock.includes('<E2004403>634</E2004403>') && wsvBlock.includes('<E2004403>1256</E2004403>');
 })());
 
-check('Real ERiC rejection fixed (zuGrosseKontextnummer on /VOR/Weit_Sons_VorAW/A_B_LP) - the same real bug one level deeper than the Weit_Sons_VorAW fix: A_B_LP also appears exactly once even with both people having their own separate other-insurance entries, correctly combined into one shared wrapper', (() => {
+check('Real ERiC rejection genuinely fixed this time (zuGrosseKontextnummer on /VOR/Weit_Sons_VorAW/A_B_LP, then again one level deeper on U_HP_Ris_Vers itself) - both people\'s amounts in the same real category are now correctly combined into a single entry, not two separate ones sharing the same not-allowed-twice wrapper', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.hauptvordruck.veranlagungsart = 'zusammenveranlagung';
   d.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Anna', geburtsdatum: '1987-01-01', religion: 'EV' };
@@ -2001,7 +2001,23 @@ check('Real ERiC rejection fixed (zuGrosseKontextnummer on /VOR/Weit_Sons_VorAW/
   };
   const x = buildEStXML(d).xml;
   const ablpCount = (x.match(/<A_B_LP>/g) || []).length;
-  return ablpCount === 1 && x.includes('<E2001802>500</E2001802>') && x.includes('<E2001802>300</E2001802>');
+  const uHpCount = (x.match(/<U_HP_Ris_Vers>/g) || []).length;
+  return ablpCount === 1 && uHpCount === 1 && x.includes('<E2001802>800</E2001802>');
+})());
+check('Two different real categories from different people each still correctly produce their own single, combined block, not merged together or duplicated', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'zusammenveranlagung';
+  d.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Anna', geburtsdatum: '1987-01-01', religion: 'EV' };
+  d.anlageVorsorgeaufwand = {
+    ausLohnsteuerbescheinigungen: {},
+    privateVersicherungen: [
+      { person: 'A', typ: 'risikoleben', netto: 500 },
+      { person: 'B', typ: 'bu', netto: 300 },
+    ],
+  };
+  const x = buildEStXML(d).xml;
+  return (x.match(/<U_HP_Ris_Vers>/g) || []).length === 1 && (x.match(/<ErwU_BU_Vers>/g) || []).length === 1
+    && x.includes('<E2001802>500</E2001802>') && x.includes('<E2001502>300</E2001502>');
 })());
 
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
