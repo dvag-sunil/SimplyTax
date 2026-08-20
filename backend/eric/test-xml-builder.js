@@ -1988,6 +1988,22 @@ check('Real ERiC rejection fixed (zuGrosseKontextnummer on /VOR/Weit_Sons_VorAW)
     && wsvBlock.includes('<E2004403>634</E2004403>') && wsvBlock.includes('<E2004403>1256</E2004403>');
 })());
 
+check('Real ERiC rejection fixed (zuGrosseKontextnummer on /VOR/Weit_Sons_VorAW/A_B_LP) - the same real bug one level deeper than the Weit_Sons_VorAW fix: A_B_LP also appears exactly once even with both people having their own separate other-insurance entries, correctly combined into one shared wrapper', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.veranlagungsart = 'zusammenveranlagung';
+  d.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Anna', geburtsdatum: '1987-01-01', religion: 'EV' };
+  d.anlageVorsorgeaufwand = {
+    ausLohnsteuerbescheinigungen: {},
+    privateVersicherungen: [
+      { person: 'A', typ: 'risikoleben', netto: 500 },
+      { person: 'B', typ: 'unfall', netto: 300 },
+    ],
+  };
+  const x = buildEStXML(d).xml;
+  const ablpCount = (x.match(/<A_B_LP>/g) || []).length;
+  return ablpCount === 1 && x.includes('<E2001802>500</E2001802>') && x.includes('<E2001802>300</E2001802>');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);

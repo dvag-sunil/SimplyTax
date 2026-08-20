@@ -969,17 +969,18 @@ function buildVORForPerson(l, person, privIns) {
     const amt = Math.round(kapLvNet);
     ablpXml += `<RV_m_WR_KapLV><Einz>\n${tag(fm.VOR.rvMitWrKapLvArt, 'Kapitallebensversicherung')}${wholeEuroTag(fm.VOR.rvMitWrKapLv, amt)}</Einz><Sum>\n${wholeEuroTag(fm.VOR.rvMitWrKapLvSum, amt)}</Sum></RV_m_WR_KapLV>\n`;
   }
-  if (ablpXml) wsvXml += `<A_B_LP>\n${ablpXml}</A_B_LP>\n`;
-  /* CORRECTED: real, confirmed bug found via a real ERiC rejection
-     (zuGrosseKontextnummer on /VOR/Weit_Sons_VorAW) - this wrapper
-     genuinely can only appear once across the whole VOR section
-     (maxOccurs=1), not once per person, the exact same class of
-     duplicate-wrapper bug already caught once within a single
-     person's own av+A_B_LP content, but missed here at the
-     cross-person level when this function was split in two. Returns
-     the wsvXml content separately instead of wrapping it here, so the
-     caller can combine both people's content into one shared wrapper. */
-  return { inner, wsvXml };
+   /* CORRECTED: the same real bug one level deeper, found via a second
+     real ERiC rejection (zuGrosseKontextnummer on
+     /VOR/Weit_Sons_VorAW/A_B_LP) - this wrapper also genuinely has
+     maxOccurs=1 across the whole VOR section, not once per person,
+     confirmed directly against the schema. The Weit_Sons_VorAW fix
+     above combined both people's av content correctly, but each
+     person was still producing their own separate A_B_LP wrapper
+     inside that shared section - exactly the same class of issue,
+     one nesting level further in. Returns ablpXml separately instead
+     of wrapping it here, so the caller can combine both people's
+     content into one shared A_B_LP wrapper. */
+  return { inner, wsvXml, ablpXml };
 }
 
 function buildVOR(data) {
@@ -987,19 +988,31 @@ function buildVOR(data) {
   if (!v) return '';
   const isPar26aVOR = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
   const allPrivIns = v.privateVersicherungen || [];
-  const resultA = buildVORForPerson(v.ausLohnsteuerbescheinigungen || {}, 'A', allPrivIns.filter(x => x.person !== 'B'));
+   const resultA = buildVORForPerson(v.ausLohnsteuerbescheinigungen || {}, 'A', allPrivIns.filter(x => x.person !== 'B'));
   let inner = resultA.inner;
   let wsvXml = resultA.wsvXml;
-  if (!isPar26aVOR && v.ausLohnsteuerbescheinigungenB) {
-    const resultB = buildVORForPerson(v.ausLohnsteuerbescheinigungenB, 'B', allPrivIns.filter(x => x.person === 'B'));
+  let ablpXml = resultA.ablpXml;
+   const bPrivIns = allPrivIns.filter(x => x.person === 'B');
+  /* CORRECTED: real, confirmed gap found while verifying the A_B_LP
+     fix above - Person B's data was only ever processed when
+     ausLohnsteuerbescheinigungenB genuinely existed, meaning a real
+     person with private insurance but no separate wage-statement
+     contributions would have those entries silently dropped
+     entirely. Now processes Person B whenever either piece exists. */
+  if (!isPar26aVOR && (v.ausLohnsteuerbescheinigungenB || bPrivIns.length)) {
+    const resultB = buildVORForPerson(v.ausLohnsteuerbescheinigungenB || {}, 'B', bPrivIns);
     inner += resultB.inner;
     wsvXml += resultB.wsvXml;
+    ablpXml += resultB.ablpXml;
   }
   /* CORRECTED: real, confirmed fix for the same bug named in
-     buildVORForPerson above - both people's Weit_Sons_VorAW content
-     is combined here into one shared wrapper, matching its real
-     maxOccurs=1 constraint, rather than each person emitting their
-     own separate wrapper. */
+     buildVORForPerson above, at both nesting levels - both people's
+     A_B_LP content is combined here into one shared wrapper first
+     (matching its own real maxOccurs=1 constraint), which is then
+     added as part of the already-shared Weit_Sons_VorAW wrapper,
+     rather than each person producing their own separate A_B_LP
+     inside that shared section. */
+  if (ablpXml) wsvXml += `<A_B_LP>\n${ablpXml}</A_B_LP>\n`;
   if (wsvXml) inner += `<Weit_Sons_VorAW>\n${wsvXml}</Weit_Sons_VorAW>\n`;
   /* NOTE: kvOther (pkv28, the PKV Mindestvorsorgepauschale amount from
      the Lohnsteuerbescheinigung) - checked directly, not just flagged
