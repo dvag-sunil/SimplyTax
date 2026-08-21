@@ -2038,6 +2038,13 @@ check('Real root cause of the 610301200 schema-validation crash fixed: VOR child
   return avorCount === 2 && beitrGCount === 2 && lastAvorIdx < firstBeitrGIdx;
 })());
 
+check('Newly implemented (full wiring audit, prioritized directly by the user): the employer pension contribution (agRV) now sends its real value instead of a fabricated 0', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageVorsorgeaufwand = { ausLohnsteuerbescheinigungen: { rv: 4650, agRV: 4650 } };
+  const x = buildEStXML(d).xml;
+  return x.includes('<E2000401>4650</E2000401>') && x.includes('<E2000801>4650</E2000801>');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);

@@ -108,8 +108,16 @@ const N = {
      the count of anlageNAUS entries for the person. */
   nAusCount: 'E0202400',
   ml10:         { line: 10, kennzahlen: ['E0201806'], slotResolved: true },
+  /* Checked again directly, prioritized by the user - both E0201205
+     and E0201210 genuinely exist, with identical documentation text
+     ("Sterbegeld... laut Nr. 32..."). This means there are genuinely
+     two real contexts for this same concept, not a typo or a single
+     field - which one applies here still isn't confirmed. Kept
+     unresolved rather than guessed, since sending to the wrong one
+     risks a real rejection - the same discipline already used
+     elsewhere in this file for fields not yet fully confirmed. */
   sterbe32:     { line: 32, kennzahlen: ['E0201205', 'E0201210'], slotResolved: false,
-                  note: 'likely einz/sum pair by pattern (same description on both numbers), not yet XML-confirmed' },
+                  note: 'both codes confirmed to genuinely exist with identical documentation text - which real context applies here is still unconfirmed, not yet XML-tested' },
   // CONFIRMED not a gap: entsch19/kist13/kistSp14/lst11/soli12 (Zeilen
   // 19/13/14/11/12) - zero matches anywhere in the schema for these line
   // numbers, matching the app's own understanding these lines are

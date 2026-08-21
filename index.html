@@ -1989,9 +1989,18 @@ function incTotals(c){
     can still show both people's real, individual contributions. */
  a[isB?'rvB':'rvA']+=N(e.anRV)+N(e.anRVb); a[isB?'kvB':'kvA']+=N(e.anKV); a[isB?'pvB':'pvA']+=N(e.anPV); a[isB?'avB':'avA']+=N(e.anAV); a[isB?'pkvB':'pkvA']+=N(e.pkv28);
  a[isB?'agKVB':'agKVA']+=N(e.agKV); a[isB?'agPKVB':'agPKVA']+=N(e.agPKV); a[isB?'agPVB':'agPVA']+=N(e.agPV); // tax-free employer subsidies (lines 24a/b/c) reduce the deductible amounts
+ /* CORRECTED: real, confirmed gap found via a full wiring audit -
+    the employer's own pension contribution (Zeile 22a) was collected
+    per employer but never summed here, so it never reached the real
+    field the schema genuinely has for it (AVor's Arbeitgeberanteil).
+    Note this is genuinely different from agKV/agPKV/agPV just above -
+    checked the real schema directly and confirmed there is no
+    equivalent employer-portion field for health/care insurance, only
+    for the pension contribution specifically. */
+ a[isB?'agRVB':'agRVA']+=N(e.agRV)+N(e.agRVb);
  return a; },
  {gross:0,wageTax:0,soli:0,church:0,paid:0,kistSA:0,ersatz:0,fahrtA:0,fahrtB:0,
- rvA:0,rvB:0,kvA:0,kvB:0,pvA:0,pvB:0,avA:0,avB:0,pkvA:0,pkvB:0,agKVA:0,agKVB:0,agPKVA:0,agPKVB:0,agPVA:0,agPVB:0});
+ rvA:0,rvB:0,kvA:0,kvB:0,pvA:0,pvB:0,avA:0,avB:0,pkvA:0,pkvB:0,agKVA:0,agKVB:0,agPKVA:0,agPKVB:0,agPVA:0,agPVB:0,agRVA:0,agRVB:0});
 }
 // Anlage R: taxable share by start year (§ 22 incl. WtChG: 2005=50%, +2pp to 2020, +1pp to 2022, +0.5pp after)
 // Shared at top level (not local to computeEstimate) so buildElsterDataset uses the EXACT same
@@ -5200,9 +5209,9 @@ function buildElsterDataset(c){
  bezeichnung:[wkiLabel(x.type),x.desc].filter(Boolean).join(' - '), betrag:N(x.amount) })) },
  anlageVorsorgeaufwand:{
  ausLohnsteuerbescheinigungen:{ rv:inc.rvA, gkv:inc.kvA, pv:inc.pvA, av:inc.avA, pkv28:inc.pkvA,
- agKV:inc.agKVA, agPKV:inc.agPKVA, agPV:inc.agPVA },
+ agKV:inc.agKVA, agPKV:inc.agPKVA, agPV:inc.agPVA, agRV:inc.agRVA },
  ausLohnsteuerbescheinigungenB:{ rv:inc.rvB, gkv:inc.kvB, pv:inc.pvB, av:inc.avB, pkv28:inc.pkvB,
- agKV:inc.agKVB, agPKV:inc.agPKVB, agPV:inc.agPVB },
+ agKV:inc.agKVB, agPKV:inc.agPKVB, agPV:inc.agPVB, agRV:inc.agRVB },
  privateVersicherungen:(c.privIns||[]).map(x=>({ person:x.person==='B'?'B':'A', typ:x.type, bezeichnung:insLabel(x.type),
  kategorie:INS_CAT[x.type]||'', beitrag:N(x.beitrag), erstattung:N(x.erstattung),
  netto:Math.max(0,N(x.beitrag)-N(x.erstattung)) })), sonstigeVersicherungen:N(c.ins.other) },

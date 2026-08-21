@@ -872,13 +872,19 @@ function buildVORForPerson(l, person, privIns) {
   let avorXml = '', beitrGXml = '', beitrPXml = '';
   /* CONFIRMED via real ERiC validation (Regel 950020): E2000401
      (Arbeitnehmeranteil) and E2000801 (Arbeitgeberanteil) must be
-     declared TOGETHER, explicitly with 0 if not otherwise available -
-     the app only collects one combined rv figure per person (the
-     employee's own contribution), so the employer portion is sent as
-     0 rather than omitted, since omitting it entirely is exactly what
-     caused this error. wholeEuroTag() would otherwise silently drop a
-     zero value, so this writes the tag directly instead. */
-  if (N(l.rv) > 0) avorXml = `<AVor><Person>Person${person}</Person>\n${wholeEuroTag(fm.VOR.rv, l.rv)}<${fm.VOR.rvArbeitgeber}>0</${fm.VOR.rvArbeitgeber}>\n</AVor>\n`;
+     declared TOGETHER - both fields required, not one omitted.
+     CORRECTED: this app now genuinely collects the employer's own
+     pension contribution (agRV, found and wired via a full wiring
+     audit prioritized directly by the user) - the previous hardcoded
+     0 is replaced with the real value. Still writes the tag
+     explicitly even when the real value is genuinely 0 (e.g. no
+     employer contribution on file), matching the same real
+     requirement that caused the original rejection - the field must
+     be present either way, just no longer a fabricated placeholder
+     when a real figure now exists. wholeEuroTag() would otherwise
+     silently drop a genuine zero value, so this writes the tag
+     directly instead. */
+  if (N(l.rv) > 0) avorXml = `<AVor><Person>Person${person}</Person>\n${wholeEuroTag(fm.VOR.rv, l.rv)}<${fm.VOR.rvArbeitgeber}>${Math.round(N(l.agRV))}</${fm.VOR.rvArbeitgeber}>\n</AVor>\n`;
   if (N(l.gkv) > 0 || N(l.pv) > 0) {
     beitrGXml = `<Beitr_g_KV_PV_Inl><Person>Person${person}</Person><AN>\n`;
     beitrGXml += wholeEuroTag(fm.VOR.kv, l.gkv);
