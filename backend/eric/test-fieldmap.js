@@ -33,18 +33,18 @@ for (const [section, obj] of Object.entries({
   }
 }
 
-check('total mapped fields = 312 (was 311 - +1 for marriageDate, found via a real ERiC rejection requiring the marriage date whenever a Veranlagungsart is explicitly selected)', Object.values({
+check('total mapped fields = 314 (was 312 - +2 for vbMon31Von/vbMon31Bis, newly implemented via direct schema research; sterbe32 also resolved this pass, no count change since it already existed as an unresolved entry)', Object.values({
   ESt1A: fm.ESt1A, N: fm.N, VOR: fm.VOR, SA: fm.SA, Kind: fm.Kind, N_DHH: fm.N_DHH,
   KAP: fm.KAP, HA_35a: fm.HA_35a, Sonst: fm.Sonst, SO: fm.SO, ESt1A_U: fm.ESt1A_U, N_AUS: fm.N_AUS,
   AgB: fm.AgB, EM_35c: fm.EM_35c, ESt1A_Ersatz: fm.ESt1A_Ersatz, R: fm.R, V: fm.V,
-}).reduce((sum, o) => sum + Object.keys(o).length, 0) === 312);
+}).reduce((sum, o) => sum + Object.keys(o).length, 0) === 314);
 
 check('gross einz/sum correct', fm.N.gross.einz === 'E0200204' && fm.N.gross.sum === 'E0200201');
 check('taxClass corrected to Steuerklasse', fm.N.taxClass.kennzahlen[0] === 'E0200002');
 check('KAP k7 confirmed', fm.KAP.k7 === 'E1900701');
 check('medical confirmed', fm.AgB.medical.kennzahlen[0] === 'E0161301');
-check('unresolved field list is exactly [verpf20, sterbe32]', JSON.stringify(fm.unresolvedFields()) === JSON.stringify(['verpf20','sterbe32']));
-check('isSlotResolved false for sterbe32', fm.isSlotResolved(fm.N, 'sterbe32') === false);
+check('unresolved field list is exactly [verpf20] - sterbe32 resolved this pass via a real structural trace', JSON.stringify(fm.unresolvedFields()) === JSON.stringify(['verpf20']));
+check('isSlotResolved true for sterbe32 - resolved this pass, confirmed against the same real context (VBez/Einz) as this app\'s other already-working pension fields', fm.isSlotResolved(fm.N, 'sterbe32') === true);
 check('isSlotResolved false for verpf20 - deliberately unresolved after the mismapping found via a genuine client file', fm.isSlotResolved(fm.N, 'verpf20') === false);
 check('isSlotResolved true for vb8', fm.isSlotResolved(fm.N, 'vb8') === true);
 check('routeToVOR agRV -> rv', fm.routeToVOR('agRV') === 'rv');

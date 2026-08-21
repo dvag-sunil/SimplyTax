@@ -116,8 +116,18 @@ const N = {
      unresolved rather than guessed, since sending to the wrong one
      risks a real rejection - the same discipline already used
      elsewhere in this file for fields not yet fully confirmed. */
-  sterbe32:     { line: 32, kennzahlen: ['E0201205', 'E0201210'], slotResolved: false,
-                  note: 'both codes confirmed to genuinely exist with identical documentation text - which real context applies here is still unconfirmed, not yet XML-tested' },
+  /* RESOLVED: genuine ambiguity traced properly this time - E0201205
+     and E0201210 are parallel fields in two different real sections
+     (VBez/Einz for the primary pension source, VBez/Weit for
+     additional ones - confirmed both are real siblings within VBez,
+     not a typo or duplicate). Since this app's existing, already-
+     working vb8/vb9/vbJahr30 mappings are confirmed to be the Einz
+     context specifically (E0200801, not Weit's E0200804), the
+     correct, consistent choice here is E0201205 - the same context
+     as every other pension field this app already sends. */
+  sterbe32:     { line: 32, kennzahlen: ['E0201205'], slotResolved: true },
+  vbMon31Von:   { line: 31, kennzahlen: ['E0201003'], slotResolved: true },
+  vbMon31Bis:   { line: 31, kennzahlen: ['E0201203'], slotResolved: true },
   // CONFIRMED not a gap: entsch19/kist13/kistSp14/lst11/soli12 (Zeilen
   // 19/13/14/11/12) - zero matches anywhere in the schema for these line
   // numbers, matching the app's own understanding these lines are

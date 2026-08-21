@@ -370,6 +370,19 @@ function buildAnlageN(data) {
        surfaced via skippedSections instead of guessed. */
     xml += wholeEuroTag(fm.N.bmg29.kennzahlen[0], first.zeile29_bmgVersorgungsfreibetrag);
     if (first.zeile30_versorgungsbeginn) xml += tag(fm.N.vbJahr30.kennzahlen[0], first.zeile30_versorgungsbeginn);
+    /* IMPLEMENTED: real, confirmed fields resolved via direct schema
+       research, prioritized directly by the user during a full wiring
+       audit. sterbe32 (death benefit / lump-sum payments) uses the
+       same confirmed real context (VBez/Einz) as this app's other
+       pension fields above. The months fields are genuinely a
+       different question than what this app currently collects - the
+       real form asks for the specific first and last month of a
+       partial-year payment, not a count of months - so these are only
+       sent when the app has genuinely collected both, as an actual
+       month range, not guessed at from a count. */
+    if (N(first.zeile32_sterbegeld) > 0) xml += wholeEuroTag(fm.N.sterbe32.kennzahlen[0], first.zeile32_sterbegeld);
+    if (first.zeile31_vonMonat) xml += tag(fm.N.vbMon31Von.kennzahlen[0], String(first.zeile31_vonMonat));
+    if (first.zeile31_bisMonat) xml += tag(fm.N.vbMon31Bis.kennzahlen[0], String(first.zeile31_bisMonat));
     /* NOTE: taxClass (Steuerklasse, E0200002) deliberately NOT written here.
        E0200002 is confirmed to appear inside <LStB_1_5_Sum> as the employer
        count (see above) in the real example XML. The official Felder sheet

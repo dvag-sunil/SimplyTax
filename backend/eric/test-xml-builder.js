@@ -2045,6 +2045,20 @@ check('Newly implemented (full wiring audit, prioritized directly by the user): 
   return x.includes('<E2000401>4650</E2000401>') && x.includes('<E2000801>4650</E2000801>');
 })());
 
+check('Newly implemented (full wiring audit, prioritized directly by the user): sterbe32 (death benefit/lump-sum payments) now genuinely sent, resolved via a real structural trace confirming the correct context', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageN[0].zeile32_sterbegeld = 2000;
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0201205>2000</E0201205>');
+})());
+check('Newly implemented (full wiring audit): the pension first/last month range (Zeile 31) now genuinely sent when both values are provided as a real month range', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageN[0].zeile31_vonMonat = 3;
+  d.anlageN[0].zeile31_bisMonat = 12;
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0201003>3</E0201003>') && x.includes('<E0201203>12</E0201203>');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);

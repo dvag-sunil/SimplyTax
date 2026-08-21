@@ -5134,6 +5134,13 @@ function delInq(id){ const c=cur(); c.inq=(c.inq||[]).filter(x=>x.id!==id); c.up
 function buildElsterDataset(c){
  const e=computeEstimate(c); const inc=incTotals(c);
  const rel={none:'--',ev:'EV',rk:'RK',other:'VD'}[c.p.religion]||'--';
+ /* IMPLEMENTED: parses the existing vbMon31 free-text field ("01 /
+    12" per its own label and placeholder) into the two real month
+    values the actual form asks for - resolved via direct schema
+    research prioritized by the user. Genuinely just missing the
+    parsing and export before now, not a UI change - the field's own
+    label already described exactly this. */
+ const vbMonParts = (k) => { const m = String(k.vbMon31||'').match(/(\d{1,2})\s*\/\s*(\d{1,2})/); return m ? { von: parseInt(m[1]), bis: parseInt(m[2]) } : { von: '', bis: '' }; };
  return {
  meta:{ format:'simplytax-interchange', version:'1.0', datenart:'ESt_'+c.taxYear, taxYear:c.taxYear,
  createdAt:new Date().toISOString(), status:c.status, transferTicket:c.transferTicket,
@@ -5155,7 +5162,7 @@ function buildElsterDataset(c){
  religion:({none:'--',ev:'EV',rk:'RK',other:'VD'}[c.p.spouseReligion]||'--') }:null,
  bankverbindung:{ iban:(c.p.iban||'').replace(/\s/g,'') },
  mitwirkungBerater:true },
- anlageN:(c.emps||[]).map(k=>({ person:k.person==='B'?'B':'A', arbeitgeber:k.employer||'',
+  anlageN:(c.emps||[]).map(k=>({ person:k.person==='B'?'B':'A', arbeitgeber:k.employer||'',
  /* periodFrom/periodTo removed from the app entirely (previously
     collected but never transmitted - confirmed via the real ERiC
     schema that there is no employment-period field in Anlage N at
@@ -5176,7 +5183,7 @@ function buildElsterDataset(c){
  zeile24a_agZuschussGKV:N(k.agKV), zeile24b_agZuschussPKV:N(k.agPKV), zeile24c_agZuschussPV:N(k.agPV),
  zeile25_anGKV:N(k.anKV), zeile26_anPV:N(k.anPV), zeile27_anAV:N(k.anAV), zeile28_pkvMindest:N(k.pkv28),
  zeile29_bmgVersorgungsfreibetrag:N(k.bmg29), zeile30_versorgungsbeginn:k.vbJahr30||'',
- zeile31_monate:k.vbMon31||'', zeile32_sterbegeld:N(k.sterbe32), zeile34_dbaTuerkei:N(k.fb34) })),
+  zeile31_monate:k.vbMon31||'', zeile31_vonMonat:vbMonParts(k).von, zeile31_bisMonat:vbMonParts(k).bis, zeile32_sterbegeld:N(k.sterbe32), zeile34_dbaTuerkei:N(k.fb34) })),
  /* Anlage N-AUS (foreign employment DBA calculator, c.aus[empId]) - was
  collected by the calculator UI but never exported to the interchange
  JSON before this fix. Only fields the app actually collects are sent -
