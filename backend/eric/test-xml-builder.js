@@ -2092,6 +2092,17 @@ check('Real gap fixed (E0243401): genuinely absent for 2021 specifically (found 
   return x.includes('<E0242501>200</E0242501>') && !x.includes('E0243401');
 })());
 
+check('Real, complete fix this round (found by fully retracing the actual real Wk sibling structure for 2021/2022): all four categories (AfA, Schuldzins, Verw_Ko, Sonst) use a genuinely real "Einz" sub-element for these years - a completely different real element than "Direkt", never actually found until this round - satisfying the real "how was this determined" requirement instead of omitting it entirely', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2022;
+  d.anlageV = [{ street: 'X', plz: '12345', ort: 'Y', mieteinnahmen: 10000, wkAfa: 1000, wkSchuldzins: 325, wkVerwaltung: 300, wkSonst: 100 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<AfA_Geb><Einz>') && x.includes('<E0703501>1</E0703501>')
+    && x.includes('<Schuldzins><Einz>') && x.includes('<E0703403>1</E0703403>')
+    && x.includes('<Verw_Ko><Einz>') && x.includes('<E0705512>1</E0705512>')
+    && x.includes('<Sonst><Einz>') && x.includes('<E0705603>1</E0705603>');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);

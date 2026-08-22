@@ -1013,7 +1013,22 @@ const V = {
   wkVerwaltungAngaben: 'E0707501', // Wk/Verw_Ko/Direkt - Einzelangaben
   wkVerwaltungDirekt: 'E0707502',  // Wk/Verw_Ko/Direkt - Gesamtbetrag (matches wkVerwaltungSum)
   wkSonstAngaben: 'E0707901', // Wk/Sonst/Direkt - Einzelangaben
-  wkSonstDirekt: 'E0707902',  // Wk/Sonst/Direkt - Gesamtbetrag (matches wkSonstSum)
+   wkSonstDirekt: 'E0707902',  // Wk/Sonst/Direkt - Gesamtbetrag (matches wkSonstSum)
+  /* CORRECTED (definitively this round): the real legacy (2021/2022)
+     structure for all four of these categories uses an "Einz"
+     sub-element, not "Direkt" - a completely different real element
+     that the earlier research had never actually found, confirmed by
+     tracing the real Wk sibling list directly this time rather than
+     assuming the same shape as 2023+. Each category has its own
+     distinct field set. This app declares "direct allocation" (not a
+     proportional split) throughout, matching how a single-property
+     return genuinely works, and AfA specifically declares "linear"
+     method, matching the standard-rate default already used
+     elsewhere. */
+  wkAfaMethodLinear: 'E0703501', wkAfaMethodDirekt: 'E0703506', wkAfaErlaeuterungFlag: 'E0703505', wkAfaErlaeuterung: 'E0703301',
+  wkSchuldzinsLegacyBank: 'E0703401', wkSchuldzinsLegacyGesamt: 'E0703402', wkSchuldzinsLegacyDirektFlag: 'E0703403', wkSchuldzinsLegacyWk: 'E0703407',
+  wkVerwaltungLegacyDesc: 'E0705510', wkVerwaltungLegacyGesamt: 'E0705511', wkVerwaltungLegacyDirektFlag: 'E0705512', wkVerwaltungLegacyWk: 'E0704709',
+  wkSonstLegacyDesc: 'E0705601', wkSonstLegacyGesamt: 'E0705602', wkSonstLegacyDirektFlag: 'E0705603',
   wkSeWk: 'E0705701', // Wk/Se_WK - overall Werbungskosten total across ALL categories - CONFIRMED
                        // required (Regel 100700003): itemized categories present but no overall
                        // sum stated. Missed in the first pass - only the per-category Sum fields

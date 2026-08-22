@@ -1345,16 +1345,20 @@ function buildWkBlock(p, taxYear) {
    let inner = '';
   let usedAfaDefault = false;
   if (N(p.wkAfa) > 0) {
-    usedAfaDefault = true;
-    /* CORRECTED: real, confirmed gap found via the full rich-matrix
-       test run - Direkt sub-fields here genuinely don't exist for
-       2021/2022 either, the exact same year boundary already
-       correctly handled for Geldbeschaff below. Sum works for every
-       year, so the deduction still goes through for earlier years,
-       just without the itemized method/rate backing entry. */
-    const hasAfaDirekt = fm.isFieldSupportedForYear(fm.V.wkAfaDirekt, taxYear || 2025);
-    const afaDirektPart = hasAfaDirekt ? `<Direkt>\n${tag(fm.V.wkAfaArt, '1')}${percentTag(fm.V.wkAfaProzent, 2)}${wholeEuroTag(fm.V.wkAfaDirekt, p.wkAfa)}</Direkt>` : '';
-    inner += `<AfA_Geb>${afaDirektPart}<Sum>\n${wholeEuroTag(fm.V.wkAfaSum, p.wkAfa)}</Sum></AfA_Geb>\n`;
+     usedAfaDefault = true;
+    /* CORRECTED (definitively this round): the real legacy (2021/2022)
+       structure uses an "Einz" sub-element, not "Direkt" - a
+       completely different real element that earlier research never
+       actually found, confirmed by tracing the real Wk sibling list
+       directly this round. Declares "linear" method (matching the
+       standard-rate default this app already uses) plus the total
+       amount - satisfying the real requirement to state how the
+       depreciation amount was determined. */
+  const isLegacyYearAfa = (taxYear || 2025) < 2023;
+    const afaPart = isLegacyYearAfa
+      ? `<Einz>\n${tag(fm.V.wkAfaMethodLinear, '1')}${wholeEuroTag(fm.V.wkAfaMethodDirekt, p.wkAfa)}</Einz>`
+      : (fm.isFieldSupportedForYear(fm.V.wkAfaDirekt, taxYear || 2025) ? `<Direkt>\n${tag(fm.V.wkAfaArt, '1')}${percentTag(fm.V.wkAfaProzent, 2)}${wholeEuroTag(fm.V.wkAfaDirekt, p.wkAfa)}</Direkt>` : '');
+    inner += `<AfA_Geb>${afaPart}<Sum>\n${wholeEuroTag(fm.V.wkAfaSum, p.wkAfa)}</Sum></AfA_Geb>\n`;
   }
   /* Newly implemented - special depreciation (§7b EStG). This
      category's real structure genuinely has no simple amount field in
@@ -1367,10 +1371,12 @@ function buildWkBlock(p, taxYear) {
     const sonderabschrDirektPart = hasSonderabschrDirekt ? `<Direkt>\n${tag(fm.V.wkSonderabschrArt, '2')}${tag(fm.V.wkSonderabschrErlaeuterung, 'Sonderabschreibung nach § 7b EStG')}</Direkt>` : '';
     inner += `<Sonderabschr_P7b>${sonderabschrDirektPart}<Sum>\n${wholeEuroTag(fm.V.wkSonderabschrSum, p.wkSonderabschr)}</Sum></Sonderabschr_P7b>\n`;
   }
-   if (N(p.wkSchuldzins) > 0) {
-    const hasSchuldzinsDirekt = fm.isFieldSupportedForYear(fm.V.wkSchuldzinsDirekt, taxYear || 2025);
-    const schuldzinsDirektPart = hasSchuldzinsDirekt ? `<Direkt>\n${tag(fm.V.wkSchuldzinsAngaben, 'Darlehenszinsen')}${wholeEuroTag(fm.V.wkSchuldzinsDirekt, p.wkSchuldzins)}</Direkt>` : '';
-    inner += `<Schuldzins>${schuldzinsDirektPart}<Sum>\n${wholeEuroTag(fm.V.wkSchuldzinsSum, p.wkSchuldzins)}</Sum></Schuldzins>\n`;
+    if (N(p.wkSchuldzins) > 0) {
+    const isLegacyYearSchuldzins = (taxYear || 2025) < 2023;
+    const schuldzinsPart = isLegacyYearSchuldzins
+      ? `<Einz>\n${tag(fm.V.wkSchuldzinsLegacyBank, 'Darlehenszinsen')}${wholeEuroTag(fm.V.wkSchuldzinsLegacyGesamt, p.wkSchuldzins)}${tag(fm.V.wkSchuldzinsLegacyDirektFlag, '1')}${wholeEuroTag(fm.V.wkSchuldzinsLegacyWk, p.wkSchuldzins)}</Einz>`
+      : (fm.isFieldSupportedForYear(fm.V.wkSchuldzinsDirekt, taxYear || 2025) ? `<Direkt>\n${tag(fm.V.wkSchuldzinsAngaben, 'Darlehenszinsen')}${wholeEuroTag(fm.V.wkSchuldzinsDirekt, p.wkSchuldzins)}</Direkt>` : '');
+    inner += `<Schuldzins>${schuldzinsPart}<Sum>\n${wholeEuroTag(fm.V.wkSchuldzinsSum, p.wkSchuldzins)}</Sum></Schuldzins>\n`;
   }
   /* Newly implemented - financing costs (loan arrangement fees etc,
      distinct from the interest itself). Direkt sub-fields confirmed
@@ -1382,7 +1388,16 @@ function buildWkBlock(p, taxYear) {
     inner += `<Geldbeschaff>${direktPart}<Sum>\n${wholeEuroTag(fm.V.wkGeldbeschaffSum, p.wkGeldbeschaff)}</Sum></Geldbeschaff>\n`;
   }
   if (N(p.wkErhaltung) > 0) {
-    inner += `<Erhalt_AW_dir><Einz>\n${tag(fm.V.wkErhaltungBezeichnung, 'Erhaltungsaufwand')}${wholeEuroTag(fm.V.wkErhaltungGesamt, p.wkErhaltung)}${wholeEuroTag(fm.V.wkErhaltungEinz, p.wkErhaltung)}</Einz><Sum>\n${wholeEuroTag(fm.V.wkErhaltungSum, p.wkErhaltung)}</Sum></Erhalt_AW_dir>\n`;
+    /* CORRECTED (definitively this time - checked both sides of the
+     boundary together, not just one year): E0704410 genuinely changes
+     type across the 2022/2023 boundary - Dezimalzahl (2 decimal
+     places required) for 2021/2022, Ganzzahl (whole number) from 2023
+     onward, confirmed directly against the schema for every one of
+     the five years, not just spot-checked at one. Two previous fixes
+     each only checked one side of this boundary and were each right
+     for half the years, wrong for the other half. */
+  const wkErhaltungGesamtTag = (taxYear || 2025) < 2023 ? euroTag(fm.V.wkErhaltungGesamt, p.wkErhaltung) : wholeEuroTag(fm.V.wkErhaltungGesamt, p.wkErhaltung);
+  inner += `<Erhalt_AW_dir><Einz>\n${tag(fm.V.wkErhaltungBezeichnung, 'Erhaltungsaufwand')}${wkErhaltungGesamtTag}${wholeEuroTag(fm.V.wkErhaltungEinz, p.wkErhaltung)}</Einz><Sum>\n${wholeEuroTag(fm.V.wkErhaltungSum, p.wkErhaltung)}</Sum></Erhalt_AW_dir>\n`;
   }
   /* Newly implemented - maintenance spread over 5 years (§82b
      EStDV). Real structure is genuinely different: a total expense
@@ -1393,10 +1408,12 @@ function buildWkBlock(p, taxYear) {
   if (N(p.wk5JAbzugsfaehig) > 0) {
     inner += `<Erhalt_AW_5_J><Aufw_Sum>\n${wholeEuroTag(fm.V.wk5JGesamt, p.wk5JAbzugsfaehig)}${wholeEuroTag(fm.V.wk5JAbzugsfaehig, p.wk5JAbzugsfaehig)}</Aufw_Sum></Erhalt_AW_5_J>\n`;
   }
-   if (N(p.wkVerwaltung) > 0) {
-    const hasVerwaltungDirekt = fm.isFieldSupportedForYear(fm.V.wkVerwaltungDirekt, taxYear || 2025);
-    const verwaltungDirektPart = hasVerwaltungDirekt ? `<Direkt>\n${tag(fm.V.wkVerwaltungAngaben, 'Verwaltungskosten')}${wholeEuroTag(fm.V.wkVerwaltungDirekt, p.wkVerwaltung)}</Direkt>` : '';
-    inner += `<Verw_Ko>${verwaltungDirektPart}<Sum>\n${wholeEuroTag(fm.V.wkVerwaltungSum, p.wkVerwaltung)}</Sum></Verw_Ko>\n`;
+    if (N(p.wkVerwaltung) > 0) {
+    const isLegacyYearVerwaltung = (taxYear || 2025) < 2023;
+    const verwaltungPart = isLegacyYearVerwaltung
+      ? `<Einz>\n${tag(fm.V.wkVerwaltungLegacyDesc, 'Verwaltungskosten')}${wholeEuroTag(fm.V.wkVerwaltungLegacyGesamt, p.wkVerwaltung)}${tag(fm.V.wkVerwaltungLegacyDirektFlag, '1')}${wholeEuroTag(fm.V.wkVerwaltungLegacyWk, p.wkVerwaltung)}</Einz>`
+      : (fm.isFieldSupportedForYear(fm.V.wkVerwaltungDirekt, taxYear || 2025) ? `<Direkt>\n${tag(fm.V.wkVerwaltungAngaben, 'Verwaltungskosten')}${wholeEuroTag(fm.V.wkVerwaltungDirekt, p.wkVerwaltung)}</Direkt>` : '');
+    inner += `<Verw_Ko>${verwaltungPart}<Sum>\n${wholeEuroTag(fm.V.wkVerwaltungSum, p.wkVerwaltung)}</Sum></Verw_Ko>\n`;
   }
   /* Newly implemented - VAT-liable letting (Umsatzsteuerpflichtige
      Vermietung, e.g. commercial lets where VAT was charged). Real
@@ -1404,10 +1421,12 @@ function buildWkBlock(p, taxYear) {
   if (N(p.wkUstPflichtig) > 0) {
     inner += wholeEuroTag(fm.V.wkUstPflichtig, p.wkUstPflichtig).replace(/^/, '<Ust_stpfl_Verm>\n').replace(/$/, '</Ust_stpfl_Verm>\n');
   }
-   if (N(p.wkSonst) > 0) {
-    const hasSonstDirekt = fm.isFieldSupportedForYear(fm.V.wkSonstDirekt, taxYear || 2025);
-    const sonstDirektPart = hasSonstDirekt ? `<Direkt>\n${tag(fm.V.wkSonstAngaben, 'Sonstige Werbungskosten')}${wholeEuroTag(fm.V.wkSonstDirekt, p.wkSonst)}</Direkt>` : '';
-    inner += `<Sonst>${sonstDirektPart}<Sum>\n${wholeEuroTag(fm.V.wkSonstSum, p.wkSonst)}</Sum></Sonst>\n`;
+    if (N(p.wkSonst) > 0) {
+    const isLegacyYearSonst = (taxYear || 2025) < 2023;
+    const sonstPart = isLegacyYearSonst
+      ? `<Einz>\n${tag(fm.V.wkSonstLegacyDesc, 'Sonstige Werbungskosten')}${wholeEuroTag(fm.V.wkSonstLegacyGesamt, p.wkSonst)}${tag(fm.V.wkSonstLegacyDirektFlag, '1')}</Einz>`
+      : (fm.isFieldSupportedForYear(fm.V.wkSonstDirekt, taxYear || 2025) ? `<Direkt>\n${tag(fm.V.wkSonstAngaben, 'Sonstige Werbungskosten')}${wholeEuroTag(fm.V.wkSonstDirekt, p.wkSonst)}</Direkt>` : '');
+    inner += `<Sonst>${sonstPart}<Sum>\n${wholeEuroTag(fm.V.wkSonstSum, p.wkSonst)}</Sum></Sonst>\n`;
   }
   if (!inner) return { xml: '', usedAfaDefault: false };
   const total = wkCategoryTotal(p);
