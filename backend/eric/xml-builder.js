@@ -326,7 +326,18 @@ function buildAnlageN(data) {
        was only emitted if a DBA/ATE amount existed - now also emitted
        (with 0 for the amount) if there are N-AUS entries without one,
        since the count itself is what's required. */
-    const nAusCountForPerson = (data.anlageNAUS || []).filter(a => (a.person === 'B') === (person === 'B')).length;
+     /* CORRECTED: real, confirmed bug found via the actual real resultXml
+       (Regelname .../Anzahl_N_AUS_100200029_EM) - this count included
+       every N-AUS entry regardless of whether the actual N-AUS form
+       gets transmitted for this year, creating a direct contradiction
+       ERiC catches: Anlage N claiming N-AUS forms are attached when
+       none actually are sent, for 2021/2022 specifically, where N-AUS
+       transmission genuinely isn't implemented yet (the same real,
+       honest gap already documented via skippedSections elsewhere).
+       Counting only entries that will genuinely be transmitted keeps
+       this flag and the real N-AUS output consistent with each other. */
+    const nAusYearSupported = (Number(data.meta?.taxYear) || 2025) >= 2023;
+    const nAusCountForPerson = nAusYearSupported ? (data.anlageNAUS || []).filter(a => (a.person === 'B') === (person === 'B')).length : 0;
     /* CORRECTED (major): previously used a separate, manually-entered
        figure (zeile16_dbaAte) that could drift from what N-AUS itself
        computes - confirmed via real Regel 0/1/7 that these two MUST be

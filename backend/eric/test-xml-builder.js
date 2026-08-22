@@ -2112,6 +2112,15 @@ check('Real gap fixed (found via a real ERiC rejection, caused by my own earlier
     && x.includes('<E0705606>100</E0705606>');
 })());
 
+check('Real bug fixed, found via the actual resultXml (made visible by the new UI import feature): Anlage N no longer claims N-AUS forms are attached for 2021/2022, matching the fact that N-AUS itself is honestly not transmitted for those years - the flag and the real output are now consistent with each other', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2021;
+  d.anlageN = [{ person: 'A', zeile3_bruttoarbeitslohn: 50000, zeile4_lohnsteuer: 8000, zeile16_dbaAte: 5000 }];
+  d.anlageNAUS = [{ person: 'A', land: 'USA', legalBasis: 'dba', taetigkeitDesc: 'Consulting', taetigkeitVon: '2021-01-01', taetigkeitBis: '2021-06-30', gesamtlohn: 50000, arbeitstageGesamt: 220, arbeitstageAusland: 100 }];
+  const x = buildEStXML(d).xml;
+  return !x.includes('Stfr_NAUS') && !x.includes('<N_AUS>');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);
