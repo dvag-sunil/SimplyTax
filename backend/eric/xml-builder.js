@@ -1503,8 +1503,18 @@ function buildVLegacy(data, entries) {
       }
       inner += '</Einn>\n';
 
-      const wkResult = buildWkBlock(p, data.meta?.taxYear);
-      inner += wkResult.xml;
+      /* CORRECTED (definitive root cause of the rc=610301200 crash,
+         found via the real ERiC log content now visible directly in
+         Render logs): the real required element order here is Allg,
+         Einn, Erm_Zuord_Ek, Wk, Zusatz_Ang - confirmed directly by
+         ERiC's own error message quoting the exact content model
+         ("element 'Erm_Zuord_Ek' is not allowed for content model
+         '(Allg?,Einn?,Erm_Zuord_Ek?,Wk?,Zusatz_Ang?)'"). This was
+         building Wk before Erm_Zuord_Ek - exactly backwards. Erm_Zuord_Ek
+         is now fully built and appended first; wkTotal is computed
+         directly via wkCategoryTotal (the same figure Wk's own Se_WK
+         total will show), so this reordering doesn't change any
+         actual number, just the sequence these two blocks appear in. */
       const wkTotal = wkCategoryTotal(p);
 
       /* Erm_Zuord_Ek - confirmed real 2022 context: the income sum,
@@ -1523,7 +1533,7 @@ function buildVLegacy(data, entries) {
          second person exists), fully to B, or split evenly for joint
          ownership - matching the same 'A'/'B'/joint pattern already
          used elsewhere in this app for shared items. */
-        inner += '<Erm_Zuord_Ek>\n';
+      inner += '<Erm_Zuord_Ek>\n';
       inner += wholeEuroTag(fm.V.einnahmenSum, totalIncome);
       /* CORRECTED: real, confirmed gap found via the second round of
          test-runner results - the Werbungskosten total was never
@@ -1551,6 +1561,11 @@ function buildVLegacy(data, entries) {
         inner += wholeEuroTag(fm.V.ueberschussZuordA, ueberschuss);
       }
       inner += '</Erm_Zuord_Ek>\n';
+
+      /* Wk block now correctly follows Erm_Zuord_Ek per the confirmed
+         real element order above. */
+      const wkResult = buildWkBlock(p, data.meta?.taxYear);
+      inner += wkResult.xml;
     }
     inner += '</Ek_b_Gst>\n';
   });

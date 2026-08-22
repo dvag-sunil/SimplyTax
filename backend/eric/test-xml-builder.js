@@ -2121,6 +2121,16 @@ check('Real bug fixed, found via the actual resultXml (made visible by the new U
   return !x.includes('Stfr_NAUS') && !x.includes('<N_AUS>');
 })());
 
+check("Definitive root cause of the rc=610301200 crash fixed, found via the real ERiC log content made visible in Render logs - Ek_b_Gst elements now appear in the confirmed real order (Allg, Einn, Erm_Zuord_Ek, Wk), not the previous backwards order (Wk before Erm_Zuord_Ek) that ERiC's own error explicitly named", (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2021;
+  d.anlageV = [{ street: 'X', plz: '12345', ort: 'Y', mieteinnahmen: 10000, wkAfa: 1000 }];
+  const x = buildEStXML(d).xml;
+  const ek = x.match(/<Ek_b_Gst>[\s\S]*?<\/Ek_b_Gst>/)[0];
+  const order = [...ek.matchAll(/<(Allg|Einn|Erm_Zuord_Ek|Wk)>/g)].map(m => m[1]);
+  return JSON.stringify(order) === JSON.stringify(['Allg', 'Einn', 'Erm_Zuord_Ek', 'Wk']);
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);
