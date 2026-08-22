@@ -1356,7 +1356,7 @@ function buildWkBlock(p, taxYear) {
        depreciation amount was determined. */
   const isLegacyYearAfa = (taxYear || 2025) < 2023;
     const afaPart = isLegacyYearAfa
-      ? `<Einz>\n${tag(fm.V.wkAfaMethodLinear, '1')}${wholeEuroTag(fm.V.wkAfaMethodDirekt, p.wkAfa)}</Einz>`
+       ? `<Einz>\n${tag(fm.V.wkAfaMethodLinear, 'X')}${euroTag(fm.V.wkAfaMethodDirekt, p.wkAfa)}</Einz>`
       : (fm.isFieldSupportedForYear(fm.V.wkAfaDirekt, taxYear || 2025) ? `<Direkt>\n${tag(fm.V.wkAfaArt, '1')}${percentTag(fm.V.wkAfaProzent, 2)}${wholeEuroTag(fm.V.wkAfaDirekt, p.wkAfa)}</Direkt>` : '');
     inner += `<AfA_Geb>${afaPart}<Sum>\n${wholeEuroTag(fm.V.wkAfaSum, p.wkAfa)}</Sum></AfA_Geb>\n`;
   }
@@ -1374,7 +1374,7 @@ function buildWkBlock(p, taxYear) {
     if (N(p.wkSchuldzins) > 0) {
     const isLegacyYearSchuldzins = (taxYear || 2025) < 2023;
     const schuldzinsPart = isLegacyYearSchuldzins
-      ? `<Einz>\n${tag(fm.V.wkSchuldzinsLegacyBank, 'Darlehenszinsen')}${wholeEuroTag(fm.V.wkSchuldzinsLegacyGesamt, p.wkSchuldzins)}${tag(fm.V.wkSchuldzinsLegacyDirektFlag, '1')}${wholeEuroTag(fm.V.wkSchuldzinsLegacyWk, p.wkSchuldzins)}</Einz>`
+       ? `<Einz>\n${tag(fm.V.wkSchuldzinsLegacyBank, 'Darlehenszinsen')}${euroTag(fm.V.wkSchuldzinsLegacyGesamt, p.wkSchuldzins)}${tag(fm.V.wkSchuldzinsLegacyDirektFlag, 'X')}${wholeEuroTag(fm.V.wkSchuldzinsLegacyWk, p.wkSchuldzins)}</Einz>`
       : (fm.isFieldSupportedForYear(fm.V.wkSchuldzinsDirekt, taxYear || 2025) ? `<Direkt>\n${tag(fm.V.wkSchuldzinsAngaben, 'Darlehenszinsen')}${wholeEuroTag(fm.V.wkSchuldzinsDirekt, p.wkSchuldzins)}</Direkt>` : '');
     inner += `<Schuldzins>${schuldzinsPart}<Sum>\n${wholeEuroTag(fm.V.wkSchuldzinsSum, p.wkSchuldzins)}</Sum></Schuldzins>\n`;
   }
@@ -1411,7 +1411,7 @@ function buildWkBlock(p, taxYear) {
     if (N(p.wkVerwaltung) > 0) {
     const isLegacyYearVerwaltung = (taxYear || 2025) < 2023;
     const verwaltungPart = isLegacyYearVerwaltung
-      ? `<Einz>\n${tag(fm.V.wkVerwaltungLegacyDesc, 'Verwaltungskosten')}${wholeEuroTag(fm.V.wkVerwaltungLegacyGesamt, p.wkVerwaltung)}${tag(fm.V.wkVerwaltungLegacyDirektFlag, '1')}${wholeEuroTag(fm.V.wkVerwaltungLegacyWk, p.wkVerwaltung)}</Einz>`
+       ? `<Einz>\n${tag(fm.V.wkVerwaltungLegacyDesc, 'Verwaltungskosten')}${euroTag(fm.V.wkVerwaltungLegacyGesamt, p.wkVerwaltung)}${tag(fm.V.wkVerwaltungLegacyDirektFlag, 'X')}${wholeEuroTag(fm.V.wkVerwaltungLegacyWk, p.wkVerwaltung)}</Einz>`
       : (fm.isFieldSupportedForYear(fm.V.wkVerwaltungDirekt, taxYear || 2025) ? `<Direkt>\n${tag(fm.V.wkVerwaltungAngaben, 'Verwaltungskosten')}${wholeEuroTag(fm.V.wkVerwaltungDirekt, p.wkVerwaltung)}</Direkt>` : '');
     inner += `<Verw_Ko>${verwaltungPart}<Sum>\n${wholeEuroTag(fm.V.wkVerwaltungSum, p.wkVerwaltung)}</Sum></Verw_Ko>\n`;
   }
@@ -1424,7 +1424,7 @@ function buildWkBlock(p, taxYear) {
     if (N(p.wkSonst) > 0) {
     const isLegacyYearSonst = (taxYear || 2025) < 2023;
     const sonstPart = isLegacyYearSonst
-      ? `<Einz>\n${tag(fm.V.wkSonstLegacyDesc, 'Sonstige Werbungskosten')}${wholeEuroTag(fm.V.wkSonstLegacyGesamt, p.wkSonst)}${tag(fm.V.wkSonstLegacyDirektFlag, '1')}</Einz>`
+       ? `<Einz>\n${tag(fm.V.wkSonstLegacyDesc, 'Sonstige Werbungskosten')}${euroTag(fm.V.wkSonstLegacyGesamt, p.wkSonst)}${tag(fm.V.wkSonstLegacyDirektFlag, 'X')}</Einz>`
       : (fm.isFieldSupportedForYear(fm.V.wkSonstDirekt, taxYear || 2025) ? `<Direkt>\n${tag(fm.V.wkSonstAngaben, 'Sonstige Werbungskosten')}${wholeEuroTag(fm.V.wkSonstDirekt, p.wkSonst)}</Direkt>` : '');
     inner += `<Sonst>${sonstPart}<Sum>\n${wholeEuroTag(fm.V.wkSonstSum, p.wkSonst)}</Sum></Sonst>\n`;
   }
@@ -2921,7 +2921,7 @@ ${nutzdaten}</Nutzdaten>
 </DatenTeil>
 </Elster>`;
 
-  return { xml, skippedSections: ['DIAGNOSTIC MARKER v2 (E0704410-decimal-fix): if you see this exact line in the real output, this file is genuinely running - remove this marker once confirmed.', ...skippedSections] };
+   return { xml, skippedSections };
 }
 
 function bundeslandCode(name) {

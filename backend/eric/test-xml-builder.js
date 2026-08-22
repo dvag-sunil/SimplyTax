@@ -2092,15 +2092,15 @@ check('Real gap fixed (E0243401): genuinely absent for 2021 specifically (found 
   return x.includes('<E0242501>200</E0242501>') && !x.includes('E0243401');
 })());
 
-check('Real, complete fix this round (found by fully retracing the actual real Wk sibling structure for 2021/2022): all four categories (AfA, Schuldzins, Verw_Ko, Sonst) use a genuinely real "Einz" sub-element for these years - a completely different real element than "Direkt", never actually found until this round - satisfying the real "how was this determined" requirement instead of omitting it entirely', (() => {
+check('Real fix, corrected this round via a real ERiC rejection: the flag fields genuinely need \'X\' (JaXBaseCType, not \'1\') and the amount fields genuinely need decimal format (Dezimalzahl, not whole) across all four categories, for 2021/2022', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.meta.taxYear = 2022;
   d.anlageV = [{ street: 'X', plz: '12345', ort: 'Y', mieteinnahmen: 10000, wkAfa: 1000, wkSchuldzins: 325, wkVerwaltung: 300, wkSonst: 100 }];
   const x = buildEStXML(d).xml;
-  return x.includes('<AfA_Geb><Einz>') && x.includes('<E0703501>1</E0703501>')
-    && x.includes('<Schuldzins><Einz>') && x.includes('<E0703403>1</E0703403>')
-    && x.includes('<Verw_Ko><Einz>') && x.includes('<E0705512>1</E0705512>')
-    && x.includes('<Sonst><Einz>') && x.includes('<E0705603>1</E0705603>');
+  return x.includes('<AfA_Geb><Einz>') && x.includes('<E0703501>X</E0703501>') && x.includes('<E0703506>1000,00</E0703506>')
+    && x.includes('<Schuldzins><Einz>') && x.includes('<E0703403>X</E0703403>') && x.includes('<E0703402>325,00</E0703402>')
+    && x.includes('<Verw_Ko><Einz>') && x.includes('<E0705512>X</E0705512>') && x.includes('<E0705511>300,00</E0705511>')
+    && x.includes('<Sonst><Einz>') && x.includes('<E0705603>X</E0705603>') && x.includes('<E0705602>100,00</E0705602>');
 })());
 
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
