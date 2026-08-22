@@ -1025,10 +1025,23 @@ const V = {
      return genuinely works, and AfA specifically declares "linear"
      method, matching the standard-rate default already used
      elsewhere. */
-  wkAfaMethodLinear: 'E0703501', wkAfaMethodDirekt: 'E0703506', wkAfaErlaeuterungFlag: 'E0703505', wkAfaErlaeuterung: 'E0703301',
+   wkAfaMethodLinear: 'E0703501', wkAfaMethodDirekt: 'E0703506', wkAfaErlaeuterungFlag: 'E0703505', wkAfaErlaeuterung: 'E0703301',
+  /* CORRECTED: real, confirmed gap found via a real ERiC rejection -
+     my own earlier extraction of this structure was silently
+     truncated, missing these two genuinely required fields entirely.
+     AfA_Geb needs the same "direct allocation" flag already correctly
+     used for Schuldzins/Verw_Ko, plus its own separate, whole-number
+     deductible-amount field (E0703510, confirmed GanzzahlNichtNeg -
+     distinct from the decimal Gesamtbetrag above). */
+  wkAfaDirektFlag: 'E0703507', wkAfaWk: 'E0703510',
   wkSchuldzinsLegacyBank: 'E0703401', wkSchuldzinsLegacyGesamt: 'E0703402', wkSchuldzinsLegacyDirektFlag: 'E0703403', wkSchuldzinsLegacyWk: 'E0703407',
   wkVerwaltungLegacyDesc: 'E0705510', wkVerwaltungLegacyGesamt: 'E0705511', wkVerwaltungLegacyDirektFlag: 'E0705512', wkVerwaltungLegacyWk: 'E0704709',
-  wkSonstLegacyDesc: 'E0705601', wkSonstLegacyGesamt: 'E0705602', wkSonstLegacyDirektFlag: 'E0705603',
+   wkSonstLegacyDesc: 'E0705601', wkSonstLegacyGesamt: 'E0705602', wkSonstLegacyDirektFlag: 'E0705603',
+  /* CORRECTED: real, confirmed gap found via a real ERiC rejection -
+     my own earlier extraction of this structure was silently
+     truncated before reaching this genuinely required field
+     (E0705606, confirmed GanzzahlOhneFuehrNull - whole number). */
+  wkSonstLegacyWk: 'E0705606',
   wkSeWk: 'E0705701', // Wk/Se_WK - overall Werbungskosten total across ALL categories - CONFIRMED
                        // required (Regel 100700003): itemized categories present but no overall
                        // sum stated. Missed in the first pass - only the per-category Sum fields

@@ -2103,6 +2103,15 @@ check('Real fix, corrected this round via a real ERiC rejection: the flag fields
     && x.includes('<Sonst><Einz>') && x.includes('<E0705603>X</E0705603>') && x.includes('<E0705602>100,00</E0705602>');
 })());
 
+check('Real gap fixed (found via a real ERiC rejection, caused by my own earlier extraction being silently truncated): AfA_Geb now includes its required direct-allocation flag and separate whole-number deductible amount; Sonst now includes its required separate whole-number deductible amount', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2022;
+  d.anlageV = [{ street: 'X', plz: '12345', ort: 'Y', mieteinnahmen: 10000, wkAfa: 1000, wkSonst: 100 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0703507>X</E0703507>') && x.includes('<E0703510>1000</E0703510>')
+    && x.includes('<E0705606>100</E0705606>');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);
