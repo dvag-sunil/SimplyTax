@@ -2455,14 +2455,17 @@ function dashView(){
  </tr>`;
  }).join('');
 
- return `<main>
+  return `<main>
  <div class="page-head"><div><h1>${t('dashboard')}</h1><p>${t('tagline')}</p></div>
  <div class="spacer" style="flex:1"></div>
+ <input type="file" id="importJsonInput" accept="application/json,.json" style="display:none" onchange="if(this.files[0]) importElsterFile(this.files[0]); this.value='';">
+  <button class="btn btn-ghost" onclick="document.getElementById('importJsonInput').click()" title="Import a SimplyTax interchange JSON file to test it through Review &amp; Submit">⬆ Import JSON</button>
  <button class="btn btn-primary" onclick="showNewClient()">＋ ${t('new_client')}</button></div>
  <div class="stats">
  <div class="stat"><div class="k">${t('clients')}</div><div class="v num">${cs.length}</div></div>
  <div class="stat"><div class="k">${t('drafts')}</div><div class="v num">${cs.filter(c=>c.status==='draft').length}</div></div>
  <div class="stat"><div class="k">${t('submitted')}</div><div class="v num">${cs.filter(c=>c.status==='submitted').length}</div></div>
+
  <div class="stat"><div class="k">${t('est_refunds')}</div><div class="v teal num">${eur(totRef)}</div></div>
  ${PAYMENT.enabled?`<div class="stat" style="${cs.filter(c=>isPaid(c)&&c.status!=='submitted').length>0?'border-color:var(--amber)':''}; cursor:pointer" onclick="S.showReminders=!S.showReminders;render()">
  <div class="k">${t('paid_not_submitted')} ${cs.filter(c=>isPaid(c)&&c.status!=='submitted').length>0?'🔔':''}</div>
@@ -5288,6 +5291,190 @@ function exportElster(){
  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
  a.download=`elster_dataset_${c.taxYear}_${(c.p.lastName||'client').replace(/[^A-Za-z0-9ÄÖÜäöüß_-]/g,'')}.json`;
  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+}
+
+/* IMPLEMENTED: the reverse of buildElsterDataset, requested directly
+   by the user to make the real, complete resultXml visible through
+   the app's own Review & Submit flow, instead of only through a
+   separate script's summarized output. Takes an interchange JSON file
+   (the same format the app exports, and the same format used for the
+   generated test-file matrix) and builds a genuine client from it -
+   covering every section the export produces, in the same order, so
+   a real round trip (export, then import that exact file back)
+   reconstructs the same client. */
+function importElsterDataset(data){
+  const h = data.hauptvordruck || {};
+  const A = h.personA || {};
+  const B = h.personB || null;
+  const marital = h.veranlagungsart === 'zusammenveranlagung' ? 'married'
+    : h.veranlagungsart === 'einzelveranlagung_ehegatten_par26a' ? 'married_sep'
+    : h.veranlagungsart === 'einzelveranlagung_verwitwete_gnadensplitting_par32a6' ? 'verwitwet'
+    : 'single';
+  const relBack = { '--':'none', EV:'ev', RK:'rk', VD:'other' };
+
+  const c = newClient(A.vorname||'', A.name||'', data.meta?.taxYear || 2025, marital);
+  c.status = data.meta?.status || 'draft';
+  c.transferTicket = data.meta?.transferTicket || null;
+
+  Object.assign(c.p, {
+    birthDate: A.geburtsdatum||'', taxId: A.idnr||'', street: A.anschrift?.strasse||'',
+    houseNo: A.anschrift?.hausnummer||'', plz: A.anschrift?.plz||'', city: A.anschrift?.ort||'',
+    religion: relBack[A.religion] || 'none', profession: A.beruf||'',
+    faNumber: h.finanzamt?.bufaNr||'', finanzamt: h.finanzamt?.name||'',
+    bundesland: h.bundesland||'', steuernummer: h.steuernummer||'',
+    iban: h.bankverbindung?.iban||'', neuaufnahmeConfirmed: h.neuaufnahmeConfirmed===true,
+    marriageDate: h.marriageDate||'',
+  });
+  if (B) Object.assign(c.p, {
+    spouseFirst: B.vorname||'', spouseLast: B.name||'', spouseBirth: B.geburtsdatum||'',
+    spouseTaxId: B.idnr||'', spouseReligion: relBack[B.religion] || 'none',
+  });
+
+  c.emps = (data.anlageN || []).map(k => ({
+    id: uid(), person: k.person==='B'?'B':'A', employer: k.arbeitgeber||'', taxClass: k.steuerklasse||'', kfb: k.kinderfreibetraege||'',
+    gross: k.zeile3_bruttoarbeitslohn||'', wageTax: k.zeile4_lohnsteuer||'', soli: k.zeile5_soli||'',
+    churchPaid: k.zeile6_kirchensteuer||'', churchSpouse: k.zeile7_kirchensteuerEhegatte||'',
+    vb8: k.zeile8_versorgungsbezuege||'', vb9: k.zeile9_versorgungMehrjaehrig||'', ml10: k.zeile10_mehrjaehrigEntschaedigung||'',
+    lst11: k.zeile11_lst||'', soli12: k.zeile12_soli||'', kist13: k.zeile13_kist||'', kistSp14: k.zeile14_kistEhegatte||'',
+    ersatz15: k.zeile15_lohnersatz||'', kug15a: k.zeile15a_kug||'', dba16: k.zeile16_dbaAte||'',
+    fahrt17: k.zeile17_agLeistungenEntfernung||'', pausch18: k.zeile18_pauschal15||'',
+    entsch19: k.zeile19_entschaedigungen||'', verpf20: k.zeile20_verpflegung||'', dhh21: k.zeile21_dhh||'',
+    agRV: k.zeile22a_agRV||'', agRVb: k.zeile22b_agBerufsstaendisch||'', anRV: k.zeile23a_anRV||'', anRVb: k.zeile23b_anBerufsstaendisch||'',
+    agKV: k.zeile24a_agZuschussGKV||'', agPKV: k.zeile24b_agZuschussPKV||'', agPV: k.zeile24c_agZuschussPV||'',
+    anKV: k.zeile25_anGKV||'', anPV: k.zeile26_anPV||'', anAV: k.zeile27_anAV||'', pkv28: k.zeile28_pkvMindest||'',
+    bmg29: k.zeile29_bmgVersorgungsfreibetrag||'', vbJahr30: k.zeile30_versorgungsbeginn||'',
+    vbMon31: (k.zeile31_vonMonat && k.zeile31_bisMonat) ? `${String(k.zeile31_vonMonat).padStart(2,'0')} / ${String(k.zeile31_bisMonat).padStart(2,'0')}` : (k.zeile31_monate||''),
+    sterbe32: k.zeile32_sterbegeld||'', fb34: k.zeile34_dbaTuerkei||'',
+  }));
+
+  c.aus = {};
+  (data.anlageNAUS || []).forEach((a, i) => {
+    const matchingEmp = c.emps.find(e => e.person === (a.person==='B'?'B':'A'));
+    const empId = matchingEmp ? matchingEmp.id : `imported_aus_${i}`;
+    c.aus[empId] = {
+      enabled: true, country: a.land||'', legalBasis: a.legalBasis||'dba',
+      employerName: a.arbeitgeberName||'', employerStreet: a.arbeitgeberStreet||'', employerPlz: a.arbeitgeberPlz||'',
+      employerCity: a.arbeitgeberCity||'', employerCountry: a.arbeitgeberCountry||'',
+      activityDesc: a.taetigkeitDesc||'', activityFrom: a.taetigkeitVon||'', activityTo: a.taetigkeitBis||'',
+      totalWage: a.gesamtlohn||'', workDaysTotal: a.arbeitstageGesamt||'', workDaysForeign: a.arbeitstageAusland||'',
+      dualResidence: !!a.dualResidence, foreignResStreet: a.foreignResStreet||'', foreignResPlz: a.foreignResPlz||'',
+      foreignResCity: a.foreignResCity||'', foreignResCountry: a.foreignResCountry||'', centerOfInterests: !!a.centerOfInterests,
+      shortStayBasis: a.shortStayBasis||'', shortStayBasisText: a.shortStayBasisText||'',
+    };
+  });
+
+  const wk = data.werbungskosten || {};
+  const importWk = (src) => {
+    const ep = src.entfernungspauschale || {};
+    const dhh = src.doppelteHaushaltsfuehrung || {};
+    return {
+      commuteDays: ep.arbeitstage||'', commuteKm: ep.einfacheEntfernungKm||'', commuteMode: ep.verkehrsmittel||'',
+      commutePublicCost: ep.oeffentlicheKosten||'', commuteWorkplace: ep.arbeitsstaette||'',
+      homeOffice: src.homeofficeTage||'', equipment: src.arbeitsmittel||'', training: src.fortbildung||'', other: src.sonstige||'',
+      dhhRent: dhh.monatsmiete||'', dhhMonths: dhh.monate||'', dhhTrips: dhh.familienheimfahrten||'', dhhKm: dhh.entfernungKm||'',
+      dhhReason: dhh.grund||'', dhhDate: dhh.datum||'', dhhWorkplace: dhh.beschaeftigungsort||'',
+      dhhOwnHousehold: dhh.eigenerHausstand||'', dhhOwnPlz: dhh.eigenerHausstandOrt||'', dhhOwnSince: dhh.eigenerHausstandSeit||'',
+      dhhContinuousUntil: dhh.bestehtBis||'', dhhTravelMode: dhh.reiseart||'', relocation: src.umzugskosten||'',
+    };
+  };
+  if (wk.personA) c.wk = importWk(wk.personA);
+  if (wk.personB) c.wkB = importWk(wk.personB);
+  c.wkItems = (wk.einzelposten || []).map(x => ({ id: uid(), person: x.person==='B'?'B':'A', type: x.kategorie||'', desc: (x.bezeichnung||'').replace(/^[^-]*-\s*/, ''), amount: x.betrag||'' }));
+
+  const vor = data.anlageVorsorgeaufwand || {};
+  c.privIns = (vor.privateVersicherungen || []).map(x => ({ id: uid(), person: x.person==='B'?'B':'A', type: x.typ||'', beitrag: x.beitrag||'', erstattung: x.erstattung||'' }));
+  c.ins.other = vor.sonstigeVersicherungen || '';
+
+  c.fam.children = (data.anlageKind || []).map(k => ({
+    id: uid(), name: k.vorname||'', surnameIfDifferent: k.surnameIfDifferent||'', birth: k.geburtsdatum||'', taxId: k.idnr||'',
+    kinship: k.kinship||'leiblich', familienkasse: k.familienkasse||'', otherParentName: k.otherParentName||'',
+    kindergeld: k.kindergeld||'', childcare: k.betreuungskosten||'', ccProvider: k.betreuungAnbieter||'',
+    ccPeriodFrom: k.betreuungVon||'', ccPeriodTo: k.betreuungBis||'', schoolFees: k.schulgeld||'',
+    behMobility: !!k.behMobility, behBlindHelpless: !!k.behBlindHelpless, behValidIndefinite: !!k.behValidIndefinite,
+    behValidFrom: k.behValidFrom||'', behValidTo: k.behValidTo||'', behSplitPercent: k.behSplitPercent||'',
+  }));
+
+  c.unt = (data.anlageUnterhalt || []).map(u => ({
+    id: uid(), support: u.betrag||'', supportGroup: u.laendergruppe||'1', untName: u.personName||'', untIdnr: u.personIdnr||'',
+    untProfession: u.profession||'', untBirthDate: u.personBirthDate||'', untRelationship: u.relationship||'',
+    untAddress: u.householdAddress||'', untHouseholdSize: u.householdSize||'', untFrom: u.von||'', untTo: u.bis||'',
+    untCohabitation: u.cohabitation?'ja':'nein', untKindergeld: u.kindergeldEntitlement?'ja':'nein',
+    untOtherContributor: u.otherContributor?'ja':'nein', untHasAssets: u.hasAssets?'ja':'nein', untHasIncome: u.hasOwnIncome?'ja':'nein',
+    untCountry: u.country||'', untForeignConfirmed: u.foreignNeedConfirmed?'ja':'nein',
+  }));
+
+  const sa = data.sonderausgaben || {};
+  c.sa.donations = sa.spenden || ''; c.sa.donationsOwner = sa.spendenOwner || '';
+  c.ex.medical = data.aussergewoehnlicheBelastungen?.krankheitskosten || '';
+  const hh = data.haushaltsnaheLeistungen || {};
+  c.ex.household = hh.haushaltsnaheDienstleistungen || ''; c.ex.handwerker = hh.handwerkerleistungen || '';
+
+  c.kap = (data.anlageKAP || []).map(k => ({
+    id: uid(), person: k.person==='B'?'B':'A', platform: k.institut||'',
+    k7: k.zeile7_kapitalertraege||'', k8: k.zeile8_aktiengewinne||'', k12: k.zeile12_verlusteOhneAktien||'', k13: k.zeile13_verlusteAktien||'',
+    sparerUsed: k.zeile16_sparerPauschbetragGenutzt||'', k18: k.zeile18_inlaendischOhneSteuerabzug||'', k19: k.zeile19_auslaendisch||'',
+    k20: k.zeile20_aktiengewinne||'', k21: k.zeile21_stillhalterTermingeschaefte||'', k22: k.zeile22_verlusteOhneAktien||'', k23: k.zeile23_verlusteAktien||'',
+    k43: k.zeile43_kapitalertragsteuer||'', k44: k.zeile44_soli||'', k45: k.zeile45_kirchensteuer||'',
+  }));
+
+  c.props = (data.anlageV || []).map(p => ({
+    id: uid(), street: p.street||'', plz: p.plz||'', city: p.ort||'', country: p.land||'Deutschland',
+    rent: p.mieteinnahmen||'', nebenkosten: p.nebenkosten||'',
+    wkAfa: p.wkAfa||'', wkSonderabschr: p.wkSonderabschr||'', wkSchuldzins: p.wkSchuldzins||'', wkGeldbeschaff: p.wkGeldbeschaff||'',
+    wkErhaltung: p.wkErhaltung||'', wk5JAbzugsfaehig: p.wk5JAbzugsfaehig||'', wkVerwaltung: p.wkVerwaltung||'', wkUstPflichtig: p.wkUstPflichtig||'', wkSonst: p.wkSonst||'',
+    unit: p.wohneinheit||'', ferienwohnung: p.ferienwohnung?'ja':'nein', kurzfristig: p.kurzfristig?'ja':'nein',
+    angehoerige: p.angehoerige?'ja':'nein', owner: p.owner||'',
+  }));
+
+  c.rente = (data.anlageR || []).map(r => ({ id: uid(), person: r.person==='B'?'B':'A', type: r.art||'gesetzlich', amount: r.jahresbetrag||'', startYear: r.rentenbeginn||'' }));
+
+  const em = data.par35cEnergetisch || {};
+  if (Object.keys(em).length) Object.assign(c.oth, {
+    emEnabled: true, emStreet: em.street||'', emBuildDate: em.buildDate||'', emPlzOrt: em.plzOrt||'',
+    emAreaTotal: em.areaTotal||'', emAreaOwn: em.areaOwn||'', emPriorClaim: em.priorClaim?'ja':'nein', emOtherFunding: em.otherFunding?'ja':'nein',
+    emMeasureStart: em.measureStart||'', emWalls: em.walls||'', emRoof: em.roof||'', emCeiling: em.ceiling||'',
+    emWindows: em.windows||'', emVentilation: em.ventilation||'', emHeating: em.heating||'',
+    emPriorYear1: em.priorYear1||'', emPriorYear2: em.priorYear2||'',
+  }); else c.oth.emEnabled = false;
+
+  const wa = data.weitereAngaben || {};
+  Object.assign(c.oth, {
+    ersatz: wa.ersatzleistungen||'', lossCarry: wa.verlustvortrag||'',
+    realsplitting: wa.realsplittingAnlageU||'', realsplitIdnr: wa.realsplitIdnr||'', realsplitName: wa.realsplitName||'',
+  });
+  const beh = wa.behinderung || {};
+  Object.assign(c.oth, {
+    gdbA: beh.gdbA||'', gdbB: beh.gdbB||'', fahrtA: beh.fahrtA||'', fahrtB: beh.fahrtB||'',
+    pflegeA: beh.pflegeA||'', pflegeB: beh.pflegeB||'',
+    pflegePersonA: beh.pflegePersonA||'', pflegePersonAId: beh.pflegePersonAId||'', pflegePersonAResident: beh.pflegePersonAResident||'', pflegePersonAH: !!beh.pflegePersonAH,
+    pflegePersonB: beh.pflegePersonB||'', pflegePersonBId: beh.pflegePersonBId||'', pflegePersonBResident: beh.pflegePersonBResident||'', pflegePersonBH: !!beh.pflegePersonBH,
+  });
+  const so = wa.anlageSO || {};
+  c.oth.soGain = so.privateVeraeusserungsgeschaefte || ''; c.oth.soUnterhalt = so.erhaltenerUnterhalt || '';
+
+  return c;
+}
+
+function importElsterFile(file){
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    let data;
+    try { data = JSON.parse(e.target.result); }
+    catch (err) { alert('Could not read this file as JSON: ' + err.message); return; }
+    if (data.meta?.format !== 'simplytax-interchange') {
+      if (!confirm('This file does not look like a SimplyTax interchange file. Import anyway?')) return;
+    }
+    try {
+      const c = importElsterDataset(data);
+      S.clients.push(c); scheduleSave();
+      S.currentId = c.id; S.view = 'client'; S.step = 10;
+      render();
+    } catch (err) {
+      alert('Import failed: ' + err.message);
+      console.error('[import]', err);
+    }
+  };
+  reader.readAsText(file);
 }
 
 /* ---------------- PDF export (client summary) ---------------- */
