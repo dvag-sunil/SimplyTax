@@ -275,6 +275,17 @@ function handleValidate(msg) {
      text points to this file for the real detail instead of providing
      it directly. */
   const ericLogTail = (rc !== 0 && !resultXml) ? readEricLogTail() : undefined;
+  /* Added directly because of a real gap found via the actual Render
+     logs shared - readEricLogTail() computed this correctly, but
+     nothing ever printed it to the console, so its only path to
+     visibility was the JSON API response, easy to lose in a manual
+     copy. Now printed directly here too, so it shows up in Render
+     logs on its own, independent of the response ever being captured
+     correctly. */
+  if (rc !== 0) {
+    log(`validate failed: rc=${rc}, resultXml empty=${!resultXml}`);
+    if (ericLogTail) log(`ericLogTail:\n${ericLogTail}`);
+  }
   return { rc, resultXml, sent: false, ...(ericLogTail ? { ericLogTail } : {}) };
 }
 
@@ -308,8 +319,15 @@ function handleSubmit(msg) {
   /* FIXED (was a manual-parsing TODO): use ERiC's own official function to
      pull the Transferticket and error details out of the server answer,
      rather than regex-parsing serverXml ourselves. */
-  const answer = extractServerAnswer(serverXml);
+   const answer = extractServerAnswer(serverXml);
   const ericLogTail = (rc !== 0 && !resultXml) ? readEricLogTail() : undefined;
+  /* Same real fix as handleValidate above - printed directly to the
+     console so it shows up in Render logs independent of the API
+     response. */
+  if (rc !== 0) {
+    log(`submit failed: rc=${rc}, resultXml empty=${!resultXml}`);
+    if (ericLogTail) log(`ericLogTail:\n${ericLogTail}`);
+  }
 
   return { rc, resultXml, serverXml, sent: rc === 0, ...answer, ...(ericLogTail ? { ericLogTail } : {}) };
 }
