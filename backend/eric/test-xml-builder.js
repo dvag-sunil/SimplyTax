@@ -2070,6 +2070,28 @@ check('Real bug fixed (found via the full rich-matrix test run): multiple rental
   return (x.match(/<V>/g) || []).length === 1 && (x.match(/<Ek_b_Gst>/g) || []).length === 2;
 })());
 
+check('Real mistake reverted (E0704410): confirmed directly against the real XSD type (GanzzahlNichtNegOhneFuehrNull) that this field is genuinely whole-euro, not decimal - a wrong fix from a previous session, corrected by checking the actual type definition this time instead of inferring from error text', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ street: 'X', plz: '12345', ort: 'Y', mieteinnahmen: 10000, wkErhaltung: 2000 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0704410>2000</E0704410>') && !x.includes('<E0704410>2000,00</E0704410>');
+})());
+check('Real gap fixed (E0701501): the Werbungskosten total is now explicitly transferred into Erm_Zuord_Ek for 2021/2022, matching a real ERiC rejection that occurred even when the underlying figures were already correct', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2022;
+  d.anlageV = [{ street: 'X', plz: '12345', ort: 'Y', mieteinnahmen: 10000, wkVerwaltung: 300 }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0701501>300</E0701501>');
+})());
+
+check('Real gap fixed (E0243401): genuinely absent for 2021 specifically (found via the full rich-matrix test run), correctly omitted for that year while priorYear1 (stable across all years) is still sent', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2021;
+  d.par35cEnergetisch = { street: 'X', buildDate: '2000-01-01', plzOrt: 'Y', walls: 500, priorYear1: 200, priorYear2: 300 };
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0242501>200</E0242501>') && !x.includes('E0243401');
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);

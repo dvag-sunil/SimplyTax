@@ -1382,7 +1382,7 @@ function buildWkBlock(p, taxYear) {
     inner += `<Geldbeschaff>${direktPart}<Sum>\n${wholeEuroTag(fm.V.wkGeldbeschaffSum, p.wkGeldbeschaff)}</Sum></Geldbeschaff>\n`;
   }
   if (N(p.wkErhaltung) > 0) {
-    inner += `<Erhalt_AW_dir><Einz>\n${tag(fm.V.wkErhaltungBezeichnung, 'Erhaltungsaufwand')}${euroTag(fm.V.wkErhaltungGesamt, p.wkErhaltung)}${wholeEuroTag(fm.V.wkErhaltungEinz, p.wkErhaltung)}</Einz><Sum>\n${wholeEuroTag(fm.V.wkErhaltungSum, p.wkErhaltung)}</Sum></Erhalt_AW_dir>\n`;
+    inner += `<Erhalt_AW_dir><Einz>\n${tag(fm.V.wkErhaltungBezeichnung, 'Erhaltungsaufwand')}${wholeEuroTag(fm.V.wkErhaltungGesamt, p.wkErhaltung)}${wholeEuroTag(fm.V.wkErhaltungEinz, p.wkErhaltung)}</Einz><Sum>\n${wholeEuroTag(fm.V.wkErhaltungSum, p.wkErhaltung)}</Sum></Erhalt_AW_dir>\n`;
   }
   /* Newly implemented - maintenance spread over 5 years (§82b
      EStDV). Real structure is genuinely different: a total expense
@@ -1493,8 +1493,15 @@ function buildVLegacy(data, entries) {
          second person exists), fully to B, or split evenly for joint
          ownership - matching the same 'A'/'B'/joint pattern already
          used elsewhere in this app for shared items. */
-       inner += '<Erm_Zuord_Ek>\n';
+        inner += '<Erm_Zuord_Ek>\n';
       inner += wholeEuroTag(fm.V.einnahmenSum, totalIncome);
+      /* CORRECTED: real, confirmed gap found via the second round of
+         test-runner results - the Werbungskosten total was never
+         explicitly transferred here for legacy years, only declared
+         once within Wk/Se_WK above. ERiC genuinely requires both,
+         confirmed via a real rejection even though the underlying
+         figures were already correct. Genuinely absent for 2023+. */
+      inner += wholeEuroTag(fm.V.werbungskostenTransfer, wkTotal);
       inner += wholeEuroTag(fm.V.ueberschuss, ueberschuss);
       /* CORRECTED: real, confirmed gap found via a systematic audit -
          this owner split allowed sending Person B's share even under
@@ -2394,11 +2401,13 @@ function buildEM35c(data) {
 
   let aufw = `<Aufw>\n${tag(fm.EM_35c.otherFunding, e.otherFunding ? '1' : '2')}<Massn>\n${massn}</Massn>\n</Aufw>\n`;
 
-  let vorj = '';
-  if (N(e.priorYear1) > 0 || N(e.priorYear2) > 0) {
+   let vorj = '';
+  const taxYearForEM = Number(data.meta?.taxYear) || 2025;
+  const hasPriorYear2 = fm.isFieldSupportedForYear(fm.EM_35c.priorYear2, taxYearForEM);
+  if (N(e.priorYear1) > 0 || (hasPriorYear2 && N(e.priorYear2) > 0)) {
     vorj = '<EM_Vorj>\n';
     if (N(e.priorYear1) > 0) vorj += wholeEuroTag(fm.EM_35c.priorYear1, e.priorYear1);
-    if (N(e.priorYear2) > 0) vorj += wholeEuroTag(fm.EM_35c.priorYear2, e.priorYear2);
+    if (hasPriorYear2 && N(e.priorYear2) > 0) vorj += wholeEuroTag(fm.EM_35c.priorYear2, e.priorYear2);
     vorj += '</EM_Vorj>\n';
   }
 

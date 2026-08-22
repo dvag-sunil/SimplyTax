@@ -915,6 +915,13 @@ const V = {
 
   /* Einn/Sum - overall income total (Regel 100700004). */
   einnahmenSum: 'E0701401',
+  /* Newly found via a real ERiC rejection - genuinely required for
+     2021/2022 specifically (confirmed absent for 2023+): the
+     Werbungskosten total already declared within Wk/Se_WK must also
+     be explicitly transferred/repeated here, or the whole Überschuss
+     calculation is rejected as internally inconsistent even when the
+     actual numbers are correct. */
+  werbungskostenTransfer: 'E0701501',
 
   /* CORRECTED (real mistake, found and fixed via the actual client file
      returning "feldUnbekannt" - not just a Regel violation this time):
@@ -1113,6 +1120,7 @@ const FIELD_YEAR_SUPPORT = {
   E0707902: { minYear: 2023, section: 'V/Wk/Sonst/Direkt', note: 'companion field to E0707901, same year boundary.' },
   E0703601: { minYear: 2023, section: 'V/Wk/Sonderabschr_P7b/Direkt (special depreciation declaration type)', note: 'same real gap found via the full rich-matrix test run. Sum (E0703416) is stable across all years.' },
   E0703602: { minYear: 2023, section: 'V/Wk/Sonderabschr_P7b/Direkt', note: 'companion field to E0703601, same year boundary.' },
+  E0243401: { minYear: 2022, section: 'EM_35c/Obj/EM_Vorj (energy-renovation prior-year-2 recognized expenses)', note: 'real gap found via the full rich-matrix test run - genuinely absent for 2021 specifically, present from 2022 onward. The sibling field priorYear1 (E0242501) is confirmed present for 2021, so only this one specific field needs the guard.' },
 };
 
 function isSectionSupportedForYear(section, year) {
