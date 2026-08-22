@@ -2921,7 +2921,7 @@ ${nutzdaten}</Nutzdaten>
 </DatenTeil>
 </Elster>`;
 
-  return { xml, skippedSections };
+  return { xml, skippedSections: ['DIAGNOSTIC MARKER v2 (E0704410-decimal-fix): if you see this exact line in the real output, this file is genuinely running - remove this marker once confirmed.', ...skippedSections] };
 }
 
 function bundeslandCode(name) {
