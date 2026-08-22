@@ -639,7 +639,7 @@ en: {
  veranlagung_diff_note:"Difference: {amount}",
  veranlagung_tie_note:"Both options come out the same here - usually because taxable income is low enough that no income tax is owed either way, so there's nothing for the tariff choice to change.",
  veranlagung_scope_note:"Note: the \"Estimated Refund\" in the sidebar shows this one return only. The separate-assessment figure above adds both spouses' own, independent returns together.",
- m_zve:"Taxable income (est.)", m_tax:"Income tax (est.)", m_soli:"Solidarity surch.", m_kist:"Church tax", m_paid:"Already paid", m_credit:"§ 35a credit",
+ m_zve:"Taxable income (est.)", m_tax:"Income tax (est., after credits)", m_soli:"Solidarity surch.", m_kist:"Church tax", m_paid:"Already paid", m_credit:"§ 35a credit", m_credit_note:"includes § 35a credit",
  meter_foot:"Non-binding estimate (unverbindliche Schätzung). The final assessment (Bescheid) by the Finanzamt may differ.",
  next:"Next", back:"Back",
  submitting:"Transmitting to the tax authority...",
@@ -1079,7 +1079,7 @@ de: {
  veranlagung_diff_note:"Unterschied: {amount}",
  veranlagung_tie_note:"Beide Varianten ergeben hier den gleichen Betrag - meist, weil das zu versteuernde Einkommen so niedrig ist, dass ohnehin keine Einkommensteuer anfällt und der Tarif keinen Unterschied macht.",
  veranlagung_scope_note:"Hinweis: Die „Geschätzte Erstattung” in der Seitenleiste zeigt nur diese eine Erklärung. Die Zahl zur Einzelveranlagung oben addiert die eigenständigen Erklärungen beider Ehepartner.",
- m_zve:"Zu verst. Einkommen (ca.)", m_tax:"Einkommensteuer (ca.)", m_soli:"Solidaritätszuschlag", m_kist:"Kirchensteuer", m_paid:"Bereits gezahlt", m_credit:"§ 35a-Ermäßigung",
+ m_zve:"Zu verst. Einkommen (ca.)", m_tax:"Einkommensteuer (ca., nach Ermäßigungen)", m_soli:"Solidaritätszuschlag", m_kist:"Kirchensteuer", m_paid:"Bereits gezahlt", m_credit:"§ 35a-Ermäßigung", m_credit_note:"davon § 35a-Ermäßigung enthalten",
  meter_foot:"Unverbindliche Schätzung. Der endgültige Bescheid des Finanzamts kann abweichen.",
  next:"Weiter", back:"Zurück",
  submitting:"Übermittlung an das Finanzamt...",
@@ -3098,9 +3098,9 @@ function meter(c){
  <div class="big num ${pos?'':'neg'}">${empty?' - ':eur(Math.abs(e.refund))}</div>
  <div class="sub">${t('tax_year')} ${c.taxYear}</div>
  <hr>
- <div class="row"><span>${t('m_zve')}</span><b class="num">${eur(e.zvE)}</b></div>
- <div class="row"><span>${t('m_tax')}</span><b class="num">${eur(e.tax)}</b></div>
- ${e.credit>0?`<div class="row"><span>${t('m_credit')}</span><b class="num">−${eur(e.credit)}</b></div>`:''}
+   <div class="row"><span>${t('m_zve')}</span><b class="num">${eur(e.zvE)}</b></div>
+ <div class="row"><span>${t('m_tax')}</span><b class="num">${eur(e.taxAfter)}</b></div>
+ ${e.credit>0?`<div class="row" style="opacity:.75"><span>${t('m_credit_note')||t('m_credit')}</span><b class="num">${eur(e.credit)}</b></div>`:''}
  ${e.soli>0?`<div class="row"><span>${t('m_soli')}</span><b class="num">${eur(e.soli)}</b></div>`:''}
  ${e.kist>0?`<div class="row"><span>${t('m_kist')}</span><b class="num">${eur(e.kist)}</b></div>`:''}
  ${e.kap>0?`<div class="row"><span>${t('m_kap')}</span><b class="num">${eur(e.kap)}</b></div>`:''}
@@ -4272,7 +4272,7 @@ function stepHousehold(c){
    return `<div class="infobox" style="padding:8px 10px;margin:0 0 12px;background:${on?'var(--teal-soft)':'var(--paper-soft)'};border-color:${on?'var(--teal)':'var(--border)'}">
    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
    <span style="font-size:12.5px">🏠 ${on?t('energ_status_included'):t('energ_status_excluded')} <b>${eur(total)}</b></span>
-   <button class="link-btn" style="padding:0;font-size:12px" onclick="toggleEm35cEnabled()">${on?t('energ_exclude'):t('energ_include')}</button>
+    <button class="link-btn" style="padding:0;font-size:12px;color:var(--teal-dark);font-weight:700;text-decoration:underline" onclick="toggleEm35cEnabled()">${on?t('energ_exclude'):t('energ_include')}</button>
    </div>
    ${!on?`<div class="hint" style="margin-top:4px">${t('energ_excluded_hint')}</div>`:''}
    </div>`;
@@ -5517,7 +5517,7 @@ function printFallback(c){
  ${sec(t('special_exp'),[[t('donations'),m(c.sa.donations)]])}
  <div class="box"><h3 style="border:none;margin-top:0">${esc(t('pdf_est'))}</h3>
  <table><tr><td>${t('m_zve')}</td><td style="text-align:right">${eur(e.zvE)}</td></tr>
- <tr><td>${t('m_tax')}</td><td style="text-align:right">${eur(e.tax)}</td></tr>
+  <tr><td>${t('m_tax')}</td><td style="text-align:right">${eur(e.taxAfter)}</td></tr>
  <tr><td>${t('m_paid')}</td><td style="text-align:right">${eur(e.paid)}</td></tr></table>
  <div class="big">${pos?t('meter_title'):t('meter_nach')}: ${eur(Math.abs(e.refund))}</div></div>
  <p class="foot">${esc(t('meter_foot'))} · ${t('pdf_generated')} ${dateStr(Date.now())}</p>
@@ -5646,8 +5646,8 @@ function buildPDF(c){
  const erow=(l,v)=>{ doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...GRAY);
  doc.text(pdfSafe(l), ML+2, y); doc.setTextColor(...INK); doc.setFont('helvetica','bold');
  doc.text(pdfSafe(v), MR-2, y, {align:'right'}); y+=4.8; };
- erow(t('m_zve'), eur(e.zvE)); erow(t('m_tax'), eur(e.tax));
- if(e.credit>0) erow(t('m_credit'), '-'+eur(e.credit));
+  erow(t('m_zve'), eur(e.zvE)); erow(t('m_tax'), eur(e.taxAfter));
+ if(e.credit>0) erow(t('m_credit_note')||t('m_credit'), eur(e.credit));
  if(e.soli>0) erow(t('m_soli'), eur(e.soli));
  if(e.kist>0) erow(t('m_kist'), eur(e.kist));
  if(e.kap>0) erow(t('m_kap'), eur(e.kap));
