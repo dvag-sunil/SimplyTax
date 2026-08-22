@@ -2185,7 +2185,14 @@ function computeEstimate(c){
  // €200,000 total spend - this rough estimate always uses the 7% rate
  // since it's a client-facing approximation, not the actual filing
  // calculation (which the Finanzamt performs from the real declaration)
- const energTotal = ['Walls','Roof','Ceiling','Windows','Ventilation','Heating'].reduce((s,k)=>s+N(c.oth['em'+k]),0);
+  /* CORRECTED: real, confirmed bug found via direct user feedback and
+     testing - this never checked c.oth.emEnabled at all, so clicking
+     "Exclude from filing" had zero actual effect on the estimate,
+     directly contradicting the UI's own promise that excluding it
+     means nothing is counted. Now genuinely respects the same toggle
+     state already used for the display elsewhere in the app. */
+  const energEnabled = c.oth?.emEnabled !== false;
+  const energTotal = energEnabled ? ['Walls','Roof','Ceiling','Windows','Ventilation','Heating'].reduce((s,k)=>s+N(c.oth['em'+k]),0) : 0;
  const energ = Math.min(Math.min(energTotal,200000)*0.07, 14000);
  const credit = Math.min(N(c.ex.household)*0.20, 4000) + Math.min(N(c.ex.handwerker)*0.20, 1200) + energ;
  const taxAfter = Math.max(0, tax - credit);
