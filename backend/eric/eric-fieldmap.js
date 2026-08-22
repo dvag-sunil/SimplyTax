@@ -1102,6 +1102,17 @@ const FIELD_YEAR_SUPPORT = {
   E0203003: { minYear: 2023, section: 'N/Wk/EP/Erste_Taetig (commute destination type)', note: 'real bug found via an actual ERiC rejection ("Ziel des Weges" not supported for 2022) - checked directly against the schema for every year: genuinely absent for 2020-2022, present from 2023 onward. The rest of the commute field group (E0203501/503/504/505/506) is confirmed stable across all six years - this one field specifically is the only part of that group with a real year boundary.' },
   E0704813: { minYear: 2023, section: 'V/Wk/Geldbeschaff/Direkt (financing costs description)', note: 'checked directly against the schema for every year - genuinely absent for 2021-2022, present from 2023 onward. The Sum field (E0704406) is stable across all years, so financing costs can still be sent for earlier years via Sum alone.' },
   E0704814: { minYear: 2023, section: 'V/Wk/Geldbeschaff/Direkt (financing costs amount)', note: 'same real year boundary as E0704813, confirmed together.' },
+  E0703302: { minYear: 2023, section: 'V/Wk/AfA_Geb/Direkt (depreciation method/rate)', note: 'real gap found via the full rich-matrix test run - genuinely absent for 2021-2022, confirmed directly against the schema, same real year boundary as the Geldbeschaff Direkt fields already handled. Sum (E0703511) is stable across all years.' },
+  E0703303: { minYear: 2023, section: 'V/Wk/AfA_Geb/Direkt', note: 'companion field to E0703302, same year boundary.' },
+  E0703306: { minYear: 2023, section: 'V/Wk/AfA_Geb/Direkt', note: 'companion field to E0703302, same year boundary.' },
+  E0704507: { minYear: 2023, section: 'V/Wk/Schuldzins/Direkt (loan interest description)', note: 'same real gap found via the full rich-matrix test run. Sum (E0703406) is stable across all years.' },
+  E0704508: { minYear: 2023, section: 'V/Wk/Schuldzins/Direkt', note: 'companion field to E0704507, same year boundary.' },
+  E0707501: { minYear: 2023, section: 'V/Wk/Verw_Ko/Direkt (management cost description)', note: 'same real gap found via the full rich-matrix test run. Sum (E0705515) is stable across all years.' },
+  E0707502: { minYear: 2023, section: 'V/Wk/Verw_Ko/Direkt', note: 'companion field to E0707501, same year boundary.' },
+  E0707901: { minYear: 2023, section: 'V/Wk/Sonst/Direkt (other cost description)', note: 'same real gap found via the full rich-matrix test run. Sum (E0705607) is stable across all years.' },
+  E0707902: { minYear: 2023, section: 'V/Wk/Sonst/Direkt', note: 'companion field to E0707901, same year boundary.' },
+  E0703601: { minYear: 2023, section: 'V/Wk/Sonderabschr_P7b/Direkt (special depreciation declaration type)', note: 'same real gap found via the full rich-matrix test run. Sum (E0703416) is stable across all years.' },
+  E0703602: { minYear: 2023, section: 'V/Wk/Sonderabschr_P7b/Direkt', note: 'companion field to E0703601, same year boundary.' },
 };
 
 function isSectionSupportedForYear(section, year) {

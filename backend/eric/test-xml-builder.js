@@ -695,13 +695,13 @@ check('V Werbungskosten: itemized categories (2024/2025) correctly transmit with
     && x.includes('<Se_WK>') && x.includes('<E0705701>6000</E0705701>') // overall total: 5000 + 1000
     && x.includes('<E0701601>4000</E0701601>'); // 10000 - 5000 - 1000
 })());
-check('V Werbungskosten: same itemized categories with individual entries and overall total also work for legacy years (2021-2022) inside Ek_b_Gst/Wk', (() => {
+check('V Werbungskosten: itemized categories with an overall total work for legacy years (2021-2022) too, correctly omitting the Direkt sub-fields that genuinely don\'t exist for those years (found via the full rich-matrix test run) while still sending Sum', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.meta.taxYear = 2022;
   d.anlageV = [{ street: 'X', plz: '12345', ort: 'Y', mieteinnahmen: 10000, wkVerwaltung: 300, wkSonst: 100 }];
   const x = buildEStXML(d).xml;
-  return x.includes('<Ek_b_Gst>') && x.includes('<Verw_Ko><Direkt>') && x.includes('<E0705515>300</E0705515>') && x.includes('<E0707502>300</E0707502>')
-    && x.includes('<Sonst><Direkt>') && x.includes('<E0705607>100</E0705607>') && x.includes('<E0707902>100</E0707902>')
+  return x.includes('<Ek_b_Gst>') && !x.includes('<Verw_Ko><Direkt>') && x.includes('<E0705515>300</E0705515>') && !x.includes('<E0707502>300</E0707502>')
+    && !x.includes('<Sonst><Direkt>') && x.includes('<E0705607>100</E0705607>') && !x.includes('<E0707902>100</E0707902>')
     && x.includes('<E0705701>400</E0705701>') // overall total: 300 + 100
     && x.includes('<E0701601>9600</E0701601>'); // 10000 - 300 - 100
 })());
@@ -2057,6 +2057,17 @@ check('Newly implemented (full wiring audit): the pension first/last month range
   d.anlageN[0].zeile31_bisMonat = 12;
   const x = buildEStXML(d).xml;
   return x.includes('<E0201003>3</E0201003>') && x.includes('<E0201203>12</E0201203>');
+})());
+
+check('Real bug fixed (found via the full rich-matrix test run): multiple rental properties for 2021/2022 correctly nest inside one shared V element (confirmed maxOccurs=1 for these years), not one V wrapper per property', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2022;
+  d.anlageV = [
+    { street: 'A1', plz: '60000', ort: 'Frankfurt', mieteinnahmen: 12000, owner: 'A' },
+    { street: 'B1', plz: '63000', ort: 'Offenbach', mieteinnahmen: 10000, owner: 'A' },
+  ];
+  const x = buildEStXML(d).xml;
+  return (x.match(/<V>/g) || []).length === 1 && (x.match(/<Ek_b_Gst>/g) || []).length === 2;
 })());
 
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);

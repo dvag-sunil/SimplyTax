@@ -1342,11 +1342,19 @@ function wkCategoryTotal(p) {
    returns a flag so the caller can honestly disclose this assumption
    rather than silently guess without telling anyone. */
 function buildWkBlock(p, taxYear) {
-  let inner = '';
+   let inner = '';
   let usedAfaDefault = false;
   if (N(p.wkAfa) > 0) {
     usedAfaDefault = true;
-    inner += `<AfA_Geb><Direkt>\n${tag(fm.V.wkAfaArt, '1')}${percentTag(fm.V.wkAfaProzent, 2)}${wholeEuroTag(fm.V.wkAfaDirekt, p.wkAfa)}</Direkt><Sum>\n${wholeEuroTag(fm.V.wkAfaSum, p.wkAfa)}</Sum></AfA_Geb>\n`;
+    /* CORRECTED: real, confirmed gap found via the full rich-matrix
+       test run - Direkt sub-fields here genuinely don't exist for
+       2021/2022 either, the exact same year boundary already
+       correctly handled for Geldbeschaff below. Sum works for every
+       year, so the deduction still goes through for earlier years,
+       just without the itemized method/rate backing entry. */
+    const hasAfaDirekt = fm.isFieldSupportedForYear(fm.V.wkAfaDirekt, taxYear || 2025);
+    const afaDirektPart = hasAfaDirekt ? `<Direkt>\n${tag(fm.V.wkAfaArt, '1')}${percentTag(fm.V.wkAfaProzent, 2)}${wholeEuroTag(fm.V.wkAfaDirekt, p.wkAfa)}</Direkt>` : '';
+    inner += `<AfA_Geb>${afaDirektPart}<Sum>\n${wholeEuroTag(fm.V.wkAfaSum, p.wkAfa)}</Sum></AfA_Geb>\n`;
   }
   /* Newly implemented - special depreciation (§7b EStG). This
      category's real structure genuinely has no simple amount field in
@@ -1354,11 +1362,15 @@ function buildWkBlock(p, taxYear) {
      same as prior year, "2" per explanation) plus free text. This app
      doesn't track prior-year carryover, so "2" (per explanation) is
      used with a generic explanation, alongside the real amount in Sum. */
-  if (N(p.wkSonderabschr) > 0) {
-    inner += `<Sonderabschr_P7b><Direkt>\n${tag(fm.V.wkSonderabschrArt, '2')}${tag(fm.V.wkSonderabschrErlaeuterung, 'Sonderabschreibung nach § 7b EStG')}</Direkt><Sum>\n${wholeEuroTag(fm.V.wkSonderabschrSum, p.wkSonderabschr)}</Sum></Sonderabschr_P7b>\n`;
+   if (N(p.wkSonderabschr) > 0) {
+    const hasSonderabschrDirekt = fm.isFieldSupportedForYear(fm.V.wkSonderabschrArt, taxYear || 2025);
+    const sonderabschrDirektPart = hasSonderabschrDirekt ? `<Direkt>\n${tag(fm.V.wkSonderabschrArt, '2')}${tag(fm.V.wkSonderabschrErlaeuterung, 'Sonderabschreibung nach § 7b EStG')}</Direkt>` : '';
+    inner += `<Sonderabschr_P7b>${sonderabschrDirektPart}<Sum>\n${wholeEuroTag(fm.V.wkSonderabschrSum, p.wkSonderabschr)}</Sum></Sonderabschr_P7b>\n`;
   }
-  if (N(p.wkSchuldzins) > 0) {
-    inner += `<Schuldzins><Direkt>\n${tag(fm.V.wkSchuldzinsAngaben, 'Darlehenszinsen')}${wholeEuroTag(fm.V.wkSchuldzinsDirekt, p.wkSchuldzins)}</Direkt><Sum>\n${wholeEuroTag(fm.V.wkSchuldzinsSum, p.wkSchuldzins)}</Sum></Schuldzins>\n`;
+   if (N(p.wkSchuldzins) > 0) {
+    const hasSchuldzinsDirekt = fm.isFieldSupportedForYear(fm.V.wkSchuldzinsDirekt, taxYear || 2025);
+    const schuldzinsDirektPart = hasSchuldzinsDirekt ? `<Direkt>\n${tag(fm.V.wkSchuldzinsAngaben, 'Darlehenszinsen')}${wholeEuroTag(fm.V.wkSchuldzinsDirekt, p.wkSchuldzins)}</Direkt>` : '';
+    inner += `<Schuldzins>${schuldzinsDirektPart}<Sum>\n${wholeEuroTag(fm.V.wkSchuldzinsSum, p.wkSchuldzins)}</Sum></Schuldzins>\n`;
   }
   /* Newly implemented - financing costs (loan arrangement fees etc,
      distinct from the interest itself). Direkt sub-fields confirmed
@@ -1370,7 +1382,7 @@ function buildWkBlock(p, taxYear) {
     inner += `<Geldbeschaff>${direktPart}<Sum>\n${wholeEuroTag(fm.V.wkGeldbeschaffSum, p.wkGeldbeschaff)}</Sum></Geldbeschaff>\n`;
   }
   if (N(p.wkErhaltung) > 0) {
-    inner += `<Erhalt_AW_dir><Einz>\n${tag(fm.V.wkErhaltungBezeichnung, 'Erhaltungsaufwand')}${wholeEuroTag(fm.V.wkErhaltungGesamt, p.wkErhaltung)}${wholeEuroTag(fm.V.wkErhaltungEinz, p.wkErhaltung)}</Einz><Sum>\n${wholeEuroTag(fm.V.wkErhaltungSum, p.wkErhaltung)}</Sum></Erhalt_AW_dir>\n`;
+    inner += `<Erhalt_AW_dir><Einz>\n${tag(fm.V.wkErhaltungBezeichnung, 'Erhaltungsaufwand')}${euroTag(fm.V.wkErhaltungGesamt, p.wkErhaltung)}${wholeEuroTag(fm.V.wkErhaltungEinz, p.wkErhaltung)}</Einz><Sum>\n${wholeEuroTag(fm.V.wkErhaltungSum, p.wkErhaltung)}</Sum></Erhalt_AW_dir>\n`;
   }
   /* Newly implemented - maintenance spread over 5 years (§82b
      EStDV). Real structure is genuinely different: a total expense
@@ -1381,8 +1393,10 @@ function buildWkBlock(p, taxYear) {
   if (N(p.wk5JAbzugsfaehig) > 0) {
     inner += `<Erhalt_AW_5_J><Aufw_Sum>\n${wholeEuroTag(fm.V.wk5JGesamt, p.wk5JAbzugsfaehig)}${wholeEuroTag(fm.V.wk5JAbzugsfaehig, p.wk5JAbzugsfaehig)}</Aufw_Sum></Erhalt_AW_5_J>\n`;
   }
-  if (N(p.wkVerwaltung) > 0) {
-    inner += `<Verw_Ko><Direkt>\n${tag(fm.V.wkVerwaltungAngaben, 'Verwaltungskosten')}${wholeEuroTag(fm.V.wkVerwaltungDirekt, p.wkVerwaltung)}</Direkt><Sum>\n${wholeEuroTag(fm.V.wkVerwaltungSum, p.wkVerwaltung)}</Sum></Verw_Ko>\n`;
+   if (N(p.wkVerwaltung) > 0) {
+    const hasVerwaltungDirekt = fm.isFieldSupportedForYear(fm.V.wkVerwaltungDirekt, taxYear || 2025);
+    const verwaltungDirektPart = hasVerwaltungDirekt ? `<Direkt>\n${tag(fm.V.wkVerwaltungAngaben, 'Verwaltungskosten')}${wholeEuroTag(fm.V.wkVerwaltungDirekt, p.wkVerwaltung)}</Direkt>` : '';
+    inner += `<Verw_Ko>${verwaltungDirektPart}<Sum>\n${wholeEuroTag(fm.V.wkVerwaltungSum, p.wkVerwaltung)}</Sum></Verw_Ko>\n`;
   }
   /* Newly implemented - VAT-liable letting (Umsatzsteuerpflichtige
      Vermietung, e.g. commercial lets where VAT was charged). Real
@@ -1390,8 +1404,10 @@ function buildWkBlock(p, taxYear) {
   if (N(p.wkUstPflichtig) > 0) {
     inner += wholeEuroTag(fm.V.wkUstPflichtig, p.wkUstPflichtig).replace(/^/, '<Ust_stpfl_Verm>\n').replace(/$/, '</Ust_stpfl_Verm>\n');
   }
-  if (N(p.wkSonst) > 0) {
-    inner += `<Sonst><Direkt>\n${tag(fm.V.wkSonstAngaben, 'Sonstige Werbungskosten')}${wholeEuroTag(fm.V.wkSonstDirekt, p.wkSonst)}</Direkt><Sum>\n${wholeEuroTag(fm.V.wkSonstSum, p.wkSonst)}</Sum></Sonst>\n`;
+   if (N(p.wkSonst) > 0) {
+    const hasSonstDirekt = fm.isFieldSupportedForYear(fm.V.wkSonstDirekt, taxYear || 2025);
+    const sonstDirektPart = hasSonstDirekt ? `<Direkt>\n${tag(fm.V.wkSonstAngaben, 'Sonstige Werbungskosten')}${wholeEuroTag(fm.V.wkSonstDirekt, p.wkSonst)}</Direkt>` : '';
+    inner += `<Sonst>${sonstDirektPart}<Sum>\n${wholeEuroTag(fm.V.wkSonstSum, p.wkSonst)}</Sum></Sonst>\n`;
   }
   if (!inner) return { xml: '', usedAfaDefault: false };
   const total = wkCategoryTotal(p);
@@ -1399,10 +1415,18 @@ function buildWkBlock(p, taxYear) {
   return { xml: `<Wk>\n${inner}</Wk>\n`, usedAfaDefault };
 }
 
-/* Anlage V, 2021-2023 structure - see the confirmed research notes
-   inside buildV() above for exactly what differs and why. */
+/* Anlage V, 2021-2022 structure - see the confirmed research notes
+   inside buildV() above for exactly what differs and why.
+   CORRECTED: real, confirmed year-boundary bug found via the full
+   rich-matrix test run - V genuinely has maxOccurs=1 for these years
+   (confirmed directly against the schema), unlike 2023+ where it's
+   effectively unlimited. Multiple properties were each getting their
+   own complete V wrapper, which worked fine for a single property but
+   broke the moment a second or third one appeared. Now wraps every
+   property's Ek_b_Gst (which itself genuinely allows many instances,
+   confirmed separately) inside one single, shared V element. */
 function buildVLegacy(data, entries) {
-  let xml = '';
+  let inner = '';
   let idx = 0;
   entries.forEach((p) => {
     if (!p.objekt && !p.street && !(N(p.mieteinnahmen) > 0)) return;
@@ -1410,7 +1434,6 @@ function buildVLegacy(data, entries) {
     const addr = (p.street || p.plz || p.ort)
       ? { street: p.street || '', plz: p.plz || '', ort: p.ort || '' }
       : splitPropertyAddress(p.objekt);
-    xml += '<V>\n';
     /* CONFIRMED real gap found via the actual client response: even
        after fixing the Ek_b_Gst wrapper, ERiC still rejected
        Laufende_Nummer_V specifically as feldUnbekannt. Checked
@@ -1419,7 +1442,7 @@ function buildVLegacy(data, entries) {
        it does exist for 2024/2025. Legacy years don't use an explicit
        sequence-number element the way the current structure does, so
        it's correctly omitted here rather than guessed back in. */
-    xml += '<Ek_b_Gst>\n';
+    inner += '<Ek_b_Gst>\n';
 
     /* Allg - confirmed real 2022 field order: address, then the three
        usage declarations directly (no separate Nutzung sub-wrapper,
@@ -1431,27 +1454,27 @@ function buildVLegacy(data, entries) {
     allg += tag(fm.V.nutzFerienwohnung, p.ferienwohnung ? '1' : '2');
     allg += tag(fm.V.nutzKurzfristig, p.kurzfristig ? '1' : '2');
     allg += tag(fm.V.nutzAngehoerige, p.angehoerige ? '1' : '2');
-    xml += `<Allg>\n${allg}</Allg>\n`;
+    inner += `<Allg>\n${allg}</Allg>\n`;
 
     if (N(p.mieteinnahmen) > 0) {
       /* Einn/Mieteinn/Whg/Einz - confirmed real 2022 context has NO
          Wohneinheit label field (E0701202 does not exist here for this
          year) - only the amount, unlike 2023+. */
-      xml += '<Einn>\n<Mieteinn><Whg>\n';
-      xml += `<Einz>\n${wholeEuroTag(fm.V.mieteinnahmen, p.mieteinnahmen)}</Einz>\n`;
-      xml += `<Sum>\n${wholeEuroTag(fm.V.mieteinnahmenSum, p.mieteinnahmen)}</Sum>\n`;
-      xml += '</Whg></Mieteinn>\n';
+      inner += '<Einn>\n<Mieteinn><Whg>\n';
+      inner += `<Einz>\n${wholeEuroTag(fm.V.mieteinnahmen, p.mieteinnahmen)}</Einz>\n`;
+      inner += `<Sum>\n${wholeEuroTag(fm.V.mieteinnahmenSum, p.mieteinnahmen)}</Sum>\n`;
+      inner += '</Whg></Mieteinn>\n';
       /* Einn/Uml_sonst - confirmed real 2022 context has no "not
          separately agreed" alternative declaration (that specific
          Regel is 2023+ only) - only emit an amount when there
          genuinely is one. */
       if (N(p.nebenkosten) > 0) {
-        xml += `<Uml_sonst>\n${wholeEuroTag(fm.V.nebenkosten, p.nebenkosten)}</Uml_sonst>\n`;
+        inner += `<Uml_sonst>\n${wholeEuroTag(fm.V.nebenkosten, p.nebenkosten)}</Uml_sonst>\n`;
       }
-      xml += '</Einn>\n';
+      inner += '</Einn>\n';
 
       const wkResult = buildWkBlock(p, data.meta?.taxYear);
-      xml += wkResult.xml;
+      inner += wkResult.xml;
       const wkTotal = wkCategoryTotal(p);
 
       /* Erm_Zuord_Ek - confirmed real 2022 context: the income sum,
@@ -1470,9 +1493,9 @@ function buildVLegacy(data, entries) {
          second person exists), fully to B, or split evenly for joint
          ownership - matching the same 'A'/'B'/joint pattern already
          used elsewhere in this app for shared items. */
-       xml += '<Erm_Zuord_Ek>\n';
-      xml += wholeEuroTag(fm.V.einnahmenSum, totalIncome);
-      xml += wholeEuroTag(fm.V.ueberschuss, ueberschuss);
+       inner += '<Erm_Zuord_Ek>\n';
+      inner += wholeEuroTag(fm.V.einnahmenSum, totalIncome);
+      inner += wholeEuroTag(fm.V.ueberschuss, ueberschuss);
       /* CORRECTED: real, confirmed gap found via a systematic audit -
          this owner split allowed sending Person B's share even under
          §26a separate assessment, where no data for the other spouse
@@ -1482,19 +1505,19 @@ function buildVLegacy(data, entries) {
          only this filer's own half. */
       const isPar26aVLegacy = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
       if (p.owner === 'B') {
-        if (!isPar26aVLegacy) xml += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss);
+        if (!isPar26aVLegacy) inner += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss);
       } else if (p.owner === 'joint') {
         const half = Math.round(ueberschuss / 2);
-        xml += wholeEuroTag(fm.V.ueberschussZuordA, half);
-        if (!isPar26aVLegacy) xml += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss - half);
+        inner += wholeEuroTag(fm.V.ueberschussZuordA, half);
+        if (!isPar26aVLegacy) inner += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss - half);
       } else {
-        xml += wholeEuroTag(fm.V.ueberschussZuordA, ueberschuss);
+        inner += wholeEuroTag(fm.V.ueberschussZuordA, ueberschuss);
       }
-      xml += '</Erm_Zuord_Ek>\n';
+      inner += '</Erm_Zuord_Ek>\n';
     }
-    xml += '</Ek_b_Gst>\n</V>\n';
+    inner += '</Ek_b_Gst>\n';
   });
-  return xml;
+  return inner ? `<V>\n${inner}</V>\n` : '';
 }
 
 function buildV(data) {
@@ -2383,14 +2406,23 @@ function buildEM35c(data) {
 }
 function buildSonst(data) {
   const w = data.weitereAngaben || {};
-  /* CORRECTED: confirmed via real XSD that E0190701 is Ja1BaseCType - a
-     pure declaration flag ("a loss carryforward WAS established"), NOT
-     the loss amount itself. Sends the confirmed correct flag value "1"
-     whenever an amount is present - the actual carried-forward LOSS
-     AMOUNT needs a genuinely different Kennzahl not yet found; that data
-     is currently NOT transmitted (a real remaining gap, not silently
-     guessed at). */
+  /* CORRECTED: real, confirmed year-boundary structural difference
+     found via the full rich-matrix test run - for 2021 specifically,
+     this element genuinely has no Vortrag wrapper at all; Person and
+     the flag are direct children of Verl_Abz itself. From 2022
+     onward, the Vortrag wrapper genuinely exists, confirmed directly
+     against the schema for every year 2022-2025.
+     E0190701 is confirmed via the real XSD to be Ja1BaseCType - a pure
+     declaration flag ("a loss carryforward WAS established"), NOT the
+     loss amount itself. The actual carried-forward loss amount needs
+     a genuinely different Kennzahl not yet found; that data is
+     currently NOT transmitted (a real remaining gap, not silently
+     guessed at) - the same honest gap either way this element nests. */
   if (!w.verlustvortrag) return '';
+  const taxYear = Number(data.meta?.taxYear) || 2025;
+  if (taxYear === 2021) {
+    return `<Sonst><Verl_Abz><Person>PersonA</Person>\n${tag(fm.Sonst.lossCarry, '1')}</Verl_Abz></Sonst>\n`;
+  }
   return `<Sonst><Verl_Abz><Vortrag><Person>PersonA</Person>\n${tag(fm.Sonst.lossCarry, '1')}</Vortrag></Verl_Abz></Sonst>\n`;
 }
 
