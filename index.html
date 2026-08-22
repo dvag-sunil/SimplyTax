@@ -578,7 +578,7 @@ en: {
  empty_title:"No clients yet", empty_sub:"Create your first client profile to start a tax return.",
  first_name:"First name", last_name:"Last name", marital:"Marital status",
  single:"Single", married:"Married - joint assessment (Zusammenveranlagung)",
- create:"Create profile", cancel:"Cancel",
+ create:"Create profile", cancel:"Cancel", ok:"OK",
  back_dash:"Dashboard",
  step1:"Personal data", step2:"Employment income", step3:"Insurance (Vorsorge)", step4:"Werbungskosten (work-related expenses)", step5:"Special expenses", step6:"Household & other", step7:"Review & submit",
  s1_lead:"Basic data for the main form (Hauptvordruck ESt 1 A).",
@@ -1018,7 +1018,7 @@ de: {
  empty_title:"Noch keine Mandanten", empty_sub:"Legen Sie das erste Mandantenprofil an, um eine Steuererklärung zu beginnen.",
  first_name:"Vorname", last_name:"Nachname", marital:"Familienstand",
  single:"Ledig", married:"Verheiratet - Zusammenveranlagung",
- create:"Profil anlegen", cancel:"Abbrechen",
+ create:"Profil anlegen", cancel:"Abbrechen", ok:"OK",
  back_dash:"Übersicht",
  step1:"Persönliche Daten", step2:"Arbeitslohn", step3:"Vorsorgeaufwand", step4:"Werbungskosten", step5:"Sonderausgaben", step6:"Haushalt & Sonstiges", step7:"Prüfen & Absenden",
  s1_lead:"Grunddaten für den Hauptvordruck ESt 1 A.",
@@ -2579,11 +2579,27 @@ function personYears(c){
  if(!years.includes(c.taxYear)) years.push(c.taxYear); // always exclude this exact record's own year, regardless of whether samePerson can positively identify it (e.g. still-blank name)
  return years;
 }
+/* IMPLEMENTED: a proper, styled in-app info modal, replacing native
+   browser alert() dialogs - found via direct user feedback showing
+   the raw, unstyled OS popup when no more tax years are available to
+   add for a client. Reuses the app's own existing modal-bg/modal
+   pattern (the same one showNewYear itself uses just below) so this
+   looks and feels consistent with the rest of the UI, single "OK"
+   button, dismissible by clicking the backdrop like every other modal
+   in the app already is. */
+function showInfoModal(message){
+ const slot=document.getElementById('modal-slot');
+ slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal" style="max-width:380px">
+ <p style="margin:0 0 16px;font-size:14px;line-height:1.5">${esc(message)}</p>
+ <div style="display:flex;justify-content:flex-end">
+ <button class="btn btn-primary" onclick="this.closest('.modal-bg').remove()">${t('ok')}</button>
+ </div></div></div>`;
+}
 function showNewYear(id){
  const c=S.clients.find(x=>x.id===id); if(!c) return;
  const used=personYears(c);
  const yrs=taxYearOptions().filter(y=>!used.includes(y));
- if(yrs.length===0){ alert(t('year_exists')); return; }
+ if(yrs.length===0){ showInfoModal(t('year_exists')); return; }
  const slot=document.getElementById('modal-slot');
  slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal">
  <h2>${t('new_year_for')} ${esc(c.p.firstName)} ${esc(c.p.lastName)}</h2>
@@ -2597,7 +2613,7 @@ function showNewYear(id){
 function createYearClone(id){
  const src=S.clients.find(x=>x.id===id); if(!src) return;
  const y=parseInt(document.getElementById('ny-y').value);
- if(personYears(src).includes(y)){ alert(t('year_exists')); return; }
+ if(personYears(src).includes(y)){ showInfoModal(t('year_exists')); return; }
  const c=newClient(src.p.firstName,src.p.lastName,y,src.p.marital);
  c.p=JSON.parse(JSON.stringify(src.p)); // carry over personal data
  S.clients.push(c); scheduleSave();
