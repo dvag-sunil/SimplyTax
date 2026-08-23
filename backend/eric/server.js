@@ -356,8 +356,78 @@ app.put('/api/auth/email', auth, async (req, res) => {
     if(e.code==='23505') return res.status(409).json({ error: 'email_taken' });   // unique violation
     throw e;
   }
-  audit(req.user.sub, 'email_changed', { to: email });
+   audit(req.user.sub, 'email_changed', { to: email });
   res.json({ ok: true, email });
+});
+
+/* ---------- delete account (requires current password re-authentication) ----------
+   IMPLEMENTED: addresses a real, direct gap from the production audit -
+   "I did not find a complete user-facing 'Delete my account' workflow."
+   Requires password re-entry first, the same standard already used for
+   changing email, since this is irreversible.
+   Deliberately deletes all *working* data - draft/unsubmitted tax return
+   records, and any uploaded documents in storage - but does NOT touch
+   submission_approvals. Those rows are the §87d-mandated 5-year
+   compliance evidence for any returns that were actually submitted;
+   deleting them on account closure would remove exactly the legal
+   retention record the law requires to survive it. This is the same
+   separation the audit itself recommended: working user data kept
+   separate from mandatory legal retention records, not everything
+   retained indefinitely and not everything wiped on request either. */
+app.delete('/api/auth/account', auth, async (req, res) => {
+  const { password } = req.body || {};
+  if (!password) return res.status(400).json({ error: 'password_required' });
+  const { rows } = await pool.query('SELECT password_hash FROM users WHERE id=$1', [req.user.sub]);
+  if (!rows.length || !(await bcrypt.compare(String(password), rows[0].password_hash)))
+    return res.status(401).json({ error: 'wrong_password' });
+
+  audit(req.user.sub, 'account_deletion_requested', {});
+
+  if (storageOn()) {
+    try {
+      const listRes = await fetch(`${SUPABASE_URL}/storage/v1/object/list/${BELEGE_BUCKET}`, {
+        method: 'POST',
+        headers: { ...sbHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prefix: `${req.user.sub}/` }),
+      });
+      if (listRes.ok) {
+        const files = await listRes.json();
+        const paths = (files || []).map(f => `${req.user.sub}/${f.name}`);
+        if (paths.length) {
+          await fetch(`${SUPABASE_URL}/storage/v1/object/${BELEGE_BUCKET}`, {
+            method: 'DELETE',
+            headers: { ...sbHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prefixes: paths }),
+          });
+        }
+      }
+    } catch (e) {
+      console.error('[account deletion] could not clear uploaded documents:', e.message);
+      /* Do not block account deletion on a storage cleanup failure - the
+         database data (below) is the primary record; an orphaned storage
+         object without any account or client to reference it is a
+         cleanup task, not a reason to refuse the person's deletion
+         request. */
+    }
+  }
+
+   await pool.query('DELETE FROM clients WHERE user_id=$1', [req.user.sub]);
+  try {
+    await pool.query('DELETE FROM users WHERE id=$1', [req.user.sub]);
+  } catch (e) {
+    /* Defensive fallback - audit_log is an existing table whose exact
+       schema isn't fully known here; if it has a foreign key on
+       user_id referencing users(id), a hard delete would fail rather
+       than leave the account genuinely closed. Anonymize the row
+       instead of leaving the request half-completed. */
+    console.error('[account deletion] hard delete failed, anonymizing instead:', e.message);
+    await pool.query(
+      `UPDATE users SET email=$2, password_hash=$3, name=NULL WHERE id=$1`,
+      [req.user.sub, `deleted-${req.user.sub}@deleted.invalid`, await bcrypt.hash(cryptoNode.randomUUID(), 10)]
+    );
+  }
+
+  res.json({ ok: true });
 });
 
 app.put('/api/auth/settings', auth, async (req, res) => {

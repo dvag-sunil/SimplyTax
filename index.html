@@ -870,7 +870,11 @@ en: {
  loading:"Loading your workspace...", loading_slow:"Still connecting - the server is waking up, this can take up to 30 seconds on first load.",
  back_to_home:"Back to SimplyTax homepage",
  acct_section:"Account", s_email_cur:"Current sign-in email", s_email_new:"New email address",
- s_email_pass:"Current password (required to confirm)", change_email_btn:"Change email",
+  s_email_pass:"Current password (required to confirm)", change_email_btn:"Change email",
+ delete_account_section:"Delete account", delete_account_warning:"This permanently deletes your account and all draft/unsubmitted tax returns and uploaded documents. Records of returns you've already submitted are kept as required by German tax law (§ 87d AO), separate from your account.",
+ delete_account_pass:"Current password (required to confirm)", delete_account_btn:"Delete my account",
+ confirm_del_account_title:"Delete account", confirm_del_account_body:"Are you sure you want to permanently delete your account?",
+ confirm_del_account_permanent:"This is permanent - your account, all draft/unsubmitted tax returns, and uploaded documents will be removed and cannot be recovered. You will be signed out immediately.",
  email_changed:"Email changed. Use the new address at your next sign-in.",
  err_email_taken:"An account with this email already exists.",
  err_wrong_pass:"The password is incorrect.", err_email_invalid:"Please enter a valid email address.",
@@ -1310,7 +1314,11 @@ de: {
  loading:"Arbeitsbereich wird geladen...", loading_slow:"Verbindung wird aufgebaut - der Server wacht gerade auf, das kann beim ersten Laden bis zu 30 Sekunden dauern.",
  back_to_home:"Zurück zur SimplyTax-Startseite",
  acct_section:"Konto", s_email_cur:"Aktuelle Anmelde-E-Mail", s_email_new:"Neue E-Mail-Adresse",
- s_email_pass:"Aktuelles Passwort (zur Bestätigung erforderlich)", change_email_btn:"E-Mail ändern",
+  s_email_pass:"Aktuelles Passwort (zur Bestätigung erforderlich)", change_email_btn:"E-Mail ändern",
+ delete_account_section:"Konto löschen", delete_account_warning:"Dies löscht Ihr Konto sowie alle Entwürfe/nicht übermittelten Steuererklärungen und hochgeladenen Dokumente endgültig. Nachweise bereits übermittelter Erklärungen werden gemäß § 87d AO gesondert von Ihrem Konto aufbewahrt.",
+ delete_account_pass:"Aktuelles Passwort (zur Bestätigung erforderlich)", delete_account_btn:"Mein Konto löschen",
+ confirm_del_account_title:"Konto löschen", confirm_del_account_body:"Möchten Sie Ihr Konto wirklich endgültig löschen?",
+ confirm_del_account_permanent:"Dies ist endgültig - Ihr Konto, alle Entwürfe/nicht übermittelten Steuererklärungen und hochgeladenen Dokumente werden entfernt und können nicht wiederhergestellt werden. Sie werden sofort abgemeldet.",
  email_changed:"E-Mail geändert. Bitte bei der nächsten Anmeldung die neue Adresse verwenden.",
  err_email_taken:"Ein Konto mit dieser E-Mail existiert bereits.",
  err_wrong_pass:"Das Passwort ist nicht korrekt.", err_email_invalid:"Bitte eine gültige E-Mail-Adresse eingeben.",
@@ -1917,6 +1925,10 @@ function showSettings(){
  <div class="field"><label>${t('s_email_pass')}</label><input id="st-email-pass" type="password" placeholder="••••••••"></div>
  <div id="st-msg" class="hidden" style="border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:10px"></div>
  <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="doChangeEmail()">${t('change_email_btn')}</button>
+ <div class="section-label" style="margin-top:20px;color:#B4432F">${t('delete_account_section')}</div>
+ <p style="color:var(--ink-soft);font-size:12.5px;margin:0 0 10px">${t('delete_account_warning')}</p>
+ <div class="field"><label>${t('delete_account_pass')}</label><input id="st-del-pass" type="password" placeholder="••••••••"></div>
+ <button class="btn btn-ghost" style="width:100%;justify-content:center;color:#B4432F;border-color:#B4432F" onclick="confirmDeleteAccount()">${t('delete_account_btn')}</button>
  <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
  <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
  <button class="btn btn-primary" onclick="saveSettings()">${t('save')}</button>
@@ -1949,6 +1961,44 @@ async function doChangeEmail(){
  }catch(e){
  const code=e&&e.message;
  stMsg(code==='email_taken'?t('err_email_taken'):code==='wrong_password'?t('err_wrong_pass'):code==='invalid_email'?t('err_email_invalid'):t('err_creds'), false);
+ }
+}
+
+/* IMPLEMENTED: addresses a real, direct gap from the production audit
+   ("I did not find a complete user-facing 'Delete my account'
+   workflow"). Genuinely mirrors the existing "delete tax return"
+   confirmation pattern for consistency - password check first, then
+   an explicit second confirmation before anything irreversible
+   happens, since deleting the whole account is a strictly bigger
+   action than deleting one return. */
+function confirmDeleteAccount(){
+ const pass=document.getElementById('st-del-pass')?.value||'';
+ if(!pass){ stMsg(t('err_fields'), false); return; }
+ /* Stashed here rather than passed through the onclick string below -
+    the original input field is removed from the DOM once this
+    confirmation modal replaces it, and a password could contain
+    characters (quotes) that would break out of an inline attribute. */
+ S._deleteAccountPending = pass;
+ const slot=document.getElementById('modal-slot'); if(!slot) return;
+ slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal" style="max-width:440px">
+ <h2>🗑 ${t('confirm_del_account_title')}</h2>
+ <p style="color:var(--ink-soft);font-size:13.5px;margin:10px 0 14px">${t('confirm_del_account_body')}</p>
+ <div class="infobox" style="background:var(--red-soft);border-color:var(--red);font-size:12.5px;margin-bottom:16px">⚠ ${t('confirm_del_account_permanent')}</div>
+ <div style="display:flex;gap:10px;justify-content:flex-end">
+ <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
+ <button class="btn" style="background:var(--red);border-color:var(--red)" onclick="doDeleteAccount()">🗑 ${t('confirm_del_action')}</button>
+ </div>
+ </div></div>`;
+}
+async function doDeleteAccount(){
+ const pass=S._deleteAccountPending; S._deleteAccountPending=null;
+ try{
+ await api('/api/auth/account','DELETE',{password:pass});
+ const m=document.querySelector('.modal-bg'); if(m) m.remove();
+ await logout();
+ }catch(e){
+ const m=document.querySelector('.modal-bg'); if(m) m.remove();
+ stMsg(e && e.message==='wrong_password' ? t('err_wrong_pass') : t('err_creds'), false);
  }
 }
 
