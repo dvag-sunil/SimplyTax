@@ -427,7 +427,44 @@ app.delete('/api/auth/account', auth, async (req, res) => {
     );
   }
 
-  res.json({ ok: true });
+   res.json({ ok: true });
+});
+
+/* ---------- export all of a user's own data (GDPR Article 15/20) ----------
+   IMPLEMENTED: addresses a real gap the audit flagged directly under its
+   "Data subject controls are missing" finding - "download my information"
+   and "download my tax returns" were both listed as absent. This is the
+   actual right of access / data portability GDPR gives every user, not
+   just a nice-to-have feature. The audit also names "downloading all tax
+   records" specifically as an example of something that should require
+   stronger authentication than simply holding a valid session token -
+   this uses the same password re-confirmation pattern already used for
+   account deletion and email change, for the same reason. Includes the
+   person's own submission_approvals rows too - the §87d retention
+   requirement means those specific records can't be deleted on request,
+   but that's a retention rule, not a reason to hide the person's own
+   data from them. */
+app.post('/api/auth/export', auth, async (req, res) => {
+  const { password } = req.body || {};
+  if (!password) return res.status(400).json({ error: 'password_required' });
+  const { rows: userRows } = await pool.query('SELECT * FROM users WHERE id=$1', [req.user.sub]);
+  if (!userRows.length || !(await bcrypt.compare(String(password), userRows[0].password_hash)))
+    return res.status(401).json({ error: 'wrong_password' });
+
+  const { rows: clients } = await pool.query('SELECT * FROM clients WHERE user_id=$1', [req.user.sub]);
+  const { rows: approvals } = await pool.query(
+    'SELECT id, client_id, tax_year, approved_payload_sha256, xml_sha256, server_received_at, eric_rc, submitted, transfer_ticket FROM submission_approvals WHERE user_id=$1',
+    [req.user.sub]
+  ).catch(() => ({ rows: [] }));
+
+  audit(req.user.sub, 'data_export', {});
+
+  res.json({
+    exportedAt: new Date().toISOString(),
+    account: pubUser(userRows[0]),
+    taxReturns: clients.map(c => c.data),
+    submissionEvidence: approvals,
+  });
 });
 
 app.put('/api/auth/settings', auth, async (req, res) => {

@@ -871,6 +871,8 @@ en: {
  back_to_home:"Back to SimplyTax homepage",
  acct_section:"Account", s_email_cur:"Current sign-in email", s_email_new:"New email address",
   s_email_pass:"Current password (required to confirm)", change_email_btn:"Change email",
+  export_data_section:"Download my data", export_data_hint:"Download everything associated with your account - your details, every tax return, and records of any returns already submitted - as a single file.",
+ export_data_pass:"Current password (required to confirm)", export_data_btn:"Download my data", export_data_done:"Your data export has downloaded.",
  delete_account_section:"Delete account", delete_account_warning:"This permanently deletes your account and all draft/unsubmitted tax returns and uploaded documents. Records of returns you've already submitted are kept as required by German tax law (§ 87d AO), separate from your account.",
  delete_account_pass:"Current password (required to confirm)", delete_account_btn:"Delete my account",
  confirm_del_account_title:"Delete account", confirm_del_account_body:"Are you sure you want to permanently delete your account?",
@@ -1315,6 +1317,8 @@ de: {
  back_to_home:"Zurück zur SimplyTax-Startseite",
  acct_section:"Konto", s_email_cur:"Aktuelle Anmelde-E-Mail", s_email_new:"Neue E-Mail-Adresse",
   s_email_pass:"Aktuelles Passwort (zur Bestätigung erforderlich)", change_email_btn:"E-Mail ändern",
+  export_data_section:"Meine Daten herunterladen", export_data_hint:"Laden Sie alles herunter, was mit Ihrem Konto verknüpft ist - Ihre Angaben, jede Steuererklärung und Nachweise bereits übermittelter Erklärungen - als eine einzelne Datei.",
+ export_data_pass:"Aktuelles Passwort (zur Bestätigung erforderlich)", export_data_btn:"Meine Daten herunterladen", export_data_done:"Ihr Datenexport wurde heruntergeladen.",
  delete_account_section:"Konto löschen", delete_account_warning:"Dies löscht Ihr Konto sowie alle Entwürfe/nicht übermittelten Steuererklärungen und hochgeladenen Dokumente endgültig. Nachweise bereits übermittelter Erklärungen werden gemäß § 87d AO gesondert von Ihrem Konto aufbewahrt.",
  delete_account_pass:"Aktuelles Passwort (zur Bestätigung erforderlich)", delete_account_btn:"Mein Konto löschen",
  confirm_del_account_title:"Konto löschen", confirm_del_account_body:"Möchten Sie Ihr Konto wirklich endgültig löschen?",
@@ -1925,6 +1929,10 @@ function showSettings(){
  <div class="field"><label>${t('s_email_pass')}</label><input id="st-email-pass" type="password" placeholder="••••••••"></div>
  <div id="st-msg" class="hidden" style="border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:10px"></div>
  <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="doChangeEmail()">${t('change_email_btn')}</button>
+ <div class="section-label" style="margin-top:20px">${t('export_data_section')}</div>
+ <p style="color:var(--ink-soft);font-size:12.5px;margin:0 0 10px">${t('export_data_hint')}</p>
+ <div class="field"><label>${t('export_data_pass')}</label><input id="st-export-pass" type="password" placeholder="••••••••"></div>
+ <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="doExportData()">${t('export_data_btn')}</button>
  <div class="section-label" style="margin-top:20px;color:#B4432F">${t('delete_account_section')}</div>
  <p style="color:var(--ink-soft);font-size:12.5px;margin:0 0 10px">${t('delete_account_warning')}</p>
  <div class="field"><label>${t('delete_account_pass')}</label><input id="st-del-pass" type="password" placeholder="••••••••"></div>
@@ -1971,6 +1979,26 @@ async function doChangeEmail(){
    an explicit second confirmation before anything irreversible
    happens, since deleting the whole account is a strictly bigger
    action than deleting one return. */
+/* IMPLEMENTED: addresses a real gap the audit flagged directly under
+   its "Data subject controls are missing" finding - "download my
+   information" was listed as absent. Triggers a real file download of
+   the complete data bundle, using the same download-a-Blob pattern
+   already used elsewhere in this app (exportElster) for consistency. */
+async function doExportData(){
+ const pass=document.getElementById('st-export-pass')?.value||'';
+ if(!pass){ stMsg(t('err_fields'), false); return; }
+ try{
+ const data = await api('/api/auth/export','POST',{password:pass});
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+ const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+ a.download=`simplytax_my_data_${new Date().toISOString().slice(0,10)}.json`;
+ document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+ const f=document.getElementById('st-export-pass'); if(f) f.value='';
+ stMsg(t('export_data_done'), true);
+ }catch(e){
+ stMsg(e && e.message==='wrong_password' ? t('err_wrong_pass') : t('err_creds'), false);
+ }
+}
 function confirmDeleteAccount(){
  const pass=document.getElementById('st-del-pass')?.value||'';
  if(!pass){ stMsg(t('err_fields'), false); return; }
