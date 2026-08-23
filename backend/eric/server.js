@@ -641,15 +641,60 @@ app.put('/api/clients/bulk', auth, async (req, res) => {
     const ids = clients.map(c => c.id).filter(Boolean);
     if (ids.length) await db.query('DELETE FROM clients WHERE user_id=$1 AND NOT (id = ANY($2))', [req.user.sub, ids]);
     else await db.query('DELETE FROM clients WHERE user_id=$1', [req.user.sub]);
+
+    /* IMPLEMENTED: real gap the audit flags directly - fetch existing
+       stored state first, before anything is overwritten below, so
+       each client's previous status is known. Without this, there's
+       no way to tell whether a record is newly becoming "submitted"
+       (capture its snapshot) or was already submitted (check for
+       drift) versus every other ordinary save. */
+    const existingRows = ids.length
+      ? (await db.query('SELECT id, data, submitted_snapshot_sha256 FROM clients WHERE user_id=$1 AND id = ANY($2)', [req.user.sub, ids])).rows
+      : [];
+    const existingById = new Map(existingRows.map(r => [r.id, r]));
+    /* Fields deliberately excluded from the content hash - these are
+       genuinely legitimate to keep editing after submission (an
+       inquiry log entry, an uploaded document, a timestamp, the
+       transfer ticket itself), so including them would make ordinary,
+       expected post-submission activity look like drift. */
+    const contentOnly = (c) => {
+      const { updatedAt, inq, docs, transferTicket, status, submittedAt, freigabe, ...content } = c;
+      return JSON.stringify(content);
+    };
+    const driftDetected = [];
+
     for (const c of clients) {
       if (!c.id) continue;
+      const existing = existingById.get(c.id);
+      let snapshotHash = existing?.submitted_snapshot_sha256 || null;
+
+      if (existing) {
+        const wasSubmitted = existing.data?.status === 'submitted';
+        const isSubmitted = c.status === 'submitted';
+        if (!wasSubmitted && isSubmitted) {
+          // Transition moment - capture the approved content as the baseline.
+          snapshotHash = sha256(contentOnly(c));
+        } else if (wasSubmitted && existing.submitted_snapshot_sha256) {
+          const currentHash = sha256(contentOnly(c));
+          if (currentHash !== existing.submitted_snapshot_sha256) {
+            driftDetected.push(c.id);
+          }
+        }
+      }
+
       await db.query(
-        `INSERT INTO clients(id, user_id, data, updated_at) VALUES ($1,$2,$3,now())
-         ON CONFLICT (id) DO UPDATE SET data=$3, updated_at=now() WHERE clients.user_id=$2`,
-        [c.id, req.user.sub, c]);
+        `INSERT INTO clients(id, user_id, data, updated_at, submitted_snapshot_sha256) VALUES ($1,$2,$3,now(),$4)
+         ON CONFLICT (id) DO UPDATE SET data=$3, updated_at=now(), submitted_snapshot_sha256=$4 WHERE clients.user_id=$2`,
+        [c.id, req.user.sub, c, snapshotHash]);
     }
     await db.query('COMMIT');
     audit(req.user.sub, 'clients_sync', { count: clients.length });
+    if (driftDetected.length) {
+      /* Compliance-relevant, not an ordinary sync event - a submitted
+         return's actual content changed after the fact. Logged for
+         visibility rather than blocked, per the reasoning above. */
+      audit(req.user.sub, 'submitted_return_content_drift', { clientIds: driftDetected });
+    }
     res.json({ ok: true, count: clients.length });
   } catch (e) { await db.query('ROLLBACK'); console.error(e); res.status(500).json({ error: 'server_error' });
   } finally { db.release(); }
@@ -1090,8 +1135,24 @@ if (require.main === module) {
     server_received_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     eric_rc INTEGER,
     submitted BOOLEAN NOT NULL DEFAULT false,
-    transfer_ticket TEXT
+     transfer_ticket TEXT
   )`).catch(e => console.error('[startup] could not ensure submission_approvals table:', e.message));
+
+  /* IMPLEMENTED: addresses a real gap the audit calls out directly
+     (its §10) - "once a taxpayer approves a return, the approved
+     version should become immutable." The bulk-sync route below
+     currently overwrites a client's entire data unconditionally,
+     regardless of whether it was already submitted. Purely additive -
+     a new nullable column never breaks any existing row or query -
+     used to detect when a submitted return's actual content changes
+     afterward. Deliberately detection, not yet a hard block: real
+     uncertainty about which fields are legitimately still editable
+     after submission (e.g. logging a Finanzamt inquiry response)
+     means blocking outright risks breaking a feature that's supposed
+     to keep working, which is a worse outcome than flagging drift for
+     now and revisiting a full immutable-revision model later. */
+  pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS submitted_snapshot_sha256 TEXT`)
+    .catch(e => console.error('[startup] could not ensure submitted_snapshot_sha256 column:', e.message));
 
   app.listen(PORT, () => console.log(`SimplyTax API listening on :${PORT}`));
 }
