@@ -334,10 +334,59 @@ app.get('/api/health', async (_req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body || {};
-  const q = await pool.query('SELECT * FROM users WHERE email=$1', [String(email || '').toLowerCase().trim()]);
+  const normalizedEmail = String(email || '').toLowerCase().trim();
+  const q = await pool.query('SELECT * FROM users WHERE email=$1', [normalizedEmail]);
   const u = q.rows[0];
-  if (!u || !(await bcrypt.compare(String(password || ''), u.password_hash)))
+
+  /* IMPLEMENTED: real per-account brute-force protection, addressing a
+     genuine gap in the existing IP-based rate limit - many different
+     IPs, each staying under that limit, could still combine to try
+     unlimited passwords against one specific account. Tracked in
+     users.settings, the same no-schema-change pattern already used
+     for password-reset tokens above. Deliberately returns the
+     identical generic error below whether the account doesn't exist,
+     the password is wrong, or the account is genuinely locked -
+     consistent with the same no-account-enumeration principle this
+     file already documents for password reset. An attacker learns
+     nothing from the response either way; the real owner is notified
+     by email instead, which only they can see. */
+  const MAX_FAILED_ATTEMPTS = 5;
+  const LOCKOUT_MS = 15 * 60 * 1000;
+
+  if (u) {
+    const lockout = u.settings?.loginLockout;
+    if (lockout?.lockedUntil && lockout.lockedUntil > Date.now()) {
+      return res.status(401).json({ error: 'bad_credentials' });
+    }
+  }
+
+  if (!u || !(await bcrypt.compare(String(password || ''), u.password_hash))) {
+    if (u) {
+      const prevAttempts = (u.settings?.loginLockout?.failedAttempts || 0) + 1;
+      const newLockout = prevAttempts >= MAX_FAILED_ATTEMPTS
+        ? { failedAttempts: 0, lockedUntil: Date.now() + LOCKOUT_MS }
+        : { failedAttempts: prevAttempts, lockedUntil: null };
+      await pool.query(
+        `UPDATE users SET settings = jsonb_set(settings, '{loginLockout}', $1::jsonb) WHERE id=$2`,
+        [JSON.stringify(newLockout), u.id]
+      ).catch(e => console.error('[login] could not record failed attempt:', e.message));
+      if (prevAttempts >= MAX_FAILED_ATTEMPTS) {
+        audit(u.id, 'account_locked_brute_force', {});
+        sendSecurityEmail(u.email, 'Multiple failed sign-in attempts on your SimplyTax account',
+          `<p>Hi ${u.name || ''},</p><p>There have been several failed sign-in attempts on your SimplyTax account. As a precaution, sign-in has been temporarily disabled for 15 minutes.</p><p>If this wasn't you, your password is still safe - no one has signed in - but consider changing it once you're back in.</p><p>— SimplyTax</p>`
+        ).catch(()=>{});
+      }
+    }
     return res.status(401).json({ error: 'bad_credentials' });
+  }
+
+  if (u.settings?.loginLockout?.failedAttempts) {
+    await pool.query(
+      `UPDATE users SET settings = jsonb_set(settings, '{loginLockout}', $1::jsonb) WHERE id=$2`,
+      [JSON.stringify({ failedAttempts: 0, lockedUntil: null }), u.id]
+    ).catch(()=>{});
+  }
+
   audit(u.id, 'login');
   res.json({ token: sign(u), user: pubUser(u) });
 });
