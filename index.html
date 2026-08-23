@@ -4580,12 +4580,18 @@ async function submitElster(){
 }
 
 /* ---------------- real ERiC submission flow (§ 87d Freigabe + backend routes) ---------------- */
-/* Simple non-cryptographic checksum of the released data, for the § 87d
-   5-year record ("keep a record of the identification/Freigabe") - proves
-   WHAT was released without needing a full crypto library client-side. */
-function simpleHash(str){
- let h=0; for(let i=0;i<str.length;i++){ h=((h<<5)-h+str.charCodeAt(i))|0; }
- return (h>>>0).toString(16);
+/* CORRECTED: real gap found in the production audit - this used to be a
+   small, non-cryptographic 32-bit rolling checksum, trivially collidable,
+   for what's meant to be legally significant § 87d evidence. The
+   authoritative record is now the server-computed SHA-256 written to the
+   submission_approvals table before ERiC is ever called (see server.js) -
+   this client-side copy is upgraded to genuine SHA-256 too, via the
+   browser's own crypto.subtle, so nothing relying on it client-side is
+   weaker than the real evidence. Async because Web Crypto's digest is
+   promise-based; callers already await this. */
+async function sha256Hex(str){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 async function submitElsterReal(c){
  setBusy(true);
@@ -5103,7 +5109,10 @@ async function confirmFreigabeAndSubmit(clientId){
  try{
  /* § 87d record: timestamp + a checksum of exactly what was released - kept
  on the client record for the required 5 years, not just in this session */
- c.freigabe = { at: Date.now(), dataHash: simpleHash(JSON.stringify(pending.data)) };
+ /* Client-side copy for display/local record only - the authoritative
+    § 87d evidence is now the server-computed SHA-256 written to
+    submission_approvals before ERiC is ever called (see server.js). */
+ c.freigabe = { at: Date.now(), dataHash: await sha256Hex(JSON.stringify(pending.data)) };
  const sr = await api('/api/eric/submit','POST',{ clientId, interchangeData:pending.data, freigabeConfirmed:true });
  setBusy(false);
  const m=document.querySelector('.modal-bg'); if(m) m.remove();

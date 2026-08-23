@@ -591,8 +591,41 @@ app.post('/api/eric/submit', auth, async (req, res) => {
     const { xml, skippedSections } = buildEStXML(convertedData, {
       herstellerID: process.env.ERIC_HERSTELLER_ID,
     });
+
+    /* CORRECTED: real gap found in the production audit - the durable
+       approval record is now written here, BEFORE the ERiC call, using
+       a real server-computed SHA-256 (never the client's own checksum,
+       which could be forged or simply wrong). This row exists the
+       moment the server accepts the request, independent of whether
+       ERiC succeeds or the response ever reaches the browser. */
+    const approvedPayloadSha256 = sha256(JSON.stringify(convertedData));
+    const xmlSha256 = sha256(xml);
+    let approvalId = null;
+    try {
+      const approvalInsert = await pool.query(
+        `INSERT INTO submission_approvals
+           (client_id, user_id, tax_year, approved_payload_sha256, approved_payload_snapshot, xml_sha256)
+         VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+        [clientId, req.user.sub, convertedData.meta?.taxYear || null, approvedPayloadSha256, JSON.stringify(convertedData), xmlSha256]
+      );
+      approvalId = approvalInsert.rows[0]?.id || null;
+    } catch (approvalErr) {
+      /* Per the audit's own recommendation: failure to durably record
+         approval evidence means do not submit - this is not a "log
+         and continue" failure the way ordinary audit events are. */
+      console.error('[eric/submit] could not write approval evidence, refusing to submit:', approvalErr.message);
+      return res.status(500).json({ error: 'approval_evidence_failed' });
+    }
+
     const result = await ericService.submit(xml, 'ESt_' + (convertedData.meta?.taxYear || 2025));
     audit(req.user.sub, 'eric_submit', { clientId, rc: result.rc, sent: result.sent, transferTicket: result.transferTicket || null });
+
+    if (approvalId) {
+      await pool.query(
+        `UPDATE submission_approvals SET eric_rc=$2, submitted=$3, transfer_ticket=$4 WHERE id=$1`,
+        [approvalId, result.rc ?? null, !!result.sent, result.transferTicket || null]
+      ).catch(e => console.error('[eric/submit] could not update approval record with outcome:', e.message));
+    }
 
     if (result.sent) {
       /* CORRECTED: extractServerAnswer() in the worker was already
@@ -686,6 +719,33 @@ app.use((err, req, res, next) => {
    never binds a real port - only `node server.js` directly does, exactly
    as before. Zero production behavior change. */
 if (require.main === module) {
+  /* Added directly in response to a real gap found in the production
+     audit (§7, §12 in the audit's own numbering): approval ("Freigabe")
+     evidence previously only existed as a client-side, non-cryptographic
+     checksum, persisted to the backend only AFTER a successful
+     submission - a crash in that window left ERiC holding an accepted
+     return with no durable record the customer ever approved it.
+     This table is the immutable, server-written record §87d actually
+     calls for: written BEFORE the ERiC call is ever made, using a
+     real SHA-256 hash computed server-side (never trusting a
+     client-supplied hash), holding the exact approved payload so it
+     can be verified independently of whatever the client record later
+     becomes. CREATE TABLE IF NOT EXISTS makes this self-installing -
+     no separate migration step needed before this code can run. */
+  pool.query(`CREATE TABLE IF NOT EXISTS submission_approvals (
+    id SERIAL PRIMARY KEY,
+    client_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    tax_year INTEGER,
+    approved_payload_sha256 TEXT NOT NULL,
+    approved_payload_snapshot JSONB NOT NULL,
+    xml_sha256 TEXT,
+    server_received_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    eric_rc INTEGER,
+    submitted BOOLEAN NOT NULL DEFAULT false,
+    transfer_ticket TEXT
+  )`).catch(e => console.error('[startup] could not ensure submission_approvals table:', e.message));
+
   app.listen(PORT, () => console.log(`SimplyTax API listening on :${PORT}`));
 }
 module.exports = app;
