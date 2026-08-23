@@ -489,6 +489,7 @@ function showPayModal(){
  <h2>${t('pay_title')}</h2>
  <p style="color:var(--ink-soft);font-size:14px;margin:8px 0 14px">${t('pay_sub')}</p>
  <div id="pay-amount-box">${payAmountHtml(applied ? computeDiscount(applied, PAYMENT.pricePerReturn) : null)}</div>
+ <p style="font-size:11.5px;color:var(--ink-soft);margin:2px 0 0">${t('pay_vat_note')}</p>
  <div class="field" style="max-width:260px;margin:14px auto 0;text-align:left">
  <label>${t('discount_label')}</label>
  <div style="display:flex;gap:8px">
@@ -498,12 +499,20 @@ function showPayModal(){
  <div id="disc-msg" class="hidden" style="font-size:12.5px;margin-top:6px"></div>
  </div>
  <p style="font-size:12px;color:var(--ink-soft);margin:14px 0 12px">${t('pay_sim_note')}</p>
+ <p style="font-size:12px;margin:0 0 10px">
+ <a href="agb.html" target="_blank" rel="noopener">${t('pay_agb_link')}</a> ·
+ <a href="datenschutz.html" target="_blank" rel="noopener">${t('pay_privacy_link')}</a>
+ </p>
+ <label style="display:flex;gap:8px;align-items:flex-start;text-align:left;font-size:12px;color:var(--ink-soft);max-width:340px;margin:0 auto 14px;cursor:pointer">
+ <input type="checkbox" id="pay-withdrawal-ack" style="margin-top:2px" onchange="document.getElementById('pay-now-btn').disabled=!this.checked">
+ <span>${t('pay_withdrawal_ack')}</span>
+ </label>
  <div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink-soft);margin-bottom:14px">
  <span>🔒 ${t('trust_enc')}</span><span>🇪🇺 ${t('trust_eu')}</span><span>✓ ${t('trust_gdpr')}</span>
  </div>
  <div style="display:flex;gap:10px;justify-content:center">
  <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
- <button class="btn btn-primary" onclick="payNow()">💳 ${t('pay_now')}</button>
+ <button class="btn btn-primary" id="pay-now-btn" disabled onclick="payNow()">💳 ${t('pay_now')}</button>
  </div></div></div>`;
 }
 function payAmountHtml(d){
@@ -920,7 +929,9 @@ en: {
  single_parent_hint:"Yes = at least one child lives in your household and no other adult lives with you. Relief: €4,260 + €240 per further child - applied automatically.",
   pay_title:"Unlock this tax return", pay_sub:"Preparation and calculation are free. Downloading the PDF summary and submitting to the tax authority are enabled after payment for this return (one-time, per return).",
  pay_now:"Pay now", pay_locked:"Locked until payment", paid_on:"Paid on",
- pay_sim_note:"Prototype: the payment is simulated. In production, Stripe Checkout runs via the backend and a webhook unlocks the return.",
+  pay_sim_note:"Prototype: the payment is simulated. In production, Stripe Checkout runs via the backend and a webhook unlocks the return.",
+ pay_vat_note:"Price includes statutory VAT.", pay_agb_link:"Terms of service", pay_privacy_link:"Privacy policy",
+ pay_withdrawal_ack:"I agree that the PDF download and submission are unlocked immediately, and I acknowledge that once this digital service has been fully provided, my 14-day right of withdrawal expires.",
  discount_label:"Discount code (optional)", discount_ph:"e.g. WELCOME10", discount_apply:"Apply",
  discount_ok:"Code {code} applied.", discount_invalid:"This code is not valid.",
  discount_saved:"You saved {amount}",
@@ -1368,7 +1379,9 @@ de: {
  single_parent_hint:"Ja = mindestens ein Kind lebt in Ihrem Haushalt und keine weitere volljährige Person wohnt bei Ihnen. Entlastung: 4.260 € + 240 € je weiteres Kind - wird automatisch angesetzt.",
  pay_title:"Diese Steuererklärung freischalten", pay_sub:"Erfassung und Berechnung sind kostenlos. PDF-Download und Übermittlung an das Finanzamt werden nach Zahlung für diese Erklärung freigeschaltet (einmalig, je Erklärung).",
  pay_now:"Jetzt bezahlen", pay_locked:"Bis zur Zahlung gesperrt", paid_on:"Bezahlt am",
- pay_sim_note:"Prototyp: Die Zahlung wird simuliert. In Produktion läuft Stripe Checkout über das Backend; ein Webhook schaltet die Erklärung frei.",
+  pay_sim_note:"Prototyp: Die Zahlung wird simuliert. In Produktion läuft Stripe Checkout über das Backend; ein Webhook schaltet die Erklärung frei.",
+ pay_vat_note:"Preis inkl. gesetzlicher MwSt.", pay_agb_link:"AGB", pay_privacy_link:"Datenschutzerklärung",
+ pay_withdrawal_ack:"Ich bin damit einverstanden, dass der PDF-Download und die Übermittlung sofort freigeschaltet werden, und weiß, dass mein 14-tägiges Widerrufsrecht mit vollständiger Erbringung dieser digitalen Leistung erlischt.",
  discount_label:"Rabattcode (optional)", discount_ph:"z. B. WELCOME10", discount_apply:"Anwenden",
  discount_ok:"Code {code} angewendet.", discount_invalid:"Dieser Code ist nicht gültig.",
  discount_saved:"Du sparst {amount}",
