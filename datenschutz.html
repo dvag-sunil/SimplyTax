@@ -55,8 +55,8 @@
 
  <h3>2.3 Hochgeladene Belege</h3>
  <p>Dokumente, die Sie über die Belegfunktion hochladen (z. B. Lohnsteuerbescheinigungen),
- werden in einem privaten, zugriffsgeschützten Speicher (Supabase Storage, EU-Region
- London/Irland) abgelegt. Zugriffe erfolgen nur über kurzlebige, signierte Links.</p>
+ werden in einem privaten, zugriffsgeschützten Speicher (Supabase Storage, Region
+ London, Vereinigtes Königreich) abgelegt. Zugriffe erfolgen nur über kurzlebige, signierte Links.</p>
 
  <h3>2.4 Zahlungsdaten</h3>
  <p>Zahlungen werden vollständig durch Stripe Inc. abgewickelt. SimplyTax erhält dabei
@@ -85,10 +85,13 @@
  </ul>
 
  <h2>4. Speicherort und Übermittlungen</h2>
- <p>Alle Kerndaten werden in der EU (London / eu-west-2, AWS-Region) verarbeitet und
- gespeichert. Für die Verarbeitung nutzen wir folgende Dienstleister:</p>
+ <p>Unsere Kerndaten werden bei AWS in der Region eu-west-2 (London, Vereinigtes Königreich)
+ verarbeitet und gespeichert. Das Vereinigte Königreich ist kein EU-Mitgliedstaat; die
+ Übermittlung dorthin stützt sich auf den aktuellen Angemessenheitsbeschluss der
+ Europäischen Kommission für das Vereinigte Königreich. Für die Verarbeitung nutzen wir folgende Dienstleister:</p>
  <ul>
- <li><strong>Supabase</strong> (Datenbank &amp; Speicher) - EU-Region, DSGVO-konform</li>
+ <li><strong>Supabase</strong> (Datenbank &amp; Speicher) - Region London (Vereinigtes Königreich),
+ Übermittlung gestützt auf den Angemessenheitsbeschluss für das Vereinigte Königreich</li>
  <li><strong>Render</strong> (API-Hosting) - US-Unternehmen mit EU-Serverstandorten;
  Standardvertragsklauseln (SCC) vorhanden</li>
  <li><strong>Stripe</strong> (Zahlung) - SCC-Vereinbarung, PCI-DSS zertifiziert</li>
@@ -179,8 +182,8 @@
 
  <h3>2.3 Uploaded documents</h3>
  <p>Documents you upload via the receipt function (e.g. Lohnsteuerbescheinigungen) are
- stored in a private, access-protected storage system (Supabase Storage, EU region
- London/Ireland). Access is only via short-lived, signed links.</p>
+ stored in a private, access-protected storage system (Supabase Storage, region
+ London, United Kingdom). Access is only via short-lived, signed links.</p>
 
  <h3>2.4 Payment data</h3>
  <p>Payments are processed entirely by Stripe Inc. SimplyTax does not receive complete
@@ -209,10 +212,13 @@
  </ul>
 
  <h2>4. Storage location and transfers</h2>
- <p>All core data is processed and stored in the EU (London / eu-west-2, AWS region).
+ <p>Our core data is processed and stored by AWS in the eu-west-2 region (London,
+ United Kingdom). The United Kingdom is not an EU member state; the transfer there
+ relies on the European Commission's current adequacy decision for the United Kingdom.
  We use the following service providers:</p>
  <ul>
- <li><strong>Supabase</strong> (database & storage) - EU region, GDPR-compliant</li>
+ <li><strong>Supabase</strong> (database &amp; storage) - London (United Kingdom) region,
+ transfer relies on the UK adequacy decision</li>
  <li><strong>Render</strong> (API hosting) - US company with EU server locations;
  Standard Contractual Clauses (SCC) in place</li>
  <li><strong>Stripe</strong> (payments) - SCC agreement, PCI-DSS certified</li>

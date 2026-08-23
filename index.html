@@ -879,7 +879,9 @@ en: {
  confirm_del_account_permanent:"This is permanent - your account, all draft/unsubmitted tax returns, and uploaded documents will be removed and cannot be recovered. You will be signed out immediately.",
  email_changed:"Email changed. Use the new address at your next sign-in.",
  err_email_taken:"An account with this email already exists.",
- err_wrong_pass:"The password is incorrect.", err_email_invalid:"Please enter a valid email address.",
+  err_wrong_pass:"The password is incorrect.", err_email_invalid:"Please enter a valid email address.",
+ email_verify_success:"Your email address has been confirmed.", email_verify_error:"This verification link is invalid or has expired. Please request a new one from your account settings.",
+ email_verify_banner:"Please confirm your email address to unlock submitting tax returns. Check your inbox for the link.", email_verify_resend:"Resend email", email_verify_sent:"Sent ✓",
  step_counter_lbl:"Step",
  deadline_banner:"Filing deadline - Tax year 2025: self-filers 31 July 2026 · with Steuerberater/Lohnsteuerhilfeverein 1 March 2027 · voluntary filers have 4 years (until 31 Dec 2029).",
  elster_link:"Official Tax Portal",
@@ -1029,7 +1031,7 @@ en: {
  add_wki:"Add expense item", wki_tot_a:"Total Person A", wki_tot_b:"Total Person B",
  export_elster:"Export tax authority dataset (JSON)",
  person:"Belongs to (person)", person_b_detect:"Assigned to Person B (spouse) - Identifikationsnummer did not match Person A.",
- privacy_foot:"Encrypted sign-in · Data stored in an EU database (GDPR) · Payments via certified provider"
+   privacy_foot:"Encrypted sign-in · GDPR-compliant data handling (UK-hosted) · Payments via certified provider"
 },
 de: {
  appName:"SimplyTax", tagline:"Ihr Arbeitsbereich für Steuererklärungen",
@@ -1325,7 +1327,9 @@ de: {
  confirm_del_account_permanent:"Dies ist endgültig - Ihr Konto, alle Entwürfe/nicht übermittelten Steuererklärungen und hochgeladenen Dokumente werden entfernt und können nicht wiederhergestellt werden. Sie werden sofort abgemeldet.",
  email_changed:"E-Mail geändert. Bitte bei der nächsten Anmeldung die neue Adresse verwenden.",
  err_email_taken:"Ein Konto mit dieser E-Mail existiert bereits.",
- err_wrong_pass:"Das Passwort ist nicht korrekt.", err_email_invalid:"Bitte eine gültige E-Mail-Adresse eingeben.",
+  err_wrong_pass:"Das Passwort ist nicht korrekt.", err_email_invalid:"Bitte eine gültige E-Mail-Adresse eingeben.",
+ email_verify_success:"Ihre E-Mail-Adresse wurde bestätigt.", email_verify_error:"Dieser Bestätigungslink ist ungültig oder abgelaufen. Bitte fordern Sie in Ihren Kontoeinstellungen einen neuen an.",
+ email_verify_banner:"Bitte bestätigen Sie Ihre E-Mail-Adresse, um die Abgabe von Steuererklärungen freizuschalten. Prüfen Sie Ihr Postfach.", email_verify_resend:"Erneut senden", email_verify_sent:"Gesendet ✓",
  step_counter_lbl:"Schritt",
  deadline_banner:"Abgabefrist - Steuerjahr 2025: Selbsteinreicher 31. Juli 2026 · mit Steuerberater/Lohnsteuerhilfeverein 1. März 2027 · freiwillige Abgabe bis 31. Dez. 2029 möglich.",
  elster_link:"Offizielles Finanzamt-Portal",
@@ -1475,7 +1479,7 @@ de: {
  add_wki:"Posten hinzufügen", wki_tot_a:"Summe Person A", wki_tot_b:"Summe Person B",
  export_elster:"Finanzamt-Datensatz exportieren (JSON)",
  person:"Gehört zu (Person)", person_b_detect:"Person B (Ehepartner) zugeordnet - Identifikationsnummer stimmte nicht mit Person A überein.",
- privacy_foot:"Verschlüsselte Anmeldung · Daten in EU-Datenbank gespeichert (DSGVO) · Zahlung über zertifizierten Dienstleister"
+   privacy_foot:"Verschlüsselte Anmeldung · DSGVO-konforme Datenhaltung (UK-Hosting) · Zahlung über zertifizierten Dienstleister"
 }};
 
 /* ---------------- state ---------------- */
@@ -1906,6 +1910,18 @@ async function doRegister(btn){
  await saveState();
  S.loggedIn=true; S.view='dash'; render();
  } finally { setBusy(false); setBtnBusy(btn,false); }
+}
+/* IMPLEMENTED: addresses a real gap the audit flagged directly - email
+   verification was listed as "at minimum" production scope. */
+async function doResendVerification(btn){
+ const original = btn ? btn.textContent : '';
+ if(btn){ btn.disabled=true; btn.textContent='...'; }
+ try{
+ await api('/api/auth/resend-verification','POST');
+ if(btn){ btn.textContent=t('email_verify_sent'); }
+ }catch(e){
+ if(btn){ btn.textContent=original; btn.disabled=false; }
+ }
 }
 async function logout(){
  await kvDel('klarsteuer-session'); await kvDel('klarsteuer-token'); authToken=null;
@@ -2518,6 +2534,8 @@ function loginView(){
  <button class="${reg?'on':''}" onclick="setAuthMode('register')">${t('tab_register')}</button>
  </div>
  <h1>${reg?t('register_title'):t('login_title')}</h1>
+ ${S.emailVerifyResult==='ok'?`<div class="infobox" style="background:var(--teal-soft);border-color:var(--teal);margin-bottom:14px">✓ ${t('email_verify_success')}</div>`:''}
+ ${S.emailVerifyResult==='error'?`<div class="infobox" style="background:var(--red-soft);border-color:var(--red);margin-bottom:14px">⚠ ${t('email_verify_error')}</div>`:''}
  <p class="sub">${reg?t('register_sub'):t('login_sub')}</p>
  <div id="auth-err" class="auth-err hidden"></div>
  ${reg?`
@@ -2570,7 +2588,11 @@ function dashView(){
  </tr>`;
  }).join('');
 
-  return `<main>
+   return `<main>
+ ${(S.user?.settings?.emailVerify && !S.user?.settings?.emailVerified)?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+ <span>✉ ${t('email_verify_banner')}</span>
+ <button class="btn-sm link-btn" onclick="doResendVerification(this)">${t('email_verify_resend')}</button>
+ </div>`:''}
  <div class="page-head"><div><h1>${t('dashboard')}</h1><p>${t('tagline')}</p></div>
  <div class="spacer" style="flex:1"></div>
  <input type="file" id="importJsonInput" accept="application/json,.json" style="display:none" onchange="if(this.files[0]) importElsterFile(this.files[0]); this.value='';">
@@ -6105,9 +6127,24 @@ Return this exact JSON structure (use "" for any field not found or empty on the
  try{
  if(typeof location!=='undefined' && location.search){
  const q=new URLSearchParams(location.search);
- if(q.get('reset') && q.get('email')){
+  if(q.get('reset') && q.get('email')){
  S.resetToken=q.get('reset'); S.resetEmail=q.get('email'); S.authMode='reset';
  if(typeof history!=='undefined') history.replaceState({},'',location.pathname);
+ }
+ /* IMPLEMENTED: addresses a real gap the audit flagged directly - email
+    verification was listed as "at minimum" production scope. Mirrors
+    the reset-link handling right above, but calls the API directly on
+    load rather than routing through a form - clicking the link should
+    just confirm it, whether the person is currently logged in or not
+    (the verify-email API route doesn't require auth, matching the
+    password-reset route's own design). */
+ if(q.get('verifyEmail') && q.get('email')){
+ const vToken=q.get('verifyEmail'), vEmail=q.get('email');
+ if(typeof history!=='undefined') history.replaceState({},'',location.pathname);
+  api('/api/auth/verify-email','POST',{email:vEmail, token:vToken}).then(()=>{
+ if(S.user && S.user.settings){ S.user.settings.emailVerified=true; }
+ S.emailVerifyResult='ok'; render();
+ }).catch(()=>{ S.emailVerifyResult='error'; render(); });
  }
  }
  }catch(e){}
