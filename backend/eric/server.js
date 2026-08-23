@@ -123,7 +123,29 @@ async function sendReminderEmail(to, name, taxYear){
       subject: `Your ${taxYear} tax return is paid but not yet submitted`,
       html: `<p>Hi ${name},</p><p>Your ${taxYear} tax return with SimplyTax was paid but has not yet been submitted to the Finanzamt. Please log in to review and submit, or reply if you need help.</p><p>— SimplyTax</p>` })
   });
-  return r.ok;
+   return r.ok;
+}
+/* IMPLEMENTED: a generic security-notification email, reusing the exact
+   same Resend API call already established above for reminder emails -
+   same dormant-until-configured behavior, same best-effort semantics
+   (a failed notification never blocks the actual action the user
+   requested, since this is an FYI, not compliance evidence the way the
+   submission_approvals record is). Addresses a real gap the audit
+   implies throughout its security section: sensitive account actions
+   currently happen with no awareness mechanism for the account owner
+   if someone else were ever the one actually performing them. */
+async function sendSecurityEmail(to, subject, html){
+  if(!RESEND_API_KEY || !to) return false;
+  try {
+    const r = await fetch('https://api.resend.com/emails', {
+      method:'POST', headers:{ Authorization:'Bearer '+RESEND_API_KEY, 'Content-Type':'application/json' },
+      body: JSON.stringify({ from: REMINDER_FROM, to, subject, html })
+    });
+    return r.ok;
+  } catch (e) {
+    console.error('[security email] send failed:', e.message);
+    return false;
+  }
 }
 /* Cron entry point: call this daily from Render Cron Job / cron-job.org / GitHub Actions,
    with header x-cron-secret matching REMINDER_CRON_SECRET. Finds clients paid >= REMINDER_DAYS
@@ -272,7 +294,7 @@ app.get('/api/health', async (_req, res) => {
 });
 
 /* ---------- auth ---------- */
-app.post('/api/auth/register', async (req, res) => {
+ app.post('/api/auth/register', async (req, res) => {
   const { name, email, password } = req.body || {};
   if (!name || !email || !password || password.length < 8) return res.status(400).json({ error: 'invalid_input' });
   try {
@@ -282,6 +304,27 @@ app.post('/api/auth/register', async (req, res) => {
       [email.toLowerCase().trim(), name.trim(), hash]);
     const u = q.rows[0];
     audit(u.id, 'register');
+    /* IMPLEMENTED: addresses a real gap the audit flagged directly -
+       email verification was listed as "at minimum" production scope,
+       not something to defer. Mirrors the exact proven pattern already
+       used for password reset below (random 256-bit token, stored only
+       as a SHA-256 hash, no schema change) rather than inventing a
+       second mechanism. Dormant gracefully if RESEND_API_KEY isn't set,
+       same as password reset - registration never fails because email
+       sending isn't configured. */
+    if (RESEND_API_KEY) {
+      try {
+        const token = cryptoNode.randomBytes(32).toString('hex');
+        const emailVerify = { th: sha256(token), exp: Date.now() + 24*60*60*1000 };
+        await pool.query(`UPDATE users SET settings = jsonb_set(coalesce(settings,'{}'::jsonb),'{emailVerify}',$1::jsonb) WHERE id=$2`,
+          [JSON.stringify(emailVerify), u.id]);
+        const link = FRONTEND_URL + '?verifyEmail=' + token + '&email=' + encodeURIComponent(u.email);
+        await fetch('https://api.resend.com/emails', { method:'POST',
+          headers:{ Authorization:'Bearer '+RESEND_API_KEY, 'Content-Type':'application/json' },
+          body: JSON.stringify({ from: REMINDER_FROM, to: u.email, subject: 'Confirm your SimplyTax email address',
+            html: `<p>Hi ${u.name},</p><p>Please confirm your email address to unlock submitting tax returns:</p><p><a href="${link}">${link}</a></p><p>This link is valid for 24 hours. You can still prepare and calculate your return before confirming - this is only needed before submission.</p><p>— SimplyTax</p>` }) });
+      } catch (e) { console.error('[register] verification email failed:', e.message); }
+    }
     res.json({ token: sign(u), user: pubUser(u) });
   } catch (e) {
     if (e.code === '23505') return res.status(409).json({ error: 'email_exists' });
@@ -326,12 +369,52 @@ app.post('/api/auth/forgot', async (req, res) => {
 app.post('/api/auth/reset', async (req, res) => {
   const { email, token, password } = req.body || {};
   if(!email || !token || !password || String(password).length < 8) return res.status(400).json({ error: 'invalid_input' });
-  const { rows } = await pool.query('SELECT id, settings FROM users WHERE email=$1', [String(email).toLowerCase()]);
+  const { rows } = await pool.query('SELECT id, name, settings FROM users WHERE email=$1', [String(email).toLowerCase()]);
   const pr = rows[0]?.settings?.pwreset;
   if(!pr || pr.th !== sha256(String(token)) || pr.exp < Date.now()) return res.status(400).json({ error: 'invalid_or_expired' });
   const hash = await bcrypt.hash(String(password), 12);
   await pool.query(`UPDATE users SET password_hash=$1, settings = settings - 'pwreset' WHERE id=$2`, [hash, rows[0].id]);
-  audit(rows[0].id, 'pw_reset_done', {});
+   audit(rows[0].id, 'pw_reset_done', {});
+  /* IMPLEMENTED: real security-awareness gap - the flow above sends the
+     initial reset link, but never confirmed afterward that the
+     password actually changed. Without this, the real owner would have
+     no way to notice if their account had been compromised via a
+     leaked reset token and reset by someone else. Best-effort. */
+  sendSecurityEmail(String(email).toLowerCase(), 'Your SimplyTax password was changed',
+    `<p>Hi ${rows[0].name || ''},</p><p>Your SimplyTax password was just changed.</p><p>If this was you, no action is needed. If you did not make this change, please contact us immediately.</p><p>— SimplyTax</p>`
+  ).catch(()=>{});
+  res.json({ ok: true });
+});
+
+/* ---------- Email verification (mirrors the password-reset pattern above) ---------- */
+app.post('/api/auth/verify-email', async (req, res) => {
+  const { email, token } = req.body || {};
+  if (!email || !token) return res.status(400).json({ error: 'invalid_input' });
+  const { rows } = await pool.query('SELECT id, settings FROM users WHERE email=$1', [String(email).toLowerCase()]);
+  const ev = rows[0]?.settings?.emailVerify;
+  if (!rows.length || !ev || ev.th !== sha256(String(token)) || ev.exp < Date.now())
+    return res.status(400).json({ error: 'invalid_or_expired' });
+  await pool.query(
+    `UPDATE users SET settings = jsonb_set(settings - 'emailVerify', '{emailVerified}', 'true') WHERE id=$1`,
+    [rows[0].id]
+  );
+  audit(rows[0].id, 'email_verified', {});
+  res.json({ ok: true });
+});
+app.post('/api/auth/resend-verification', auth, async (req, res) => {
+  if (!RESEND_API_KEY) return res.status(501).json({ error: 'email_disabled' });
+  const { rows } = await pool.query('SELECT id, name, email, settings FROM users WHERE id=$1', [req.user.sub]);
+  if (!rows.length) return res.status(404).json({ error: 'not_found' });
+  if (rows[0].settings?.emailVerified) return res.json({ ok: true, alreadyVerified: true });
+  const token = cryptoNode.randomBytes(32).toString('hex');
+  const emailVerify = { th: sha256(token), exp: Date.now() + 24*60*60*1000 };
+  await pool.query(`UPDATE users SET settings = jsonb_set(settings,'{emailVerify}',$1::jsonb) WHERE id=$2`,
+    [JSON.stringify(emailVerify), rows[0].id]);
+  const link = FRONTEND_URL + '?verifyEmail=' + token + '&email=' + encodeURIComponent(rows[0].email);
+  await fetch('https://api.resend.com/emails', { method:'POST',
+    headers:{ Authorization:'Bearer '+RESEND_API_KEY, 'Content-Type':'application/json' },
+    body: JSON.stringify({ from: REMINDER_FROM, to: rows[0].email, subject: 'Confirm your SimplyTax email address',
+      html: `<p>Hi ${rows[0].name},</p><p>Please confirm your email address to unlock submitting tax returns:</p><p><a href="${link}">${link}</a></p><p>This link is valid for 24 hours.</p><p>— SimplyTax</p>` }) });
   res.json({ ok: true });
 });
 
@@ -347,9 +430,10 @@ app.put('/api/auth/email', auth, async (req, res) => {
   const email = String(newEmail||'').trim().toLowerCase();
   if(!email || !password) return res.status(400).json({ error: 'invalid_input' });
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return res.status(400).json({ error: 'invalid_email' });
-  const { rows } = await pool.query('SELECT password_hash FROM users WHERE id=$1', [req.user.sub]);
+  const { rows } = await pool.query('SELECT email, name, password_hash FROM users WHERE id=$1', [req.user.sub]);
   if(!rows.length || !(await bcrypt.compare(String(password), rows[0].password_hash)))
     return res.status(401).json({ error: 'wrong_password' });
+  const oldEmail = rows[0].email;
   try{
     await pool.query('UPDATE users SET email=$1 WHERE id=$2', [email, req.user.sub]);
   }catch(e){
@@ -357,6 +441,14 @@ app.put('/api/auth/email', auth, async (req, res) => {
     throw e;
   }
    audit(req.user.sub, 'email_changed', { to: email });
+  /* IMPLEMENTED: real security-awareness gap - notify the OLD address,
+     not the new one. If this change was ever made by someone other
+     than the real account owner, the old inbox is the one they still
+     control; the new one likely belongs to whoever made the change.
+     Best-effort - does not block the change itself on send failure. */
+  sendSecurityEmail(oldEmail, 'Your SimplyTax sign-in email was changed',
+    `<p>Hi ${rows[0].name || ''},</p><p>The email address on your SimplyTax account was just changed to <b>${email}</b>.</p><p>If this was you, no action is needed. If you did not make this change, please contact us immediately.</p><p>— SimplyTax</p>`
+  ).catch(()=>{});
   res.json({ ok: true, email });
 });
 
@@ -377,11 +469,17 @@ app.put('/api/auth/email', auth, async (req, res) => {
 app.delete('/api/auth/account', auth, async (req, res) => {
   const { password } = req.body || {};
   if (!password) return res.status(400).json({ error: 'password_required' });
-  const { rows } = await pool.query('SELECT password_hash FROM users WHERE id=$1', [req.user.sub]);
+  const { rows } = await pool.query('SELECT email, name, password_hash FROM users WHERE id=$1', [req.user.sub]);
   if (!rows.length || !(await bcrypt.compare(String(password), rows[0].password_hash)))
     return res.status(401).json({ error: 'wrong_password' });
 
   audit(req.user.sub, 'account_deletion_requested', {});
+  /* IMPLEMENTED: real security-awareness gap - must be sent before the
+     user row is deleted below, since there's no email address left to
+     notify at afterward. Best-effort, does not block the deletion. */
+  sendSecurityEmail(rows[0].email, 'Your SimplyTax account is being deleted',
+    `<p>Hi ${rows[0].name || ''},</p><p>Your SimplyTax account and all draft tax returns are being permanently deleted, as requested.</p><p>If you did not request this, please contact us immediately - this cannot be undone once complete.</p><p>— SimplyTax</p>`
+  ).catch(()=>{});
 
   if (storageOn()) {
     try {
@@ -457,7 +555,13 @@ app.post('/api/auth/export', auth, async (req, res) => {
     [req.user.sub]
   ).catch(() => ({ rows: [] }));
 
-  audit(req.user.sub, 'data_export', {});
+   audit(req.user.sub, 'data_export', {});
+  /* IMPLEMENTED: real security-awareness gap - a bulk export of tax
+     data is a sensitive event worth the account owner knowing about,
+     not something that happens silently. Best-effort. */
+  sendSecurityEmail(userRows[0].email, 'Your SimplyTax data was exported',
+    `<p>Hi ${userRows[0].name || ''},</p><p>A full export of your SimplyTax data (account details, tax returns, and submission records) was just downloaded.</p><p>If this was you, no action is needed. If you did not request this, please change your password immediately and contact us.</p><p>— SimplyTax</p>`
+  ).catch(()=>{});
 
   res.json({
     exportedAt: new Date().toISOString(),
@@ -684,8 +788,32 @@ app.post('/api/eric/submit', auth, async (req, res) => {
     return res.status(501).json({ error: 'eric_unavailable', detail: ericService.getInitError() });
   }
   const { clientId, interchangeData, freigabeConfirmed } = req.body || {};
-  if (!clientId || !interchangeData) return res.status(400).json({ error: 'invalid_input' });
+   if (!clientId || !interchangeData) return res.status(400).json({ error: 'invalid_input' });
   if (!freigabeConfirmed) return res.status(400).json({ error: 'freigabe_required' });
+
+  /* IMPLEMENTED: addresses the audit's own specific example - "submitting
+     to ELSTER should require stronger authentication than simply
+     possessing an old 12-hour JWT." A verified email is the minimum bar
+     for something this consequential. Only enforced when RESEND_API_KEY
+     is genuinely configured, matching the same graceful-dormancy
+     principle already used for password reset, so this can never lock
+     every user out simply because a given deployment hasn't set up
+     email sending yet. */
+   if (RESEND_API_KEY) {
+    const { rows: verifyRows } = await pool.query('SELECT settings FROM users WHERE id=$1', [req.user.sub]);
+    const s = verifyRows[0]?.settings || {};
+    /* Grandfather accounts that predate this feature entirely - if
+       neither emailVerified nor a pending emailVerify token was ever
+       set for this account, it registered before verification existed
+       at all, and shouldn't be retroactively locked out for a step
+       that didn't exist when they signed up. Only accounts that
+       genuinely went through (or were sent) verification and haven't
+       completed it are actually blocked. */
+    const predatesFeature = s.emailVerified === undefined && s.emailVerify === undefined;
+    if (!predatesFeature && !s.emailVerified) {
+      return res.status(403).json({ error: 'email_not_verified' });
+    }
+  }
 
   const { rows } = await pool.query('SELECT data FROM clients WHERE id=$1 AND user_id=$2', [clientId, req.user.sub]);
   if (!rows.length) return res.status(404).json({ error: 'not_found' });
