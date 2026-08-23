@@ -2711,9 +2711,9 @@ function buildEStXML(data, opts = {}) {
 
   const skippedSections = [];
   if ((data.anlageN || []).some(n => N(n.zeile17_agLeistungenEntfernung) > 0))
-    skippedSections.push('anlageN employer-provided commute allowance (Lohnsteuerbescheinigung line 17) was entered but not transmitted - the field previously used for this was confirmed placed under the wrong section (Wk/AWT/Fahrt, not ArbL, found via a genuine client submission returning feldUnbekannt). Its exact real meaning needs the same dedicated research the neighboring line 20 field already went through before it can be sent correctly.');
+    skippedSections.push('[MATERIAL] anlageN employer-provided commute allowance (Lohnsteuerbescheinigung line 17) was entered but not transmitted - the field previously used for this was confirmed placed under the wrong section (Wk/AWT/Fahrt, not ArbL, found via a genuine client submission returning feldUnbekannt). Its exact real meaning needs the same dedicated research the neighboring line 20 field already went through before it can be sent correctly.');
   if ((data.anlageV || []).some(p => p.werbungskosten > 0 && wkCategoryTotal(p) === 0))
-    skippedSections.push('anlageV Werbungskosten (rental deduction costs) - a total was entered but not broken into the real itemized categories (depreciation, loan interest, maintenance, management, other), so it could not be transmitted honestly. Enter the amount under the specific category it belongs to instead of one combined figure.');
+    skippedSections.push('[MATERIAL] anlageV Werbungskosten (rental deduction costs) - a total was entered but not broken into the real itemized categories (depreciation, loan interest, maintenance, management, other), so it could not be transmitted honestly. Enter the amount under the specific category it belongs to instead of one combined figure.');
   if ((data.anlageV || []).some(p => N(p.wkAfa) > 0))
     skippedSections.push('anlageV building depreciation (AfA) - transmitted using the standard default (2% linear depreciation), since the exact method and construction date aren\'t collected yet. This is the correct rate for most buildings completed after 1924, but if a different method or rate genuinely applies to this property, the amount transmitted may not be exactly right - worth confirming with a Steuerberater if unsure.');
   if ((data.anlageKind || []).some(k => k.betreuungskosten > 0 && (!k.betreuungAnbieter || !k.betreuungVon || !k.betreuungBis)))
@@ -2723,7 +2723,7 @@ function buildEStXML(data, opts = {}) {
   if (!data.hauptvordruck?.personB && (data.anlageKind || []).some(k => k.vorname && k.geburtsdatum && !k.otherParentName))
     skippedSections.push('anlageKind present for a single filer without the other parent\'s name for at least one child - confirmed required (Regel 100500048/25). This is genuinely case-specific data that cannot be safely defaulted - needs to come from the user.');
   if ((data.anlageN || []).some(n => N(n.zeile20_verpflegung) > 0))
-    skippedSections.push('Anlage N Zeile 20 (tax-free employer meal allowances) present but NOT transmitted - real bug found via testing against a genuine client file. It was previously sent to the wrong XML context (ArbL) under a field that actually means something different (the sum of CLAIMED foreign-travel meal expenses). Its correct home is E0205108 "vom Arbeitgeber steuerfrei ersetzt", which only makes sense alongside the travel-expense claim itself (days away, countries, per-diem rates) - none of which this app collects. Sending it alone would be an incomplete declaration, so it is honestly omitted rather than guessed.');
+    skippedSections.push('[MATERIAL] Anlage N Zeile 20 (tax-free employer meal allowances) present but NOT transmitted - real bug found via testing against a genuine client file. It was previously sent to the wrong XML context (ArbL) under a field that actually means something different (the sum of CLAIMED foreign-travel meal expenses). Its correct home is E0205108 "vom Arbeitgeber steuerfrei ersetzt", which only makes sense alongside the travel-expense claim itself (days away, countries, per-diem rates) - none of which this app collects. Sending it alone would be an incomplete declaration, so it is honestly omitted rather than guessed.');
   (data.anlageNAUS || []).forEach((a, i) => {
     const label = `anlageNAUS entry ${i + 1}`;
     const year = data.meta?.taxYear || 2025;
@@ -2732,7 +2732,7 @@ function buildEStXML(data, opts = {}) {
       return;
     }
     if (a.legalBasis && a.legalBasis !== 'dba')
-      skippedSections.push(`${label}: legal basis "${a.legalBasis === 'ate' ? 'ATE' : 'ZÜ'}" was selected, but only the standard DBA basis is implemented - the additional fields ATE/ZÜ specifically require (e.g. employer's business sector, the international organization involved) are not collected. Confirmed sent as DBA regardless - please review this entry, since that may not be correct for this case.`);
+      skippedSections.push(`[MATERIAL] ${label}: legal basis "${a.legalBasis === 'ate' ? 'ATE' : 'ZÜ'}" was selected, but only the standard DBA basis is implemented - the additional fields ATE/ZÜ specifically require (e.g. employer's business sector, the international organization involved) are not collected. Confirmed sent as DBA regardless - please review this entry, since that may not be correct for this case.`);
     if (!a.taetigkeitDesc || !a.taetigkeitVon || !a.taetigkeitBis)
       skippedSections.push(`${label}: the foreign activity's description and date range are required together (Regel 100260064) and were not fully provided - this entry will be rejected until filled in.`);
     if (!(N(a.arbeitstageGesamt) > 0) || !(N(a.arbeitstageAusland) > 0))
@@ -2809,7 +2809,7 @@ function buildEStXML(data, opts = {}) {
     if (!(N(p.nebenkosten) > 0))
       skippedSections.push(`${label}: no service charges (Neben-/Betriebskosten) were entered, so the return declares that these were not separately agreed (Regel 100750265). If the tenant does pay service charges, that amount must be entered instead.`);
     if (N(p.werbungskosten) > 0 && wkCategoryTotal(p) === 0)
-      skippedSections.push(`${label}: rental expenses were entered as one combined total but not transmitted - break the amount down by category (depreciation, loan interest, maintenance, management costs, other) instead of one figure, since the real schema requires itemization. The declared income is currently gross until this is done.`);
+      skippedSections.push(`[MATERIAL] ${label}: rental expenses were entered as one combined total but not transmitted - break the amount down by category (depreciation, loan interest, maintenance, management costs, other) instead of one figure, since the real schema requires itemization. The declared income is currently gross until this is done.`);
     if (N(p.mieteinnahmen) > 0 && data.hauptvordruck?.personB && !p.owner)
       skippedSections.push(`${label}: a second person exists on this return, but no owner was selected for this property - defaulted to attributing the full surplus to Person A. If this property is jointly owned or belongs to the spouse, select the correct owner for accurate attribution.`);
   });
@@ -2950,6 +2950,30 @@ ${nutzdaten}</Nutzdaten>
    return { xml, skippedSections };
 }
 
+/* IMPLEMENTED: addresses the production audit's own headline finding
+   (its §3) - "ERiC accepted the XML" does not mean the return is
+   correct, since technically valid XML can still silently omit real
+   money the customer entered. skippedSections mixed two genuinely
+   different things: notes about defensible defaults (the standard 2%
+   AfA rate, which is correct for most buildings) alongside cases
+   where real entered money or a user's actual selection was silently
+   dropped or contradicted. Only the entries deliberately marked
+   [MATERIAL] above - reviewed individually, not pattern-matched - are
+   split out here. Callers (the backend submission route) use this to
+   decide whether submission should proceed at all, per the audit's
+   own recommendation: unsupported material situations should block
+   submission, not just warn. The marker itself is stripped before
+   these ever reach the user - it's purely an internal signal. */
+function classifySkippedSections(skippedSections) {
+  const materialGaps = [];
+  const informational = [];
+  for (const s of skippedSections) {
+    if (s.startsWith('[MATERIAL] ')) materialGaps.push(s.slice('[MATERIAL] '.length));
+    else informational.push(s);
+  }
+  return { materialGaps, informational };
+}
+
 function bundeslandCode(name) {
   const map = { 'Baden-Württemberg':'BW','Bayern':'BY','Berlin':'BE','Brandenburg':'BB','Bremen':'HB',
     'Hamburg':'HH','Hessen':'HE','Mecklenburg-Vorpommern':'MV','Niedersachsen':'NI','Nordrhein-Westfalen':'NW',
@@ -2962,4 +2986,4 @@ class InterchangeDataError extends Error {
   constructor(msg) { super(msg); this.name = 'InterchangeDataError'; }
 }
 
-module.exports = { buildEStXML, InterchangeDataError };
+module.exports = { buildEStXML, InterchangeDataError, classifySkippedSections };

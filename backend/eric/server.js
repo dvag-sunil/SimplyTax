@@ -34,7 +34,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const ericService = require('./eric/eric-service');
-const { buildEStXML, InterchangeDataError } = require('./eric/xml-builder');
+const { buildEStXML, InterchangeDataError, classifySkippedSections } = require('./eric/xml-builder');
 
 const { DATABASE_URL, JWT_SECRET, ALLOWED_ORIGIN = 'https://dvag-sunil.github.io', PORT = 3000 } = process.env;
 if (!DATABASE_URL || !JWT_SECRET) { console.error('Missing DATABASE_URL or JWT_SECRET in .env'); process.exit(1); }
@@ -539,11 +539,18 @@ app.post('/api/eric/validate', auth, async (req, res) => {
     });
     const result = await ericService.validate(xml, 'ESt_' + (convertedData.meta?.taxYear || 2025));
     audit(req.user.sub, 'eric_validate', { clientId, rc: result.rc, ok: result.rc === 0 });
+    /* IMPLEMENTED: same real classification used to block /api/eric/submit
+       below, surfaced here too (informational only - this is a preview
+       call) so the UI can flag it and let the customer fix the gap
+       before they ever reach the Freigabe approval screen, rather than
+       only discovering it at the final, blocking submit step. */
+    const { materialGaps } = classifySkippedSections(skippedSections);
     res.json({
       ok: result.rc === 0,
       rc: result.rc,
       resultXml: result.resultXml,
       skippedSections,
+      materialGaps,
       /* CORRECTED: real bug found via direct feedback - this response
          was built naming only specific fields, silently dropping
          ericLogTail even though the worker already returns it
@@ -586,11 +593,25 @@ app.post('/api/eric/submit', auth, async (req, res) => {
     return res.status(402).json({ error: 'payment_required' });
   }
 
-  try {
+   try {
     const convertedData = await convertSteuernummerForSubmission(interchangeData);
     const { xml, skippedSections } = buildEStXML(convertedData, {
       herstellerID: process.env.ERIC_HERSTELLER_ID,
     });
+
+    /* IMPLEMENTED: the production audit's own headline recommendation
+       (its §3) - "ERiC accepted the XML" does not mean the return is
+       correct. Real money the customer entered, or a legal basis
+       actively contradicting what they selected, being silently
+       dropped from what's actually transmitted is not something a
+       checkbox should be able to wave through. Checked before the
+       approval-evidence record is even written, so a blocked
+       submission is never recorded as an attempted one and never
+       reaches ERiC at all. */
+    const { materialGaps } = classifySkippedSections(skippedSections);
+    if (materialGaps.length > 0) {
+      return res.status(422).json({ error: 'material_gaps', materialGaps });
+    }
 
     /* CORRECTED: real gap found in the production audit - the durable
        approval record is now written here, BEFORE the ERiC call, using
