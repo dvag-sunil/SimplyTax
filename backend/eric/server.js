@@ -747,6 +747,22 @@ app.post('/api/payments/checkout', auth, async (req, res) => {
   if (!stripe) return res.status(501).json({ error: 'stripe_disabled' });
   const { clientId, discountCode } = req.body || {};
   if (!clientId) return res.status(400).json({ error: 'invalid_input' });
+  /* IMPLEMENTED: real, different problem found while checking this
+     route for the same thing as eric/validate - clientId ownership
+     was never verified before creating the Stripe session. If it were
+     ever wrong, stale, or tampered with, the customer's real payment
+     would still go through via Stripe, but the final database update
+     in markPaid (correctly scoped to id+user_id) would silently match
+     zero rows - unlocking nothing for anyone, and leaving the
+     customer's money effectively lost with no return to show for it.
+     Same allowance as eric/validate for a genuinely new, not-yet-saved
+     record (only rejects an actual conflict with someone else's
+     existing record), since checkout can plausibly be reached shortly
+     after creating a new return, before the debounced save completes. */
+  const { rows: ownershipRows } = await pool.query('SELECT user_id FROM clients WHERE id=$1', [clientId]);
+  if (ownershipRows.length && ownershipRows[0].user_id !== req.user.sub) {
+    return res.status(404).json({ error: 'not_found' });
+  }
   const { cents, code } = discountedCents(discountCode);
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
