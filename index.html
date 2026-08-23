@@ -1495,11 +1495,22 @@ const BUNDESLAENDER=['Baden-Württemberg','Bayern','Berlin','Brandenburg','Breme
    below since no schema exists for it yet). Computed from the real
    current date rather than hardcoded, so this never needs manual
    updating as years pass. */
+/* Explicit tax-year availability gate. Years are only offered here if
+   they're genuinely ready for calculation and submission - being
+   listed is a deliberate decision, not something that happens
+   automatically just because the calendar allows it.
+   2021 and 2022 are deliberately excluded for now (their estimate
+   calculation silently falls back to the 2025 tax tariff, which is
+   not correct for those years) - nothing about their underlying
+   support elsewhere in the app has been touched or removed, this is
+   purely a UI availability switch. Re-enable by adding the year
+   number back to this list once verified. */
+const SUPPORTED_TAX_YEARS_MIN = 2023;
 function taxYearOptions(){
   const nowYear = new Date().getFullYear();
   const years = [];
-  for (let y = nowYear - 1; y >= nowYear - 5; y--) years.push(y);
-  return years; // e.g. in 2026: [2025,2024,2023,2022,2021] - the running year itself is excluded, matching real-world filing (you cannot file a return for a year that hasn't ended and whose forms don't exist yet)
+  for (let y = nowYear - 1; y >= Math.max(SUPPORTED_TAX_YEARS_MIN, nowYear - 5); y--) years.push(y);
+  return years; // e.g. in 2026: [2025,2024,2023] - the running year itself is excluded, matching real-world filing (you cannot file a return for a year that hasn't ended and whose forms don't exist yet)
 }
 const YEAR_LIMITATIONS = {
   2023: { noRealsplittingCountry:true },   // confirmed via real research: this field genuinely didn't exist until 2024
