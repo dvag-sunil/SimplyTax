@@ -589,9 +589,41 @@ app.post('/api/eric/submit', auth, async (req, res) => {
      while testing the ERiC pipeline end-to-end; remove this block (and
      the env var) once real payment enforcement is needed again. */
   const skipPayment = process.env.SKIP_PAYMENT_CHECK === 'true';
-  if (!skipPayment && (!stored.pay || stored.pay.status !== 'paid')) {
+   if (!skipPayment && (!stored.pay || stored.pay.status !== 'paid')) {
     return res.status(402).json({ error: 'payment_required' });
   }
+
+  /* IMPLEMENTED: real duplicate-submission protection, addressing a
+     genuine gap the audit flagged - a double-click, browser retry, or
+     two open tabs could all previously trigger the same return being
+     sent to ELSTER twice, since nothing here ever checked whether this
+     client was already submitted. A plain "if already submitted,
+     reject" check on its own would still have a race: two simultaneous
+     requests could both read "not yet submitted" before either writes.
+     This claims a "submitting" lock atomically via a conditional
+     UPDATE - only one concurrent request can ever have its WHERE
+     clause match, confirmed by checking rowCount (how many rows the
+     database actually changed), not just re-reading the value
+     afterward. Every exit path below releases the lock so a genuine
+     failure never permanently locks the client out of retrying. */
+   const claim = await pool.query(
+    `UPDATE clients SET data = jsonb_set(data, '{status}', '"submitting"')
+     WHERE id=$1 AND user_id=$2
+       AND (data->>'status' IS DISTINCT FROM 'submitted')
+       AND (data->>'status' IS DISTINCT FROM 'submitting')
+     RETURNING id`,
+    [clientId, req.user.sub]
+  );
+  if (claim.rowCount === 0) {
+    return res.status(409).json({ error: 'already_submitted_or_in_progress' });
+  }
+  const previousStatus = stored.status || 'draft';
+  const releaseLock = async (newStatus) => {
+    await pool.query(
+      `UPDATE clients SET data = jsonb_set(data, '{status}', $3::jsonb) WHERE id=$1 AND user_id=$2`,
+      [clientId, req.user.sub, JSON.stringify(newStatus)]
+    ).catch(e => console.error('[eric/submit] could not release submission lock:', e.message));
+  };
 
    try {
     const convertedData = await convertSteuernummerForSubmission(interchangeData);
@@ -608,8 +640,9 @@ app.post('/api/eric/submit', auth, async (req, res) => {
        approval-evidence record is even written, so a blocked
        submission is never recorded as an attempted one and never
        reaches ERiC at all. */
-    const { materialGaps } = classifySkippedSections(skippedSections);
+     const { materialGaps } = classifySkippedSections(skippedSections);
     if (materialGaps.length > 0) {
+      await releaseLock(previousStatus);
       return res.status(422).json({ error: 'material_gaps', materialGaps });
     }
 
@@ -630,11 +663,12 @@ app.post('/api/eric/submit', auth, async (req, res) => {
         [clientId, req.user.sub, convertedData.meta?.taxYear || null, approvedPayloadSha256, JSON.stringify(convertedData), xmlSha256]
       );
       approvalId = approvalInsert.rows[0]?.id || null;
-    } catch (approvalErr) {
+     } catch (approvalErr) {
       /* Per the audit's own recommendation: failure to durably record
          approval evidence means do not submit - this is not a "log
          and continue" failure the way ordinary audit events are. */
       console.error('[eric/submit] could not write approval evidence, refusing to submit:', approvalErr.message);
+      await releaseLock(previousStatus);
       return res.status(500).json({ error: 'approval_evidence_failed' });
     }
 
@@ -648,7 +682,7 @@ app.post('/api/eric/submit', auth, async (req, res) => {
       ).catch(e => console.error('[eric/submit] could not update approval record with outcome:', e.message));
     }
 
-    if (result.sent) {
+     if (result.sent) {
       /* CORRECTED: extractServerAnswer() in the worker was already
          writing a real transferTicket into the result object, but this
          endpoint never persisted or returned it - the TODO here was
@@ -663,6 +697,13 @@ app.post('/api/eric/submit', auth, async (req, res) => {
          ) WHERE id=$1 AND user_id=$2`,
         [clientId, req.user.sub, JSON.stringify(result.transferTicket || null)]
       );
+    } else {
+      /* CORRECTED: real gap - previously nothing released the
+         "submitting" lock when ERiC itself rejected the return (as
+         opposed to a server-side exception, which the outer catch
+         already handles). Without this, a genuine ERiC-level failure
+         left the client permanently stuck, unable to ever retry. */
+      await releaseLock(previousStatus);
     }
 
     res.json({
@@ -678,7 +719,8 @@ app.post('/api/eric/submit', auth, async (req, res) => {
          being silently dropped here too. */
       ...(result.ericLogTail ? { ericLogTail: result.ericLogTail } : {}),
     });
-  } catch (e) {
+   } catch (e) {
+    await releaseLock(previousStatus);
     if (e instanceof InterchangeDataError) return res.status(400).json({ error: 'invalid_interchange_data', detail: e.message });
     console.error('[eric/submit]', e.message);
     res.status(500).json({ error: 'server_error' });
