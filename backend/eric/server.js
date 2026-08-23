@@ -299,7 +299,7 @@ app.post('/api/extract-doc', auth, async (req, res) => {
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 30 }));   // brute-force protection
 app.use('/api', rateLimit({ windowMs: 60 * 1000, max: 120 }));
 
-const sign = (u) => jwt.sign({ sub: u.id, role: u.role }, JWT_SECRET, { expiresIn: '12h' });
+const sign = (u) => jwt.sign({ sub: u.id, role: u.role }, JWT_SECRET, { expiresIn: '2h' });
 const pubUser = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role, settings: u.settings, twoFA: u.two_fa });
 
 /* auth middleware — every data route requires a valid token */
@@ -310,6 +310,22 @@ function auth(req, res, next) {
   try { req.user = jwt.verify(token, JWT_SECRET); next(); }
   catch { return res.status(401).json({ error: 'invalid_token' }); }
 }
+/* IMPLEMENTED: addresses the real trade-off shortening the base token
+   lifetime above creates - without this, someone in the middle of a
+   long tax return would be logged out every 2 hours, which is a real
+   disruption risk (unsaved work, frustration) for a task that
+   genuinely can take that long. Requires an already-valid token to
+   use (via the auth middleware itself), so this can't extend access
+   beyond what a genuinely valid session already had - it only lets an
+   actively-used session keep renewing itself. An abandoned or stolen
+   token that's never actively used to call this still expires at the
+   full 2-hour mark either way, six times faster than the previous
+   12-hour window. */
+app.post('/api/auth/refresh', auth, async (req, res) => {
+  const { rows } = await pool.query('SELECT * FROM users WHERE id=$1', [req.user.sub]);
+  if (!rows.length) return res.status(404).json({ error: 'not_found' });
+  res.json({ token: sign(rows[0]) });
+});
 /* role guard — prepared for the roles stage: use requireRole('admin') on future admin routes */
 const requireRole = (...roles) => (req, res, next) =>
   roles.includes(req.user.role) ? next() : res.status(403).json({ error: 'forbidden' });

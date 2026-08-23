@@ -582,6 +582,30 @@ async function handleStripeReturn(){
  try{ history.replaceState({},'',location.pathname); }catch(e){}
 }
 let authToken = null;
+let tokenRefreshTimer = null;
+/* IMPLEMENTED: wires the frontend to the new backend refresh endpoint,
+   addressing the real trade-off of shortening the session token
+   lifetime from 12 hours to 2 (see server.js sign()) - without this,
+   someone in the middle of a long tax return would be logged out
+   mid-session. Called from every place a valid session is
+   established (restored on load, fresh login, fresh registration).
+   Refreshes well within the 2-hour window, with enough margin that a
+   single failed attempt (a brief network hiccup) doesn't risk
+   anything - the next scheduled attempt, or any regular API call,
+   would still succeed or naturally reveal a genuinely expired session
+   via the existing 401 handling, without this needing its own special
+   error/logout logic. */
+function startTokenRefreshTimer(){
+ if(tokenRefreshTimer) clearInterval(tokenRefreshTimer);
+ tokenRefreshTimer = setInterval(async () => {
+ if(!authToken || !BACKEND.enabled) return;
+ try{
+ const r = await api('/api/auth/refresh','POST');
+ authToken = r.token;
+ await kvSet('klarsteuer-token', r.token);
+ }catch(e){ /* best-effort - see comment above */ }
+ }, 30*60*1000); // every 30 minutes, well within the 2-hour token window
+}
 async function api(path, method='GET', body){
  const r = await fetch(BACKEND.baseUrl+path, {
  method,
@@ -1763,7 +1787,7 @@ async function loadState(){
  if(BACKEND.enabled){
  const tok=await kvGet('klarsteuer-token');
  if(tok){ authToken=tok;
- try{ const r=await api('/api/auth/me'); S.user=r.user; await loadUserData(); S.loggedIn=true; S.view='dash'; }
+  try{ const r=await api('/api/auth/me'); S.user=r.user; await loadUserData(); S.loggedIn=true; S.view='dash'; startTokenRefreshTimer(); }
  catch(e){ authToken=null; await kvDel('klarsteuer-token'); } }
  return;
  }
@@ -1881,8 +1905,8 @@ async function doLogin(btn){
  try{
  if(BACKEND.enabled){
  try{ const r=await api('/api/auth/login','POST',{email,password:pass});
- authToken=r.token; S.user=r.user; await kvSet('klarsteuer-token',r.token);
- await loadUserData(); S.loggedIn=true; S.view='dash'; render();
+  authToken=r.token; S.user=r.user; await kvSet('klarsteuer-token',r.token);
+ await loadUserData(); S.loggedIn=true; S.view='dash'; startTokenRefreshTimer(); render();
  }catch(e){ authErr(e.message==='bad_credentials'?t('err_creds'):t('err_creds')); }
  return;
  }
@@ -1904,8 +1928,8 @@ async function doRegister(btn){
  try{
  if(BACKEND.enabled){
  try{ const r=await api('/api/auth/register','POST',{name,email,password:p1});
- authToken=r.token; S.user=r.user; await kvSet('klarsteuer-token',r.token);
- S.clients=[]; S.loggedIn=true; S.view='dash'; render();
+  authToken=r.token; S.user=r.user; await kvSet('klarsteuer-token',r.token);
+ S.clients=[]; S.loggedIn=true; S.view='dash'; startTokenRefreshTimer(); render();
  }catch(e){ authErr(e.message==='email_exists'?t('err_exists'):t('err_fields')); }
  return;
  }
@@ -1937,6 +1961,7 @@ async function doResendVerification(btn){
  }
 }
 async function logout(){
+ if(tokenRefreshTimer){ clearInterval(tokenRefreshTimer); tokenRefreshTimer=null; }
  await kvDel('klarsteuer-session'); await kvDel('klarsteuer-token'); authToken=null;
  S.user=null; S.clients=[]; S.loggedIn=false; S.view='login'; S.authMode='login'; render();
 }
