@@ -284,8 +284,19 @@ function auth(req, res, next) {
 const requireRole = (...roles) => (req, res, next) =>
   roles.includes(req.user.role) ? next() : res.status(403).json({ error: 'forbidden' });
 
+ /* CORRECTED: real gap the audit flags directly (§11) - failures here
+   were completely silent before, not even logged to the server's own
+   console. Kept best-effort/non-blocking for ordinary events (login,
+   routine syncs) - the audit itself distinguishes routine logging
+   from legally-critical records, and blocking something like a
+   normal login over a logging hiccup would be a disproportionate
+   regression for a minor observability gap. This makes failures
+   visible everywhere without changing behavior for routine events;
+   see the account-deletion route and the submission route above for
+   where genuinely critical events are instead made blocking. */
 const audit = (userId, action, detail = {}) =>
-  pool.query('INSERT INTO audit_log(user_id, action, detail) VALUES ($1,$2,$3)', [userId, action, detail]).catch(() => {});
+  pool.query('INSERT INTO audit_log(user_id, action, detail) VALUES ($1,$2,$3)', [userId, action, detail])
+    .catch(e => console.error(`[audit] failed to record '${action}' for user ${userId}:`, e.message));
 
 /* ---------- health (for monitoring tools like Uptime Kuma / Grafana) ---------- */
 app.get('/api/health', async (_req, res) => {
@@ -522,7 +533,19 @@ app.delete('/api/auth/account', auth, async (req, res) => {
   if (!rows.length || !(await bcrypt.compare(String(password), rows[0].password_hash)))
     return res.status(401).json({ error: 'wrong_password' });
 
-  audit(req.user.sub, 'account_deletion_requested', {});
+   /* CORRECTED: made this genuinely blocking, matching the same
+     principle already applied to the submission route above - this
+     is an irreversible action, and the audit's own recommendation
+     (§11) is that failure to create the compliance record for
+     something this significant should mean the action doesn't
+     proceed, not "log and continue anyway" the way an ordinary,
+     routine event correctly does elsewhere in this file. */
+  try {
+    await pool.query('INSERT INTO audit_log(user_id, action, detail) VALUES ($1,$2,$3)', [req.user.sub, 'account_deletion_requested', {}]);
+  } catch (e) {
+    console.error('[account deletion] could not record audit event, refusing to proceed:', e.message);
+    return res.status(500).json({ error: 'audit_log_failed' });
+  }
   /* IMPLEMENTED: real security-awareness gap - must be sent before the
      user row is deleted below, since there's no email address left to
      notify at afterward. Best-effort, does not block the deletion. */
