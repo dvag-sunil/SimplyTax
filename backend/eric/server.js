@@ -182,10 +182,40 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dvag-sunil.github.io/S
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 const BELEGE_BUCKET = 'belege';
-const DOC_MAX_BYTES = 5 * 1024 * 1024;
+ const DOC_MAX_BYTES = 5 * 1024 * 1024;
 const DOC_MIME_OK = m => /^image\//.test(m) || m === 'application/pdf'
   || m === 'application/msword'
   || m === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+/* IMPLEMENTED: fixes a real, classic exploitable gap the audit
+   explicitly calls for testing ("upload MIME/extension checks"). The
+   MIME type accepted above comes entirely from parsing the
+   client-supplied data: URI prefix - something the browser (or any
+   direct API caller) constructs itself. The server never verified the
+   actual file content matched what was claimed, meaning a malicious
+   file could get past the check above simply by mislabeling it as an
+   accepted type. Checks the real binary signature (the first few
+   bytes, the standard way file type is verified independent of any
+   claimed label) of the actual uploaded content against the specific
+   type declared, for every real type this app accepts. Genuinely
+   unknown-but-image/* subtypes (rare in practice - phone cameras and
+   scanners produce jpeg/png/webp/heic/gif, not exotic formats) are
+   rejected rather than trusted on the strength of the label alone,
+   since a security check that can be silently bypassed by claiming an
+   uncommon subtype isn't a real check. */
+function verifyMagicBytes(buf, claimedMime){
+  const hex = (n) => buf.subarray(0, n).toString('hex');
+  if (claimedMime === 'application/pdf') return hex(5) === '255044462d'; // "%PDF-"
+  if (claimedMime === 'image/jpeg' || claimedMime === 'image/jpg') return hex(3) === 'ffd8ff';
+  if (claimedMime === 'image/png') return hex(8) === '89504e470d0a1a0a';
+  if (claimedMime === 'image/gif') return hex(4) === '47494638'; // "GIF8" (covers 87a and 89a)
+  if (claimedMime === 'image/webp') return hex(4) === '52494646' && buf.subarray(8,12).toString('ascii') === 'WEBP'; // "RIFF"...."WEBP"
+  if (claimedMime === 'image/heic' || claimedMime === 'image/heif') return buf.subarray(4,8).toString('ascii') === 'ftyp'; // ISO base media container, common iPhone photo format
+  if (claimedMime === 'image/bmp') return hex(2) === '424d'; // "BM"
+  if (claimedMime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return hex(4) === '504b0304'; // .docx is a ZIP archive ("PK\x03\x04")
+  if (claimedMime === 'application/msword') return hex(8) === 'd0cf11e0a1b11ae1'; // legacy .doc OLE compound file signature
+  if (/^image\//.test(claimedMime)) return false; // an image/* subtype not explicitly recognized above - rejected rather than trusted on the label alone
+  return true; // no signature defined for this claimed type - falls through to the existing DOC_MIME_OK allowlist check unchanged
+}
 const sbHeaders = () => ({ Authorization: 'Bearer ' + SUPABASE_SERVICE_KEY, apikey: SUPABASE_SERVICE_KEY });
 const storageOn = () => !!(SUPABASE_URL && SUPABASE_SERVICE_KEY);
 async function sbEnsureBucket(){
@@ -1122,10 +1152,16 @@ app.post('/api/docs', auth, async (req, res) => {
   const { id, dataUrl } = req.body || {};
   const m = /^data:([^;]+);base64,(.+)$/.exec(dataUrl || '');
   if (!id || !m) return res.status(400).json({ error: 'invalid_input' });
-  const mime = m[1].toLowerCase();
+   const mime = m[1].toLowerCase();
   if (!DOC_MIME_OK(mime)) return res.status(415).json({ error: 'bad_type' });
   const buf = Buffer.from(m[2], 'base64');
   if (buf.length > DOC_MAX_BYTES) return res.status(413).json({ error: 'too_large' });
+  /* IMPLEMENTED: real content verification, addressing the actual gap
+     the check above alone doesn't cover - that only validated the
+     claimed label, this checks the real bytes just decoded. Placed
+     before anything is uploaded to storage, so a mismatched file is
+     rejected before ever being written anywhere. */
+  if (!verifyMagicBytes(buf, mime)) return res.status(415).json({ error: 'content_mismatch' });
   const path = `${req.user.sub}/${encodeURIComponent(id)}`;
   const r = await fetch(`${SUPABASE_URL}/storage/v1/object/${BELEGE_BUCKET}/${path}`, {
     method: 'POST', headers: { ...sbHeaders(), 'Content-Type': mime, 'x-upsert': 'true' }, body: buf });
