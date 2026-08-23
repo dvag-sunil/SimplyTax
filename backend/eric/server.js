@@ -860,6 +860,28 @@ app.post('/api/eric/validate', auth, async (req, res) => {
   }
   const { clientId, interchangeData } = req.body || {};
   if (!clientId || !interchangeData) return res.status(400).json({ error: 'invalid_input' });
+   /* IMPLEMENTED: real gap found via a direct route-by-route review,
+     specifically the test the audit itself names as something to
+     check relentlessly - "can User A ever retrieve any element of
+     User B's tax return?" This route never actually fetches tax data
+     using clientId (interchangeData comes straight from the request
+     body), so it couldn't leak another user's actual return content -
+     but without this check, a caller could still supply a completely
+     fabricated or mismatched clientId, and the audit log below would
+     record it as fact.
+     CORRECTED from an earlier version of this same fix: only rejects a
+     genuine conflict (an id that already exists and belongs to someone
+     else), not simply an id that doesn't exist in the database yet -
+     the frontend's import feature deliberately jumps straight to this
+     validate step right after creating a brand-new client, and the
+     actual save to the database is debounced by 600ms, so the record
+     often genuinely isn't there yet at the moment this is called. The
+     real thing worth protecting against is someone supplying an id
+     they don't own, not a legitimately new one that hasn't saved yet. */
+  const { rows: ownershipRows } = await pool.query('SELECT user_id FROM clients WHERE id=$1', [clientId]);
+  if (ownershipRows.length && ownershipRows[0].user_id !== req.user.sub) {
+    return res.status(404).json({ error: 'not_found' });
+  }
   try {
     const convertedData = await convertSteuernummerForSubmission(interchangeData);
     const { xml, skippedSections } = buildEStXML(convertedData, {
