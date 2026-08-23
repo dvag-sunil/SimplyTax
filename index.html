@@ -2,6 +2,25 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<!-- Content Security Policy: added directly in response to the production
+     audit's finding ("I found no CSP in the current application"). This
+     has to be a meta tag, not a server-sent header, because this app is
+     hosted on GitHub Pages - a static host with no server-side control
+     over HTTP response headers. Genuinely restricts which origins scripts
+     can be loaded from and which origins the page is allowed to connect
+     to, which blocks the two most common real outcomes of an XSS payload:
+     loading an attacker's own script from another domain, and quietly
+     sending stolen data (like the auth token) to an attacker-controlled
+     server. Honest limitation: 'unsafe-inline' is still required for both
+     script-src and style-src, because this app currently relies on 100+
+     inline onclick="..." handlers and one large inline <script> block
+     throughout the page - removing that would need a real refactor to
+     addEventListener and external script files, which risks breaking
+     functionality across the whole app if rushed, so it's flagged here
+     rather than silently left as a gap. connect-src covers the backend API
+     origin as a wildcard since the exact URL is injected at deploy time
+     by the GitHub Actions workflow and differs between branches. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' blob: https://*.onrender.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SimplyTax - Tax Filing Workspace</title>
 <style>
