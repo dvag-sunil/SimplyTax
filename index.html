@@ -598,17 +598,15 @@ let tokenRefreshTimer = null;
 function startTokenRefreshTimer(){
  if(tokenRefreshTimer) clearInterval(tokenRefreshTimer);
  tokenRefreshTimer = setInterval(async () => {
- if(!authToken || !BACKEND.enabled) return;
- try{
- const r = await api('/api/auth/refresh','POST');
- authToken = r.token;
- await kvSet('klarsteuer-token', r.token);
- }catch(e){ /* best-effort - see comment above */ }
+ if(!S.loggedIn || !BACKEND.enabled) return;
+ try{ await api('/api/auth/refresh','POST'); }
+ catch(e){ /* best-effort - see comment above */ }
  }, 30*60*1000); // every 30 minutes, well within the 2-hour token window
 }
 async function api(path, method='GET', body){
  const r = await fetch(BACKEND.baseUrl+path, {
  method,
+ credentials: 'include',
  headers:{ 'Content-Type':'application/json', ...(authToken?{Authorization:'Bearer '+authToken}:{}) },
  body: body?JSON.stringify(body):undefined });
  const data = await r.json().catch(()=>({}));
@@ -1824,11 +1822,14 @@ async function loadUserData(){
 }
 async function loadState(){
  const p=await kvGet('klarsteuer-prefs'); if(p){ try{ const parsed=JSON.parse(p); S.lang=parsed.lang||'en'; S.aiConsentGiven=!!parsed.aiConsentGiven; }catch(e){} }
- if(BACKEND.enabled){
- const tok=await kvGet('klarsteuer-token');
- if(tok){ authToken=tok;
-  try{ const r=await api('/api/auth/me'); S.user=r.user; await loadUserData(); S.loggedIn=true; S.view='dash'; startTokenRefreshTimer(); }
- catch(e){ authToken=null; await kvDel('klarsteuer-token'); } }
+  if(BACKEND.enabled){
+ /* CORRECTED: relies on the httpOnly cookie instead of a stored
+    token - the cookie, if valid, is sent automatically by the
+    browser, so there's nothing to check for locally first. Simply
+    attempts /api/auth/me; success means a valid session exists,
+    failure means it doesn't or has expired. */
+ try{ const r=await api('/api/auth/me'); S.user=r.user; await loadUserData(); S.loggedIn=true; S.view='dash'; startTokenRefreshTimer(); }
+ catch(e){ /* no valid session - show the login screen, the default state */ }
  return;
  }
  const acc=await kvGet('klarsteuer-accounts'); if(acc){ try{ S.accounts=JSON.parse(acc)||[]; }catch(e){} }
@@ -1944,8 +1945,8 @@ async function doLogin(btn){
  setBusy(true); setBtnBusy(btn,true);
  try{
  if(BACKEND.enabled){
- try{ const r=await api('/api/auth/login','POST',{email,password:pass});
-  authToken=r.token; S.user=r.user; await kvSet('klarsteuer-token',r.token);
+  try{ const r=await api('/api/auth/login','POST',{email,password:pass});
+  S.user=r.user;
  await loadUserData(); S.loggedIn=true; S.view='dash'; startTokenRefreshTimer(); render();
  }catch(e){ authErr(e.message==='bad_credentials'?t('err_creds'):t('err_creds')); }
  return;
@@ -1967,8 +1968,8 @@ async function doRegister(btn){
  setBusy(true); setBtnBusy(btn,true);
  try{
  if(BACKEND.enabled){
- try{ const r=await api('/api/auth/register','POST',{name,email,password:p1});
-  authToken=r.token; S.user=r.user; await kvSet('klarsteuer-token',r.token);
+  try{ const r=await api('/api/auth/register','POST',{name,email,password:p1});
+  S.user=r.user;
  S.clients=[]; S.loggedIn=true; S.view='dash'; startTokenRefreshTimer(); render();
  }catch(e){ authErr(e.message==='email_exists'?t('err_exists'):t('err_fields')); }
  return;
@@ -2002,7 +2003,15 @@ async function doResendVerification(btn){
 }
 async function logout(){
  if(tokenRefreshTimer){ clearInterval(tokenRefreshTimer); tokenRefreshTimer=null; }
- await kvDel('klarsteuer-session'); await kvDel('klarsteuer-token'); authToken=null;
+ /* CORRECTED: the session cookie is httpOnly specifically so
+    JavaScript can never clear it directly - that's the actual
+    security benefit. Calls the real backend route to clear it
+    server-side instead. Best-effort: even if this call fails, local
+    state is still cleared below and the person sees the login screen
+    either way - a network hiccup here shouldn't trap someone on a
+    page that thinks they're still logged in. */
+ if(BACKEND.enabled){ try{ await api('/api/auth/logout','POST'); }catch(e){} }
+ await kvDel('klarsteuer-session');
  S.user=null; S.clients=[]; S.loggedIn=false; S.view='login'; S.authMode='login'; render();
 }
 function setLang(l){ S.lang=l; scheduleSave(); render(); }
@@ -6227,8 +6236,9 @@ Return this exact JSON structure (use "" for any field not found or empty on the
 {"employer":"","period":"","taxClass":"","kfb":"","idnr":"","birthDate":"","gross":"","wageTax":"","soli":"","churchPaid":"","churchSpouse":"","vb8":"","vb9":"","ml10":"","lst11":"","soli12":"","kist13":"","kistSp14":"","ersatz15":"","kug15a":"","dba16":"","fahrt17":"","pausch18":"","entsch19":"","verpf20":"","dhh21":"","agRV":"","agRVb":"","anRV":"","anRVb":"","agKV":"","agPKV":"","agPV":"","anKV":"","anPV":"","anAV":"","pkv28":"","bmg29":"","vbJahr30":"","vbMon31":"","sterbe32":"","fb34":""}`;
  if(!BACKEND.enabled) throw new Error('backend_disabled');
  const dataUrl = isPdf ? `data:application/pdf;base64,${b64}` : `data:${file.type||'image/jpeg'};base64,${b64}`;
- const resp = await fetch(BACKEND.baseUrl+'/api/extract-doc', {
+  const resp = await fetch(BACKEND.baseUrl+'/api/extract-doc', {
  method:'POST',
+ credentials: 'include',
  headers:{ 'Content-Type':'application/json', ...(authToken?{'Authorization':'Bearer '+authToken}:{}) },
  body: JSON.stringify({ dataUrl, prompt })
  });

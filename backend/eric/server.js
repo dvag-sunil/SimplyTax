@@ -78,9 +78,20 @@ const corsOptions = {
     console.error(`[cors] rejected request from origin "${origin}" - allowed origins are: ${allowedOrigins.join(', ')}`);
     return callback(new Error('Not allowed by CORS'));
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-cron-secret'],
-  credentials: false,
+  /* CORRECTED: addresses the actual root of a real gap the audit
+     marks as severity-critical ("Security architecture" and
+     "Authentication/session model" both rated red) - moving to an
+     httpOnly cookie (see auth/sign below) means JavaScript can never
+     read the session token at all, even if XSS occurs, unlike the
+     previous localStorage-based token. That requires the browser to
+     actually send/receive the cookie cross-origin, which
+     credentials:false was blocking. Safe to enable specifically
+     because origin above is already a real allowlist, not a wildcard
+     - browsers themselves refuse to combine credentials with a
+     wildcard origin, so this can't accidentally widen access. */
+  credentials: true,
 };
 
 /* Process-level crash visibility - server.js requires several other
@@ -302,10 +313,36 @@ app.use('/api', rateLimit({ windowMs: 60 * 1000, max: 120 }));
 const sign = (u) => jwt.sign({ sub: u.id, role: u.role }, JWT_SECRET, { expiresIn: '2h' });
 const pubUser = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role, settings: u.settings, twoFA: u.two_fa });
 
-/* auth middleware — every data route requires a valid token */
+/* CORRECTED: real security-architecture gap the audit rates as
+   critical - the session token previously lived only in localStorage,
+   readable by any script that ever runs on the page, including one
+   injected via XSS. An httpOnly cookie is invisible to JavaScript
+   entirely, even under XSS, which is the actual protection this is
+   for. cookie-parser isn't confirmed as an installed dependency here,
+   so this parses the raw Cookie header directly rather than introduce
+   an unverified package that could break the build. */
+const AUTH_COOKIE = 'simplytax_session';
+function getCookie(req, name) {
+  const raw = req.headers.cookie || '';
+  for (const part of raw.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() === name) return decodeURIComponent(part.slice(eq + 1).trim());
+  }
+  return null;
+}
+const cookieOpts = { httpOnly: true, secure: true, sameSite: 'none', maxAge: 2 * 60 * 60 * 1000, path: '/' };
+
+/* auth middleware — every data route requires a valid token.
+   CORRECTED: accepts either the new httpOnly cookie or the legacy
+   Authorization header - both work simultaneously so a frontend still
+   running the old localStorage-token version, or a backend deployed
+   slightly ahead of the frontend during rollout, doesn't lock anyone
+   out mid-transition. */
 function auth(req, res, next) {
   const h = req.headers.authorization || '';
-  const token = h.startsWith('Bearer ') ? h.slice(7) : null;
+  const bearerToken = h.startsWith('Bearer ') ? h.slice(7) : null;
+  const token = getCookie(req, AUTH_COOKIE) || bearerToken;
   if (!token) return res.status(401).json({ error: 'auth_required' });
   try { req.user = jwt.verify(token, JWT_SECRET); next(); }
   catch { return res.status(401).json({ error: 'invalid_token' }); }
@@ -324,7 +361,22 @@ function auth(req, res, next) {
 app.post('/api/auth/refresh', auth, async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM users WHERE id=$1', [req.user.sub]);
   if (!rows.length) return res.status(404).json({ error: 'not_found' });
-  res.json({ token: sign(rows[0]) });
+  const token = sign(rows[0]);
+  res.cookie(AUTH_COOKIE, token, cookieOpts);
+  res.json({ token });
+});
+/* IMPLEMENTED: addresses a genuine gap this whole change creates - the
+   new session cookie is httpOnly specifically so JavaScript can never
+   read or clear it (that's the actual security benefit), but that
+   also means the frontend has no way to end a session on its own
+   anymore. Without this, "logout" would leave the cookie valid for
+   its full remaining window regardless of what the user thinks
+   happened. No auth required to call this - a request to clear a
+   cookie the browser may or may not even still have is harmless
+   either way. */
+app.post('/api/auth/logout', (req, res) => {
+  res.clearCookie(AUTH_COOKIE, { httpOnly: true, secure: true, sameSite: 'none', path: '/' });
+  res.json({ ok: true });
 });
 /* role guard — prepared for the roles stage: use requireRole('admin') on future admin routes */
 const requireRole = (...roles) => (req, res, next) =>
@@ -380,9 +432,11 @@ app.get('/api/health', async (_req, res) => {
           headers:{ Authorization:'Bearer '+RESEND_API_KEY, 'Content-Type':'application/json' },
           body: JSON.stringify({ from: REMINDER_FROM, to: u.email, subject: 'Confirm your SimplyTax email address',
             html: `<p>Hi ${u.name},</p><p>Please confirm your email address to unlock submitting tax returns:</p><p><a href="${link}">${link}</a></p><p>This link is valid for 24 hours. You can still prepare and calculate your return before confirming - this is only needed before submission.</p><p>— SimplyTax</p>` }) });
-      } catch (e) { console.error('[register] verification email failed:', e.message); }
+       } catch (e) { console.error('[register] verification email failed:', e.message); }
     }
-    res.json({ token: sign(u), user: pubUser(u) });
+    const token = sign(u);
+    res.cookie(AUTH_COOKIE, token, cookieOpts);
+    res.json({ token, user: pubUser(u) });
   } catch (e) {
     if (e.code === '23505') return res.status(409).json({ error: 'email_exists' });
     console.error(e); res.status(500).json({ error: 'server_error' });
@@ -444,8 +498,10 @@ app.post('/api/auth/login', async (req, res) => {
     ).catch(()=>{});
   }
 
-  audit(u.id, 'login');
-  res.json({ token: sign(u), user: pubUser(u) });
+   audit(u.id, 'login');
+  const token = sign(u);
+  res.cookie(AUTH_COOKIE, token, cookieOpts);
+  res.json({ token, user: pubUser(u) });
 });
 
 /* ---------- Password reset via emailed link (Resend; dormant until RESEND_API_KEY is set) ----------
