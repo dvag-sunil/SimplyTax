@@ -420,9 +420,19 @@ app.get('/api/health', async (_req, res) => {
    deploy going forward - a mismatch between what's expected here and
    what this endpoint actually reports is then immediate, unambiguous
    proof of exactly which deploy is or isn't live, with no guessing. */
+/* CORRECTED: a hand-maintained version string requires remembering to
+   bump it on every real change - exactly the kind of assumption that
+   caused the real, multi-day CORS incident this project just went
+   through, where "this is deployed" turned out to be false for days.
+   Render automatically provides the actual git commit SHA as an
+   environment variable, with zero configuration needed - using it here
+   means this can never go stale or be forgotten, and permanently,
+   automatically answers "is the code I just pushed actually the code
+   that's live" for any future incident like this one. */
 app.get('/api/version', (_req, res) => {
   res.json({
-    version: 'cors-credentials-fix-2026-08-24',
+    gitCommit: process.env.RENDER_GIT_COMMIT || 'unknown (not running on Render, or var not set)',
+    respondedAt: new Date().toISOString(),
     corsCredentials: corsOptions.credentials,
     corsMethods: corsOptions.methods,
     allowedOrigins,
