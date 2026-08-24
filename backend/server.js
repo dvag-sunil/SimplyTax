@@ -115,11 +115,15 @@ const app = express();
 app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors(corsOptions));
-/* Explicit preflight handling for every route - the cors middleware
-   above already does this automatically in most cases, but making it
-   explicit here means an OPTIONS request can never silently fall
-   through to a route handler that doesn't expect it. */
-app.options('*', cors(corsOptions));
+/* CORRECTED: removed the explicit app.options('*', ...) line that was
+   here - a real, confirmed crash, proven directly by a live deploy log's
+   stack trace. Express 5's underlying routing library no longer accepts
+   a bare '*' wildcard path, which this line used, and throws
+   synchronously at startup - before app.listen() further below is ever
+   reached, meaning the server never opens a port at all. It was always
+   redundant anyway: the cors middleware mounted globally just above
+   already handles every OPTIONS preflight request automatically, for
+   every route, without needing a separate explicit handler. */
 
 /* ---------- Reminder emails: paid-but-not-submitted returns (Resend, EU-capable) ---------- */
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
