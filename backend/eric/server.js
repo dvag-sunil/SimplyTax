@@ -727,10 +727,11 @@ app.put('/api/clients/bulk', auth, async (req, res) => {
        transfer ticket itself), so including them would make ordinary,
        expected post-submission activity look like drift. */
     const contentOnly = (c) => {
-      const { updatedAt, inq, docs, transferTicket, status, submittedAt, freigabe, ...content } = c;
+      const { updatedAt, inq, docs, transferTicket, status, submittedAt, freigabe, pay, ...content } = c;
       return JSON.stringify(content);
     };
     const driftDetected = [];
+    const blockedIds = [];
 
     for (const c of clients) {
       if (!c.id) continue;
@@ -746,7 +747,19 @@ app.put('/api/clients/bulk', auth, async (req, res) => {
         } else if (wasSubmitted && existing.submitted_snapshot_sha256) {
           const currentHash = sha256(contentOnly(c));
           if (currentHash !== existing.submitted_snapshot_sha256) {
+            /* IMPLEMENTED: upgraded from detection-only to a real
+               block, completing the audit's own recommendation (§10) -
+               "once a taxpayer approves a return, the approved version
+               should become immutable." Uses the exact same field
+               boundary already carefully worked out for detection -
+               nothing new to guess at here, just closing the actual
+               gap between detecting drift and stopping it. Blocks only
+               this specific record - other clients in the same batch
+               save normally, so one blocked edit doesn't lose
+               unrelated, legitimate work. */
             driftDetected.push(c.id);
+            blockedIds.push(c.id);
+            continue;
           }
         }
       }
@@ -756,15 +769,16 @@ app.put('/api/clients/bulk', auth, async (req, res) => {
          ON CONFLICT (id) DO UPDATE SET data=$3, updated_at=now(), submitted_snapshot_sha256=$4 WHERE clients.user_id=$2`,
         [c.id, req.user.sub, c, snapshotHash]);
     }
-    await db.query('COMMIT');
+     await db.query('COMMIT');
     audit(req.user.sub, 'clients_sync', { count: clients.length });
     if (driftDetected.length) {
       /* Compliance-relevant, not an ordinary sync event - a submitted
-         return's actual content changed after the fact. Logged for
-         visibility rather than blocked, per the reasoning above. */
-      audit(req.user.sub, 'submitted_return_content_drift', { clientIds: driftDetected });
+         return's content was blocked from silently changing after the
+         fact, per the audit's own recommendation (§10) that an
+         approved return should become immutable. */
+      audit(req.user.sub, 'submitted_return_content_blocked', { clientIds: driftDetected });
     }
-    res.json({ ok: true, count: clients.length });
+    res.json({ ok: true, count: clients.length, blockedIds });
   } catch (e) { await db.query('ROLLBACK'); console.error(e); res.status(500).json({ error: 'server_error' });
   } finally { db.release(); }
 });

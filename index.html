@@ -640,7 +640,8 @@ en: {
   empty_title:"No tax returns yet", empty_sub:"Start your first tax return.",
  first_name:"First name", last_name:"Last name", marital:"Marital status",
  single:"Single", married:"Married - joint assessment (Zusammenveranlagung)",
- create:"Create profile", cancel:"Cancel", ok:"OK",
+  create:"Create profile", cancel:"Cancel", ok:"OK",
+ submitted_edit_blocked:"This return was already submitted, so its content is now locked to protect what was actually sent to the Finanzamt - your change wasn't saved. If something genuinely needs to change, please contact support about filing a correction.",
  back_dash:"Dashboard",
  step1:"Personal data", step2:"Employment income", step3:"Insurance (Vorsorge)", step4:"Werbungskosten (work-related expenses)", step5:"Special expenses", step6:"Household & other", step7:"Review & submit",
  s1_lead:"Basic data for the main form (Hauptvordruck ESt 1 A).",
@@ -1101,7 +1102,8 @@ de: {
   empty_title:"Noch keine Steuererklärung", empty_sub:"Beginnen Sie Ihre erste Steuererklärung.",
  first_name:"Vorname", last_name:"Nachname", marital:"Familienstand",
  single:"Ledig", married:"Verheiratet - Zusammenveranlagung",
- create:"Profil anlegen", cancel:"Abbrechen", ok:"OK",
+  create:"Profil anlegen", cancel:"Abbrechen", ok:"OK",
+ submitted_edit_blocked:"Diese Erklärung wurde bereits übermittelt, ihr Inhalt ist daher jetzt gesperrt, um zu schützen, was tatsächlich an das Finanzamt gesendet wurde - Ihre Änderung wurde nicht gespeichert. Falls sich wirklich etwas ändern muss, wenden Sie sich bitte an den Support wegen einer Korrektur.",
  back_dash:"Übersicht",
  step1:"Persönliche Daten", step2:"Arbeitslohn", step3:"Vorsorgeaufwand", step4:"Werbungskosten", step5:"Sonderausgaben", step6:"Haushalt & Sonstiges", step7:"Prüfen & Absenden",
  s1_lead:"Grunddaten für den Hauptvordruck ESt 1 A.",
@@ -1788,7 +1790,23 @@ async function saveState(){
  await kvSet('klarsteuer-prefs', JSON.stringify({lang:S.lang, aiConsentGiven:S.aiConsentGiven}));
  if(!S.user) return;
  if(BACKEND.enabled){
- try{ await api('/api/clients/bulk','PUT',{clients:S.clients}); }
+ try{
+ const r = await api('/api/clients/bulk','PUT',{clients:S.clients});
+ /* IMPLEMENTED: real UX gap this creates - without this, editing a
+    submitted return's actual tax content would have the change
+    silently discarded with zero indication anything happened. Only
+    shown once per blocked client per session (not on every autosave
+    tick while the stale edit still sits in memory), and only for a
+    client still genuinely open/visible, not a background one. */
+  if(r.blockedIds?.length && !S._blockedEditWarned) S._blockedEditWarned = new Set();
+ if(r.blockedIds?.length){
+ const newlyBlocked = r.blockedIds.filter(id => !S._blockedEditWarned.has(id));
+ if(newlyBlocked.length && newlyBlocked.includes(S.currentId) && !document.querySelector('.modal-bg')){
+ newlyBlocked.forEach(id => S._blockedEditWarned.add(id));
+ showInfoModal(t('submitted_edit_blocked'));
+ }
+ }
+ }
  catch(e){ console.error('backend sync failed:', e.message); }
  return;
  }
