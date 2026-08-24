@@ -402,6 +402,29 @@ app.get('/api/health', async (_req, res) => {
   catch { res.status(500).json({ ok: false, db: false }); }
 });
 
+/* IMPLEMENTED: addresses the actual problem in front of us right now -
+   repeated redeploys don't appear to be taking effect (or aren't
+   reaching the specific Render service actually being hit), and
+   there was previously no reliable way to prove from outside which
+   code is genuinely running versus what was intended to be deployed.
+   This is a plain GET with no custom request headers, so it works
+   even when CORS itself is broken - unlike an OPTIONS preflight
+   check, which depends on CORS already working correctly to even
+   answer. Reports the live CORS configuration directly, rather than
+   needing to be inferred indirectly from response headers. The
+   version marker below should be updated by hand on every real
+   deploy going forward - a mismatch between what's expected here and
+   what this endpoint actually reports is then immediate, unambiguous
+   proof of exactly which deploy is or isn't live, with no guessing. */
+app.get('/api/version', (_req, res) => {
+  res.json({
+    version: 'cors-credentials-fix-2026-08-24',
+    corsCredentials: corsOptions.credentials,
+    corsMethods: corsOptions.methods,
+    allowedOrigins,
+  });
+});
+
 /* ---------- auth ---------- */
  app.post('/api/auth/register', async (req, res) => {
   const { name, email, password } = req.body || {};
