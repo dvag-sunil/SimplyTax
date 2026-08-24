@@ -52,11 +52,11 @@ jobs:
           node-version: '24'
 
       - name: Install backend dependencies
-        working-directory: backend/eric
+        working-directory: backend
         run: npm install
 
       - name: Syntax check server.js
-        working-directory: backend/eric
+        working-directory: backend
         run: node --check server.js
 
       - name: Run the xml-builder structural test suite
@@ -80,7 +80,7 @@ jobs:
       # startup sequence, before app.listen() is ever reached, which
       # `node --check` cannot detect but this step directly can.
       - name: Smoke test - start the real server and verify it actually responds
-        working-directory: backend/eric
+        working-directory: backend
         shell: bash
         env:
           DATABASE_URL: postgresql://ci:ci@localhost:5432/simplytax_ci
