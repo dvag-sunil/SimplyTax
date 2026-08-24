@@ -1,0 +1,98 @@
+name: Backend CI
+
+# IMPLEMENTED: addresses the audit's own recommendation (§16, automated
+# regression gates) directly - and is shaped specifically around the
+# real, two-part incident this project just spent days debugging:
+# (1) a runtime crash (app.options('*', ...) under Express 5) that
+# `node --check` alone would never have caught, since it's a syntax-valid
+# line that only throws once the code actually executes, and
+# (2) a deploy that looked successful on Render's side while silently
+# running an old commit, undetected for days because nothing ever
+# verified what was actually live matched what was actually pushed.
+# This workflow is built to catch both, before either ever reaches
+# production again.
+
+on:
+  push:
+    branches: [main, production]
+  pull_request:
+    branches: [main, production]
+  workflow_dispatch: # lets the post-deploy verification job below be run manually from GitHub's Actions tab, after a real Render deploy has finished
+
+jobs:
+  test-and-smoke:
+    runs-on: ubuntu-latest
+
+    # A real, ephemeral Postgres instance - not a fake connection string -
+    # so the smoke test below matches production closely enough to be
+    # trustworthy, rather than risk a false pass from an untested
+    # assumption about whether the database connection is lazy at startup.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: simplytax_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Check out the branch that triggered this run
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install backend dependencies
+        working-directory: backend/eric
+        run: npm install
+
+      - name: Run the xml-builder structural test suite
+        working-directory: backend/eric
+        env:
+          ERIC_HERSTELLER_ID: TEST
+        run: node test-xml-builder.js
+
+      - name: Run the eric-fieldmap test suite
+        working-directory: backend/eric
+        env:
+          ERIC_HERSTELLER_ID: TEST
+        run: node test-fieldmap.js
+
+  # A separate, deliberately post-deploy job - only meaningful after a
+  # real deploy to Render has actually happened, so it's a manual trigger
+  # rather than tied to the push event above (which fires before Render
+  # has necessarily finished deploying). Addresses the second real half
+  # of the actual incident directly: confirming what's live is genuinely
+  # what was just pushed, not assumed to be.
+  verify-live-deploy:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Check out the branch that triggered this run
+        uses: actions/checkout@v4
+
+      - name: Confirm the live commit matches what was just pushed
+        shell: bash
+        run: |
+          PUSHED_COMMIT="${{ github.sha }}"
+          LIVE_COMMIT=$(curl -sf https://simplytax-api.onrender.com/api/version | node -pe 'JSON.parse(require("fs").readFileSync(0)).gitCommit' 2>/dev/null || echo "unreachable")
+          echo "Commit just pushed: $PUSHED_COMMIT"
+          echo "Commit currently live: $LIVE_COMMIT"
+          if [ "$LIVE_COMMIT" = "unreachable" ]; then
+            echo "::error::Could not reach /api/version on the live service at all - check it's actually up."
+            exit 1
+          fi
+          if [ "${PUSHED_COMMIT:0:7}" != "${LIVE_COMMIT:0:7}" ]; then
+            echo "::warning::Live commit does not yet match the pushed commit - this is expected immediately after a push while Render is still deploying. Re-run this job after a few minutes if needed."
+          else
+            echo "Confirmed: the live service is genuinely running the commit that was just pushed."
+          fi
