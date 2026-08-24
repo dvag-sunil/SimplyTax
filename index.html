@@ -626,7 +626,7 @@ en: {
   clients:"My tax returns", drafts:"Drafts", in_review:"In review", submitted:"Submitted", est_refunds:"Est. total refunds",
   search_ph:"Search by name...", all_statuses:"All statuses", all_years:"All years",
    new_client:"Start a tax return", client:"Name", tax_year:"Tax year", status:"Status", est_refund:"Est. refund", updated:"Updated",
- elig_title:"Can SimplyTax handle your tax return?", elig_sub:"A few quick questions before you start - so you know where you stand before entering any data.",
+  elig_title:"Can SimplyTax handle your tax return?", elig_sub:"A few quick questions before you start - so you know where you stand before entering any data.", elig_full_scope_link:"See the full supported-case list",
  elig_q_selfemployed:"Were you self-employed, freelance, or did you run a business?",
  elig_q_foreignwork:"Did you work physically outside Germany for part of the year?",
  elig_q_foreignproperty:"Do you own rented property outside Germany?",
@@ -848,7 +848,8 @@ en: {
  ai_consent_decline:"Enter manually instead",
  ai_consent_accept:"I understand, continue",
  ai_consent_review_link:"Review AI document reading permission",
- step_kap:"Capital gains", s_kap_lead:"Capital income (Anlage KAP) - gains, dividends and interest from stocks, funds and ETFs at banks, brokers and platforms. The saver's allowance (Sparer-Pauschbetrag) of €1,000 per person (€2,000 for joint assessment) is applied automatically in the estimate.",
+  step_kap:"Capital gains", s_kap_lead:"Capital income (Anlage KAP) - gains, dividends and interest from stocks, funds and ETFs at banks, brokers and platforms. The saver's allowance (Sparer-Pauschbetrag) of €1,000 per person (€2,000 for joint assessment) is applied automatically in the estimate.",
+ foreign_employment:"Foreign employment", country:"Country", total_wage:"Total wage", work_days_abroad:"Work days abroad", legal_basis:"Legal basis",
  platform:"Bank / platform", kap_gains:"Capital income (gains, dividends, interest)", kap_tax:"Capital gains tax withheld (KapESt)", kap_soli:"Solidarity surcharge withheld",
  add_kap:"Add platform", kap_hint:"Taxed at a flat 25% + Soli. The Finanzamt runs a Günstigerprüfung (your personal rate, if lower) on request.",
  kap_dom:"Capital income subject to German withholding (lines 7-15)",
@@ -1086,7 +1087,7 @@ de: {
   clients:"Meine Steuererklärungen", drafts:"Entwürfe", in_review:"In Prüfung", submitted:"Übermittelt", est_refunds:"Gesch. Erstattungen ges.",
   search_ph:"Nach Name suchen...", all_statuses:"Alle Status", all_years:"Alle Jahre",
    new_client:"Neue Steuererklärung", client:"Name", tax_year:"Steuerjahr", status:"Status", est_refund:"Gesch. Erstattung", updated:"Aktualisiert",
- elig_title:"Kann SimplyTax Ihre Steuererklärung bearbeiten?", elig_sub:"Ein paar kurze Fragen, bevor Sie starten - damit Sie wissen, woran Sie sind, bevor Sie Daten eingeben.",
+  elig_title:"Kann SimplyTax Ihre Steuererklärung bearbeiten?", elig_sub:"Ein paar kurze Fragen, bevor Sie starten - damit Sie wissen, woran Sie sind, bevor Sie Daten eingeben.", elig_full_scope_link:"Vollständigen Leistungsumfang ansehen",
  elig_q_selfemployed:"Waren Sie selbstständig, freiberuflich tätig oder haben Sie ein Gewerbe betrieben?",
  elig_q_foreignwork:"Haben Sie für einen Teil des Jahres physisch außerhalb Deutschlands gearbeitet?",
  elig_q_foreignproperty:"Besitzen Sie vermietete Immobilien außerhalb Deutschlands?",
@@ -1308,7 +1309,8 @@ de: {
  ai_consent_decline:"Stattdessen manuell eintragen",
  ai_consent_accept:"Verstanden, weiter",
  ai_consent_review_link:"Berechtigung zur KI-Dokumentenerkennung überprüfen",
- step_kap:"Kapitalerträge", s_kap_lead:"Kapitalerträge (Anlage KAP) - Gewinne, Dividenden und Zinsen aus Aktien, Fonds und ETFs bei Banken, Brokern und Plattformen. Der Sparer-Pauschbetrag von 1.000 € pro Person (2.000 € bei Zusammenveranlagung) wird in der Schätzung automatisch berücksichtigt.",
+  step_kap:"Kapitalerträge", s_kap_lead:"Kapitalerträge (Anlage KAP) - Gewinne, Dividenden und Zinsen aus Aktien, Fonds und ETFs bei Banken, Brokern und Plattformen. Der Sparer-Pauschbetrag von 1.000 € pro Person (2.000 € bei Zusammenveranlagung) wird in der Schätzung automatisch berücksichtigt.",
+ foreign_employment:"Auslandstätigkeit", country:"Land", total_wage:"Gesamtlohn", work_days_abroad:"Arbeitstage im Ausland", legal_basis:"Rechtsgrundlage",
  platform:"Bank / Plattform", kap_gains:"Kapitalerträge (Gewinne, Dividenden, Zinsen)", kap_tax:"Einbehaltene Kapitalertragsteuer (KapESt)", kap_soli:"Einbehaltener Solidaritätszuschlag",
  add_kap:"Plattform hinzufügen", kap_hint:"Pauschal 25 % Steuer + Soli. Die Günstigerprüfung (persönlicher Steuersatz, falls niedriger) übernimmt das Finanzamt auf Antrag.",
  kap_dom:"Kapitalerträge, die dem inländischen Steuerabzug unterlegen haben (Zeilen 7-15)",
@@ -2773,7 +2775,7 @@ function showEligibilityCheck(proceedAfter){
  ];
  slot.innerHTML = `<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal" style="max-width:480px">
  <h2>${t('elig_title')}</h2>
- <p style="color:var(--ink-soft);font-size:13.5px;margin:8px 0 16px">${t('elig_sub')}</p>
+  <p style="color:var(--ink-soft);font-size:13.5px;margin:8px 0 16px">${t('elig_sub')} <a href="program-scope.html" target="_blank" rel="noopener">${t('elig_full_scope_link')}</a></p>
  ${qs.map(q=>`<label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;cursor:pointer;font-size:14px">
  <input type="checkbox" id="${q.id}" style="margin-top:3px"><span>${q.label}</span>
  </label>`).join('')}
@@ -4718,9 +4720,23 @@ function stepSummary(c){
  esc([N(k.k7)>0?'Z7: '+eur(N(k.k7)):'', N(k.k18)>0?'Z18: '+eur(N(k.k18)):'', N(k.k19)>0?'Z19: '+eur(N(k.k19)):'',
  loss>0?'Verluste: −'+eur(loss):'', N(k.k43)>0?'KapESt: '+eur(N(k.k43)):'', N(k.k45)>0?'KiSt: '+eur(N(k.k45)):''
  ].filter(Boolean).join(' · '))];});
- const propRows=(c.props||[]).map((p,i)=>[
+  const propRows=(c.props||[]).map((p,i)=>[
  esc([p.street,p.plz,p.city].filter(Boolean).join(', ')||t('prop_address')+' '+(i+1)),
  esc(`${eur(N(p.rent))} − ${eur(propCosts(p))} = ${eur(N(p.rent)-propCosts(p))}`)]);
+ /* IMPLEMENTED: real, confirmed gap - foreign employment (N-AUS) data
+ genuinely affects what gets transmitted for tax years 2023 onward,
+ but was completely absent from this review screen. A user could
+ enter foreign employment details and never see them summarized
+ before approving the return - exactly what the audit's own checklist
+ explicitly names ("foreign income") as something this screen must
+ show. */
+ const ausRows=(c.emps||[]).filter(k=>c.aus?.[k.id]?.enabled).map(k=>{
+ const a=c.aus[k.id];
+ return [`${marr?'('+(k.person==='B'?'B':'A')+') ':''}${t('foreign_employment')}${k.employer?' - '+esc(k.employer):''}`,
+ esc([a.country?t('country')+': '+a.country:'', N(a.totalWage)>0?t('total_wage')+': '+eur(N(a.totalWage)):'',
+ N(a.workDaysForeign)>0?t('work_days_abroad')+': '+a.workDaysForeign+'/'+N(a.workDaysTotal):'',
+ a.legalBasis?t('legal_basis')+': '+a.legalBasis.toUpperCase():''].filter(Boolean).join(' · '))];
+ });
  return `<h2>${t('step7')}</h2><p class="lead">${t('s7_lead')}</p>
  ${(c.p.marital==='married'||c.p.marital==='married_sep') ? veranlagungCompareCard(c) : ''}
  ${sumGroup(t('personal'),0,[
@@ -4733,7 +4749,8 @@ function stepSummary(c){
  [t('bundesland'),esc(c.p.bundesland)],
  [t('finanzamt'),esc([c.p.finanzamt, c.p.faNumber?'('+c.p.faNumber+')':''].filter(Boolean).join(' '))],
  [t('iban'),esc(c.p.iban)]])}
- ${sumGroup(t('income'),1,empRows)}
+  ${sumGroup(t('income'),1,empRows)}
+ ${ausRows.length ? sumGroup(t('foreign_employment'),1,ausRows) : ''}
  ${sumGroup(t('work_exp'),3,[
  [t('commute_days'),c.wk.commuteDays],[t('commute_km'),c.wk.commuteKm],[t('home_office'),c.wk.homeOffice],
  [t('equipment'),m(c.wk.equipment)],[t('training'),m(c.wk.training)],[t('other_wk'),m(c.wk.other)],

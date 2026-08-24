@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leistungsumfang (§ 87c AO) - SimplyTax</title>
+<link rel="stylesheet" href="assets/site.css">
+<style>
+.legal-wrap{max-width:820px;margin:0 auto;padding:52px 22px 80px}
+.legal-wrap h1{font-size:32px;margin-bottom:6px}
+.legal-wrap .updated{font-size:13px;color:var(--ink-soft);margin-bottom:36px}
+.legal-wrap h2{font-size:19px;margin:34px 0 10px;color:var(--teal-dark)}
+.legal-wrap h3{font-size:15.5px;margin:22px 0 8px}
+.legal-wrap p, .legal-wrap li{font-size:14.5px;line-height:1.7;color:var(--ink)}
+.legal-wrap a{color:var(--teal)}
+.lang-btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:10px 16px;
+ font-weight:700;cursor:pointer;font-size:13px;min-height:44px}
+.lang-btn:hover{background:var(--paper)}
+.scope-table{width:100%;border-collapse:collapse;margin:14px 0 28px;font-size:14px}
+.scope-table th{text-align:left;padding:10px 12px;border-bottom:2px solid var(--line);color:var(--ink-soft);font-size:12.5px;text-transform:uppercase;letter-spacing:.03em}
+.scope-table td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+.scope-badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+.scope-yes{background:var(--teal-soft);color:var(--teal-dark)}
+.scope-review{background:var(--amber-soft);color:#92600a}
+.scope-no{background:var(--red-soft);color:#9c3822}
+.year-pills{display:flex;gap:8px;margin:10px 0 20px;flex-wrap:wrap}
+.year-pill{border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:700}
+.year-pill.on{background:var(--teal-soft);border-color:var(--teal);color:var(--teal-dark)}
+.year-pill.off{background:var(--red-soft);border-color:var(--red);color:#9c3822}
+</style>
+</head>
+<body>
+<nav class="nav"><div class="wrap nav-in">
+ <a href="home.html" class="logo" style="text-decoration:none">Simply<b>Tax</b></a>
+ <div class="nav-links">
+ <button class="lang-btn" id="langBtn" onclick="toggleLang()">EN</button>
+ <a href="agb.html" id="agbLink">AGB</a>
+ <a href="datenschutz.html" id="dsLink">Datenschutz</a>
+ <a href="index.html" class="btn btn-primary" id="appBtn">Zur Anwendung</a>
+ </div>
+</div></nav>
+
+<!-- ===== GERMAN ===== -->
+<div class="legal-wrap" id="scope-de">
+ <h1>Leistungsumfang</h1>
+ <p class="updated">Angaben gemäß § 87c AO (Programmablaufplan-Grundlage) - Stand August 2026</p>
+
+ <p>Diese Seite beschreibt verbindlich, welche steuerlichen Sachverhalte SimplyTax
+ aktuell abbildet und welche (noch) nicht unterstützt werden. Jede Aussage hier
+ wurde direkt anhand der tatsächlichen Implementierung geprüft, nicht anhand
+ pauschaler Aussagen.</p>
+
+ <h2>Unterstützte Steuerjahre</h2>
+ <div class="year-pills">
+ <span class="year-pill off">2021 - vorübergehend nicht wählbar</span>
+ <span class="year-pill off">2022 - vorübergehend nicht wählbar</span>
+ <span class="year-pill on">2023 ✓</span>
+ <span class="year-pill on">2024 ✓</span>
+ <span class="year-pill on">2025 ✓</span>
+ </div>
+ <p>Die Steuerjahre 2021 und 2022 sind derzeit in der Anwendung nicht auswählbar.
+ Grund: die Schätzberechnung für diese Jahre verwendete andernfalls fälschlich
+ den Steuertarif eines späteren Jahres. Die zugrundeliegenden Daten und
+ Funktionen bleiben erhalten; die Jahre werden erst nach Korrektur und Prüfung
+ wieder freigeschaltet.</p>
+
+ <h2>Persönliche Situation</h2>
+ <table class="scope-table">
+ <tr><th>Sachverhalt</th><th>Status</th><th>Hinweis</th></tr>
+ <tr><td>Einzelveranlagung</td><td><span class="scope-badge scope-yes">Unterstützt</span></td><td></td></tr>
+ <tr><td>Zusammenveranlagung (Ehepaare)</td><td><span class="scope-badge scope-yes">Unterstützt</span></td><td></td></tr>
+ <tr><td>Einzelveranlagung von Ehegatten (§ 26a)</td><td><span class="scope-badge scope-yes">Unterstützt</span></td><td></td></tr>
+ <tr><td>Verwitwete (Witwensplitting)</td><td><span class="scope-badge scope-yes">Unterstützt</span></td><td></td></tr>
+ <tr><td>Zuzug/Wegzug während des Steuerjahres</td><td><span class="scope-badge scope-yes">Unterstützt</span></td><td>Tatsächliche Aufenthaltsdaten werden erfasst.</td></tr>
+ <tr><td>Ehepartner wohnt im Ausland</td><td><span class="scope-badge scope-review">Zu prüfen</span></td><td>Wird erfasst; steuerliche Einzelfallprüfung empfohlen.</td></tr>
+ </table>
+
+ <h2>Einkünfte</h2>
+ <table class="scope-table">
+ <tr><th>Sachverhalt</th><th>Status</th><th>Hinweis</th></tr>
+ <tr><td>Angestelltenverhältnis (Anlage N)</td><td><span class="scope-badge scope-yes">Unterstützt</span></td><td>Auch mehrere Arbeitgeber.</td></tr>
+ <tr><td>Lohnersatzleistungen (Kurzarbeitergeld, Elterngeld)</td><td><span class="scope-badge scope-yes">Unterstützt</span></td><td></td></tr>
+ <tr><td>Kapitalerträge, auch bei ausländischen Brokern (Anlage KAP)</td><td><span class="scope-badge scope-yes">Unterstützt</span></td><td></td></tr>
+ <tr><td>Vermietung in Deutschland (Anlage V)</td><td><span class="scope-badge scope-yes">Unterstützt</span></td><td></td></tr>
+ <tr><td>Renteneinkünfte, Grundfall (Anlage R)</td><td><span class="scope-badge scope-yes">Unterstützt</span></td><td></td></tr>
+ <tr><td>Auslandstätigkeit (Anlage N-AUS)</td><td><span class="scope-badge scope-review">Zu prüfen</span></td><td>Nur ab Steuerjahr 2023. Nur DBA-Rechtsgrundlage implementiert (nicht ATE/ZÜ).</td></tr>
+ <tr><td>Vermietung im Ausland</td><td><span class="scope-badge scope-review">Zu prüfen</span></td><td>Wird standardmäßig als freigestellt mit Progressionsvorbehalt übermittelt - die tatsächliche abkommensrechtliche Behandlung hängt vom jeweiligen Land ab und wird von der App nicht entschieden.</td></tr>
+ <tr><td>Selbstständige / freiberufliche / gewerbliche Einkünfte</td><td><span class="scope-badge scope-no">Nicht unterstützt</span></td><td>Keine Anlage S oder G vorhanden.</td></tr>
+ </table>
+
+ <h2>Familie &amp; Sonstiges</h2>
+ <table class="scope-table">
+ <tr><th>Sachverhalt</th><th>Status</th><th>Hinweis</th></tr>
+ <tr><td>Kinder (Anlage Kind), Betreuungskosten, Schulgeld</td><td><span class="scope-badge scope-yes">Unterstützt</span></td><td></td></tr>
+ <tr><td>Unterhalt an Angehörige, auch im Ausland (Anlage Unterhalt)</td><td><span class="scope-badge scope-yes">Unterstützt</span></td><td></td></tr>
+ <tr><td>Doppelte Haushaltsführung</td><td><span class="scope-badge scope-yes">Unterstützt</span></td><td></td></tr>
+ <tr><td>Sonderausgaben, außergewöhnliche Belastungen, haushaltsnahe Leistungen</td><td><span class="scope-badge scope-yes">Unterstützt</span></td><td></td></tr>
+ <tr><td>Energetische Sanierung (§ 35c EStG)</td><td><span class="scope-badge scope-yes">Unterstützt</span></td><td></td></tr>
+  <tr><td>Realsplitting (Unterhalt an Ex-Ehepartner)</td><td><span class="scope-badge scope-yes">Unterstützt</span></td><td></td></tr>
+ <tr><td>Private Veräußerungsgeschäfte, z. B. Krypto/Gold unter 1 Jahr Haltedauer; erhaltener Ehegatten-Unterhalt (Anlage SO)</td><td><span class="scope-badge scope-yes">Unterstützt</span></td><td></td></tr>
+ </table>
+
+ <h2>Was das für Sie bedeutet</h2>
+ <p>Enthält Ihre Steuersituation einen als "Nicht unterstützt" markierten
+ Sachverhalt, kann SimplyTax diese Erklärung derzeit nicht korrekt abbilden -
+ bitte nutzen Sie in diesem Fall ELSTER direkt, eine andere Software oder
+ einen Steuerberater. Bei "Zu prüfen" markierten Punkten bearbeitet SimplyTax
+ den Sachverhalt, verwendet dabei jedoch teils eine Standardannahme, die im
+ Einzelfall nicht zutreffend sein kann - die Anwendung weist an den
+ entsprechenden Stellen konkret darauf hin, welche Annahme getroffen wurde.</p>
+ <p>Diese Seite wird bei jeder wesentlichen Änderung des Leistungsumfangs
+ aktualisiert. Der integrierte Eignungscheck in der Anwendung selbst prüft
+ Ihre persönliche Situation direkt anhand dieser Kriterien.</p>
+</div>
+
+<!-- ===== ENGLISH ===== -->
+<div class="legal-wrap" id="scope-en" style="display:none">
+ <h1>Program scope</h1>
+ <p class="updated">Information pursuant to § 87c AO (program specification basis) - as of August 2026</p>
+
+ <p>This page states, in binding terms, which tax situations SimplyTax currently
+ handles and which it does not (yet). Every statement here was checked
+ directly against the actual implementation, not stated as a general claim.</p>
+
+ <h2>Supported tax years</h2>
+ <div class="year-pills">
+ <span class="year-pill off">2021 - temporarily unavailable</span>
+ <span class="year-pill off">2022 - temporarily unavailable</span>
+ <span class="year-pill on">2023 ✓</span>
+ <span class="year-pill on">2024 ✓</span>
+ <span class="year-pill on">2025 ✓</span>
+ </div>
+ <p>Tax years 2021 and 2022 are currently not selectable in the application.
+ Reason: the estimate calculation for those years would otherwise incorrectly
+ use a later year's tax tariff. The underlying data and functionality remain
+ intact; these years will be re-enabled once corrected and verified.</p>
+
+ <h2>Personal situation</h2>
+ <table class="scope-table">
+ <tr><th>Situation</th><th>Status</th><th>Note</th></tr>
+ <tr><td>Single assessment</td><td><span class="scope-badge scope-yes">Supported</span></td><td></td></tr>
+ <tr><td>Joint assessment (married couples)</td><td><span class="scope-badge scope-yes">Supported</span></td><td></td></tr>
+ <tr><td>Separate assessment of spouses (§ 26a)</td><td><span class="scope-badge scope-yes">Supported</span></td><td></td></tr>
+ <tr><td>Widowed (Witwensplitting)</td><td><span class="scope-badge scope-yes">Supported</span></td><td></td></tr>
+ <tr><td>Moving into/out of Germany during the tax year</td><td><span class="scope-badge scope-yes">Supported</span></td><td>Actual residency dates are collected.</td></tr>
+ <tr><td>Spouse living abroad</td><td><span class="scope-badge scope-review">Needs review</span></td><td>Collected; individual tax review recommended.</td></tr>
+ </table>
+
+ <h2>Income</h2>
+ <table class="scope-table">
+ <tr><th>Situation</th><th>Status</th><th>Note</th></tr>
+ <tr><td>Employment (Anlage N)</td><td><span class="scope-badge scope-yes">Supported</span></td><td>Including multiple employers.</td></tr>
+ <tr><td>Wage-replacement benefits (Kurzarbeitergeld, Elterngeld)</td><td><span class="scope-badge scope-yes">Supported</span></td><td></td></tr>
+ <tr><td>Capital income, including foreign brokers (Anlage KAP)</td><td><span class="scope-badge scope-yes">Supported</span></td><td></td></tr>
+ <tr><td>Rental property in Germany (Anlage V)</td><td><span class="scope-badge scope-yes">Supported</span></td><td></td></tr>
+ <tr><td>Pension income, standard case (Anlage R)</td><td><span class="scope-badge scope-yes">Supported</span></td><td></td></tr>
+ <tr><td>Foreign employment (Anlage N-AUS)</td><td><span class="scope-badge scope-review">Needs review</span></td><td>Only from tax year 2023 onward. Only the DBA legal basis is implemented (not ATE/ZÜ).</td></tr>
+ <tr><td>Rental property abroad</td><td><span class="scope-badge scope-review">Needs review</span></td><td>Transmitted by default as exempt with Progressionsvorbehalt - the actual treaty treatment depends on the specific country and is not decided by the app.</td></tr>
+ <tr><td>Self-employment / freelance / business income</td><td><span class="scope-badge scope-no">Not supported</span></td><td>No Anlage S or G exists.</td></tr>
+ </table>
+
+ <h2>Family &amp; other</h2>
+ <table class="scope-table">
+ <tr><th>Situation</th><th>Status</th><th>Note</th></tr>
+ <tr><td>Children (Anlage Kind), childcare costs, school fees</td><td><span class="scope-badge scope-yes">Supported</span></td><td></td></tr>
+ <tr><td>Support payments to relatives, including abroad (Anlage Unterhalt)</td><td><span class="scope-badge scope-yes">Supported</span></td><td></td></tr>
+ <tr><td>Double household (doppelte Haushaltsführung)</td><td><span class="scope-badge scope-yes">Supported</span></td><td></td></tr>
+ <tr><td>Special expenses, extraordinary burdens, household services</td><td><span class="scope-badge scope-yes">Supported</span></td><td></td></tr>
+ <tr><td>Energy renovation credit (§ 35c EStG)</td><td><span class="scope-badge scope-yes">Supported</span></td><td></td></tr>
+  <tr><td>Realsplitting (support to an ex-spouse)</td><td><span class="scope-badge scope-yes">Supported</span></td><td></td></tr>
+ <tr><td>Private sales, e.g. crypto/gold held under 1 year; received spousal support (Anlage SO)</td><td><span class="scope-badge scope-yes">Supported</span></td><td></td></tr>
+ </table>
+
+ <h2>What this means for you</h2>
+ <p>If your tax situation includes anything marked "Not supported," SimplyTax
+ cannot currently handle that return correctly - please use ELSTER directly,
+ another software product, or a tax advisor instead. For anything marked
+ "Needs review," SimplyTax does process it, but may use a standard
+ assumption that isn't correct for every individual case - the application
+ flags exactly which assumption was used at the relevant point.</p>
+ <p>This page is updated whenever the actual program scope changes
+ materially. The application's own built-in eligibility check evaluates
+ your personal situation directly against these same criteria.</p>
+</div>
+
+<footer class="footer"><div class="wrap">
+ <div class="foot-links">
+ <a href="impressum.html" id="f-imp">Impressum</a>
+ <a href="datenschutz.html" id="f-ds">Datenschutz</a>
+ <a href="agb.html">AGB</a>
+ <a href="program-scope.html" id="f-scope">Leistungsumfang</a>
+ </div>
+</div></footer>
+
+<script>
+let LANG='de';
+try{ LANG=localStorage.getItem('simplytax-home-lang')||'de'; }catch(e){}
+function applyLang(){
+ const de=LANG!=='en';
+ document.getElementById('scope-de').style.display=de?'':'none';
+ document.getElementById('scope-en').style.display=de?'none':'';
+ document.getElementById('langBtn').textContent=de?'EN':'DE';
+ document.getElementById('appBtn').textContent=de?'Zur Anwendung':'Open the app';
+ document.getElementById('agbLink').textContent=de?'AGB':'Terms';
+ document.getElementById('dsLink').textContent=de?'Datenschutz':'Privacy';
+ document.getElementById('f-imp').textContent=de?'Impressum':'Legal Notice';
+ document.getElementById('f-ds').textContent=de?'Datenschutz':'Privacy';
+ document.getElementById('f-scope').textContent=de?'Leistungsumfang':'Program scope';
+ document.documentElement.lang=de?'de':'en';
+}
+function toggleLang(){
+ LANG=(LANG==='en')?'de':'en';
+ try{ localStorage.setItem('simplytax-home-lang',LANG); }catch(e){}
+ applyLang();
+}
+applyLang();
+</script>
+</body>
+</html>
