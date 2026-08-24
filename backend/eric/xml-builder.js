@@ -447,7 +447,7 @@ function buildAnlageN(data) {
             partial submission here would fail the exact same way
             again - surfaced via skippedSections instead. */
       if (!ep.arbeitsstaette) {
-        skippedSections.push(`Person ${person}: commute distance was entered, but the required workplace address is missing - confirmed via a real ERiC rejection that this is mandatory alongside the distance. Nothing about the commute was transmitted until this is filled in.`);
+        skippedSections.push(`[MATERIAL] Person ${person}: commute distance was entered, but the required workplace address is missing - confirmed via a real ERiC rejection that this is mandatory alongside the distance. Nothing about the commute was transmitted until this is filled in.`);
       } else {
         const km = Math.round(N(ep.einfacheEntfernungKm)); // schema requires a whole number ("auf volle Kilometer abgerundet")
         let epXml = '';
@@ -562,7 +562,7 @@ function buildAnlageN(data) {
         dhhfXml += `<Unterkunft>${wholeEuroTag(fm.N_DHH_LEGACY.dhhRent, Math.round(dhhRentTotal))}</Unterkunft>`;
         wkXml += `<DHHF>${dhhfXml}</DHHF>\n`;
       } else if (hasRent) {
-        skippedSections.push('Double-household costs (2021/2022) - a rent amount was entered but the required details (date established, reason, workplace, continuous-until date) aren\'t all filled in yet, which this structure requires. Not transmitted until those are complete.');
+        skippedSections.push('[MATERIAL] Double-household costs (2021/2022) - a rent amount was entered but the required details (date established, reason, workplace, continuous-until date) aren\'t all filled in yet, which this structure requires. Not transmitted until those are complete.');
       }
     }
     if (wkXml) xml += `<Wk>\n${wkXml}</Wk>\n`;
@@ -2717,18 +2717,18 @@ function buildEStXML(data, opts = {}) {
   if ((data.anlageV || []).some(p => N(p.wkAfa) > 0))
     skippedSections.push('anlageV building depreciation (AfA) - transmitted using the standard default (2% linear depreciation), since the exact method and construction date aren\'t collected yet. This is the correct rate for most buildings completed after 1924, but if a different method or rate genuinely applies to this property, the amount transmitted may not be exactly right - worth confirming with a Steuerberater if unsure.');
   if ((data.anlageKind || []).some(k => k.betreuungskosten > 0 && (!k.betreuungAnbieter || !k.betreuungVon || !k.betreuungBis)))
-    skippedSections.push('anlageKind childcare amount present without provider/period for at least one child - that entry\'s childcare block was skipped (should not happen if the app UI validation ran, worth checking why it was bypassed)');
+    skippedSections.push('[MATERIAL] anlageKind childcare amount present without provider/period for at least one child - that entry\'s childcare block was skipped (should not happen if the app UI validation ran, worth checking why it was bypassed)');
   if ((data.anlageKind || []).some(k => k.vorname && k.geburtsdatum && !k.familienkasse))
-    skippedSections.push('anlageKind present without the Familienkasse (responsible child-benefit office) for at least one child - confirmed required alongside name/birthdate (Regel 5021). This is genuinely case-specific data (which office is responsible) that cannot be safely defaulted - needs to come from the user.');
+    skippedSections.push('[MATERIAL] anlageKind present without the Familienkasse (responsible child-benefit office) for at least one child - confirmed required alongside name/birthdate (Regel 5021). This is genuinely case-specific data (which office is responsible) that cannot be safely defaulted - needs to come from the user.');
   if (!data.hauptvordruck?.personB && (data.anlageKind || []).some(k => k.vorname && k.geburtsdatum && !k.otherParentName))
-    skippedSections.push('anlageKind present for a single filer without the other parent\'s name for at least one child - confirmed required (Regel 100500048/25). This is genuinely case-specific data that cannot be safely defaulted - needs to come from the user.');
+    skippedSections.push('[MATERIAL] anlageKind present for a single filer without the other parent\'s name for at least one child - confirmed required (Regel 100500048/25). This is genuinely case-specific data that cannot be safely defaulted - needs to come from the user.');
   if ((data.anlageN || []).some(n => N(n.zeile20_verpflegung) > 0))
     skippedSections.push('[MATERIAL] Anlage N Zeile 20 (tax-free employer meal allowances) present but NOT transmitted - real bug found via testing against a genuine client file. It was previously sent to the wrong XML context (ArbL) under a field that actually means something different (the sum of CLAIMED foreign-travel meal expenses). Its correct home is E0205108 "vom Arbeitgeber steuerfrei ersetzt", which only makes sense alongside the travel-expense claim itself (days away, countries, per-diem rates) - none of which this app collects. Sending it alone would be an incomplete declaration, so it is honestly omitted rather than guessed.');
   (data.anlageNAUS || []).forEach((a, i) => {
     const label = `anlageNAUS entry ${i + 1}`;
     const year = data.meta?.taxYear || 2025;
     if (year < 2023) {
-      skippedSections.push(`${label}: N-AUS for tax year ${year} is not yet implemented - confirmed via direct research that 2021/2022 use a genuinely different structure for the legal-basis and dual-residence fields (an opposite-polarity statement pair, not a simple enum), needing its own dedicated research pass the same way Anlage Unterhalt's legacy structure did. Not transmitted for this year.`);
+      skippedSections.push(`[MATERIAL] ${label}: N-AUS for tax year ${year} is not yet implemented - confirmed via direct research that 2021/2022 use a genuinely different structure for the legal-basis and dual-residence fields (an opposite-polarity statement pair, not a simple enum), needing its own dedicated research pass the same way Anlage Unterhalt's legacy structure did. Not transmitted for this year.`);
       return;
     }
     if (a.legalBasis && a.legalBasis !== 'dba')
@@ -2741,7 +2741,7 @@ function buildEStXML(data, opts = {}) {
       skippedSections.push(`${label}: fewer than 184 days were spent abroad, so the standard 183-day exemption does not automatically apply (Regel 30). At least one of six legal/contractual bases must be stated for the exemption to be valid - this is a real distinction that needs to come from the user, not something the app can safely guess. This entry will be rejected until one is selected.`);
     if ((a.arbeitgeberName || a.arbeitgeberStreet || a.arbeitgeberPlz || a.arbeitgeberCity || a.arbeitgeberCountry)
       && !(a.arbeitgeberName && a.arbeitgeberStreet && a.arbeitgeberPlz && a.arbeitgeberCity && a.arbeitgeberCountry))
-      skippedSections.push(`${label}: the employer's name, street, postcode, city and country must all be given together or not at all (Regel 24, confirmed) - some but not all were provided, so none were transmitted rather than sending an incomplete address ERiC would reject anyway. Please complete all five fields.`);
+      skippedSections.push(`[MATERIAL] ${label}: the employer's name, street, postcode, city and country must all be given together or not at all (Regel 24, confirmed) - some but not all were provided, so none were transmitted rather than sending an incomplete address ERiC would reject anyway. Please complete all five fields.`);
     if (a.dualResidence && (!a.foreignResStreet || !a.foreignResCountry))
       skippedSections.push(`${label}: a foreign residence was indicated but its address is incomplete (Regel 20) - this entry will be rejected until filled in.`);
   });
@@ -2756,15 +2756,15 @@ function buildEStXML(data, opts = {}) {
      scope in this main function. */
   const veranlagungsartNeedsMarriageDate = data.hauptvordruck?.veranlagungsart === 'zusammenveranlagung' || data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
   if (veranlagungsartNeedsMarriageDate && !data.hauptvordruck?.marriageDate)
-    skippedSections.push('Marriage/partnership date - ELSTER genuinely requires this whenever a joint or §26a separate assessment filing type is explicitly selected (Regel 101100199), but this app does not yet collect it. The submission will likely be rejected until this date is entered.');
+     skippedSections.push('Marriage/partnership date - ELSTER genuinely requires this whenever a joint or §26a separate assessment filing type is explicitly selected (Regel 101100199). This field exists in the app but was left blank for this specific record. The submission will be rejected until this date is entered.');
   const beh = data.weitereAngaben?.behinderung || {};
   /* Now implemented (see buildAgB above) - only flagged here when the
      required person details are genuinely still missing, matching the
      same fall-through condition used there. */
   if (N(beh.pflegeA) > 0 && !(beh.pflegePersonA && beh.pflegePersonAId && beh.pflegePersonAResident))
-    skippedSections.push('Pflege-Pauschbetrag (care lump sum) for Person A - a grade was entered, but the cared-for person\'s name, ID, and residence status are not all filled in yet, which this deduction genuinely requires. Not transmitted until those details are complete.');
+    skippedSections.push('[MATERIAL] Pflege-Pauschbetrag (care lump sum) for Person A - a grade was entered, but the cared-for person\'s name, ID, and residence status are not all filled in yet, which this deduction genuinely requires. Not transmitted until those details are complete.');
   if (N(beh.pflegeB) > 0 && !(beh.pflegePersonB && beh.pflegePersonBId && beh.pflegePersonBResident))
-    skippedSections.push('Pflege-Pauschbetrag (care lump sum) for Person B - a grade was entered, but the cared-for person\'s name, ID, and residence status are not all filled in yet, which this deduction genuinely requires. Not transmitted until those details are complete.');
+    skippedSections.push('[MATERIAL] Pflege-Pauschbetrag (care lump sum) for Person B - a grade was entered, but the cared-for person\'s name, ID, and residence status are not all filled in yet, which this deduction genuinely requires. Not transmitted until those details are complete.');
   /* Real, additional gap found via a systematic check of this whole
      section - these two were only ever mentioned in a code comment,
      never actually flagged to the user, meaning they were being
@@ -2792,7 +2792,7 @@ function buildEStXML(data, opts = {}) {
       if (!(N(p.mieteinnahmen) > 0)) {
         skippedSections.push(`${label}: a foreign country is set but no rental income was entered - nothing was transmitted for this property.`);
       } else {
-        skippedSections.push(`${label}: foreign rental income was declared on Anlage AUS as tax-exempt income with Progressionsvorbehalt (the standard treatment under most double-taxation agreements). Whether the relevant treaty actually exempts this income rather than crediting foreign tax against German tax is a per-country legal question this app does not decide - worth confirming for the specific country before filing.`);
+        skippedSections.push(`[MATERIAL] ${label}: foreign rental income was declared on Anlage AUS as tax-exempt income with Progressionsvorbehalt (the standard treatment under most double-taxation agreements). Whether the relevant treaty actually exempts this income rather than crediting foreign tax against German tax is a per-country legal question this app does not decide - worth confirming for the specific country before filing.`);
       }
       if (N(p.werbungskosten) > 0)
         skippedSections.push(`${label}: foreign rental expenses were subtracted to report a net figure, since Anlage AUS asks for net income rather than itemised costs.`);
@@ -2803,7 +2803,7 @@ function buildEStXML(data, opts = {}) {
       ? { street: p.street || '', plz: p.plz || '', ort: p.ort || '' }
       : splitPropertyAddress(p.objekt);
     if (!addr.street || !addr.plz || !addr.ort)
-      skippedSections.push(`${label}: Anlage V requires the street with house number, the postcode AND the city as separate entries (Regel 3149) - one of these is still missing for this property.`);
+      skippedSections.push(`[MATERIAL] ${label}: Anlage V requires the street with house number, the postcode AND the city as separate entries (Regel 3149) - one of these is still missing for this property.`);
     if (p.ferienwohnung == null || p.kurzfristig == null || p.angehoerige == null)
       skippedSections.push(`${label}: the three required usage declarations (holiday let / short-term letting / rented to relatives) were not all answered - unanswered ones were sent as "Nein", which is the common case but is a real declaration and should be confirmed by the taxpayer.`);
     if (!(N(p.nebenkosten) > 0))
@@ -2838,20 +2838,20 @@ function buildEStXML(data, opts = {}) {
         if (!data.anlageUnterhalt.personBirthDate) missing.push('birthdate');
         if (!data.anlageUnterhalt.householdAddress) missing.push('household address');
         if (!data.anlageUnterhalt.personIdnr) missing.push('IdNr (required unconditionally for this tax year, unlike 2023 onward)');
-        skippedSections.push(`anlageUnterhalt (legacy structure, tax year ${uYear}) support payment present but missing: ${missing.join(', ')} (confirmed via real Regeln 27-29 for the 2021/2022 structure).`);
+        skippedSections.push(`[MATERIAL] anlageUnterhalt (legacy structure, tax year ${uYear}) support payment present but missing: ${missing.join(', ')} (confirmed via real Regeln 27-29 for the 2021/2022 structure).`);
       }
       if (data.anlageUnterhalt.country && data.anlageUnterhalt.country !== 'Deutschland' && data.anlageUnterhalt.foreignNeedConfirmed == null)
-        skippedSections.push(`anlageUnterhalt (legacy structure, tax year ${uYear}) - a foreign household was indicated but the home-country confirmation (foreignNeedConfirmed) was not set - required together (Regel 30/31 for the 2021/2022 structure).`);
+        skippedSections.push(`[MATERIAL] anlageUnterhalt (legacy structure, tax year ${uYear}) - a foreign household was indicated but the home-country confirmation (foreignNeedConfirmed) was not set - required together (Regel 30/31 for the 2021/2022 structure).`);
     } else if (!data.anlageUnterhalt.personName || !data.anlageUnterhalt.householdAddress || !data.anlageUnterhalt.profession || !data.anlageUnterhalt.personBirthDate) {
       const missing2023 = [];
       if (!data.anlageUnterhalt.personName) missing2023.push('name');
       if (!data.anlageUnterhalt.profession) missing2023.push('profession/marital status');
       if (!data.anlageUnterhalt.personBirthDate) missing2023.push('birthdate');
       if (!data.anlageUnterhalt.householdAddress) missing2023.push('household address');
-      skippedSections.push(`anlageUnterhalt support payment present but missing: ${missing2023.join(', ')} (confirmed via a real empirical ERiC test, not just documentation - Regel 100120001).`);
+      skippedSections.push(`[MATERIAL] anlageUnterhalt support payment present but missing: ${missing2023.join(', ')} (confirmed via a real empirical ERiC test, not just documentation - Regel 100120001).`);
     }
     if (!isLegacyYear && (!data.anlageUnterhalt.von || !data.anlageUnterhalt.bis))
-      skippedSections.push('anlageUnterhalt support payment present but missing the support period (von/bis dates) - confirmed required together with the amount (Regel 300010/300135), found via testing against a genuine client file that omitted these dates.');
+      skippedSections.push('[MATERIAL] anlageUnterhalt support payment present but missing the support period (von/bis dates) - confirmed required together with the amount (Regel 300010/300135), found via testing against a genuine client file that omitted these dates.');
     if (!isLegacyYear && !(data.anlageUnterhalt.country && data.anlageUnterhalt.country !== 'Deutschland') && !data.anlageUnterhalt.personIdnr)
       /* CORRECTED: an earlier round's empirical test found IdNr "not
          required" - but that test only covered a FOREIGN scenario and was
@@ -2859,9 +2859,9 @@ function buildEStXML(data, opts = {}) {
          regression test proved domestic genuinely DOES require it (Regel
          100120098, "Voraussetzung für den Abzug"). Only foreign is
          genuinely exempt. */
-      skippedSections.push('anlageUnterhalt support payment for a domestic household present but missing the supported person\'s IdNr - confirmed required for domestic cases (Regel 100120098); only exempt when the household is genuinely foreign.');
+      skippedSections.push('[MATERIAL] anlageUnterhalt support payment for a domestic household present but missing the supported person\'s IdNr - confirmed required for domestic cases (Regel 100120098); only exempt when the household is genuinely foreign.');
     if (!isLegacyYear && data.anlageUnterhalt.country && data.anlageUnterhalt.country !== 'Deutschland' && data.anlageUnterhalt.foreignNeedConfirmed !== true)
-      skippedSections.push('anlageUnterhalt support payment for a foreign household - confirmed via real ERiC validation (Regel 32) that the home-country-authority confirmation (foreignNeedConfirmed) is required for foreign households.');
+      skippedSections.push('[MATERIAL] anlageUnterhalt support payment for a foreign household - confirmed via real ERiC validation (Regel 32) that the home-country-authority confirmation (foreignNeedConfirmed) is required for foreign households.');
   }
   if (data.weitereAngaben?.realsplittingAnlageU && !data.weitereAngaben.realsplitIdnr) {
     /* NOTE: the app does not currently collect a country/residence field
