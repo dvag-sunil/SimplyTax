@@ -438,7 +438,21 @@ const N_DHH = {
      years 2021-2025. */
   dhhContinuousUntil: 'E0206304', // Allg - "bis" date. REVERTED: earlier assumption (trailing period required) proven wrong by a direct, controlled user test - "31.12." caused a blank schema crash (610301200), "31.12" produced a real rejection instead. Field currently NOT transmitted pending genuine format verification - see the commented-out line in buildNDHH.
   dhhOwnPlz: 'E0206505',          // Allg - PLZ, Ort des eigenen Hausstandes
-  dhhOwnSince: 'E0206506',        // Allg - seit (full date)
+   dhhOwnSince: 'E0206506',        // Allg - seit (full date)
+  /* RESOLVED: real, confirmed field found via direct verification
+     against the actual Jahresdokumentation_E10_2025.ods (the real
+     developer documentation, provided by the user specifically to
+     resolve this after the schema HTML alone wasn't enough) -
+     Kontext /N_DHH/VMA_ges, Kennzahl E0206303, "Vom Arbeitgeber / von
+     der Agentur für Arbeit insgesamt steuerfrei ersetzt" (Vordruckzeile
+     34 in this Anlage's own numbering - not "Zeile 21 of Anlage N" as
+     an old 2016 forum answer suggested, since Anlage N-Doppelte
+     Haushaltsführung didn't exist as its own separate form back then).
+     Format confirmed as a whole euro amount (GeldBetragOhneCent),
+     optional. Confirmed real sibling order directly against the XSD:
+     Person, DHHF, VMA_ges - VMA_ges is its own element, a sibling to
+     DHHF within N_DHH, not nested inside it. */
+  dhh21: 'E0206303',
   // relocation: no dedicated Kennzahl found in the real schema - folded
   // into the already-wired Weitere_Wk/Sum itemized total instead,
   // rather than left unsent or a nonexistent field invented.

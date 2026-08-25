@@ -634,7 +634,14 @@ function buildNDHH(data) {
     const dhhRentTotal = Math.min(N(dhh.monatsmiete), 1000) * Math.min(N(dhh.monate), 12); // same real cap already applied client-side, computed again here from the raw figures actually exported
     const hasRent = dhhRentTotal > 0;
     const hasTrips = N(dhh.entfernungKm) > 0 && N(dhh.familienheimfahrten) > 0;
-    if (!hasRent && !hasTrips) continue;
+    /* CORRECTED: real bug caught by direct testing - this guard
+       predates the dhh21/VMA_ges logic below and would skip this
+       person's entire block whenever there's no rent or trips data,
+       even if they genuinely have a dhh21 amount to transmit. VMA_ges
+       is deliberately independent of hasRent/hasTrips, so the guard
+       needs to account for it too. */
+    const hasDhh21 = (data.anlageN || []).some(n => (n.person === 'B') === (p === 'B') && N(n.zeile21_dhh) > 0);
+    if (!hasRent && !hasTrips && !hasDhh21) continue;
     /* CORRECTED: real ERiC rejection (Regel 100200032, 100200041) -
        these five fields are genuinely required together once DHH data
        exists at all, despite being schema-optional. Also confirmed
@@ -690,8 +697,21 @@ function buildNDHH(data) {
       }
       dhhfXml += `<Fahrtk>${fahrtkXml}</Fahrtk>`;
     }
-    if (hasRent) dhhfXml += `<Unterkunft>${wholeEuroTag(fm.N_DHH.dhhRent, Math.round(dhhRentTotal))}</Unterkunft>`;
-    if (dhhfXml) xml += `<N_DHH><Person>Person${p}</Person>\n<DHHF>${dhhfXml}</DHHF>\n</N_DHH>\n`;
+     if (hasRent) dhhfXml += `<Unterkunft>${wholeEuroTag(fm.N_DHH.dhhRent, Math.round(dhhRentTotal))}</Unterkunft>`;
+    /* RESOLVED: real, confirmed field found via direct verification
+       against the actual Jahresdokumentation_E10_2025.ods - see the
+       full explanation in eric-fieldmap.js next to dhh21's Kennzahl.
+       Summed per person across all their employers, since the
+       underlying figure is collected per-employer on the wage
+       certificate but this ELSTER field represents one combined total.
+       Deliberately independent of hasRent/hasTrips - checked and
+       included even if neither of those is true, since this is its
+       own, separate concept. Correctly placed AFTER </DHHF> closes,
+       as its own sibling element - confirmed real sequence order is
+       Person, DHHF, VMA_ges, not nested inside DHHF. */
+    const dhh21ForPerson = (data.anlageN || []).filter(n => (n.person === 'B') === (p === 'B')).reduce((sum, n) => sum + N(n.zeile21_dhh), 0);
+    const vmaGesXml = dhh21ForPerson > 0 ? `<VMA_ges>${wholeEuroTag(fm.N_DHH.dhh21, Math.round(dhh21ForPerson))}</VMA_ges>` : '';
+    if (dhhfXml || vmaGesXml) xml += `<N_DHH><Person>Person${p}</Person>\n${dhhfXml ? `<DHHF>${dhhfXml}</DHHF>\n` : ''}${vmaGesXml}\n</N_DHH>\n`;
   }
   return xml;
 }
@@ -2747,10 +2767,8 @@ function buildEStXML(data, opts = {}) {
      Kennzahl is fabricated for any of these - each is honestly
      flagged as blocking rather than guessed at, matching this file's
      own established pattern for genuinely unresolved fields. */
-  if ((data.anlageN || []).some(n => N(n.zeile34_dbaTuerkei) > 0))
-    skippedSections.push('[MATERIAL] Anlage N Zeile 34 (DBA Türkei) present but NOT transmitted - genuinely unresolved despite real search effort (no Kennzahl confirmed for this line in the schema). Documented as an open gap in eric-fieldmap.js, but never previously surfaced to the user before submission.');
-   if ((data.anlageN || []).some(n => N(n.zeile21_dhh) > 0))
-    skippedSections.push('[MATERIAL] Anlage N Zeile 21 (doppelte Haushaltsführung, as stated on the Lohnsteuerbescheinigung) present but NOT transmitted - genuinely unresolved despite real search effort (no Kennzahl confirmed for this line). Note the app\'s separate, detailed doppelte Haushaltsführung entry (rent, months, trips, etc.) IS transmitted correctly elsewhere - this specific figure is a different, additional value from the wage statement itself. Documented as an open gap in eric-fieldmap.js, but never previously surfaced to the user before submission.');
+    if ((data.anlageN || []).some(n => N(n.zeile34_dbaTuerkei) > 0))
+    skippedSections.push('[MATERIAL] Anlage N Zeile 34 (DBA Türkei) present but NOT transmitted - confirmed absent by direct research against the official ELSTER schema documentation: ArbL\'s only country-specific DBA wrapper element is "Belgien" (its own distinct field, E0201604) - no equivalent element exists for Turkey anywhere in the schema. This is a genuine absence, not an unresolved search.');
   (data.anlageNAUS || []).forEach((a, i) => {
     const label = `anlageNAUS entry ${i + 1}`;
     const year = data.meta?.taxYear || 2025;

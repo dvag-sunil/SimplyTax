@@ -33,11 +33,11 @@ for (const [section, obj] of Object.entries({
   }
 }
 
-check('total mapped fields = 333 (corrected from a stale count of 314 - this assertion had drifted out of sync with the real file; 333 verified by directly computing Object.keys().length across every section against the actual current eric-fieldmap.js, not assumed. The exact reasoning for each field added since the count was last updated isn\'t known here and isn\'t claimed - this is a factual correction of the check itself, not a record of what changed and why)', Object.values({
+check('total mapped fields = 334 (was 333 - +1 for dhh21/E0206303, resolved via direct verification against the real Jahresdokumentation_E10_2025.ods after the schema HTML alone wasn\'t enough to confirm it)', Object.values({
   ESt1A: fm.ESt1A, N: fm.N, VOR: fm.VOR, SA: fm.SA, Kind: fm.Kind, N_DHH: fm.N_DHH,
   KAP: fm.KAP, HA_35a: fm.HA_35a, Sonst: fm.Sonst, SO: fm.SO, ESt1A_U: fm.ESt1A_U, N_AUS: fm.N_AUS,
   AgB: fm.AgB, EM_35c: fm.EM_35c, ESt1A_Ersatz: fm.ESt1A_Ersatz, R: fm.R, V: fm.V,
-}).reduce((sum, o) => sum + Object.keys(o).length, 0) === 333);
+}).reduce((sum, o) => sum + Object.keys(o).length, 0) === 334);
 
 check('gross einz/sum correct', fm.N.gross.einz === 'E0200204' && fm.N.gross.sum === 'E0200201');
 check('taxClass corrected to Steuerklasse', fm.N.taxClass.kennzahlen[0] === 'E0200002');
