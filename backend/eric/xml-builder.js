@@ -314,7 +314,20 @@ function buildAnlageN(data) {
     if (fm.isFieldSupportedForYear('E0201606', data.meta?.taxYear || 2025))
       xml += wholeEuroTag(fm.N.vb9.kennzahlen[0], first.zeile9_versorgungMehrjaehrig);
     xml += wholeEuroTag(fm.N.ml10.kennzahlen[0], first.zeile10_mehrjaehrigEntschaedigung);
-    xml += wholeEuroTag(fm.N.ersatz15.kennzahlen[0], first.zeile15_lohnersatz);
+     /* CORRECTED: real, confirmed transmission gap found via direct
+       research against the official ELSTER schema documentation
+       (uploaded by the user specifically to resolve open gaps like
+       this one, rather than continue guessing). "Kurzarbeitergeld" is
+       explicitly documented as part of the SAME combined field as
+       Lohnersatzleistungen (E0202001, "laut Nr. 15 der
+       Lohnsteuerbescheinigung") - the schema's own annotation groups
+       Kurzarbeitergeld together with wage-replacement benefits under
+       this one line, confirmed by ersatz15 already using this exact
+       same Kennzahl. This was never a missing field to invent - the
+       kug15a amount just needed to be summed into the field that
+       already exists, not sent separately (which the schema has no
+       provision for at all). */
+    xml += wholeEuroTag(fm.N.ersatz15.kennzahlen[0], N(first.zeile15_lohnersatz) + N(first.zeile15a_kug));
     /* CORRECTED: dba16 needs its own ArbL/Stfr_NAUS wrapper, confirmed via
        the real Felder sheet Kontext column - was flat directly under
        ArbL, causing "/N/ArbL/E0201502" to be unrecognized. */
@@ -2722,8 +2735,22 @@ function buildEStXML(data, opts = {}) {
     skippedSections.push('[MATERIAL] anlageKind present without the Familienkasse (responsible child-benefit office) for at least one child - confirmed required alongside name/birthdate (Regel 5021). This is genuinely case-specific data (which office is responsible) that cannot be safely defaulted - needs to come from the user.');
   if (!data.hauptvordruck?.personB && (data.anlageKind || []).some(k => k.vorname && k.geburtsdatum && !k.otherParentName))
     skippedSections.push('[MATERIAL] anlageKind present for a single filer without the other parent\'s name for at least one child - confirmed required (Regel 100500048/25). This is genuinely case-specific data that cannot be safely defaulted - needs to come from the user.');
-  if ((data.anlageN || []).some(n => N(n.zeile20_verpflegung) > 0))
+   if ((data.anlageN || []).some(n => N(n.zeile20_verpflegung) > 0))
     skippedSections.push('[MATERIAL] Anlage N Zeile 20 (tax-free employer meal allowances) present but NOT transmitted - real bug found via testing against a genuine client file. It was previously sent to the wrong XML context (ArbL) under a field that actually means something different (the sum of CLAIMED foreign-travel meal expenses). Its correct home is E0205108 "vom Arbeitgeber steuerfrei ersetzt", which only makes sense alongside the travel-expense claim itself (days away, countries, per-diem rates) - none of which this app collects. Sending it alone would be an incomplete declaration, so it is honestly omitted rather than guessed.');
+   /* IMPLEMENTED: addresses the core finding from a full backend wiring
+     audit specifically requested before production - fields genuinely
+     collected by the UI but silently dropped, with no warning ever
+     surfacing to the user. Two of these (fb34/dhh21) were already
+     honestly documented as "genuinely still open" in a
+     developer-facing comment in eric-fieldmap.js, but that
+     acknowledgment never reached the actual submission flow. No
+     Kennzahl is fabricated for any of these - each is honestly
+     flagged as blocking rather than guessed at, matching this file's
+     own established pattern for genuinely unresolved fields. */
+  if ((data.anlageN || []).some(n => N(n.zeile34_dbaTuerkei) > 0))
+    skippedSections.push('[MATERIAL] Anlage N Zeile 34 (DBA Türkei) present but NOT transmitted - genuinely unresolved despite real search effort (no Kennzahl confirmed for this line in the schema). Documented as an open gap in eric-fieldmap.js, but never previously surfaced to the user before submission.');
+   if ((data.anlageN || []).some(n => N(n.zeile21_dhh) > 0))
+    skippedSections.push('[MATERIAL] Anlage N Zeile 21 (doppelte Haushaltsführung, as stated on the Lohnsteuerbescheinigung) present but NOT transmitted - genuinely unresolved despite real search effort (no Kennzahl confirmed for this line). Note the app\'s separate, detailed doppelte Haushaltsführung entry (rent, months, trips, etc.) IS transmitted correctly elsewhere - this specific figure is a different, additional value from the wage statement itself. Documented as an open gap in eric-fieldmap.js, but never previously surfaced to the user before submission.');
   (data.anlageNAUS || []).forEach((a, i) => {
     const label = `anlageNAUS entry ${i + 1}`;
     const year = data.meta?.taxYear || 2025;

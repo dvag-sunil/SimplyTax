@@ -270,7 +270,7 @@ check('Realsplitting warning correctly cites the unconditional 2023 rule when th
 // original wrong single-field mapping.
 check('Anlage Unterhalt transmits correctly with complete data - all empirically-confirmed required fields present, no warnings', (() => {
   const withU = JSON.parse(JSON.stringify(sample));
-  withU.anlageUnterhalt = { betrag: 6000, von: '2025-01-01', bis: '2025-12-31', personName: 'Maria Muster',
+  withU.anlageUnterhalt = { betrag: 6000, laendergruppe: '1', von: '2025-01-01', bis: '2025-12-31', personName: 'Maria Muster',
     profession: 'Rentnerin, verwitwet', personBirthDate: '1945-03-10', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Musterstr. 1, 60000 Frankfurt',
     householdSize: 1, cohabitation: false, kindergeldEntitlement: false, otherContributor: false, hasAssets: false, hasOwnIncome: false };
   const result = buildEStXML(withU);
@@ -1031,7 +1031,7 @@ check('buildV correctly numbers sequential entries starting from 1 when an earli
 check('Anlage Unterhalt (legacy structure) works correctly for tax year 2022 with complete data - no warnings, correct field set present', (() => {
   const y2022 = JSON.parse(JSON.stringify(sample));
   y2022.meta.taxYear = 2022;
-  y2022.anlageUnterhalt = { betrag: 6000, von: '2022-01-01', bis: '2022-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Test' };
+  y2022.anlageUnterhalt = { betrag: 6000, laendergruppe: '1', von: '2022-01-01', bis: '2022-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Test' };
   const result = buildEStXML(y2022);
   const uXml = result.xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
   const hasCore = ['E0120101', 'E0120108', 'E0120211', 'E0120201', 'E0120203', 'E0120202', 'E0120701', 'E0120401', 'E0120301', 'E0120860', 'E0120901', 'E0120109', 'E0120103', 'E0120104'].every(c => uXml.includes(c));
@@ -1054,7 +1054,7 @@ check('Anlage Unterhalt (legacy structure) uses the confirmed correct amount con
 check('Anlage Unterhalt (legacy structure) correctly implements foreign households - country field and Yes-confirmed flag both present, no warnings, when foreignNeedConfirmed is true', (() => {
   const y2022foreign = JSON.parse(JSON.stringify(sample));
   y2022foreign.meta.taxYear = 2022;
-  y2022foreign.anlageUnterhalt = { betrag: 6000, von: '2022-01-01', bis: '2022-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Test', country: 'Türkei', foreignNeedConfirmed: true };
+  y2022foreign.anlageUnterhalt = { betrag: 6000, laendergruppe: '1', von: '2022-01-01', bis: '2022-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Test', country: 'Türkei', foreignNeedConfirmed: true };
   const result = buildEStXML(y2022foreign);
   const uXml = result.xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
   return uXml.includes('<E0120102>Türkei</E0120102>') && uXml.includes('<E0120209>X</E0120209>') && !uXml.includes('E0120210') && !result.skippedSections.some(s => s.includes('anlageUnterhalt'));
@@ -1083,7 +1083,7 @@ check('Anlage Unterhalt (legacy structure) country field is correctly OMITTED fo
 check('Anlage Unterhalt: 2023+ behavior remains completely unaffected by the new legacy implementation', (() => {
   const y2023 = JSON.parse(JSON.stringify(sample));
   y2023.meta.taxYear = 2023;
-  y2023.anlageUnterhalt = { betrag: 6000, von: '2023-01-01', bis: '2023-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Test' };
+  y2023.anlageUnterhalt = { betrag: 6000, laendergruppe: '1', von: '2023-01-01', bis: '2023-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Test' };
   const result = buildEStXML(y2023);
   const uXml = result.xml.match(/<ESt1A_U>[\s\S]*?<\/ESt1A_U>/)?.[0] || '';
   return uXml.includes('E0122505') && uXml.includes('E0122613') && !result.skippedSections.some(s => s.includes('anlageUnterhalt'));
@@ -1091,7 +1091,7 @@ check('Anlage Unterhalt: 2023+ behavior remains completely unaffected by the new
 check('Anlage Unterhalt still works normally for tax year 2023 - the new 2021/2022 gate does not affect the already-confirmed-working years', (() => {
   const y2023 = JSON.parse(JSON.stringify(sample));
   y2023.meta.taxYear = 2023;
-  y2023.anlageUnterhalt = { betrag: 6000, von: '2023-01-01', bis: '2023-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Test' };
+  y2023.anlageUnterhalt = { betrag: 6000, laendergruppe: '1', von: '2023-01-01', bis: '2023-12-31', personName: 'Maria', profession: 'Rentnerin', personBirthDate: '1945-01-01', personIdnr: '12345678901', relationship: 'Mutter', householdAddress: 'Test' };
   const result = buildEStXML(y2023);
   return result.xml.includes('<ESt1A_U>') && !result.skippedSections.some(s => s.includes('anlageUnterhalt'));
 })());
