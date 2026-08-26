@@ -1168,8 +1168,38 @@ app.post('/api/eric/submit', auth, async (req, res) => {
     ).catch(e => console.error('[eric/submit] could not release submission lock:', e.message));
   };
 
-   try {
+    try {
     const convertedData = await convertSteuernummerForSubmission(interchangeData);
+    /* CRITICAL FIX: found by directly tracing this data flow against
+       the real ERiC developer handbook, which states plainly "bei
+       einem Echtfall ist ein Testmerker nicht erlaubt" (for a real
+       case, a Testmerker is not allowed) - and that ELSTER's own
+       servers silently DELETE any submission carrying one, without
+       ever processing it as a real return, while ERiC itself still
+       reports a normal success code for a valid test submission. The
+       frontend unconditionally hardcodes meta.testmerker: true, with
+       a comment claiming the backend sets it to false for real
+       transmission - but nothing in this file ever actually did that
+       anywhere, confirmed by tracing every line between the request
+       arriving and buildEStXML() being called. This means every real
+       submission ever made through this app would have silently
+       carried the test flag and been discarded by ELSTER, with
+       neither the user nor the app ever finding out. Forced off here,
+       unconditionally, server-side, specifically for the real submit
+       route - this is exactly the kind of flag that must never be
+       trusted from the client for something this consequential. */
+     /* CORRECTED per explicit direction - not hardcoded. Driven by the
+       real ERIC_SUBMISSION_MODE environment variable (already
+       configured on Render, currently "test"), so submissions can
+       keep safely going through ERiC as test cases until the
+       deliberate switch to "production" is made for the real release.
+       Defaults to "test" (the safe, fail-closed direction) if this
+       variable is ever missing or unset for any reason - a missing
+       config should never accidentally result in a real submission
+       going out; only an explicit, deliberate "production" value
+       should ever omit the test flag. */
+    const isProductionMode = process.env.ERIC_SUBMISSION_MODE === 'production';
+    convertedData.meta = { ...convertedData.meta, testmerker: !isProductionMode };
     const { xml, skippedSections } = buildEStXML(convertedData, {
       herstellerID: process.env.ERIC_HERSTELLER_ID,
     });

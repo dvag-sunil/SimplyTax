@@ -19,7 +19,18 @@ services:
       - key: FRONTEND_URL
         value: https://dvag-sunil.github.io/SimplyTax/
       - key: PRICE_CENTS
-        value: "1799"
+        value: "995"
+      # CRITICAL: controls whether real ELSTER submissions include the
+      # test flag (<Testmerker>) that causes ELSTER's own servers to
+      # silently discard the data instead of processing it as a real
+      # return. Must be the exact string "production" to send genuine
+      # submissions - anything else (missing, empty, wrong case, an
+      # abbreviation) safely defaults to test mode in the actual code.
+      # This value should only ever be changed to "production" as a
+      # deliberate, visible step for the real release - never left
+      # ambiguous as an undocumented manual entry on Render's dashboard.
+      - key: ERIC_SUBMISSION_MODE
+        value: "test"
       - key: STRIPE_SECRET_KEY     # leave empty until payments go live
         sync: false
       - key: STRIPE_WEBHOOK_SECRET # leave empty until payments go live
@@ -36,7 +47,3 @@ services:
         value: "3"
       - key: REMINDER_CRON_SECRET  # any random string; used by the daily cron caller
         sync: false
-      - key: ANTHROPIC_API_KEY     # console.anthropic.com -> API Keys; leave empty to keep extraction disabled
-        sync: false
-      - key: EXTRACT_MODEL
-        value: claude-haiku-4-5-20251001
