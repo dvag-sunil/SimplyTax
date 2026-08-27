@@ -149,11 +149,18 @@ function buildESt1A(data) {
      not currently collect an actual marriage/widowhood date anywhere -
      this is a REAL GAP needing a UI addition (a date field per status),
      not a code-only fix - so these two are correctly NOT sent for now
-     rather than sent with a wrong value. maritalSeparateAssessment
-     (E0102602, § 26a) IS confirmed to be a genuine checkbox (JaXBaseCType)
-     - that one is correct as-is, and per the real example's order, comes
-     LAST within the A block (it's the final field shown, right before
-     </A> closes). */
+      rather than sent with a wrong value. maritalSeparateAssessment
+     (E0102602, § 26a) is a genuine checkbox (JaXBaseCType), but does
+     NOT live inside Allg/A - it's its own separate Vlg_Art element, a
+     sibling of A and B. See the fuller explanation and the actual
+     placement further below, where it's genuinely written - this note
+     up here previously said "last within the A block," which was an
+     earlier, incorrect understanding that was corrected once
+     elsewhere in this function but never cleaned up here too, leaving
+     two contradictory comments in the same function even though the
+     actual code has been correct for a while. Independently
+     re-confirmed against the real documentation during a full
+      section-by-section verification pass: Allg/Vlg_Art. */
   /* CORRECTED: confirmed via real ERiC validation ("feldUnbekannt" - not
      supported for the given Veranlagungsart) that § 26a separate
      assessment logically requires an actual Person B to exist - it makes
