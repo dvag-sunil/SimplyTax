@@ -886,7 +886,9 @@ en: {
  so_hint:"Held longer than 1 year = completely tax-free. Below the exemption limit (€1,000 since 2024; €600 before) nothing is taxed - at or above it, the FULL amount is taxable.",
  so_unterhalt:"Spousal support received (with Realsplitting consent)",
  realsplit:"Support paid to ex-spouse (Realsplitting, Anlage U)",
- realsplit_hint:"Deductible up to €13,805 as Sonderausgaben - requires the recipient's consent (Anlage U); the recipient then taxes it.",
+  realsplit_hint:"Deductible up to €13,805 as Sonderausgaben - requires the recipient's consent (Anlage U); the recipient then taxes it.",
+ sec_vorauszahlung:"Advance tax payments already made", vorauszahlung_hint:"If you've already made quarterly advance payments this year, enter them here so your estimate reflects what you actually still owe or get back. This isn't part of what's submitted to the Finanzamt - they already track your payments themselves - it's only used to make the estimate shown to you accurate.",
+ vorauszahlung_est:"Income tax paid in advance", vorauszahlung_soli:"Solidarity surcharge paid in advance", vorauszahlung_kist:"Church tax paid in advance",
  loss_carry:"Loss carryforward from prior years (§ 10d)",
  sec_rente:"Pensions (Anlage R)", add_rente:"Add pension",
  rente_type:"Pension type", rente_ges:"Statutory pension (gesetzliche Rente)", rente_priv:"Private annuity (Ertragsanteil)",
@@ -1352,7 +1354,9 @@ de: {
  so_hint:"Länger als 1 Jahr gehalten = komplett steuerfrei. Unter der Freigrenze (1.000 € seit 2024; davor 600 €) bleibt alles steuerfrei - ab Erreichen ist der VOLLE Betrag steuerpflichtig.",
  so_unterhalt:"Erhaltener Ehegatten-Unterhalt (mit Zustimmung zum Realsplitting)",
  realsplit:"Unterhalt an Ex-Ehegatten (Realsplitting, Anlage U)",
- realsplit_hint:"Bis 13.805 € als Sonderausgaben absetzbar - erfordert die Zustimmung des Empfängers (Anlage U); dieser versteuert die Zahlungen.",
+  realsplit_hint:"Bis 13.805 € als Sonderausgaben absetzbar - erfordert die Zustimmung des Empfängers (Anlage U); dieser versteuert die Zahlungen.",
+ sec_vorauszahlung:"Bereits geleistete Steuervorauszahlungen", vorauszahlung_hint:"Falls Sie dieses Jahr bereits vierteljährliche Vorauszahlungen geleistet haben, tragen Sie diese hier ein, damit Ihre Schätzung widerspiegelt, was Sie tatsächlich noch zahlen oder zurückbekommen. Dies ist nicht Teil der Übermittlung an das Finanzamt - dieses erfasst Ihre Zahlungen bereits selbst - sondern dient nur der Genauigkeit der Ihnen angezeigten Schätzung.",
+ vorauszahlung_est:"Vorausgezahlte Einkommensteuer", vorauszahlung_soli:"Vorausgezahlter Solidaritätszuschlag", vorauszahlung_kist:"Vorausgezahlte Kirchensteuer",
  loss_carry:"Verlustvortrag aus Vorjahren (§ 10d)",
  sec_rente:"Renten (Anlage R)", add_rente:"Rente hinzufügen",
  rente_type:"Rentenart", rente_ges:"Gesetzliche Rente", rente_priv:"Private Rente (Ertragsanteil)",
@@ -2457,8 +2461,19 @@ function computeEstimate(c){
  const sparer = joint ? 2000 : 1000;
  const kapTaxable = Math.max(0, kapGains - sparer);
  const kap = kapTaxable*0.25 * 1.055; // 25% KapESt + 5.5% Soli thereon
- const owed = taxAfter + kgHinzu + soli + kist + kap;
- const paid = inc.paid + kapPaid;
+  const owed = taxAfter + kgHinzu + soli + kist + kap;
+ /* IMPLEMENTED: advance tax payments already made, added to the same
+    "paid" total that already includes wage withholding and KAP tax
+    already withheld - advance payments are the same kind of thing,
+    real money already sent to the Finanzamt that reduces what's
+    still owed. Confirmed via direct research against the real ELSTER
+    schema and developer documentation that no corresponding
+    submission field exists for this at all - the Finanzamt tracks
+    these payments entirely on their own side, so this deliberately
+    never touches xml-builder.js or eric-fieldmap.js. Used purely to
+    make the estimate shown to the user accurate. */
+ const vorauszahlungen = N(c.oth.vorauszahlungEst) + N(c.oth.vorauszahlungSoli) + N(c.oth.vorauszahlungKist);
+ const paid = inc.paid + kapPaid + vorauszahlungen;
  // Mobilitätsprämie §§ 101 ff. EStG: cash payout for low incomes with commutes > 20 km
  const gfbY = ((TARIFF[year]||TARIFF[2025]).gfb) * (joint?2:1);
  const farEP = Math.min(N(c.wk.commuteDays),366)*Math.max(N(c.wk.commuteKm)-20,0)*0.38
@@ -4647,9 +4662,16 @@ function stepSpecial(c){
  ${F('oth','realsplitIdnr',t('realsplit_idnr')+' *',{ph:'12 345 678 901',hint: c.taxYear<=2023 ? t('realsplit_idnr_hint_2023') : t('realsplit_idnr_hint'),maxlength:13,inputmode:'numeric'})}
  <div id="realsplitidnr-check-msg" style="grid-column:1/-1"></div>
  </div>`:''}
- ${N(c.oth.realsplitting)>0 && YEAR_LIMITATIONS[c.taxYear]?.noRealsplittingCountry?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
+  ${N(c.oth.realsplitting)>0 && YEAR_LIMITATIONS[c.taxYear]?.noRealsplittingCountry?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin:8px 0">
  ⚠ ${t('year_warn_no_realsplit_country')}
- </div>`:''}${navRow()}`;
+ </div>`:''}
+ <div class="section-label">${t('sec_vorauszahlung')}</div>
+ <p style="font-size:12.5px;color:var(--ink-soft);margin:-4px 0 12px">${t('vorauszahlung_hint')}</p>
+ <div class="grid3">
+ ${F('oth','vorauszahlungEst',t('vorauszahlung_est'),{euro:true,ph:'0,00 €'})}
+ ${F('oth','vorauszahlungSoli',t('vorauszahlung_soli'),{euro:true,ph:'0,00 €'})}
+ ${F('oth','vorauszahlungKist',t('vorauszahlung_kist'),{euro:true,ph:'0,00 €'})}
+ </div>${navRow()}`;
 }
 
 /* --- step 6: household & extraordinary --- */
