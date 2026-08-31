@@ -639,7 +639,11 @@ en: {
  first_name:"First name", last_name:"Last name", marital:"Marital status",
  single:"Single", married:"Married - joint assessment (Zusammenveranlagung)",
   create:"Create profile", cancel:"Cancel", ok:"OK",
- submitted_edit_blocked:"This return was already submitted, so its content is now locked to protect what was actually sent to the Finanzamt - your change wasn't saved. If something genuinely needs to change, please contact support about filing a correction.",
+  submitted_edit_blocked:"This return was already submitted, so its content is now locked to protect what was actually sent to the Finanzamt - your change wasn't saved. If something genuinely needs to change, please contact support about filing a correction.",
+ save_failed_auth:"Your changes could not be saved - your sign-in session appears to have expired or isn't being recognized. Please sign out and sign in again, then check that your changes are still there before continuing.",
+ save_failed_generic:"Your changes could not be saved due to a connection problem. Please check your internet connection - if this keeps happening, your recent changes may not be stored yet.",
+ load_failed_auth:"Your data could not be loaded - your sign-in session appears to have expired or isn't being recognized. Please sign out and sign in again.",
+ load_failed_generic:"Your data could not be loaded due to a connection problem. This does not mean your data is missing - please check your connection and try refreshing.",
  back_dash:"Dashboard",
  step1:"Personal data", step2:"Employment income", step3:"Insurance (Vorsorge)", step4:"Werbungskosten (work-related expenses)", step5:"Special expenses", step6:"Household & other", step7:"Review & submit",
  s1_lead:"Basic data for the main form (Hauptvordruck ESt 1 A).",
@@ -1101,7 +1105,11 @@ de: {
  first_name:"Vorname", last_name:"Nachname", marital:"Familienstand",
  single:"Ledig", married:"Verheiratet - Zusammenveranlagung",
   create:"Profil anlegen", cancel:"Abbrechen", ok:"OK",
- submitted_edit_blocked:"Diese Erklärung wurde bereits übermittelt, ihr Inhalt ist daher jetzt gesperrt, um zu schützen, was tatsächlich an das Finanzamt gesendet wurde - Ihre Änderung wurde nicht gespeichert. Falls sich wirklich etwas ändern muss, wenden Sie sich bitte an den Support wegen einer Korrektur.",
+  submitted_edit_blocked:"Diese Erklärung wurde bereits übermittelt, ihr Inhalt ist daher jetzt gesperrt, um zu schützen, was tatsächlich an das Finanzamt gesendet wurde - Ihre Änderung wurde nicht gespeichert. Falls sich wirklich etwas ändern muss, wenden Sie sich bitte an den Support wegen einer Korrektur.",
+ save_failed_auth:"Ihre Änderungen konnten nicht gespeichert werden - Ihre Anmeldung scheint abgelaufen zu sein oder wird nicht erkannt. Bitte melden Sie sich ab und wieder an und prüfen Sie danach, ob Ihre Änderungen noch vorhanden sind.",
+ save_failed_generic:"Ihre Änderungen konnten aufgrund eines Verbindungsproblems nicht gespeichert werden. Bitte prüfen Sie Ihre Internetverbindung - falls dies weiterhin auftritt, wurden Ihre letzten Änderungen möglicherweise noch nicht gespeichert.",
+ load_failed_auth:"Ihre Daten konnten nicht geladen werden - Ihre Anmeldung scheint abgelaufen zu sein oder wird nicht erkannt. Bitte melden Sie sich ab und wieder an.",
+ load_failed_generic:"Ihre Daten konnten aufgrund eines Verbindungsproblems nicht geladen werden. Das bedeutet nicht, dass Ihre Daten fehlen - bitte prüfen Sie Ihre Verbindung und laden Sie die Seite neu.",
  back_dash:"Übersicht",
  step1:"Persönliche Daten", step2:"Arbeitslohn", step3:"Vorsorgeaufwand", step4:"Werbungskosten", step5:"Sonderausgaben", step6:"Haushalt & Sonstiges", step7:"Prüfen & Absenden",
  s1_lead:"Grunddaten für den Hauptvordruck ESt 1 A.",
@@ -1787,16 +1795,10 @@ async function kvDel(k){
 async function saveState(){
  await kvSet('klarsteuer-prefs', JSON.stringify({lang:S.lang, aiConsentGiven:S.aiConsentGiven}));
  if(!S.user) return;
- if(BACKEND.enabled){
+  if(BACKEND.enabled){
  try{
  const r = await api('/api/clients/bulk','PUT',{clients:S.clients});
- /* IMPLEMENTED: real UX gap this creates - without this, editing a
-    submitted return's actual tax content would have the change
-    silently discarded with zero indication anything happened. Only
-    shown once per blocked client per session (not on every autosave
-    tick while the stale edit still sits in memory), and only for a
-    client still genuinely open/visible, not a background one. */
-  if(r.blockedIds?.length && !S._blockedEditWarned) S._blockedEditWarned = new Set();
+ if(r.blockedIds?.length && !S._blockedEditWarned) S._blockedEditWarned = new Set();
  if(r.blockedIds?.length){
  const newlyBlocked = r.blockedIds.filter(id => !S._blockedEditWarned.has(id));
  if(newlyBlocked.length && newlyBlocked.includes(S.currentId) && !document.querySelector('.modal-bg')){
@@ -1804,8 +1806,29 @@ async function saveState(){
  showInfoModal(t('submitted_edit_blocked'));
  }
  }
+ S._saveFailWarned = false;
  }
- catch(e){ console.error('backend sync failed:', e.message); }
+ catch(e){
+ /* IMPLEMENTED: real, confirmed gap directly relevant to a reported
+    bug - a failed save was only ever logged to the browser's own
+    developer console, completely invisible to a real user. If a
+    save fails for any reason (an expired session, a blocked
+    cross-site cookie, a network issue), the person previously saw
+    no indication their work wasn't actually persisted - it looked
+    like it worked, then silently vanished on the next load. Now
+    surfaces a real, visible warning instead, distinguishing an auth
+    failure (likely a session or cookie problem) from a general one,
+    since that's the most useful diagnostic information available.
+    Only warned once per session, not on every failed autosave tick,
+    so a genuine connectivity problem doesn't spam the person with
+    repeated identical alerts. */
+ console.error('backend sync failed:', e.message);
+ if(!S._saveFailWarned && !document.querySelector('.modal-bg')){
+ S._saveFailWarned = true;
+ const isAuthError = e.message === 'auth_required' || e.message === 'invalid_token';
+ showInfoModal(isAuthError ? t('save_failed_auth') : t('save_failed_generic'));
+ }
+ }
  return;
  }
  await kvSet('klarsteuer-data-'+S.user.id, JSON.stringify({clients:S.clients}));
@@ -1813,7 +1836,18 @@ async function saveState(){
 async function loadUserData(){
  if(BACKEND.enabled){
  try{ const r=await api('/api/clients'); S.clients=(r.clients||[]).map(migrateClient); }
- catch(e){ console.error('backend load failed:', e.message); S.clients=[]; }
+ catch(e){
+ console.error('backend load failed:', e.message);
+ S.clients=[];
+ /* Same principle as the save-failure warning above - a failed
+    load previously resulted in a silently empty dashboard, which
+    looks exactly like "no data exists" rather than "couldn't load
+    your data" - a critical, misleading distinction for someone
+    whose real data is sitting safely on the server the whole
+    time. */
+ const isAuthError = e.message === 'auth_required' || e.message === 'invalid_token';
+ showInfoModal(isAuthError ? t('load_failed_auth') : t('load_failed_generic'));
+ }
  return;
  }
  const v=await kvGet('klarsteuer-data-'+S.user.id);
@@ -2532,6 +2566,11 @@ function render(){
  else if(S.view==='dash') html += dashView();
  else if(S.view==='client') html += clientView();
  app.innerHTML = html;
+ if(S._pendingStartupModal){
+ const msg = S._pendingStartupModal;
+ S._pendingStartupModal = null;
+ showInfoModal(msg);
+ }
  bindGlobal();
  /* Tab-navigation fix: every field commit triggers a full re-render (this app has no
  virtual-DOM diffing), which destroys the DOM node the browser was about to focus
@@ -2912,6 +2951,17 @@ function personYears(c){
    in the app already is. */
 function showInfoModal(message){
  const slot=document.getElementById('modal-slot');
+ if(!slot){
+ /* CORRECTED: genuine startup-timing gap - this can be called before
+    the very first render() has ever run (loadUserData()'s failure
+    path, called from loadState(), which runs before render() in the
+    app's own boot sequence), when modal-slot doesn't exist in the DOM
+    yet. A silent no-op here would just recreate the same
+    invisible-failure problem this was built to fix, so the message
+    is queued and shown as soon as a real render happens instead. */
+ S._pendingStartupModal = message;
+ return;
+ }
  slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal" style="max-width:380px">
  <p style="margin:0 0 16px;font-size:14px;line-height:1.5">${esc(message)}</p>
  <div style="display:flex;justify-content:flex-end">
