@@ -599,7 +599,7 @@ function startTokenRefreshTimer(){
  if(tokenRefreshTimer) clearInterval(tokenRefreshTimer);
  tokenRefreshTimer = setInterval(async () => {
  if(!S.loggedIn || !BACKEND.enabled) return;
- try{ await api('/api/auth/refresh','POST'); }
+  try{ const r = await api('/api/auth/refresh','POST'); authToken = r.token; }
  catch(e){ /* best-effort - see comment above */ }
  }, 30*60*1000); // every 30 minutes, well within the 2-hour token window
 }
@@ -1983,8 +1983,27 @@ async function doLogin(btn){
  setBusy(true); setBtnBusy(btn,true);
  try{
  if(BACKEND.enabled){
-  try{ const r=await api('/api/auth/login','POST',{email,password:pass});
+   try{ const r=await api('/api/auth/login','POST',{email,password:pass});
   S.user=r.user;
+  /* IMPLEMENTED: real, confirmed fix for a directly-evidenced bug -
+     login succeeds and shows real user data, but the very next
+     request (loading actual tax return data) fails with an auth
+     error. Confirmed cause: some browsers, most notably every browser
+     on iOS (all required by Apple to share Safari's own engine and
+     its aggressive cross-site cookie blocking), never actually store
+     or send back the session cookie at all, even though the login
+     response itself succeeds and sets it. The backend already
+     accepts a Bearer token as a fallback for exactly this reason -
+     but authToken was declared and never actually set anywhere,
+     meaning that fallback had no way to ever be used. Set here,
+     kept in memory only for this tab's lifetime - deliberately never
+     written to localStorage or any persistent storage, since that
+     would reintroduce the real XSS exposure the cookie migration
+     existed to remove. This fixes things within an active session;
+     a hard refresh on a cookie-blocked browser still requires
+     signing in again, since there's nothing persisted to restore -
+     an honest, deliberate trade-off, not an oversight. */
+  authToken = r.token;
  await loadUserData(); S.loggedIn=true; S.view='dash'; startTokenRefreshTimer(); render();
  }catch(e){ authErr(e.message==='bad_credentials'?t('err_creds'):t('err_creds')); }
  return;
@@ -2006,8 +2025,9 @@ async function doRegister(btn){
  setBusy(true); setBtnBusy(btn,true);
  try{
  if(BACKEND.enabled){
-  try{ const r=await api('/api/auth/register','POST',{name,email,password:p1});
+   try{ const r=await api('/api/auth/register','POST',{name,email,password:p1});
   S.user=r.user;
+  authToken = r.token;
  S.clients=[]; S.loggedIn=true; S.view='dash'; startTokenRefreshTimer(); render();
  }catch(e){ authErr(e.message==='email_exists'?t('err_exists'):t('err_fields')); }
  return;
@@ -2041,14 +2061,25 @@ async function doResendVerification(btn){
 }
 async function logout(){
  if(tokenRefreshTimer){ clearInterval(tokenRefreshTimer); tokenRefreshTimer=null; }
- /* CORRECTED: the session cookie is httpOnly specifically so
-    JavaScript can never clear it directly - that's the actual
-    security benefit. Calls the real backend route to clear it
-    server-side instead. Best-effort: even if this call fails, local
-    state is still cleared below and the person sees the login screen
-    either way - a network hiccup here shouldn't trap someone on a
-    page that thinks they're still logged in. */
- if(BACKEND.enabled){ try{ await api('/api/auth/logout','POST'); }catch(e){} }
+ /* CORRECTED: real, confirmed bug directly reported by a user - logout
+    was genuinely slow because this call was awaited, meaning the
+    whole logout waited for the network request to settle before
+    showing the login screen. The comment here already said a
+    failure shouldn't block anyone, and that was true (a failure is
+    caught) - but a slow request still blocked everything regardless,
+    since await waits for the promise to settle either way, not just
+    on success. This backend runs on a hosting tier that genuinely
+    spins down after inactivity and can take real, noticeable time to
+    wake back up on its next request - logout could easily be that
+    first request after a while of inactivity. Fired without waiting
+    for it now: the actual, visible logout (clearing state, showing
+    the login screen) is instant, while the best-effort server-side
+    cookie clear happens in the background regardless of how long it
+    takes or whether it succeeds - the security cookie was httpOnly
+    specifically so JavaScript can't clear it directly, so this
+    server-side request is still worth making, just not worth making
+    anyone wait for. */
+ if(BACKEND.enabled){ api('/api/auth/logout','POST').catch(()=>{}); }
  await kvDel('klarsteuer-session');
  S.user=null; S.clients=[]; S.loggedIn=false; S.view='login'; S.authMode='login'; render();
 }
