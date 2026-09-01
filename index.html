@@ -2698,7 +2698,7 @@ document.addEventListener('keydown', function(e){
 
 function topbar(){
  return `<div class="topbar">
- <a href="home.html" class="logo" style="text-decoration:none;color:inherit" title="${t('back_to_home')}"><div class="logo-mark">S</div>${t('appName')}</a>
+ <a href="home.html" class="logo" style="text-decoration:none;color:inherit" title="${t('back_to_home')}"><div class="logo-mark">S</div>${t('appName')}<span style="font-size:10px;font-weight:700;letter-spacing:.04em;color:#D98A1F;background:#FBF1DF;border:1px solid #D98A1F;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle">BETA</span></a>
  <div class="spacer"></div>
  <div class="lang-toggle">
  <button class="${S.lang==='en'?'on':''}" onclick="setLang('en')">${t('lang_en')}</button>
@@ -2714,7 +2714,7 @@ function loginView(){
  if(S.authMode==='forgot' || S.authMode==='reset'){
  const isReset = S.authMode==='reset';
  return `<div class="login-wrap"><div class="login-card">
- <a href="home.html" class="logo" style="text-decoration:none;color:inherit;display:inline-flex" title="${t('back_to_home')}"><div class="logo-mark">S</div>${t('appName')}</a>
+ <a href="home.html" class="logo" style="text-decoration:none;color:inherit;display:inline-flex" title="${t('back_to_home')}"><div class="logo-mark">S</div>${t('appName')}<span style="font-size:10px;font-weight:700;letter-spacing:.04em;color:#D98A1F;background:#FBF1DF;border:1px solid #D98A1F;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle">BETA</span></a>
  <h1>${isReset?t('reset_title'):t('forgot_title')}</h1>
  <p class="sub">${isReset?t('reset_sub'):t('forgot_sub')}</p>
  <div id="auth-err" class="auth-err hidden"></div>
@@ -2729,7 +2729,7 @@ function loginView(){
  </div></div>`;
  }
  return `<div class="login-wrap"><div class="login-card">
- <a href="home.html" class="logo" style="text-decoration:none;color:inherit;display:inline-flex" title="${t('back_to_home')}"><div class="logo-mark">S</div>${t('appName')}</a>
+ <a href="home.html" class="logo" style="text-decoration:none;color:inherit;display:inline-flex" title="${t('back_to_home')}"><div class="logo-mark">S</div>${t('appName')}<span style="font-size:10px;font-weight:700;letter-spacing:.04em;color:#D98A1F;background:#FBF1DF;border:1px solid #D98A1F;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle">BETA</span></a>
  <div class="auth-tabs">
  <button class="${!reg?'on':''}" onclick="setAuthMode('login')">${t('tab_signin')}</button>
  <button class="${reg?'on':''}" onclick="setAuthMode('register')">${t('tab_register')}</button>
