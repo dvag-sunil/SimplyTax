@@ -447,16 +447,16 @@ function checkHomeEligibility(){
  const box = document.getElementById('elig-home-result');
  if(redHit){
  box.innerHTML = `<div style="background:#F9E9E5;border:1px solid #B4432F;border-radius:12px;padding:16px;font-size:14px;line-height:1.5">${d.elig_red}</div>
- <a href="program-scope.html" class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:12px">${d.elig_cta_no}</a>`;
+ <a href="program-scope.html" class="btn btn-ghost" style="width:100%;display:flex;align-items:center;justify-content:center;text-align:center;margin-top:12px">${d.elig_cta_no}</a>`;
  return;
  }
  if(yellowHit){
  box.innerHTML = `<div style="background:#FBF1DF;border:1px solid #D98A1F;border-radius:12px;padding:16px;font-size:14px;line-height:1.5">${d.elig_yellow}</div>
- <a href="index.html" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:12px">${d.elig_cta_yes}</a>`;
+ <a href="index.html" class="btn btn-primary" style="width:100%;display:flex;align-items:center;justify-content:center;text-align:center;margin-top:12px">${d.elig_cta_yes}</a>`;
  return;
  }
  box.innerHTML = `<div style="background:#E3F1EC;border:1px solid #0E7C66;border-radius:12px;padding:16px;font-size:14px;line-height:1.5">${d.elig_green}</div>
- <a href="index.html" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:12px">${d.elig_cta_yes}</a>`;
+ <a href="index.html" class="btn btn-primary" style="width:100%;display:flex;align-items:center;justify-content:center;text-align:center;margin-top:12px">${d.elig_cta_yes}</a>`;
 }
 function applyLang(){
  const d = I18N[LANG] || I18N.en;

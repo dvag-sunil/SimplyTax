@@ -624,16 +624,7 @@ en: {
   clients:"My tax returns", drafts:"Drafts", in_review:"In review", submitted:"Submitted", est_refunds:"Est. total refunds",
   search_ph:"Search by name...", all_statuses:"All statuses", all_years:"All years",
    new_client:"Start a tax return", client:"Name", tax_year:"Tax year", status:"Status", est_refund:"Est. refund", updated:"Updated",
-  elig_title:"Can SimplyTax handle your tax return?", elig_sub:"A few quick questions before you start - so you know where you stand before entering any data.", elig_full_scope_link:"See the full supported-case list",
- elig_q_selfemployed:"Were you self-employed, freelance, or did you run a business?",
- elig_q_foreignwork:"Did you work physically outside Germany for part of the year?",
- elig_q_foreignproperty:"Do you own rented property outside Germany?",
- elig_q_spouseabroad:"Does your spouse live outside Germany?",
- elig_q_movedyear:"Did you move into or out of Germany during the tax year?",
-  elig_check_btn:"Check", elig_continue:"Continue anyway", elig_recheck_link:"✓ Am I supported?",
- elig_red:"This tax situation is currently outside SimplyTax's supported scope (self-employment / business income isn't handled yet). Please use ELSTER directly, another software product, or a tax advisor for this return.",
- elig_yellow:"SimplyTax can likely handle most of your return, but this situation needs extra care - some fields may use a standard assumption that isn't right for every case. Please review the flagged items carefully before submitting, and consider a tax advisor if anything looks uncertain.",
- elig_green:"Great - this looks like a well-supported situation for SimplyTax. You can continue with confidence.",
+   
  status_draft:"Draft", status_review:"In review", status_submitted:"Submitted",
   empty_title:"No tax returns yet", empty_sub:"Start your first tax return.",
  first_name:"First name", last_name:"Last name", marital:"Marital status",
@@ -1092,16 +1083,7 @@ de: {
   clients:"Meine Steuererklärungen", drafts:"Entwürfe", in_review:"In Prüfung", submitted:"Übermittelt", est_refunds:"Gesch. Erstattungen ges.",
   search_ph:"Nach Name suchen...", all_statuses:"Alle Status", all_years:"Alle Jahre",
    new_client:"Neue Steuererklärung", client:"Name", tax_year:"Steuerjahr", status:"Status", est_refund:"Gesch. Erstattung", updated:"Aktualisiert",
-  elig_title:"Kann SimplyTax Ihre Steuererklärung bearbeiten?", elig_sub:"Ein paar kurze Fragen, bevor Sie starten - damit Sie wissen, woran Sie sind, bevor Sie Daten eingeben.", elig_full_scope_link:"Vollständigen Leistungsumfang ansehen",
- elig_q_selfemployed:"Waren Sie selbstständig, freiberuflich tätig oder haben Sie ein Gewerbe betrieben?",
- elig_q_foreignwork:"Haben Sie für einen Teil des Jahres physisch außerhalb Deutschlands gearbeitet?",
- elig_q_foreignproperty:"Besitzen Sie vermietete Immobilien außerhalb Deutschlands?",
- elig_q_spouseabroad:"Lebt Ihr Ehepartner außerhalb Deutschlands?",
- elig_q_movedyear:"Sind Sie im Steuerjahr nach Deutschland zu- oder weggezogen?",
-  elig_check_btn:"Prüfen", elig_continue:"Trotzdem fortfahren", elig_recheck_link:"✓ Bin ich unterstützt?",
- elig_red:"Dieser Steuerfall liegt derzeit außerhalb des von SimplyTax unterstützten Umfangs (Selbstständigkeit / gewerbliche Einkünfte werden noch nicht unterstützt). Bitte nutzen Sie direkt ELSTER, eine andere Software oder einen Steuerberater für diese Erklärung.",
- elig_yellow:"SimplyTax kann Ihre Erklärung wahrscheinlich größtenteils bearbeiten, dieser Fall erfordert jedoch besondere Sorgfalt - einige Felder verwenden möglicherweise eine Standardannahme, die nicht für jeden Fall zutrifft. Bitte prüfen Sie die markierten Punkte vor der Abgabe sorgfältig und ziehen Sie bei Unsicherheit einen Steuerberater hinzu.",
- elig_green:"Gut - dieser Fall wird von SimplyTax gut unterstützt. Sie können mit Zuversicht fortfahren.",
+   
  status_draft:"Entwurf", status_review:"In Prüfung", status_submitted:"Übermittelt",
   empty_title:"Noch keine Steuererklärung", empty_sub:"Beginnen Sie Ihre erste Steuererklärung.",
  first_name:"Vorname", last_name:"Nachname", marital:"Familienstand",
@@ -2815,8 +2797,7 @@ function dashView(){
  <div class="page-head"><div><h1>${t('dashboard')}</h1><p>${t('tagline')}</p></div>
  <div class="spacer" style="flex:1"></div>
  <input type="file" id="importJsonInput" accept="application/json,.json" style="display:none" onchange="if(this.files[0]) importElsterFile(this.files[0]); this.value='';">
-   <button class="btn btn-ghost" onclick="document.getElementById('importJsonInput').click()" title="Import a SimplyTax interchange JSON file to test it through Review &amp; Submit">⬆ Import JSON</button>
-  <button class="btn btn-ghost" onclick="showEligibilityCheck(false)">${t('elig_recheck_link')}</button>
+  <button class="btn btn-ghost" onclick="document.getElementById('importJsonInput').click()" title="Import a SimplyTax interchange JSON file to test it through Review &amp; Submit">⬆ Import JSON</button>
  <button class="btn btn-primary" onclick="showNewClient()">＋ ${t('new_client')}</button></div>
  <div class="stats">
  <div class="stat"><div class="k">${t('clients')}</div><div class="v num">${cs.length}</div></div>
@@ -2862,62 +2843,7 @@ function renderKeepFocus(inp){ const v=inp.value, pos=inp.selectionStart; render
  const el=document.querySelector('.search input'); if(el){el.focus(); el.setSelectionRange(pos,pos);} }
 
 function showNewClient(){
- if(!(S.user?.settings?.seenEligibilityCheck)){ showEligibilityCheck(true); return; }
  showNewClientModal();
-}
-/* IMPLEMENTED: the eligibility/supported-case questionnaire the audit
-   recommends directly, calling it "probably more important than
-   adding another 100 tax fields." Genuinely routes to green/yellow/red
-   based on what this app actually supports, not a generic disclaimer:
-   self-employment is a real red (confirmed never implemented anywhere
-   in this codebase, no Anlage S/G exists), foreign employment depends
-   on the actual tax year (N-AUS genuinely works from 2023 onward, not
-   for 2021/2022), and foreign property/treaty situations are a real
-   yellow since the app already documents elsewhere that it doesn't
-   decide those questions itself. proceedAfter: whether "Continue" on
-   a green/yellow result should open the new-return form directly. */
-function showEligibilityCheck(proceedAfter){
- const slot=document.getElementById('modal-slot'); if(!slot) return;
- const qs = [
-   { id:'q_selfemployed', label:t('elig_q_selfemployed'), red:true },
-   { id:'q_foreignwork', label:t('elig_q_foreignwork'), yellow:true },
-   { id:'q_foreignproperty', label:t('elig_q_foreignproperty'), yellow:true },
-   { id:'q_spouseabroad', label:t('elig_q_spouseabroad'), yellow:true },
-   { id:'q_movedyear', label:t('elig_q_movedyear'), info:true },
- ];
- slot.innerHTML = `<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal" style="max-width:480px">
- <h2>${t('elig_title')}</h2>
-  <p style="color:var(--ink-soft);font-size:13.5px;margin:8px 0 16px">${t('elig_sub')} <a href="program-scope.html" target="_blank" rel="noopener">${t('elig_full_scope_link')}</a></p>
- ${qs.map(q=>`<label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;cursor:pointer;font-size:14px">
- <input type="checkbox" id="${q.id}" style="margin-top:3px"><span>${q.label}</span>
- </label>`).join('')}
- <div id="elig-result" style="margin-top:6px"></div>
- <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
- <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
- <button class="btn btn-primary" onclick="checkEligibility(${!!proceedAfter})">${t('elig_check_btn')}</button>
- </div></div></div>`;
-}
-function checkEligibility(proceedAfter){
- const redHit = document.getElementById('q_selfemployed')?.checked;
- const yellowHit = ['q_foreignwork','q_foreignproperty','q_spouseabroad'].some(id => document.getElementById(id)?.checked);
- const box = document.getElementById('elig-result');
- if(!S.user.settings) S.user.settings = {};
- S.user.settings.seenEligibilityCheck = true;
- api('/api/auth/settings','PUT',{settings:S.user.settings}).catch(()=>{});
- if(redHit){
- box.innerHTML = `<div class="infobox" style="background:var(--red-soft);border-color:var(--red)">🔴 ${t('elig_red')}</div>`;
- return;
- }
- if(yellowHit){
- box.innerHTML = `<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber)">🟡 ${t('elig_yellow')}</div>
- <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:10px" onclick="this.closest('.modal-bg').remove();showNewClientModal()">${t('elig_continue')}</button>`;
- return;
- }
- box.innerHTML = `<div class="infobox" style="background:var(--teal-soft);border-color:var(--teal)">🟢 ${t('elig_green')}</div>`;
- if(proceedAfter){
- const m=document.querySelector('.modal-bg'); if(m) m.remove();
- showNewClientModal();
- }
 }
 function showNewClientModal(){
  const slot=document.getElementById('modal-slot');
