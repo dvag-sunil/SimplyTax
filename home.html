@@ -20,6 +20,7 @@
  <div class="logo">Simply<b>Tax</b></div>
  <div class="nav-links">
  <a href="#funktionen" data-i18n="nav_features"></a>
+ <a href="#eignung" data-i18n="nav_elig"></a>
  <a href="#ablauf" data-i18n="nav_how"></a>
  <a href="#preis" data-i18n="nav_price"></a>
  <a href="#faq">FAQ</a>
@@ -76,6 +77,25 @@
  <div><b style="font-family:Georgia,serif;font-size:28px;color:var(--teal)">4 yrs</b><br><span style="font-size:13px;color:var(--ink-soft)" data-i18n="sp4"></span></div>
  </div>
 </div>
+
+<!-- ======= AM I SUPPORTED? ======= -->
+<section id="eignung" style="background:#fff;border-block:1px solid var(--line)">
+ <div class="wrap" style="max-width:640px">
+ <div class="sec-head">
+ <h2 data-i18n="elig_h"></h2>
+ <p data-i18n="elig_p"></p>
+ </div>
+ <div style="border:1px solid var(--line);border-radius:16px;padding:28px;background:var(--paper,#F6F8F7)">
+ <label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:14px;cursor:pointer;font-size:15px"><input type="checkbox" id="elig-h-1" style="margin-top:3px"><span data-i18n="elig_q1"></span></label>
+ <label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:14px;cursor:pointer;font-size:15px"><input type="checkbox" id="elig-h-2" style="margin-top:3px"><span data-i18n="elig_q2"></span></label>
+ <label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:14px;cursor:pointer;font-size:15px"><input type="checkbox" id="elig-h-3" style="margin-top:3px"><span data-i18n="elig_q3"></span></label>
+ <label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:14px;cursor:pointer;font-size:15px"><input type="checkbox" id="elig-h-4" style="margin-top:3px"><span data-i18n="elig_q4"></span></label>
+ <label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:20px;cursor:pointer;font-size:15px"><input type="checkbox" id="elig-h-5" style="margin-top:3px"><span data-i18n="elig_q5"></span></label>
+ <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="checkHomeEligibility()" data-i18n="elig_btn"></button>
+ <div id="elig-home-result" style="margin-top:16px"></div>
+ </div>
+ </div>
+</section>
 
 <!-- ======= HOW IT WORKS ======= -->
 <section id="ablauf">
@@ -213,7 +233,7 @@ const I18N = {
 en: {
  title:"SimplyTax - Your German tax return online. Simple, transparent, with a live refund calculator.",
  meta:"Prepare your German tax return online: try it for free, see your refund live, pay only on submission. Photograph your Lohnsteuerbescheinigung - SimplyTax reads it automatically.",
- nav_features:"Features", nav_how:"How it works", nav_price:"Pricing", nav_cta:"Start now",
+  nav_features:"Features", nav_how:"How it works", nav_price:"Pricing", nav_cta:"Start now", nav_elig:"Am I supported?",
  h_eyebrow:"German tax return, made simple · €17.99 per return",
  h_title:"Your tax return.<br><em>Without the tax jargon.</em>",
   h_sub:"Photograph your Lohnsteuerbescheinigung - SimplyTax reads it automatically, guides you step by step, and shows you <b>live</b> how big your expected refund is. Taxpayers get back over <b>€1,000</b> on average - €17.99 to submit, free to try. Available in German and English.",
@@ -288,7 +308,18 @@ en: {
  a10:"No. We only email you about your own tax filing - confirmations, reminders about your own deadlines, and account-related notices. Your data is never sold or used for advertising.",
  b_h:"Find out in minutes what you are owed.",
  b_p:"Enter your data for free, see your refund live - decide afterwards.",
- b_cta:"Start now for free",
+  b_cta:"Start now for free",
+ elig_h:"Am I supported?", elig_p:"A few quick questions before you sign up - so you know where you stand before creating an account.",
+ elig_q1:"Were you self-employed, freelance, or did you run a business?",
+ elig_q2:"Did you work physically outside Germany for part of the year?",
+ elig_q3:"Do you own rented property outside Germany?",
+ elig_q4:"Does your spouse live outside Germany?",
+ elig_q5:"Did you move into or out of Germany during the tax year?",
+ elig_btn:"Check",
+ elig_red:"🔴 This tax situation is currently outside SimplyTax's supported scope (self-employment / business income isn't handled yet). Please use ELSTER directly, another software product, or a tax advisor for this return.",
+ elig_yellow:"🟡 SimplyTax can likely handle most of your return, but this situation needs extra care - some fields may use a standard assumption that isn't right for every case. You're welcome to try it and review carefully before submitting.",
+ elig_green:"🟢 Great - this looks like a well-supported situation for SimplyTax.",
+ elig_cta_yes:"Create your account", elig_cta_no:"See the full supported-case list",
  ft_app:"Open the app",
  eu_title:"Official news from ELSTER",
  eu_sub:"SimplyTax transmits via the official ELSTER interface of the German tax administration. For announcements, deadlines, and changes straight from the source, visit the official pages:",
@@ -300,7 +331,7 @@ en: {
 de: {
  title:"SimplyTax - Steuererklärung online. Einfach, transparent, mit Live-Erstattungsrechner.",
  meta:"Steuererklärung online erstellen: kostenlos ausprobieren, Erstattung live berechnen, bezahlen erst bei Abgabe. Lohnsteuerbescheinigung fotografieren - SimplyTax liest sie automatisch aus.",
- nav_features:"Funktionen", nav_how:"So geht's", nav_price:"Preis", nav_cta:"Jetzt starten",
+  nav_features:"Funktionen", nav_how:"So geht's", nav_price:"Preis", nav_cta:"Jetzt starten", nav_elig:"Bin ich unterstützt?",
  h_eyebrow:"Steuererklärung online · 17,99 € pro Erklärung",
  h_title:"Deine Steuererklärung.<br><em>Ohne Amtsdeutsch.</em>",
  h_sub:"Fotografiere deine Lohnsteuerbescheinigung - SimplyTax liest sie automatisch aus, führt dich Schritt für Schritt durch alle Angaben und zeigt dir <b>live</b>, wie hoch deine Erstattung voraussichtlich ausfällt. Im Schnitt holen sich Steuerzahler über <b>1.000&nbsp;€</b> zurück - 17,99 € bei Abgabe, kostenlos ausprobieren. Auf Wunsch komplett auf Englisch.",
@@ -375,7 +406,18 @@ de: {
  a10:"Nein. Wir schreiben dir nur zu deiner eigenen Steuererklärung - Bestätigungen, Erinnerungen an deine eigenen Fristen und kontobezogene Hinweise. Deine Daten werden nie verkauft oder für Werbung genutzt.",
  b_h:"Finde in wenigen Minuten heraus, was dir zusteht.",
  b_p:"Kostenlos erfassen, Erstattung live sehen - entscheiden kannst du danach.",
- b_cta:"Jetzt kostenlos starten",
+  b_cta:"Jetzt kostenlos starten",
+ elig_h:"Bin ich unterstützt?", elig_p:"Ein paar kurze Fragen, bevor Sie sich anmelden - damit Sie wissen, woran Sie sind, bevor Sie ein Konto erstellen.",
+ elig_q1:"Waren Sie selbstständig, freiberuflich tätig oder haben Sie ein Gewerbe betrieben?",
+ elig_q2:"Haben Sie für einen Teil des Jahres physisch außerhalb Deutschlands gearbeitet?",
+ elig_q3:"Besitzen Sie vermietete Immobilien außerhalb Deutschlands?",
+ elig_q4:"Lebt Ihr Ehepartner außerhalb Deutschlands?",
+ elig_q5:"Sind Sie im Steuerjahr nach Deutschland zu- oder weggezogen?",
+ elig_btn:"Prüfen",
+ elig_red:"🔴 Dieser Steuerfall liegt derzeit außerhalb des von SimplyTax unterstützten Umfangs (Selbstständigkeit / gewerbliche Einkünfte werden noch nicht unterstützt). Bitte nutzen Sie direkt ELSTER, eine andere Software oder einen Steuerberater für diese Erklärung.",
+ elig_yellow:"🟡 SimplyTax kann Ihre Erklärung wahrscheinlich größtenteils bearbeiten, dieser Fall erfordert jedoch besondere Sorgfalt - einige Felder verwenden möglicherweise eine Standardannahme, die nicht für jeden Fall zutrifft. Sie können es gerne ausprobieren und vor der Abgabe sorgfältig prüfen.",
+ elig_green:"🟢 Gut - dieser Fall wird von SimplyTax gut unterstützt.",
+ elig_cta_yes:"Konto erstellen", elig_cta_no:"Vollständigen Leistungsumfang ansehen",
  ft_app:"Zur Anwendung",
  eu_title:"Offizielle Neuigkeiten von ELSTER",
  eu_sub:"SimplyTax übermittelt über die offizielle ELSTER-Schnittstelle der Finanzverwaltung. Ankündigungen, Fristen und Änderungen direkt von der Quelle findest du auf den offiziellen Seiten:",
@@ -388,6 +430,34 @@ de: {
 
 let LANG = 'en'; // default: English
 try{ LANG = localStorage.getItem('simplytax-home-lang') || 'en'; }catch(e){}
+/* IMPLEMENTED: the "Am I supported?" check, moved from behind the
+   login screen to the actual public home page - the whole point of
+   an eligibility check is to help someone decide whether to sign up
+   at all, so gating it behind registration defeated its own purpose.
+   Matches the exact same red/yellow/green routing already built and
+   tested in the in-app version: self-employment is a confirmed real
+   red (no supporting form exists anywhere in this codebase), foreign
+   work/property/spouse-abroad are real yellows already documented
+   elsewhere as needing extra review, and moved-during-year is purely
+   informational and never triggers a warning by itself. */
+function checkHomeEligibility(){
+ const d = I18N[LANG] || I18N.en;
+ const redHit = document.getElementById('elig-h-1')?.checked;
+ const yellowHit = ['elig-h-2','elig-h-3','elig-h-4'].some(id => document.getElementById(id)?.checked);
+ const box = document.getElementById('elig-home-result');
+ if(redHit){
+ box.innerHTML = `<div style="background:#F9E9E5;border:1px solid #B4432F;border-radius:12px;padding:16px;font-size:14px;line-height:1.5">${d.elig_red}</div>
+ <a href="program-scope.html" class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:12px">${d.elig_cta_no}</a>`;
+ return;
+ }
+ if(yellowHit){
+ box.innerHTML = `<div style="background:#FBF1DF;border:1px solid #D98A1F;border-radius:12px;padding:16px;font-size:14px;line-height:1.5">${d.elig_yellow}</div>
+ <a href="index.html" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:12px">${d.elig_cta_yes}</a>`;
+ return;
+ }
+ box.innerHTML = `<div style="background:#E3F1EC;border:1px solid #0E7C66;border-radius:12px;padding:16px;font-size:14px;line-height:1.5">${d.elig_green}</div>
+ <a href="index.html" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:12px">${d.elig_cta_yes}</a>`;
+}
 function applyLang(){
  const d = I18N[LANG] || I18N.en;
  document.querySelectorAll('[data-i18n]').forEach(el=>{
