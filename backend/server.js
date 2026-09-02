@@ -125,24 +125,54 @@ app.use(cors(corsOptions));
    already handles every OPTIONS preflight request automatically, for
    every route, without needing a separate explicit handler. */
 
-/* ---------- Reminder emails: paid-but-not-submitted returns (Resend, EU-capable) ---------- */
-const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
-const REMINDER_FROM = process.env.REMINDER_FROM || 'SimplyTax <reminders@your-domain.de>';
+/* ---------- Transactional emails (Brevo, EU-headquartered) ---------- */
+const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
+const REMINDER_FROM = process.env.REMINDER_FROM || 'SimplyTax <support@taxfile24.com>';
 const REMINDER_DAYS = parseInt(process.env.REMINDER_DAYS || '3', 10);
 const REMINDER_CRON_SECRET = process.env.REMINDER_CRON_SECRET || '';
+/* Brevo's API needs the sender as separate name/email fields, not the
+   combined "Name <email>" string Resend used - parsed here once from
+   the same REMINDER_FROM value already set in render.yaml, rather than
+   force a second env-var change for what's the same underlying value
+   regardless of provider. */
+const _fromMatch = REMINDER_FROM.match(/^(.*?)\s*<(.+)>$/);
+const REMINDER_FROM_NAME = _fromMatch ? _fromMatch[1].trim() : 'SimplyTax';
+const REMINDER_FROM_EMAIL = _fromMatch ? _fromMatch[2].trim() : REMINDER_FROM;
+/* CORRECTED: switched from Resend to Brevo (EU-headquartered - Resend
+   is a US company, a real data-protection concern under GDPR/Schrems II
+   regardless of which region its servers are in, since US law can
+   compel a US company to hand over data no matter where it's stored).
+   One shared function now, used by every call site, instead of five
+   separate copies of the same request - Brevo's real, confirmed API
+   shape: POST https://api.brevo.com/v3/smtp/email, authenticated via
+   an api-key header (not Authorization: Bearer, genuinely different
+   from Resend), with sender and recipients as structured objects
+   rather than combined strings. */
+async function sendEmail(to, subject, html){
+  if(!BREVO_API_KEY || !to) return false;
+  try {
+    const r = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method:'POST', headers:{ 'api-key':BREVO_API_KEY, 'Content-Type':'application/json' },
+      body: JSON.stringify({
+        sender: { email: REMINDER_FROM_EMAIL, name: REMINDER_FROM_NAME },
+        to: [{ email: to }],
+        subject, htmlContent: html
+      })
+    });
+    if(!r.ok) console.error('[email] Brevo send failed:', r.status, await r.text().catch(()=> ''));
+    return r.ok;
+  } catch (e) {
+    console.error('[email] send failed:', e.message);
+    return false;
+  }
+}
 async function sendReminderEmail(to, name, taxYear){
-  if(!RESEND_API_KEY || !to) return false;
-  const r = await fetch('https://api.resend.com/emails', {
-    method:'POST', headers:{ Authorization:'Bearer '+RESEND_API_KEY, 'Content-Type':'application/json' },
-    body: JSON.stringify({ from: REMINDER_FROM, to,
-      subject: `Your ${taxYear} tax return is paid but not yet submitted`,
-      html: `<p>Hi ${name},</p><p>Your ${taxYear} tax return with SimplyTax was paid but has not yet been submitted to the Finanzamt. Please log in to review and submit, or reply if you need help.</p><p>— SimplyTax</p>` })
-  });
-   return r.ok;
+  return sendEmail(to, `Your ${taxYear} tax return is paid but not yet submitted`,
+    `<p>Hi ${name},</p><p>Your ${taxYear} tax return with SimplyTax was paid but has not yet been submitted to the Finanzamt. Please log in to review and submit, or reply if you need help.</p><p>— SimplyTax</p>`);
 }
 /* IMPLEMENTED: a generic security-notification email, reusing the exact
-   same Resend API call already established above for reminder emails -
-   same dormant-until-configured behavior, same best-effort semantics
+   same shared sendEmail() helper already established above - same
+   dormant-until-configured behavior, same best-effort semantics
    (a failed notification never blocks the actual action the user
    requested, since this is an FYI, not compliance evidence the way the
    submission_approvals record is). Addresses a real gap the audit
@@ -150,17 +180,7 @@ async function sendReminderEmail(to, name, taxYear){
    currently happen with no awareness mechanism for the account owner
    if someone else were ever the one actually performing them. */
 async function sendSecurityEmail(to, subject, html){
-  if(!RESEND_API_KEY || !to) return false;
-  try {
-    const r = await fetch('https://api.resend.com/emails', {
-      method:'POST', headers:{ Authorization:'Bearer '+RESEND_API_KEY, 'Content-Type':'application/json' },
-      body: JSON.stringify({ from: REMINDER_FROM, to, subject, html })
-    });
-    return r.ok;
-  } catch (e) {
-    console.error('[security email] send failed:', e.message);
-    return false;
-  }
+  return sendEmail(to, subject, html);
 }
 /* Cron entry point: call this daily from Render Cron Job / cron-job.org / GitHub Actions,
    with header x-cron-secret matching REMINDER_CRON_SECRET. Finds clients paid >= REMINDER_DAYS
@@ -168,7 +188,7 @@ async function sendSecurityEmail(to, subject, html){
 app.post('/api/reminders/run', async (req, res) => {
   if(!REMINDER_CRON_SECRET || req.headers['x-cron-secret'] !== REMINDER_CRON_SECRET)
     return res.status(401).json({ error: 'unauthorized' });
-  if(!RESEND_API_KEY) return res.status(501).json({ error: 'email_disabled', note: 'set RESEND_API_KEY to activate' });
+  if(!BREVO_API_KEY) return res.status(501).json({ error: 'email_disabled', note: 'set BREVO_API_KEY to activate' });
   const cutoff = Date.now() - REMINDER_DAYS*86400000;
   const { rows } = await pool.query(
     `SELECT id, user_id, data FROM clients
@@ -455,20 +475,18 @@ app.get('/api/version', (_req, res) => {
        not something to defer. Mirrors the exact proven pattern already
        used for password reset below (random 256-bit token, stored only
        as a SHA-256 hash, no schema change) rather than inventing a
-       second mechanism. Dormant gracefully if RESEND_API_KEY isn't set,
+       second mechanism. Dormant gracefully if BREVO_API_KEY isn't set,
        same as password reset - registration never fails because email
        sending isn't configured. */
-    if (RESEND_API_KEY) {
+    if (BREVO_API_KEY) {
       try {
         const token = cryptoNode.randomBytes(32).toString('hex');
         const emailVerify = { th: sha256(token), exp: Date.now() + 24*60*60*1000 };
         await pool.query(`UPDATE users SET settings = jsonb_set(coalesce(settings,'{}'::jsonb),'{emailVerify}',$1::jsonb) WHERE id=$2`,
           [JSON.stringify(emailVerify), u.id]);
         const link = FRONTEND_URL + '?verifyEmail=' + token + '&email=' + encodeURIComponent(u.email);
-        await fetch('https://api.resend.com/emails', { method:'POST',
-          headers:{ Authorization:'Bearer '+RESEND_API_KEY, 'Content-Type':'application/json' },
-          body: JSON.stringify({ from: REMINDER_FROM, to: u.email, subject: 'Confirm your SimplyTax email address',
-            html: `<p>Hi ${u.name},</p><p>Please confirm your email address to unlock submitting tax returns:</p><p><a href="${link}">${link}</a></p><p>This link is valid for 24 hours. You can still prepare and calculate your return before confirming - this is only needed before submission.</p><p>— SimplyTax</p>` }) });
+         await sendEmail(u.email, 'Confirm your SimplyTax email address',
+          `<p>Hi ${u.name},</p><p>Please confirm your email address to unlock submitting tax returns:</p><p><a href="${link}">${link}</a></p><p>This link is valid for 24 hours. You can still prepare and calculate your return before confirming - this is only needed before submission.</p><p>— SimplyTax</p>`);
        } catch (e) { console.error('[register] verification email failed:', e.message); }
     }
     const token = sign(u);
@@ -541,15 +559,15 @@ app.post('/api/auth/login', async (req, res) => {
   res.json({ token, user: pubUser(u) });
 });
 
-/* ---------- Password reset via emailed link (Resend; dormant until RESEND_API_KEY is set) ----------
+/* ---------- Password reset via emailed link (Brevo; dormant until BREVO_API_KEY is set) ----------
    Security model: response never reveals whether an account exists; token is random 256-bit,
    stored only as a SHA-256 hash inside users.settings (no schema change), 1-hour expiry, single-use. */
 const cryptoNode = require('crypto');
 const sha256 = s => cryptoNode.createHash('sha256').update(s).digest('hex');
 app.post('/api/auth/forgot', async (req, res) => {
   const { email } = req.body || {};
-  res.json({ ok: true, emailEnabled: !!RESEND_API_KEY });   // identical shape whether or not the account exists
-  if(!email || !RESEND_API_KEY) return;
+  res.json({ ok: true, emailEnabled: !!BREVO_API_KEY });   // identical shape whether or not the account exists
+  if(!email || !BREVO_API_KEY) return;
   try{
     const { rows } = await pool.query('SELECT id, name FROM users WHERE email=$1', [String(email).toLowerCase()]);
     if(!rows.length) return;
@@ -558,10 +576,8 @@ app.post('/api/auth/forgot', async (req, res) => {
     await pool.query(`UPDATE users SET settings = jsonb_set(settings,'{pwreset}',$1::jsonb) WHERE id=$2`,
       [JSON.stringify(pwreset), rows[0].id]);
     const link = FRONTEND_URL + '?reset=' + token + '&email=' + encodeURIComponent(String(email).toLowerCase());
-    await fetch('https://api.resend.com/emails', { method:'POST',
-      headers:{ Authorization:'Bearer '+RESEND_API_KEY, 'Content-Type':'application/json' },
-      body: JSON.stringify({ from: REMINDER_FROM, to: email, subject: 'Reset your SimplyTax password',
-        html: `<p>Hi ${rows[0].name},</p><p>Use the link below to set a new password (valid for 1 hour, one use only):</p><p><a href="${link}">${link}</a></p><p>If you did not request this, simply ignore this email — your password stays unchanged.</p><p>— SimplyTax</p>` }) });
+     await sendEmail(email, 'Reset your SimplyTax password',
+      `<p>Hi ${rows[0].name},</p><p>Use the link below to set a new password (valid for 1 hour, one use only):</p><p><a href="${link}">${link}</a></p><p>If you did not request this, simply ignore this email — your password stays unchanged.</p><p>— SimplyTax</p>`);
     audit(rows[0].id, 'pw_reset_requested', {});
   }catch(e){ console.error('forgot failed:', e.message); }
 });
@@ -601,7 +617,7 @@ app.post('/api/auth/verify-email', async (req, res) => {
   res.json({ ok: true });
 });
 app.post('/api/auth/resend-verification', auth, async (req, res) => {
-  if (!RESEND_API_KEY) return res.status(501).json({ error: 'email_disabled' });
+  if (!BREVO_API_KEY) return res.status(501).json({ error: 'email_disabled' });
   const { rows } = await pool.query('SELECT id, name, email, settings FROM users WHERE id=$1', [req.user.sub]);
   if (!rows.length) return res.status(404).json({ error: 'not_found' });
   if (rows[0].settings?.emailVerified) return res.json({ ok: true, alreadyVerified: true });
@@ -610,10 +626,8 @@ app.post('/api/auth/resend-verification', auth, async (req, res) => {
   await pool.query(`UPDATE users SET settings = jsonb_set(settings,'{emailVerify}',$1::jsonb) WHERE id=$2`,
     [JSON.stringify(emailVerify), rows[0].id]);
   const link = FRONTEND_URL + '?verifyEmail=' + token + '&email=' + encodeURIComponent(rows[0].email);
-  await fetch('https://api.resend.com/emails', { method:'POST',
-    headers:{ Authorization:'Bearer '+RESEND_API_KEY, 'Content-Type':'application/json' },
-    body: JSON.stringify({ from: REMINDER_FROM, to: rows[0].email, subject: 'Confirm your SimplyTax email address',
-      html: `<p>Hi ${rows[0].name},</p><p>Please confirm your email address to unlock submitting tax returns:</p><p><a href="${link}">${link}</a></p><p>This link is valid for 24 hours.</p><p>— SimplyTax</p>` }) });
+   await sendEmail(rows[0].email, 'Confirm your SimplyTax email address',
+    `<p>Hi ${rows[0].name},</p><p>Please confirm your email address to unlock submitting tax returns:</p><p><a href="${link}">${link}</a></p><p>This link is valid for 24 hours.</p><p>— SimplyTax</p>`);
   res.json({ ok: true });
 });
 
@@ -1102,12 +1116,12 @@ app.post('/api/eric/submit', auth, async (req, res) => {
   /* IMPLEMENTED: addresses the audit's own specific example - "submitting
      to ELSTER should require stronger authentication than simply
      possessing an old 12-hour JWT." A verified email is the minimum bar
-     for something this consequential. Only enforced when RESEND_API_KEY
+     for something this consequential. Only enforced when BREVO_API_KEY
      is genuinely configured, matching the same graceful-dormancy
      principle already used for password reset, so this can never lock
      every user out simply because a given deployment hasn't set up
      email sending yet. */
-   if (RESEND_API_KEY) {
+   if (BREVO_API_KEY) {
     const { rows: verifyRows } = await pool.query('SELECT settings FROM users WHERE id=$1', [req.user.sub]);
     const s = verifyRows[0]?.settings || {};
     /* Grandfather accounts that predate this feature entirely - if
