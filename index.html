@@ -919,7 +919,8 @@ en: {
  confirm_del_account_permanent:"This is permanent - your account, all draft/unsubmitted tax returns, and uploaded documents will be removed and cannot be recovered. You will be signed out immediately.",
  email_changed:"Email changed. Use the new address at your next sign-in.",
  err_email_taken:"An account with this email already exists.",
-  err_wrong_pass:"The password is incorrect.", err_email_invalid:"Please enter a valid email address.",
+   err_wrong_pass:"The password is incorrect.", err_email_invalid:"Please enter a valid email address.",
+ delete_account_success:"Your account and all your tax return data have been permanently deleted.", delete_account_failed:"Something went wrong and your account was not deleted - nothing was changed. Please try again, or contact support if this keeps happening.",
  email_verify_success:"Your email address has been confirmed.", email_verify_error:"This verification link is invalid or has expired. Please request a new one from your account settings.",
  email_verify_banner:"Please confirm your email address to unlock submitting tax returns. Check your inbox for the link.", email_verify_resend:"Resend email", email_verify_sent:"Sent ✓",
  step_counter_lbl:"Step",
@@ -1378,7 +1379,8 @@ de: {
  confirm_del_account_permanent:"Dies ist endgültig - Ihr Konto, alle Entwürfe/nicht übermittelten Steuererklärungen und hochgeladenen Dokumente werden entfernt und können nicht wiederhergestellt werden. Sie werden sofort abgemeldet.",
  email_changed:"E-Mail geändert. Bitte bei der nächsten Anmeldung die neue Adresse verwenden.",
  err_email_taken:"Ein Konto mit dieser E-Mail existiert bereits.",
-  err_wrong_pass:"Das Passwort ist nicht korrekt.", err_email_invalid:"Bitte eine gültige E-Mail-Adresse eingeben.",
+   err_wrong_pass:"Das Passwort ist nicht korrekt.", err_email_invalid:"Bitte eine gültige E-Mail-Adresse eingeben.",
+ delete_account_success:"Ihr Konto und alle Ihre Steuererklärungsdaten wurden endgültig gelöscht.", delete_account_failed:"Es ist ein Fehler aufgetreten und Ihr Konto wurde nicht gelöscht - es wurde nichts geändert. Bitte versuchen Sie es erneut oder kontaktieren Sie den Support, falls dies weiterhin auftritt.",
  email_verify_success:"Ihre E-Mail-Adresse wurde bestätigt.", email_verify_error:"Dieser Bestätigungslink ist ungültig oder abgelaufen. Bitte fordern Sie in Ihren Kontoeinstellungen einen neuen an.",
  email_verify_banner:"Bitte bestätigen Sie Ihre E-Mail-Adresse, um die Abgabe von Steuererklärungen freizuschalten. Prüfen Sie Ihr Postfach.", email_verify_resend:"Erneut senden", email_verify_sent:"Gesendet ✓",
  step_counter_lbl:"Schritt",
@@ -2178,9 +2180,22 @@ async function doDeleteAccount(){
  await api('/api/auth/account','DELETE',{password:pass});
  const m=document.querySelector('.modal-bg'); if(m) m.remove();
  await logout();
+ /* IMPLEMENTED: real, confirmed gap directly matching a reported
+    symptom - no confirmation was ever shown after a successful
+    deletion, the flow just silently redirected to the login screen.
+    Shown after logout() completes, not before - modal-slot only
+    exists once render() has actually run at least once, the same
+    startup-timing lesson already learned elsewhere in this file. */
+ showInfoModal(t('delete_account_success'));
  }catch(e){
  const m=document.querySelector('.modal-bg'); if(m) m.remove();
- stMsg(e && e.message==='wrong_password' ? t('err_wrong_pass') : t('err_creds'), false);
+ /* CORRECTED: real, confirmed gap - any failure that wasn't
+    specifically wrong_password (a server error, a network issue, or
+    now the deletion_failed response the backend's own transaction
+    fix can genuinely return) fell through to a generic "wrong
+    credentials" message, which is directly misleading when the
+    password was never the actual problem. */
+ stMsg(e && e.message==='wrong_password' ? t('err_wrong_pass') : t('delete_account_failed'), false);
  }
 }
 
@@ -2704,7 +2719,7 @@ function topbar(){
  <button class="${S.lang==='en'?'on':''}" onclick="setLang('en')">${t('lang_en')}</button>
  <button class="${S.lang==='de'?'on':''}" onclick="setLang('de')">${t('lang_de')}</button>
  </div>
- ${S.loggedIn?`<span style="font-size:13px;font-weight:600;color:var(--ink-soft)">👤 ${esc(S.user?.name||'')}</span><button class="link-btn" onclick="showSettings()">⚙ ${t('settings')}</button><button class="link-btn" onclick="logout()">${t('logout')}</button>`:''}
+  ${S.loggedIn?`<span style="font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer" onclick="showSettings()" title="${t('settings')}">👤 ${esc(S.user?.name||'')}</span><button class="link-btn" onclick="showSettings()">⚙ ${t('settings')}</button><button class="link-btn" onclick="logout()">${t('logout')}</button>`:''}
  </div>`;
 }
 

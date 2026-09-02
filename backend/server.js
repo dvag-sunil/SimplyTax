@@ -734,20 +734,52 @@ app.delete('/api/auth/account', auth, async (req, res) => {
     }
   }
 
-   await pool.query('DELETE FROM clients WHERE user_id=$1', [req.user.sub]);
+   /* CORRECTED: real, confirmed root cause of a serious reported bug -
+     being able to log back in with the same credentials after
+     "deleting" the account, with all personal data already gone. The
+     clients delete and the users delete/anonymize were two separate,
+     independent database calls, not wrapped in a transaction -
+     if anything went wrong between them, the clients data could be
+     genuinely gone while the users row (email and password intact)
+     was never touched at all. That's exactly the reported symptom:
+     an account that looks deleted (no data) but still logs in
+     normally. Rewritten using the exact same real transaction pattern
+     already established elsewhere in this file (the bulk client sync
+     route) - either both steps succeed together now, or neither does,
+     with a genuine error surfaced to the person if it fails, rather
+     than a silent partial state. */
+   const db = await pool.connect();
   try {
-    await pool.query('DELETE FROM users WHERE id=$1', [req.user.sub]);
+    await db.query('BEGIN');
+    await db.query('DELETE FROM clients WHERE user_id=$1', [req.user.sub]);
+    /* CORRECTED: caught before shipping, not after - a failed query
+       inside a Postgres transaction aborts the whole transaction, so
+       a plain try/catch here wouldn't have worked at all - the
+       anonymize fallback query below would itself have failed too,
+       since it would still be running inside the same now-aborted
+       transaction. A real SAVEPOINT allows rolling back just the
+       failed delete attempt specifically, while keeping the outer
+       transaction (and the clients deletion already done above)
+       alive, so the fallback can genuinely run and both changes
+       still commit together at the end. */
+    await db.query('SAVEPOINT before_user_delete');
+    try {
+      await db.query('DELETE FROM users WHERE id=$1', [req.user.sub]);
+    } catch (e) {
+      console.error('[account deletion] hard delete failed, anonymizing instead:', e.message);
+      await db.query('ROLLBACK TO SAVEPOINT before_user_delete');
+      await db.query(
+        `UPDATE users SET email=$2, password_hash=$3, name=NULL WHERE id=$1`,
+        [req.user.sub, `deleted-${req.user.sub}@deleted.invalid`, await bcrypt.hash(cryptoNode.randomUUID(), 10)]
+      );
+    }
+    await db.query('COMMIT');
   } catch (e) {
-    /* Defensive fallback - audit_log is an existing table whose exact
-       schema isn't fully known here; if it has a foreign key on
-       user_id referencing users(id), a hard delete would fail rather
-       than leave the account genuinely closed. Anonymize the row
-       instead of leaving the request half-completed. */
-    console.error('[account deletion] hard delete failed, anonymizing instead:', e.message);
-    await pool.query(
-      `UPDATE users SET email=$2, password_hash=$3, name=NULL WHERE id=$1`,
-      [req.user.sub, `deleted-${req.user.sub}@deleted.invalid`, await bcrypt.hash(cryptoNode.randomUUID(), 10)]
-    );
+    await db.query('ROLLBACK');
+    console.error('[account deletion] transaction failed, nothing was changed:', e.message);
+    return res.status(500).json({ error: 'deletion_failed' });
+  } finally {
+    db.release();
   }
 
    res.json({ ok: true });
