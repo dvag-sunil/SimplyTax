@@ -1,12 +1,15 @@
 name: Deploy to GitHub Pages
 
-# Runs automatically on every push to either branch - main deploys with
-# the dev backend URL, production deploys with the real one. Nothing
-# else needs to change per deploy; this file is the only place the two
-# real Render URLs are ever written down .
+# CORRECTED: this used to trigger on both main and production, but
+# GitHub Pages only has one destination per repository - both branches
+# were silently deploying to the exact same place, whichever pushed
+# most recently overwriting the other. That's directly incompatible
+# with "only production code should ever reach the live domain" - now
+# restricted to production only. main no longer auto-deploys publicly;
+# workflow_dispatch is still available for a manual run if ever needed.
 on:
   push:
-    branches: [main, production]
+    branches: [production]
   workflow_dispatch: # allows a manual re-run from GitHub's own Actions tab, if ever needed
 
 permissions:
@@ -15,7 +18,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages-${{ github.ref_name }}"
+  group: "pages"
   cancel-in-progress: false
 
 jobs:
@@ -28,18 +31,13 @@ jobs:
       - name: Check out the branch that triggered this build
         uses: actions/checkout@v4
 
-      - name: Substitute the correct backend URL for this branch
-        # This is the actual real, current URL for each environment -
-        # the one place in the whole project these are written down.
-        # If a Render service's URL ever changes, update it here, not
-        # in index.html itself.
+      - name: Substitute the correct backend URL
+        # The one real Render URL this whole project's live deploy
+        # uses - written down here once. If the Render service's URL
+        # ever changes, update it here, not in index.html itself.
         run: |
-          if [ "${{ github.ref_name }}" = "production" ]; then
-            REAL_URL="https://simplytax-api.onrender.com"
-          else
-            REAL_URL="https://simplytax-api-dev.onrender.com"
-          fi
-          echo "Deploying ${{ github.ref_name }} with backend URL: $REAL_URL"
+          REAL_URL="https://simplytax-api.onrender.com"
+          echo "Deploying production with backend URL: $REAL_URL"
           sed -i "s|__BACKEND_URL__|$REAL_URL|g" index.html
           if grep -q "__BACKEND_URL__" index.html; then
             echo "::error::Placeholder __BACKEND_URL__ still present after substitution - deploy stopped."

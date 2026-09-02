@@ -15,9 +15,9 @@ services:
       - key: JWT_SECRET            # long random string, 64+ characters
         sync: false
       - key: ALLOWED_ORIGIN
-        value: https://dvag-sunil.github.io
+        value: https://www.taxfile24.com
       - key: FRONTEND_URL
-        value: https://dvag-sunil.github.io/SimplyTax/
+        value: https://www.taxfile24.com/
       - key: PRICE_CENTS
         value: "995"
       # CRITICAL: controls whether real ELSTER submissions include the
