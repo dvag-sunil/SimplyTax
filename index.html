@@ -6132,7 +6132,13 @@ async function ensureJsPDF(){
 }
 async function exportPDF(){
  const c=cur(); if(!c) return;
- if(!isPaid(c)){ showPayModal(); return; } // payment gate (Steuerfuchs model)
+ /* CORRECTED: real gate removed, requested directly - this produces a
+    summary document, not something that gets submitted to ELSTER, so
+    requiring payment to download it made little sense. It was also
+    inconsistent with exportElster() just below, the actual
+    submittable-structure JSON dataset, which already has no such
+    gate at all - payment still genuinely gates the one thing that
+    matters, the real submission itself (see submitElster). */
  if(!await ensureJsPDF()){ printFallback(c); return; }
  try{ buildPDF(c); }
  catch(err){ console.error('PDF generation failed:', err); printFallback(c); }
