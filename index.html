@@ -610,8 +610,18 @@ async function api(path, method='GET', body){
  credentials: 'include',
  headers:{ 'Content-Type':'application/json', ...(authToken?{Authorization:'Bearer '+authToken}:{}) },
  body: body?JSON.stringify(body):undefined });
- const data = await r.json().catch(()=>({}));
- if(!r.ok) throw new Error(data.error || ('HTTP '+r.status));
+  const data = await r.json().catch(()=>({}));
+ if(!r.ok){
+ /* CORRECTED: real bug caught by direct testing, not assumed fixed -
+    this only ever carried the message string, never the rest of the
+    response body, so any error-handling code expecting more than
+    e.message (like the material_gaps list) would silently never see
+    it. Attaching the full response data here is a general fix, not
+    specific to one call site. */
+ const err = new Error(data.error || ('HTTP '+r.status));
+ Object.assign(err, data);
+ throw err;
+ }
  return data;
 }
 
@@ -818,6 +828,7 @@ en: {
  search_hint:"Type at least 2 characters to search.", search_no_results:"No match found for this yet.",
  search_category_note:"Selecting this adds a new entry with this category already chosen.",
  freigabe_unknown_error:"An error was reported without further detail.",
+  freigabe_material_gaps_title:"This can't be submitted yet", freigabe_material_gaps_sub:"These items need to be resolved before this return can be sent. They're not a formatting issue ERiC caught. They're real, open questions this app can't answer on its own.",
  freigabe_warnings_title:"Please review before sending",
   freigabe_warnings_sub:"ERiC accepted this return, but the following items were sent using a safe default or were left out because the app cannot honestly determine them yet. Please double-check they are correct for your situation before proceeding.",
  freigabe_warnings_sub_rejected:"These items were also flagged, but they are not the reason this return was rejected - the error above is. Fix that first; these are worth reviewing once it does go through.",
@@ -1278,6 +1289,7 @@ de: {
  search_hint:"Mindestens 2 Zeichen zum Suchen eingeben.", search_no_results:"Dafür wurde noch nichts Passendes gefunden.",
  search_category_note:"Bei Auswahl wird ein neuer Eintrag mit dieser Kategorie angelegt.",
  freigabe_unknown_error:"Ein Fehler wurde ohne weitere Details gemeldet.",
+  freigabe_material_gaps_title:"Das kann noch nicht übermittelt werden", freigabe_material_gaps_sub:"Diese Punkte müssen geklärt werden, bevor diese Erklärung gesendet werden kann. Es handelt sich nicht um ein Formatproblem, das ERiC erkannt hat, sondern um echte, offene Fragen, die diese App nicht selbst beantworten kann.",
  freigabe_warnings_title:"Bitte vor dem Versand prüfen",
   freigabe_warnings_sub:"ERiC hat diese Erklärung angenommen, die folgenden Punkte wurden jedoch mit einem sicheren Standardwert übermittelt oder ausgelassen, da die App sie derzeit nicht zuverlässig ermitteln kann. Bitte prüfen Sie vor dem Fortfahren, ob dies für Ihre Situation zutrifft.",
  freigabe_warnings_sub_rejected:"Diese Punkte wurden ebenfalls angemerkt, sind aber nicht der Grund für die Ablehnung dieser Erklärung - das ist der obige Fehler. Bitte diesen zuerst beheben; diese Punkte lohnt es sich zu prüfen, sobald die Erklärung durchgeht.",
@@ -5407,8 +5419,21 @@ function guessStepFromWarningText(text){
 function showFreigabeModal(c, data, validateResult){
  const e=computeEstimate(c);
  const slot=document.getElementById('modal-slot'); if(!slot) return;
- const valid = validateResult && validateResult.ok;
- const warnings = (validateResult && Array.isArray(validateResult.skippedSections)) ? validateResult.skippedSections : [];
+  const allWarnings = (validateResult && Array.isArray(validateResult.skippedSections)) ? validateResult.skippedSections : [];
+ /* CORRECTED: real, confirmed root cause of a reported bug - "valid"
+    previously only checked ERiC's own validation result, never
+    whether any [MATERIAL] gap existed. That let someone check the
+    release box and click submit on a return the backend was always
+    going to reject, only to see a raw "material_gaps" error
+    afterward with no real explanation. The backend's own block is
+    correct and intentional (see server.js) - a checkbox should never
+    be able to wave through a genuine, unresolved gap - so the fix
+    here is to catch this before the button is even clickable, not to
+    weaken the backend check. */
+  const ericOk = validateResult && validateResult.ok;
+ const materialWarnings = allWarnings.filter(w => w.startsWith('[MATERIAL]'));
+ const warnings = allWarnings.filter(w => !w.startsWith('[MATERIAL]'));
+ const valid = ericOk && materialWarnings.length === 0;
  /* CORRECTED: real gap found via direct feedback - the app only ever
     showed one generic sentence ("ERiC could not confirm...") and threw
     away every specific detail ERiC actually sent back (which field,
@@ -5439,7 +5464,7 @@ function showFreigabeModal(c, data, validateResult){
  slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal">
  <h2>🔏 ${t('freigabe_title')}</h2>
  <p style="color:var(--ink-soft);font-size:13.5px;margin:6px 0 16px">${t('freigabe_sub')}</p>
- ${!valid && !fieldErrors.length?`<div class="infobox" style="background:var(--red-soft);border-color:var(--red);margin-bottom:14px">
+ ${!ericOk && !fieldErrors.length?`<div class="infobox" style="background:var(--red-soft);border-color:var(--red);margin-bottom:14px">
  ⚠ ${t('freigabe_validate_failed')} (${t('eric_code')}: ${validateResult?validateResult.rc:'?'})
  ${!incompleteSteps.length?`<div style="margin-top:6px;font-size:12.5px">${t('freigabe_no_detail_from_eric')}</div>`:''}
  ${validateResult?.ericLogTail?`<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12.5px;font-weight:600">${t('freigabe_eric_log_summary')}</summary>
@@ -5460,6 +5485,15 @@ function showFreigabeModal(c, data, validateResult){
  ${fieldErrors.map(fe=>`<li style="margin-bottom:6px">${esc(fe.text)}
  ${fe.stepIndex!=null?`<div style="margin-top:6px"><button class="btn btn-ghost btn-sm" style="border-color:var(--red);color:var(--red);font-weight:700" onclick="this.closest('.modal-bg').remove();S.step=${fe.stepIndex};render();${fe.ausEntryIndex!=null?`const _eid=ausEntryIdAtIndex(cur(),${fe.ausEntryIndex});if(_eid)showAusCalc(_eid);`:''}">${t(fe.ausEntryIndex!=null?'freigabe_go_to_field':'freigabe_go_to_section')} →</button></div>`:''}
  </li>`).join('')}
+ </ul>
+ </div>`:''}
+  ${materialWarnings.length?`<div class="infobox" style="background:var(--red-soft);border-color:var(--red);margin-bottom:14px">
+ <div style="font-weight:600;margin-bottom:6px">⚠ ${t('freigabe_material_gaps_title')} (${materialWarnings.length})</div>
+ <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px">${t('freigabe_material_gaps_sub')}</div>
+ <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.5">
+ ${materialWarnings.map(w=>{ const text = w.replace(/^\[MATERIAL\]\s*/,''); const stepIndex=guessStepFromWarningText(w);
+ return `<li style="margin-bottom:8px">${esc(text)}${stepIndex!=null?`<div style="margin-top:6px"><button class="btn btn-ghost btn-sm" style="border-color:var(--red);color:var(--red);font-weight:700" onclick="this.closest('.modal-bg').remove();S.step=${stepIndex};render()">${t('freigabe_go_to_section')} →</button></div>`:''}</li>`;
+ }).join('')}
  </ul>
  </div>`:''}
  ${warnings.length?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin-bottom:14px">
@@ -5530,7 +5564,31 @@ async function confirmFreigabeAndSubmit(clientId){
  <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove();render()">${t('close')}</button>
  </div></div>`;
  }
- } catch(e){ setBusy(false); alert(t('eric_error')+': '+e.message); }
+  } catch(e){
+ setBusy(false);
+ /* IMPLEMENTED: defense-in-depth for a real, confirmed bug already
+    fixed at its actual root cause above (the submit button now
+    correctly stays disabled whenever a material gap exists on this
+    same screen). This still matters for a genuine, if rare, race
+    condition - the data underlying this review could change between
+    opening it and clicking submit. If that ever happens, show the
+    actual gaps, not a raw "material_gaps" string dumped into a
+    generic alert. */
+ if(e && e.message==='material_gaps' && Array.isArray(e.materialGaps) && e.materialGaps.length){
+ const m=document.querySelector('.modal-bg'); if(m) m.remove();
+ const slot=document.getElementById('modal-slot');
+ slot.innerHTML=`<div class="modal-bg"><div class="modal">
+ <h2>⚠ ${t('freigabe_material_gaps_title')}</h2>
+ <p style="color:var(--ink-soft);font-size:13.5px;margin:6px 0 14px">${t('freigabe_material_gaps_sub')}</p>
+ <ul style="margin:0 0 16px;padding-left:18px;font-size:12.5px;line-height:1.5">
+ ${e.materialGaps.map(g=>`<li style="margin-bottom:8px">${esc(g.replace(/^\[MATERIAL\]\s*/,''))}</li>`).join('')}
+ </ul>
+ <button class="btn btn-primary" onclick="this.closest('.modal-bg').remove();render()">${t('close')}</button>
+ </div></div>`;
+ return;
+ }
+ alert(t('eric_error')+': '+e.message);
+ }
 }
 
 /* --- step 9: Finanzamt inquiries (Rückfragen) --- */
