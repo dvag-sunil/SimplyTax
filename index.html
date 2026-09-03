@@ -596,25 +596,41 @@ async function handleStripeReturn(){
  try{
  if(PAYMENT.provider==='stripe_backend' && BACKEND.enabled){
  const r=await api('/api/payments/verify','POST',{sessionId:sid});
+ /* CORRECTED: real, confirmed bug found while directly investigating
+    a report that the navigation fix below still wasn't working -
+    S.clients is only populated inside loadState()'s success path,
+    which ran earlier and separately from this call. If that earlier
+    session check had any transient failure right after the
+    cross-site redirect back from Stripe (a real possibility even
+    with the correct cookie settings already in place), S.clients
+    stays empty here - meaning even this /verify call succeeding
+    wouldn't find the client below, and the whole navigation fix
+    would silently do nothing. A successful, auth-protected call here
+    is itself proof the session is genuinely valid right now, so this
+    no longer depends on that earlier check having already gone
+    right - it loads what's needed itself if it's missing. */
+ if(!S.loggedIn || !S.clients.length){
+ try{ const me=await api('/api/auth/me'); S.user=me.user; await loadUserData(); S.loggedIn=true; startTokenRefreshTimer(); }
+ catch(e){ /* genuinely not logged in - nothing more to do here */ }
+ }
  const c=S.clients.find(x=>x.id===r.clientId);
  if(r.paid && c){
  c.pay={status:'paid',paidAt:Date.now(),amount:PAYMENT.pricePerReturn,txId:sid.slice(0,24)}; scheduleSave();
- /* CORRECTED: real, confirmed bug directly reported - the correct
-    client was already being found right above, but the app never
-    actually navigated back to it, landing on the dashboard instead.
-    Opens directly to this client's summary step (10 - the Review
+ /* Opens directly to this client's summary step (10 - the Review
     & Submit screen), the same fields openClient() sets elsewhere,
     but starting at the right step instead of its usual step 0, so
     there's no visible flash of the first form page before jumping
-    to the right one. */
+     to the right one. */
  S.currentId=c.id; S.step=10; S.view='client'; S.scanState=null; S.aiFields={};
+  if(c._pendingSubmitData) S._pendingStartupModal='__post_payment_submit__';
  }
-  } else if(PAYMENT.provider==='stripe_link'){
+ } else if(PAYMENT.provider==='stripe_link'){
  const pend=await kvGet('klarsteuer-pending-pay');
  const c=S.clients.find(x=>x.id===pend);
  if(c){
  c.pay={status:'paid',paidAt:Date.now(),amount:PAYMENT.pricePerReturn,txId:sid.slice(0,24)}; scheduleSave();
- S.currentId=c.id; S.step=10; S.view='client'; S.scanState=null; S.aiFields={};
+  S.currentId=c.id; S.step=10; S.view='client'; S.scanState=null; S.aiFields={};
+ if(c._pendingSubmitData) S._pendingStartupModal='__post_payment_submit__';
  }
  await kvDel('klarsteuer-pending-pay');
  }
@@ -626,11 +642,20 @@ async function handlePaypalReturn(){
  let qs=null; try{ qs=new URLSearchParams(location.search); }catch(e){ return; }
  const orderId=qs && qs.get('paypalOrderId'); if(!orderId) return;
  try{
-  const r=await api('/api/payments/paypal/capture','POST',{orderId});
+   const r=await api('/api/payments/paypal/capture','POST',{orderId});
+ /* Same real fix as handleStripeReturn above, for the same reason -
+    a successful, auth-protected call here is proof the session is
+    genuinely valid now, regardless of whether the earlier, separate
+    session check succeeded. */
+ if(!S.loggedIn || !S.clients.length){
+ try{ const me=await api('/api/auth/me'); S.user=me.user; await loadUserData(); S.loggedIn=true; startTokenRefreshTimer(); }
+ catch(e){ /* genuinely not logged in - nothing more to do here */ }
+ }
  const c=S.clients.find(x=>x.id===r.clientId);
  if(r.paid && c){
- c.pay={status:'paid',paidAt:Date.now(),amount:PAYMENT.pricePerReturn,txId:('pp_'+orderId).slice(0,24)}; scheduleSave();
+  c.pay={status:'paid',paidAt:Date.now(),amount:PAYMENT.pricePerReturn,txId:('pp_'+orderId).slice(0,24)}; scheduleSave();
  S.currentId=c.id; S.step=10; S.view='client'; S.scanState=null; S.aiFields={};
+ if(c._pendingSubmitData) S._pendingStartupModal='__post_payment_submit__';
  }
  }catch(e){ console.error('paypal return:', e.message); }
  try{ history.replaceState({},'',location.pathname); }catch(e){}
@@ -779,7 +804,8 @@ en: {
  next:"Next", back:"Back",
  submitting:"Transmitting to the tax authority...",
  success_title:"Return submitted", success_sub:"The tax return was transmitted to ELSTER's test system successfully.",
- success_no_ticket:"Submitted successfully - a confirmation number was not included in this response.",
+  success_no_ticket:"Submitted successfully - a confirmation number was not included in this response.",
+ post_payment_title:"Payment successful", post_payment_sub:"You already reviewed and released this return before paying. Nothing has changed since then - ready to send it to the tax office now?", post_payment_later:"I'll do this later",
  transfer_ticket:"Transfer ticket", close:"Close",
  warn_taxhigh:"Wage tax seems very high compared to the gross salary - please double-check.",
  warn_days:"More than 300 commuting days is unusual - please verify.",
@@ -1245,7 +1271,8 @@ de: {
  next:"Weiter", back:"Zurück",
  submitting:"Übermittlung an das Finanzamt...",
  success_title:"Erklärung übermittelt", success_sub:"Die Steuererklärung wurde erfolgreich an das ELSTER-Testsystem übermittelt.",
- success_no_ticket:"Erfolgreich übermittelt - eine Bestätigungsnummer war in dieser Antwort nicht enthalten.",
+  success_no_ticket:"Erfolgreich übermittelt - eine Bestätigungsnummer war in dieser Antwort nicht enthalten.",
+ post_payment_title:"Zahlung erfolgreich", post_payment_sub:"Sie haben diese Erklärung bereits vor der Zahlung geprüft und freigegeben. Seitdem hat sich nichts geändert - jetzt an das Finanzamt senden?", post_payment_later:"Später erledigen",
  transfer_ticket:"Transferticket", close:"Schließen",
  warn_taxhigh:"Die Lohnsteuer wirkt im Verhältnis zum Bruttolohn sehr hoch - bitte prüfen.",
  warn_days:"Mehr als 300 Arbeitstage sind ungewöhnlich - bitte prüfen.",
@@ -2718,10 +2745,11 @@ function render(){
  else if(S.view==='dash') html += dashView();
  else if(S.view==='client') html += clientView();
  app.innerHTML = html;
- if(S._pendingStartupModal){
+  if(S._pendingStartupModal){
  const msg = S._pendingStartupModal;
  S._pendingStartupModal = null;
- showInfoModal(msg);
+ if(msg==='__post_payment_submit__') showPostPaymentSubmitModal();
+ else showInfoModal(msg);
  }
  bindGlobal();
  /* Tab-navigation fix: every field commit triggers a full re-render (this app has no
@@ -5680,39 +5708,25 @@ function showFreigabeModal(c, data, validateResult){
  /* stash for the confirm handler without re-serializing large data into onclick attributes */
  S._freigabePending = { clientId:c.id, data };
 }
-async function confirmFreigabeAndSubmit(clientId){
- const c=cur(); if(!c || c.id!==clientId) return;
- const pending = S._freigabePending; if(!pending) return;
- const chk=document.getElementById('freigabe-check');
- if(!chk || !chk.checked) return;
- /* IMPLEMENTED: real, confirmed ordering fix, requested directly -
-    payment is now required at this exact point, after the person has
-    already reviewed everything and confirmed it, not before they've
-    had any chance to review at all. If unpaid, the review modal
-    closes and payment opens instead of proceeding to a real
-    submission - once payment succeeds and they return, clicking
-    submit again re-runs validation and shows this same review screen
-    again, now with payment already satisfied. */
- if(!isPaid(c)){
- const m=document.querySelector('.modal-bg'); if(m) m.remove();
- showPayModal();
- return;
- }
+/* IMPLEMENTED: rethought directly, as requested - the actual act of
+   submitting (calling the backend, showing success or failure) is
+   now its own function, shared by both the normal path below and the
+   new post-payment return path, which no longer re-shows the full
+   review screen a second time - see handleStripeReturn/
+   handlePaypalReturn and the new lightweight confirmation this now
+   uses instead. */
+async function performSubmission(c, data){
  setBusy(true);
  try{
- /* § 87d record: timestamp + a checksum of exactly what was released - kept
- on the client record for the required 5 years, not just in this session */
- /* Client-side copy for display/local record only - the authoritative
-    § 87d evidence is now the server-computed SHA-256 written to
-    submission_approvals before ERiC is ever called (see server.js). */
- c.freigabe = { at: Date.now(), dataHash: await sha256Hex(JSON.stringify(pending.data)) };
- const sr = await api('/api/eric/submit','POST',{ clientId, interchangeData:pending.data, freigabeConfirmed:true });
+ c.freigabe = { at: Date.now(), dataHash: await sha256Hex(JSON.stringify(data)) };
+ const sr = await api('/api/eric/submit','POST',{ clientId:c.id, interchangeData:data, freigabeConfirmed:true });
  setBusy(false);
  const m=document.querySelector('.modal-bg'); if(m) m.remove();
  const slot=document.getElementById('modal-slot');
  if(sr.ok){
  c.status='submitted'; c.submittedAt=Date.now(); c.updatedAt=Date.now();
  c.transferTicket = sr.transferTicket || null;
+ delete c._pendingSubmitData;
  scheduleSave();
  slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this){this.remove();render()}"><div class="modal" style="text-align:center">
  <div class="success-mark">✓</div><h2>${t('success_title')}</h2>
@@ -5722,7 +5736,9 @@ async function confirmFreigabeAndSubmit(clientId){
  </div></div>`;
  } else {
  /* honest failure state - most likely the known Hersteller-ID gate until
- that arrives. Never claim success when ERiC did not confirm it. */
+ that arrives. Never claim success when ERiC did not confirm it.
+ Deliberately keeps _pendingSubmitData - already paid, already
+ confirmed, this can be retried without asking for either again. */
  scheduleSave();
  slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this){this.remove();render()}"><div class="modal" style="text-align:center">
  <div style="font-size:40px;margin-bottom:8px">⚠</div><h2>${t('freigabe_not_sent')}</h2>
@@ -5731,16 +5747,8 @@ async function confirmFreigabeAndSubmit(clientId){
  <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove();render()">${t('close')}</button>
  </div></div>`;
  }
-  } catch(e){
+ } catch(e){
  setBusy(false);
- /* IMPLEMENTED: defense-in-depth for a real, confirmed bug already
-    fixed at its actual root cause above (the submit button now
-    correctly stays disabled whenever a material gap exists on this
-    same screen). This still matters for a genuine, if rare, race
-    condition - the data underlying this review could change between
-    opening it and clicking submit. If that ever happens, show the
-    actual gaps, not a raw "material_gaps" string dumped into a
-    generic alert. */
  if(e && e.message==='material_gaps' && Array.isArray(e.materialGaps) && e.materialGaps.length){
  const m=document.querySelector('.modal-bg'); if(m) m.remove();
  const slot=document.getElementById('modal-slot');
@@ -5752,10 +5760,64 @@ async function confirmFreigabeAndSubmit(clientId){
  </ul>
  <button class="btn btn-primary" onclick="this.closest('.modal-bg').remove();render()">${t('close')}</button>
  </div></div>`;
- return;
+  return;
  }
+ if(e && (e.message==='auth_required' || e.message==='invalid_token')){ showInfoModal(t('submit_failed_auth')); return; }
  alert(t('eric_error')+': '+e.message);
  }
+}
+/* IMPLEMENTED: rethought directly, as requested - this is the actual
+   answer to the redundant double-confirmation. Shown once, right
+   after payment succeeds, using the release and the exact data that
+   were already captured before payment (see confirmFreigabeAndSubmit
+   below). Deliberately not the full review screen again - no data
+   recap, no re-checking the same box - just a clear, honest "payment
+   succeeded, here's what's about to be sent" moment with one real
+   action left. A genuine way out is included too ("I'll do this
+   later") for anyone who doesn't want to finish right now - nothing
+   is lost by waiting, the confirmation and data stay saved either
+   way, and clicking submit later on this same client picks up right
+   where this left off. */
+function showPostPaymentSubmitModal(){
+ const c=cur(); if(!c || !c._pendingSubmitData) return;
+ const slot=document.getElementById('modal-slot'); if(!slot) return;
+ slot.innerHTML=`<div class="modal-bg"><div class="modal" style="text-align:center">
+ <div class="success-mark">✓</div><h2>${t('post_payment_title')}</h2>
+ <p style="color:var(--ink-soft);font-size:14px;margin:6px 0 18px">${t('post_payment_sub')}</p>
+ <div style="display:flex;gap:10px;justify-content:center">
+ <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('post_payment_later')}</button>
+ <button class="btn btn-primary" onclick="confirmPostPaymentSubmit('${c.id}')">📤 ${t('freigabe_submit')}</button>
+ </div>
+ </div></div>`;
+}
+async function confirmPostPaymentSubmit(clientId){
+ const c=cur(); if(!c || c.id!==clientId || !c._pendingSubmitData) return;
+ await performSubmission(c, c._pendingSubmitData);
+}
+async function confirmFreigabeAndSubmit(clientId){
+ const c=cur(); if(!c || c.id!==clientId) return;
+ const pending = S._freigabePending; if(!pending) return;
+ const chk=document.getElementById('freigabe-check');
+ if(!chk || !chk.checked) return;
+ if(!isPaid(c)){
+ /* IMPLEMENTED: rethought directly, as requested - the review and
+    the "I have reviewed and release this" confirmation genuinely
+    only need to happen once. Recording the release (the hash) and
+    the exact data being released right now, before payment, means
+    the person's actual decision doesn't need to be asked for a
+    second time once they come back - see handleStripeReturn /
+    handlePaypalReturn, which use this instead of showing the whole
+    review screen again. Saved onto the client record itself (not
+    just in-memory state) specifically because it needs to survive
+    the full page navigation to the payment provider and back. */
+ c.freigabe = { at: Date.now(), dataHash: await sha256Hex(JSON.stringify(pending.data)) };
+ c._pendingSubmitData = pending.data;
+ scheduleSave();
+ const m=document.querySelector('.modal-bg'); if(m) m.remove();
+ showPayModal();
+ return;
+ }
+  await performSubmission(c, pending.data);
 }
 
 /* --- step 9: Finanzamt inquiries (Rückfragen) --- */
