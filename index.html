@@ -528,9 +528,9 @@ function showPayModal(){
 }
 function payAmountHtml(d){
  if(d) return `<div class="ticket" style="font-family:Georgia,serif;font-size:24px;letter-spacing:0">
- <span style="text-decoration:line-through;color:var(--ink-soft);font-size:16px;margin-right:8px">${eur(PAYMENT.pricePerReturn)}</span>${eur(d.final)}</div>
- <div style="font-size:12.5px;color:var(--teal-dark);margin-top:2px">${t('discount_saved').replace('{amount}',eur(d.off))}</div>`;
- return `<div class="ticket" style="font-family:Georgia,serif;font-size:24px;letter-spacing:0">${eur(PAYMENT.pricePerReturn)}</div>`;
+ <span style="text-decoration:line-through;color:var(--ink-soft);font-size:16px;margin-right:8px">${eurPrice(PAYMENT.pricePerReturn)}</span>${eurPrice(d.final)}</div>
+ <div style="font-size:12.5px;color:var(--teal-dark);margin-top:2px">${t('discount_saved').replace('{amount}',eurPrice(d.off))}</div>`;
+ return `<div class="ticket" style="font-family:Georgia,serif;font-size:24px;letter-spacing:0">${eurPrice(PAYMENT.pricePerReturn)}</div>`;
 }
 function applyDiscount(){
  const c=cur(); if(!c) return;
@@ -638,8 +638,22 @@ function startTokenRefreshTimer(){
  if(!S.loggedIn || !BACKEND.enabled) return;
   try{ const r = await api('/api/auth/refresh','POST'); authToken = r.token; }
  catch(e){ /* best-effort - see comment above */ }
- }, 30*60*1000); // every 30 minutes, well within the 2-hour token window
+  }, 30*60*1000); // every 30 minutes, well within the 2-hour token window
 }
+/* IMPLEMENTED: addresses the actual root cause behind a reported
+   session-expiry bug at submit time, not just the symptom fixed
+   above - the 30-minute timer above relies on the tab staying
+   continuously active, but browsers commonly throttle or pause
+   background-tab timers during long periods when a tab isn't
+   focused, exactly what happens filling out a long return with the
+   tab backgrounded for a while. Refreshing again the moment the tab
+   becomes visible catches a missed tick before the person ever
+   reaches submit, rather than only surfacing as an error afterward. */
+document.addEventListener('visibilitychange', async () => {
+ if(document.visibilityState!=='visible' || !S.loggedIn || !BACKEND.enabled) return;
+ try{ const r = await api('/api/auth/refresh','POST'); authToken = r.token; }
+ catch(e){ /* best-effort, same as the timer above - a genuinely expired session still surfaces normally via the existing 401 handling */ }
+});
 async function api(path, method='GET', body){
  const r = await fetch(BACKEND.baseUrl+path, {
  method,
@@ -678,7 +692,8 @@ en: {
  single:"Single", married:"Married - joint assessment (Zusammenveranlagung)",
   create:"Create profile", cancel:"Cancel", ok:"OK",
   submitted_edit_blocked:"This return was already submitted, so its content is now locked to protect what was actually sent to the Finanzamt - your change wasn't saved. If something genuinely needs to change, please contact support about filing a correction.",
- save_failed_auth:"Your changes could not be saved - your sign-in session appears to have expired or isn't being recognized. Please sign out and sign in again, then check that your changes are still there before continuing.",
+  save_failed_auth:"Your changes could not be saved - your sign-in session appears to have expired or isn't being recognized. Please sign out and sign in again, then check that your changes are still there before continuing.",
+ submit_failed_auth:"This couldn't be submitted - your sign-in session appears to have expired. Nothing was sent, and your data is safe. Please sign out and sign in again, then try submitting.",
  save_failed_generic:"Your changes could not be saved due to a connection problem. Please check your internet connection - if this keeps happening, your recent changes may not be stored yet.",
  load_failed_auth:"Your data could not be loaded - your sign-in session appears to have expired or isn't being recognized. Please sign out and sign in again.",
  load_failed_generic:"Your data could not be loaded due to a connection problem. This does not mean your data is missing - please check your connection and try refreshing.",
@@ -1143,7 +1158,8 @@ de: {
  single:"Ledig", married:"Verheiratet - Zusammenveranlagung",
   create:"Profil anlegen", cancel:"Abbrechen", ok:"OK",
   submitted_edit_blocked:"Diese Erklärung wurde bereits übermittelt, ihr Inhalt ist daher jetzt gesperrt, um zu schützen, was tatsächlich an das Finanzamt gesendet wurde - Ihre Änderung wurde nicht gespeichert. Falls sich wirklich etwas ändern muss, wenden Sie sich bitte an den Support wegen einer Korrektur.",
- save_failed_auth:"Ihre Änderungen konnten nicht gespeichert werden - Ihre Anmeldung scheint abgelaufen zu sein oder wird nicht erkannt. Bitte melden Sie sich ab und wieder an und prüfen Sie danach, ob Ihre Änderungen noch vorhanden sind.",
+  save_failed_auth:"Ihre Änderungen konnten nicht gespeichert werden - Ihre Anmeldung scheint abgelaufen zu sein oder wird nicht erkannt. Bitte melden Sie sich ab und wieder an und prüfen Sie danach, ob Ihre Änderungen noch vorhanden sind.",
+ submit_failed_auth:"Dies konnte nicht übermittelt werden - Ihre Anmeldung scheint abgelaufen zu sein. Es wurde nichts gesendet, Ihre Daten sind sicher. Bitte melden Sie sich ab und wieder an und versuchen Sie es erneut.",
  save_failed_generic:"Ihre Änderungen konnten aufgrund eines Verbindungsproblems nicht gespeichert werden. Bitte prüfen Sie Ihre Internetverbindung - falls dies weiterhin auftritt, wurden Ihre letzten Änderungen möglicherweise noch nicht gespeichert.",
  load_failed_auth:"Ihre Daten konnten nicht geladen werden - Ihre Anmeldung scheint abgelaufen zu sein oder wird nicht erkannt. Bitte melden Sie sich ab und wieder an.",
  load_failed_generic:"Ihre Daten konnten aufgrund eines Verbindungsproblems nicht geladen werden. Das bedeutet nicht, dass Ihre Daten fehlen - bitte prüfen Sie Ihre Verbindung und laden Sie die Seite neu.",
@@ -2297,6 +2313,15 @@ function formatDE(n){
  return new Intl.NumberFormat('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
 }
 function eur(n){ return new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(Math.round(n)); }
+/* IMPLEMENTED: a real, confirmed display bug, reported directly - the
+   price (17.99) was being shown as a rounded "18 €", since eur()
+   above is deliberately built to show whole euros only, correct for
+   the tax figures it's used for everywhere else in this app, but
+   wrong for a product price where the actual cents matter and should
+   genuinely be shown. A separate function for prices specifically,
+   rather than changing eur() itself and breaking its intended
+   behavior for every tax figure that already correctly relies on it. */
+function eurPrice(n){ return new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}).format(n); }
 function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function dateStr(ts){ return new Date(ts).toLocaleDateString(S.lang==='de'?'de-DE':'en-GB'); }
 
@@ -4937,7 +4962,7 @@ function stepSummary(c){
  <div style="margin-top:22px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;align-items:center">
  ${PAYMENT.enabled ? (isPaid(c)
  ? `<span class="chip submitted">✓ ${t('paid_on')} ${dateStr(c.pay.paidAt)} · ${c.pay.txId}</span>`
- : `<span class="chip review">🔒 ${t('pay_locked')} - ${eur(PAYMENT.pricePerReturn)}</span>`) : ''}
+  : `<span class="chip review">🔒 ${t('pay_locked')} - ${eurPrice(PAYMENT.pricePerReturn)}</span>`) : ''}
  <button class="btn btn-ghost" onclick="exportPDF()">📄 ${t('pdf_btn')}</button>
  <button class="btn btn-ghost" onclick="exportElster()">⇪ ${t('export_elster')}</button>
  ${submitted
@@ -5041,7 +5066,7 @@ async function submitElster(){
     Clicking submit would show nothing happening for however long
     this loop took. Turned on here, right before the first call this
     function makes. */
- setBusy(true);
+  setBusy(true);
  try{
  const r = await api('/api/eric/validate-fields','POST',{taxId:digits});
  if(r && r.taxId && r.taxId.valid===false){
@@ -5053,7 +5078,23 @@ async function submitElster(){
  showSubmitValidationModal(t('err_id_checksum_invalid').replace('{field}', f.label), f.step, f.key);
  return;
  }
- } catch(e){ /* service unavailable - don't block submission on a check that couldn't run; ERiC's own real validation is still the final safeguard */ }
+ } catch(e){
+ /* CORRECTED: real, confirmed bug found via a direct report - a
+    session-expired error here was being silently treated the same
+    as an ordinary "service unavailable, skip this check" case,
+    letting the loop keep going and fail again on every remaining
+    field before an unhelpful generic message eventually appeared.
+    Session expiry means the person needs to sign back in, not
+    something safe to quietly skip past. */
+ if(e && (e.message==='auth_required' || e.message==='invalid_token')){
+ setBusy(false);
+ showInfoModal(t('submit_failed_auth'));
+ return;
+ }
+ /* any other error genuinely is safe to skip - service unavailable
+    shouldn't block submission on a check that couldn't run; ERiC's
+    own real validation is still the final safeguard */
+ }
  }
  submitElsterReal(c0);
 }
@@ -5077,8 +5118,16 @@ async function submitElsterReal(c){
  try{
  const data = buildElsterDataset(c);
  let vr;
- try{ vr = await api('/api/eric/validate','POST',{clientId:c.id, interchangeData:data}); }
- catch(e){ setBusy(false); alert(t('eric_unavailable')+': '+e.message); return; }
+  try{ vr = await api('/api/eric/validate','POST',{clientId:c.id, interchangeData:data}); }
+ catch(e){
+ setBusy(false);
+ /* CORRECTED: same real bug fixed above, in the second place it
+    occurs - a session-expired error here was showing a generic,
+    confusing "service unavailable" message rather than telling the
+    person plainly that they need to sign back in. */
+ if(e && (e.message==='auth_required' || e.message==='invalid_token')){ showInfoModal(t('submit_failed_auth')); return; }
+ alert(t('eric_unavailable')+': '+e.message); return;
+ }
  setBusy(false);
  showFreigabeModal(c, data, vr);
  } catch(e){ setBusy(false); alert(t('eric_error')+': '+e.message); }
@@ -5602,7 +5651,7 @@ function showFreigabeModal(c, data, validateResult){
  <span>${t('freigabe_checkbox')}</span>
  </label>
  ${valid && !isPaid(c) ? `<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin-bottom:16px;font-size:12.5px">
- 💳 ${t('freigabe_payment_next').replace('{price}', eur(PAYMENT.pricePerReturn))}
+ 💳 ${t('freigabe_payment_next').replace('{price}', eurPrice(PAYMENT.pricePerReturn))}
  </div>` : ''}
  <div style="display:flex;gap:10px;justify-content:flex-end">
  <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
