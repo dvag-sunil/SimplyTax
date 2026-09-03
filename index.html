@@ -292,11 +292,19 @@ function computeDiscount(code, price){
 /* PAYMENT TOGGLE - Steuerfuchs model: preparation & calculation free, payment unlocks
  PDF download + ELSTER submission PER RETURN. Prototype simulates the payment;
  production connects Stripe Checkout via the backend (see production checklist). */
+/* DEPLOYMENT ORDER WARNING - do not deploy this file to production
+   until STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are actually set
+   on Render, and the Stripe webhook is registered and pointing at
+   the live backend. With enabled:true and provider:'stripe_backend'
+   below, payment becomes required to submit - if the backend secrets
+   aren't there yet, clicking "Pay now" will fail outright, blocking
+   every real submission until this is fixed. Set the Render secrets
+   first, confirm a real test payment works, then deploy this. */
 const PAYMENT = {
- enabled:false,
- provider:'simulated', // 'simulated' | 'stripe_link' (no backend needed) | 'stripe_backend' (with Supabase/API)
+ enabled:true,
+ provider:'stripe_backend', // 'simulated' | 'stripe_link' (no backend needed) | 'stripe_backend' (with Supabase/API)
  paymentLink:'https://buy.stripe.com/REPLACE_ME', // for 'stripe_link': create in Stripe Dashboard -> Payment Links
- pricePerReturn:17.99, currency:'EUR'
+  pricePerReturn:17.99, currency:'EUR'
 };
 const isPaid = c => !PAYMENT.enabled || (c && c.pay && c.pay.status==='paid');
 /* ERiC real transmission toggle - false until the backend has ERIC_HOME +
@@ -504,15 +512,18 @@ function showPayModal(){
  <a href="datenschutz.html" target="_blank" rel="noopener">${t('pay_privacy_link')}</a>
  </p>
  <label style="display:flex;gap:8px;align-items:flex-start;text-align:left;font-size:12px;color:var(--ink-soft);max-width:340px;margin:0 auto 14px;cursor:pointer">
- <input type="checkbox" id="pay-withdrawal-ack" style="margin-top:2px" onchange="document.getElementById('pay-now-btn').disabled=!this.checked">
+  <input type="checkbox" id="pay-withdrawal-ack" style="margin-top:2px" onchange="document.getElementById('pay-now-btn').disabled=!this.checked;document.getElementById('pay-paypal-btn').disabled=!this.checked">
  <span>${t('pay_withdrawal_ack')}</span>
  </label>
  <div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink-soft);margin-bottom:14px">
  <span>🔒 ${t('trust_enc')}</span><span>🇪🇺 ${t('trust_eu')}</span><span>✓ ${t('trust_gdpr')}</span>
  </div>
+ <div style="display:flex;flex-direction:column;gap:10px;align-items:center">
  <div style="display:flex;gap:10px;justify-content:center">
  <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
  <button class="btn btn-primary" id="pay-now-btn" disabled onclick="payNow(this)">💳 ${t('pay_now')}</button>
+ </div>
+ <button class="btn btn-ghost" id="pay-paypal-btn" disabled onclick="payWithPaypal(this)" style="border-color:#003087;color:#003087;font-weight:700">${t('pay_with_paypal')}</button>
  </div></div></div>`;
 }
 function payAmountHtml(d){
@@ -562,7 +573,21 @@ async function payNow(btn){
  txId:'PAY-'+Math.random().toString(36).slice(2,8).toUpperCase() };
  c.updatedAt=Date.now(); scheduleSave();
  const m=document.querySelector('.modal-bg'); if(m) m.remove();
- render();
+  render();
+}
+/* IMPLEMENTED: real, second payment option alongside Stripe, agreed
+   directly as part of the payment system review's suggested order of
+   work. Same shape as payNow's Stripe path above, redirecting to
+   PayPal's own hosted approval page rather than staying on this app -
+   the actual capture (taking the money) happens on return, handled
+   in handlePaypalReturn below, since PayPal genuinely splits approval
+   and capture into two separate steps. */
+async function payWithPaypal(btn){
+ const c=cur(); if(!c) return;
+ const discountCode = c.pay && c.pay.discountCode;
+ setBtnBusy(btn,true);
+ try{ const r=await api('/api/payments/paypal/create-order','POST',{clientId:c.id, discountCode}); location.href=r.url; }
+ catch(e){ setBtnBusy(btn,false); alert('PayPal: '+e.message); }
 }
 /* on return from Stripe (success_url contains ?session_id=...) */
 async function handleStripeReturn(){
@@ -580,6 +605,17 @@ async function handleStripeReturn(){
  await kvDel('klarsteuer-pending-pay');
  }
  }catch(e){ console.error('stripe return:', e.message); }
+  try{ history.replaceState({},'',location.pathname); }catch(e){}
+}
+/* on return from PayPal's approval page (return_url contains ?paypalOrderId=...) */
+async function handlePaypalReturn(){
+ let qs=null; try{ qs=new URLSearchParams(location.search); }catch(e){ return; }
+ const orderId=qs && qs.get('paypalOrderId'); if(!orderId) return;
+ try{
+ const r=await api('/api/payments/paypal/capture','POST',{orderId});
+ const c=S.clients.find(x=>x.id===r.clientId);
+ if(r.paid && c){ c.pay={status:'paid',paidAt:Date.now(),amount:PAYMENT.pricePerReturn,txId:('pp_'+orderId).slice(0,24)}; scheduleSave(); }
+ }catch(e){ console.error('paypal return:', e.message); }
  try{ history.replaceState({},'',location.pathname); }catch(e){}
 }
 let authToken = null;
@@ -974,7 +1010,7 @@ en: {
  separated_hint:"Married but permanently living apart (dauernd getrennt lebend) - taxed individually like separate assessment; spouse identity is still recorded on the main form. In the YEAR the separation began, joint assessment may still be chosen - pick 'Married' instead for that specific filing year.",
  single_parent_hint:"Yes = at least one child lives in your household and no other adult lives with you. Relief: €4,260 + €240 per further child - applied automatically.",
   pay_title:"Unlock this tax return", pay_sub:"Preparation and calculation are free. Downloading the PDF summary and submitting to the tax authority are enabled after payment for this return (one-time, per return).",
- pay_now:"Pay now", pay_locked:"Locked until payment", paid_on:"Paid on",
+  pay_now:"Pay now", pay_with_paypal:"Pay with PayPal", pay_locked:"Locked until payment", paid_on:"Paid on",
   pay_sim_note:"Prototype: the payment is simulated. In production, Stripe Checkout runs via the backend and a webhook unlocks the return.",
  pay_vat_note:"Price includes statutory VAT.", pay_agb_link:"Terms of service", pay_privacy_link:"Privacy policy",
  pay_withdrawal_ack:"I agree that the PDF download and submission are unlocked immediately, and I acknowledge that once this digital service has been fully provided, my 14-day right of withdrawal expires.",
@@ -1438,7 +1474,7 @@ de: {
  separated_hint:"Verheiratet, aber dauernd getrennt lebend - Einzelveranlagung wie bei getrennter Veranlagung; die Daten des Ehegatten werden weiterhin auf dem Hauptvordruck erfasst. Im Jahr des Trennungsbeginns ist die Zusammenveranlagung meist noch möglich - für dieses Jahr stattdessen 'Verheiratet' wählen.",
  single_parent_hint:"Ja = mindestens ein Kind lebt in Ihrem Haushalt und keine weitere volljährige Person wohnt bei Ihnen. Entlastung: 4.260 € + 240 € je weiteres Kind - wird automatisch angesetzt.",
  pay_title:"Diese Steuererklärung freischalten", pay_sub:"Erfassung und Berechnung sind kostenlos. PDF-Download und Übermittlung an das Finanzamt werden nach Zahlung für diese Erklärung freigeschaltet (einmalig, je Erklärung).",
- pay_now:"Jetzt bezahlen", pay_locked:"Bis zur Zahlung gesperrt", paid_on:"Bezahlt am",
+  pay_now:"Jetzt bezahlen", pay_with_paypal:"Mit PayPal bezahlen", pay_locked:"Bis zur Zahlung gesperrt", paid_on:"Bezahlt am",
   pay_sim_note:"Prototyp: Die Zahlung wird simuliert. In Produktion läuft Stripe Checkout über das Backend; ein Webhook schaltet die Erklärung frei.",
  pay_vat_note:"Preis inkl. gesetzlicher MwSt.", pay_agb_link:"AGB", pay_privacy_link:"Datenschutzerklärung",
  pay_withdrawal_ack:"Ich bin damit einverstanden, dass der PDF-Download und die Übermittlung sofort freigeschaltet werden, und weiß, dass mein 14-tägiges Widerrufsrecht mit vollständiger Erbringung dieser digitalen Leistung erlischt.",
@@ -6530,7 +6566,7 @@ Return this exact JSON structure (use "" for any field not found or empty on the
  if(el) el.textContent = STR[langGuess]?.loading_slow || STR.en.loading_slow;
  }, 3000);
  (async()=>{
- try{ await loadState(); await handleStripeReturn(); }
+  try{ await loadState(); await handleStripeReturn(); await handlePaypalReturn(); }
  finally{ clearTimeout(slowTimer); render(); }
  })();
 })();

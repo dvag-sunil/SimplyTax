@@ -18,8 +18,8 @@ services:
         value: https://www.taxfile24.com
       - key: FRONTEND_URL
         value: https://www.taxfile24.com/
-      - key: PRICE_CENTS
-        value: "995"
+       - key: PRICE_CENTS
+        value: "1799"
       # CRITICAL: controls whether real ELSTER submissions include the
       # test flag (<Testmerker>) that causes ELSTER's own servers to
       # silently discard the data instead of processing it as a real
@@ -31,10 +31,18 @@ services:
       # ambiguous as an undocumented manual entry on Render's dashboard.
       - key: ERIC_SUBMISSION_MODE
         value: "test"
-      - key: STRIPE_SECRET_KEY     # leave empty until payments go live
+       - key: STRIPE_SECRET_KEY     # leave empty until payments go live
         sync: false
       - key: STRIPE_WEBHOOK_SECRET # leave empty until payments go live
         sync: false
+      - key: PAYPAL_CLIENT_ID      # leave empty until PayPal is set up; from developer.paypal.com
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET  # leave empty until PayPal is set up
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID     # from the webhook created in the PayPal developer dashboard
+        sync: false
+      - key: PAYPAL_API_BASE       # https://api-m.sandbox.paypal.com for testing, https://api-m.paypal.com once live
+        value: "https://api-m.sandbox.paypal.com"
       - key: SUPABASE_URL
         value: https://erctmlhbupumvtnixlnc.supabase.co
       - key: SUPABASE_SERVICE_KEY  # Supabase -> Settings -> API -> service_role (secret!)

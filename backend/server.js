@@ -210,6 +210,57 @@ app.post('/api/reminders/run', async (req, res) => {
 
 /* ---------- Stripe (Level B: Checkout + webhook, tamper-proof) ---------- */
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
+
+/* IMPLEMENTED: PayPal as a second, real payment option, matching the
+   same conditional-enablement pattern already used for Stripe above -
+   only active when its own credentials are actually configured, so
+   nothing breaks or half-works if they're not set. Uses plain
+   fetch() rather than adding a new SDK dependency, the same way this
+   app already talks to Supabase and Brevo directly. */
+const PAYPAL_ENABLED = !!(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET);
+const PAYPAL_API_BASE = process.env.PAYPAL_API_BASE || 'https://api-m.sandbox.paypal.com';
+let paypalTokenCache = { token: null, expiresAt: 0 };
+async function getPaypalAccessToken() {
+  if (paypalTokenCache.token && Date.now() < paypalTokenCache.expiresAt) return paypalTokenCache.token;
+  const creds = Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`).toString('base64');
+  const r = await fetch(`${PAYPAL_API_BASE}/v1/oauth2/token`, {
+    method: 'POST',
+    headers: { 'Authorization': `Basic ${creds}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'grant_type=client_credentials',
+  });
+  if (!r.ok) throw new Error('paypal_auth_failed: ' + r.status);
+  const data = await r.json();
+  /* Real, documented PayPal token lifetime (expires_in, seconds) -
+     cached with a safety margin so a request never uses a token that
+     expires mid-flight. */
+  paypalTokenCache = { token: data.access_token, expiresAt: Date.now() + (data.expires_in - 60) * 1000 };
+  return data.access_token;
+}
+/* Postback verification - send the event and its headers back to
+   PayPal's own endpoint and let PayPal itself confirm validity,
+   rather than reimplementing certificate download and RSA signature
+   verification here. Slower (one extra API call) but meaningfully
+   lower-risk for something this security-sensitive, and this app's
+   payment volume makes the extra latency genuinely irrelevant. */
+async function verifyPaypalWebhook(headers, rawBody) {
+  const token = await getPaypalAccessToken();
+  const r = await fetch(`${PAYPAL_API_BASE}/v1/notifications/verify-webhook-signature`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      auth_algo: headers['paypal-auth-algo'],
+      cert_url: headers['paypal-cert-url'],
+      transmission_id: headers['paypal-transmission-id'],
+      transmission_sig: headers['paypal-transmission-sig'],
+      transmission_time: headers['paypal-transmission-time'],
+      webhook_id: process.env.PAYPAL_WEBHOOK_ID,
+      webhook_event: JSON.parse(rawBody),
+    }),
+  });
+  if (!r.ok) return false;
+  const data = await r.json();
+  return data.verification_status === 'SUCCESS';
+}
 const PRICE_CENTS = parseInt(process.env.PRICE_CENTS || '1799', 10);
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dvag-sunil.github.io/SimplyTax/';
 
@@ -276,6 +327,48 @@ async function markPaid(userId, clientId, sessionId, amountCents){
      WHERE id=$1 AND user_id=$2`,
     [clientId, userId, amountCents, sessionId.slice(0,24)]);
 }
+/* IMPLEMENTED: closes the real, confirmed gap from the payment system
+   review - previously, a refund issued through the Stripe dashboard,
+   for any reason, was invisible to this app entirely; the client
+   record would still say "paid" regardless. Session-level metadata
+   (userId, clientId) is not automatically copied onto the Charge
+   object a refund event carries - confirmed directly against Stripe's
+   own documentation rather than assumed - so the original checkout
+   session has to be looked up separately via the payment intent. */
+async function markRefunded(charge){
+  const paymentIntentId = charge.payment_intent;
+  if (!paymentIntentId) return;
+  const sessions = await stripe.checkout.sessions.list({ payment_intent: paymentIntentId, limit: 1 });
+  const sess = sessions.data[0];
+  if (!sess || !sess.metadata?.userId || !sess.metadata?.clientId) return;
+  const { userId, clientId } = sess.metadata;
+  const refundedCents = charge.amount_refunded || charge.amount || 0;
+  await pool.query(
+    `UPDATE payments SET status='refunded' WHERE session_id=$1`,
+    [sess.id]
+  );
+  const { rows } = await pool.query('SELECT data FROM clients WHERE id=$1 AND user_id=$2', [clientId, userId]);
+  const alreadySubmitted = rows.length && rows[0].data?.status === 'submitted';
+  await pool.query(
+    `UPDATE clients SET data = jsonb_set(
+       jsonb_set(data, '{pay}', jsonb_build_object(
+         'status','refunded','refundedAt', (extract(epoch from now())*1000)::bigint,
+         'amount', $3::numeric/100, 'txId', $4::text
+       ), true),
+       '{pay,submittedBeforeRefund}', $5::jsonb
+     ), updated_at = now()
+     WHERE id=$1 AND user_id=$2`,
+    [clientId, userId, refundedCents, sess.id.slice(0,24), JSON.stringify(alreadySubmitted)]
+  );
+  audit(userId, 'payment_refunded', { clientId, session: sess.id, alreadySubmitted });
+  /* This is the case the refund policy says should not happen - a
+     refund landing on a return that already went through. Made loud
+     on purpose, not a routine log line, since the whole point of this
+     fix was making sure this can't happen silently. */
+  if (alreadySubmitted) {
+    console.error(`[REFUND POLICY VIOLATION] clientId=${clientId} userId=${userId} was refunded ${refundedCents/100} EUR after its return was already successfully submitted. This should not happen under the stated no-refund-after-submission policy - needs manual review.`);
+  }
+}
 /* webhook uses the RAW body for signature verification — registered before express.json */
 app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   if (!stripe || !process.env.STRIPE_WEBHOOK_SECRET) return res.status(501).json({ error: 'stripe_disabled' });
@@ -288,6 +381,9 @@ app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), asy
       await markPaid(sess.metadata.userId, sess.metadata.clientId, sess.id, sess.amount_total || PRICE_CENTS);
       audit(sess.metadata.userId, 'payment_webhook', { clientId: sess.metadata.clientId, session: sess.id });
     }
+  } else if (event.type === 'charge.refunded') {
+    try { await markRefunded(event.data.object); }
+    catch (e) { console.error('[webhook] charge.refunded handling failed:', e.message); }
   }
   res.json({ received: true });
 });
@@ -984,6 +1080,145 @@ app.post('/api/payments/verify', auth, async (req, res) => {
   const paid = sess.payment_status === 'paid' && sess.metadata?.userId === req.user.sub;
   if (paid) await markPaid(req.user.sub, sess.metadata.clientId, sess.id, sess.amount_total || PRICE_CENTS);
   res.json({ paid, clientId: sess.metadata?.clientId || null });
+});
+
+/* ---------- PayPal, a second real payment option alongside Stripe ---------- */
+app.post('/api/payments/paypal/create-order', auth, async (req, res) => {
+  if (!PAYPAL_ENABLED) return res.status(501).json({ error: 'paypal_disabled' });
+  const { clientId, discountCode } = req.body || {};
+  if (!clientId) return res.status(400).json({ error: 'invalid_input' });
+  /* Same ownership check already established for the Stripe checkout
+     route above, for the same real reason - without it, a wrong or
+     tampered clientId would still take the customer's real payment,
+     then match zero rows when trying to actually unlock anything. */
+  const { rows: ownershipRows } = await pool.query('SELECT user_id FROM clients WHERE id=$1', [clientId]);
+  if (ownershipRows.length && ownershipRows[0].user_id !== req.user.sub) {
+    return res.status(404).json({ error: 'not_found' });
+  }
+  const { cents, code } = discountedCents(discountCode);
+  const token = await getPaypalAccessToken();
+  const r = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      intent: 'CAPTURE',
+      purchase_units: [{
+        custom_id: JSON.stringify({ userId: req.user.sub, clientId, discountCode: code || '' }),
+        amount: { currency_code: 'EUR', value: (cents / 100).toFixed(2) },
+        description: 'SimplyTax — Freischaltung Steuererklärung' + (code ? ` (${code})` : ''),
+      }],
+      application_context: {
+        return_url: FRONTEND_URL + '?paypalOrderId={id}',
+        cancel_url: FRONTEND_URL,
+      },
+    }),
+  });
+  if (!r.ok) return res.status(502).json({ error: 'paypal_order_failed' });
+  const order = await r.json();
+  const approveLink = (order.links || []).find(l => l.rel === 'approve');
+  if (!approveLink) return res.status(502).json({ error: 'paypal_order_failed' });
+  res.json({ url: approveLink.href, orderId: order.id });
+});
+
+/* Called on return from PayPal's approval page. This is not just a
+   verification step the way Stripe's /verify is - for PayPal, this is
+   the actual, required capture step, since PayPal's flow genuinely
+   splits approval and capture into two separate actions (confirmed
+   directly against PayPal's own developer documentation, not assumed
+   to work the way Stripe's single-step flow does). */
+app.post('/api/payments/paypal/capture', auth, async (req, res) => {
+  if (!PAYPAL_ENABLED) return res.status(501).json({ error: 'paypal_disabled' });
+  const { orderId } = req.body || {};
+  if (!orderId) return res.status(400).json({ error: 'invalid_input' });
+  const token = await getPaypalAccessToken();
+  const r = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders/${orderId}/capture`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+  });
+  const order = await r.json();
+  /* COMPLETED is success; a capture already done by the webhook path
+     (see below) surfaces here as an error PayPal itself reports as
+     ORDER_ALREADY_CAPTURED - treated as success too, since the money
+     already genuinely moved, just via the other path. */
+  const alreadyCaptured = !r.ok && order.name === 'UNPROCESSABLE_ENTITY' &&
+    (order.details || []).some(d => d.issue === 'ORDER_ALREADY_CAPTURED');
+  if (!r.ok && !alreadyCaptured) return res.json({ paid: false });
+  let custom;
+  try { custom = JSON.parse(order.purchase_units?.[0]?.custom_id || order.purchase_units?.[0]?.payments?.captures?.[0]?.custom_id || '{}'); }
+  catch (e) { custom = {}; }
+  if (!custom.userId || !custom.clientId || custom.userId !== req.user.sub) return res.json({ paid: false });
+  const capture = order.purchase_units?.[0]?.payments?.captures?.[0];
+  const amountCents = capture ? Math.round(parseFloat(capture.amount.value) * 100) : PRICE_CENTS;
+  await markPaid(custom.userId, custom.clientId, 'pp_' + orderId, amountCents);
+  res.json({ paid: true, clientId: custom.clientId });
+});
+
+app.post('/api/payments/paypal/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  if (!PAYPAL_ENABLED || !process.env.PAYPAL_WEBHOOK_ID) return res.status(501).json({ error: 'paypal_disabled' });
+  const rawBody = req.body.toString('utf8');
+  let verified;
+  try { verified = await verifyPaypalWebhook(req.headers, rawBody); }
+  catch (e) { return res.status(400).json({ error: 'verification_failed' }); }
+  if (!verified) return res.status(400).json({ error: 'bad_signature' });
+  const event = JSON.parse(rawBody);
+  try {
+    if (event.event_type === 'CHECKOUT.ORDER.APPROVED') {
+      /* Backup capture path - covers someone who approves on PayPal's
+         side but never makes it back to this app to trigger
+         /paypal/capture themselves (closed the tab, lost connection,
+         etc). Directly addresses the real, PayPal-specific risk found
+         in research: an order approved but never captured in time is
+         automatically cancelled and refunded by PayPal itself. */
+      const orderId = event.resource.id;
+      const token = await getPaypalAccessToken();
+      const r = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders/${orderId}/capture`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      const order = await r.json();
+      if (r.ok) {
+        let custom;
+        try { custom = JSON.parse(order.purchase_units?.[0]?.payments?.captures?.[0]?.custom_id || event.resource.purchase_units?.[0]?.custom_id || '{}'); }
+        catch (e) { custom = {}; }
+        if (custom.userId && custom.clientId) {
+          const capture = order.purchase_units?.[0]?.payments?.captures?.[0];
+          const amountCents = capture ? Math.round(parseFloat(capture.amount.value) * 100) : PRICE_CENTS;
+          await markPaid(custom.userId, custom.clientId, 'pp_' + orderId, amountCents);
+          audit(custom.userId, 'paypal_webhook_capture', { clientId: custom.clientId, orderId });
+        }
+      }
+    } else if (event.event_type === 'PAYMENT.CAPTURE.REFUNDED' || event.event_type === 'PAYMENT.CAPTURE.REVERSED') {
+      /* Same real refund-tracking gap already closed for Stripe above,
+         closed here too for PayPal - a refund on this side should not
+         be invisible to this app either, and the same policy-violation
+         check (was this return already submitted) applies just the
+         same regardless of which processor was used. */
+      const capture = event.resource;
+      let custom;
+      try { custom = JSON.parse(capture.custom_id || '{}'); } catch (e) { custom = {}; }
+      if (custom.userId && custom.clientId) {
+        const refundedCents = Math.round(parseFloat(capture.amount?.value || '0') * 100);
+        const { rows } = await pool.query('SELECT data FROM clients WHERE id=$1 AND user_id=$2', [custom.clientId, custom.userId]);
+        const alreadySubmitted = rows.length && rows[0].data?.status === 'submitted';
+        await pool.query(
+          `UPDATE clients SET data = jsonb_set(
+             jsonb_set(data, '{pay}', jsonb_build_object(
+               'status','refunded','refundedAt', (extract(epoch from now())*1000)::bigint,
+               'amount', $3::numeric/100, 'txId', $4::text
+             ), true),
+             '{pay,submittedBeforeRefund}', $5::jsonb
+           ), updated_at = now()
+           WHERE id=$1 AND user_id=$2`,
+          [custom.clientId, custom.userId, refundedCents, ('pp_' + capture.id).slice(0,24), JSON.stringify(alreadySubmitted)]
+        );
+        audit(custom.userId, 'payment_refunded', { clientId: custom.clientId, orderId: capture.id, provider: 'paypal', alreadySubmitted });
+        if (alreadySubmitted) {
+          console.error(`[REFUND POLICY VIOLATION] clientId=${custom.clientId} userId=${custom.userId} was refunded via PayPal ${refundedCents/100} EUR after its return was already successfully submitted. Needs manual review.`);
+        }
+      }
+    }
+  } catch (e) { console.error('[paypal webhook] handling failed:', e.message); }
+  res.json({ received: true });
 });
 
 /* ---------- Belege (documents) ---------- */
