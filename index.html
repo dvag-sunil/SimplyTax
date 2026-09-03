@@ -870,7 +870,8 @@ en: {
  freigabe_warnings_title:"Please review before sending",
   freigabe_warnings_sub:"ERiC accepted this return, but the following items were sent using a safe default or were left out because the app cannot honestly determine them yet. Please double-check they are correct for your situation before proceeding.",
  freigabe_warnings_sub_rejected:"These items were also flagged, but they are not the reason this return was rejected - the error above is. Fix that first; these are worth reviewing once it does go through.",
- freigabe_checkbox:"I have reviewed this data and release it for transmission to the tax office.",
+  freigabe_checkbox:"I have reviewed this data and release it for transmission to the tax office.",
+ freigabe_payment_next:"Payment ({price}) is the next step, before anything is actually sent.", freigabe_continue_to_payment:"Continue to payment",
  freigabe_submit:"Release & submit", freigabe_not_sent:"Not transmitted",
  freigabe_not_sent_hint:"The tax office did not confirm receipt. This is expected while ERiC setup is still in progress; nothing was lost, your data is saved and you can try again later.",
  eric_unavailable:"Submission service unavailable", eric_error:"Submission error", eric_code:"ERiC code",
@@ -1334,7 +1335,8 @@ de: {
  freigabe_warnings_title:"Bitte vor dem Versand prüfen",
   freigabe_warnings_sub:"ERiC hat diese Erklärung angenommen, die folgenden Punkte wurden jedoch mit einem sicheren Standardwert übermittelt oder ausgelassen, da die App sie derzeit nicht zuverlässig ermitteln kann. Bitte prüfen Sie vor dem Fortfahren, ob dies für Ihre Situation zutrifft.",
  freigabe_warnings_sub_rejected:"Diese Punkte wurden ebenfalls angemerkt, sind aber nicht der Grund für die Ablehnung dieser Erklärung - das ist der obige Fehler. Bitte diesen zuerst beheben; diese Punkte lohnt es sich zu prüfen, sobald die Erklärung durchgeht.",
- freigabe_checkbox:"Ich habe diese Daten geprüft und gebe sie zur Übermittlung an das Finanzamt frei.",
+  freigabe_checkbox:"Ich habe diese Daten geprüft und gebe sie zur Übermittlung an das Finanzamt frei.",
+ freigabe_payment_next:"Die Zahlung ({price}) ist der nächste Schritt, bevor tatsächlich etwas gesendet wird.", freigabe_continue_to_payment:"Weiter zur Zahlung",
  freigabe_submit:"Freigeben & übermitteln", freigabe_not_sent:"Nicht übermittelt",
  freigabe_not_sent_hint:"Das Finanzamt hat den Eingang nicht bestätigt. Das ist erwartbar, solange die ERiC-Einrichtung noch läuft; es geht nichts verloren, Ihre Daten sind gespeichert und Sie können es später erneut versuchen.",
  eric_unavailable:"Übermittlungsdienst nicht verfügbar", eric_error:"Übermittlungsfehler", eric_code:"ERiC-Code",
@@ -4963,7 +4965,16 @@ function showSubmitValidationModal(message, stepIndex, fieldTabkey){
 }
 async function submitElster(){
  const c0=cur();
- if(!isPaid(c0)){ showPayModal(); return; }
+ /* CORRECTED: real, confirmed ordering bug, reported directly - this
+    used to check payment status here, as the very first thing,
+    before any field validation or the review screen ever ran. That
+    meant someone who hadn't paid yet was sent straight to the
+    payment page with zero chance to review or fix their own data
+    first, and only saw the actual review warnings on a second
+    attempt, after already paying. The payment check now lives at the
+    point where "Release & submit" is actually clicked, after the
+    review screen and its confirmation checkbox - so review always
+    comes before payment is ever required, not after. */
  if(!/^\d{4}$/.test((c0.p.faNumber||'').trim())){ showSubmitValidationModal(t('err_fa'), 0, 'p.faNumber'); return; }
  if(!/^\d{11}$/.test((c0.p.taxId||'').replace(/\s/g,''))){ showSubmitValidationModal(t('err_taxid'), 0, 'p.taxId'); return; }
  /* childcare required-fields check (ERiC rule 514139: amount alone is
@@ -5586,13 +5597,16 @@ function showFreigabeModal(c, data, validateResult){
  <div class="row"><span>${e.refund>=0?t('refund'):t('back_pay')}</span><b class="num">${eur(Math.abs(Math.round(e.refund)))}</b></div>
  <div class="row"><span>${t('finanzamt')}</span><b>${esc(c.p.faNumber)} ${esc(c.p.finanzamt||'')}</b></div>
  </div>
- <label style="display:flex;gap:10px;align-items:flex-start;font-size:13.5px;line-height:1.5;cursor:pointer;margin-bottom:16px">
+  <label style="display:flex;gap:10px;align-items:flex-start;font-size:13.5px;line-height:1.5;cursor:pointer;margin-bottom:16px">
  <input type="checkbox" id="freigabe-check" style="margin-top:3px" ${valid?'':'disabled'}>
  <span>${t('freigabe_checkbox')}</span>
  </label>
+ ${valid && !isPaid(c) ? `<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin-bottom:16px;font-size:12.5px">
+ 💳 ${t('freigabe_payment_next').replace('{price}', eur(PAYMENT.pricePerReturn))}
+ </div>` : ''}
  <div style="display:flex;gap:10px;justify-content:flex-end">
  <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
- <button class="btn btn-amber" id="freigabe-submit-btn" ${valid?'':'disabled'} onclick="confirmFreigabeAndSubmit('${c.id}')">📤 ${t('freigabe_submit')}</button>
+ <button class="btn btn-amber" id="freigabe-submit-btn" ${valid?'':'disabled'} onclick="confirmFreigabeAndSubmit('${c.id}')">${isPaid(c)?'📤 '+t('freigabe_submit'):'💳 '+t('freigabe_continue_to_payment')}</button>
  </div>
  </div></div>`;
  const chk=document.getElementById('freigabe-check'), btn=document.getElementById('freigabe-submit-btn');
@@ -5605,6 +5619,19 @@ async function confirmFreigabeAndSubmit(clientId){
  const pending = S._freigabePending; if(!pending) return;
  const chk=document.getElementById('freigabe-check');
  if(!chk || !chk.checked) return;
+ /* IMPLEMENTED: real, confirmed ordering fix, requested directly -
+    payment is now required at this exact point, after the person has
+    already reviewed everything and confirmed it, not before they've
+    had any chance to review at all. If unpaid, the review modal
+    closes and payment opens instead of proceeding to a real
+    submission - once payment succeeds and they return, clicking
+    submit again re-runs validation and shows this same review screen
+    again, now with payment already satisfied. */
+ if(!isPaid(c)){
+ const m=document.querySelector('.modal-bg'); if(m) m.remove();
+ showPayModal();
+ return;
+ }
  setBusy(true);
  try{
  /* § 87d record: timestamp + a checksum of exactly what was released - kept
