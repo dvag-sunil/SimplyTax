@@ -1521,9 +1521,9 @@ function buildVLegacy(data, entries) {
     if (addr.street) allg += tag(fm.V.street, addr.street);
     if (addr.plz) allg += tag(fm.V.plz, addr.plz);
     if (addr.ort) allg += tag(fm.V.ort, addr.ort);
-    allg += tag(fm.V.nutzFerienwohnung, p.ferienwohnung ? '1' : '2');
-    allg += tag(fm.V.nutzKurzfristig, p.kurzfristig ? '1' : '2');
-    allg += tag(fm.V.nutzAngehoerige, p.angehoerige ? '1' : '2');
+    allg += tag(fm.V.nutzFerienwohnung, p.ferienwohnung === 'ja' ? '1' : '2');
+    allg += tag(fm.V.nutzKurzfristig, p.kurzfristig === 'ja' ? '1' : '2');
+    allg += tag(fm.V.nutzAngehoerige, p.angehoerige === 'ja' ? '1' : '2');
     inner += `<Allg>\n${allg}</Allg>\n`;
 
     if (N(p.mieteinnahmen) > 0) {
@@ -1681,9 +1681,9 @@ function buildV(data) {
       allg += '</Lage>\n';
     }
     allg += '<Nutzung>\n';
-    allg += tag(fm.V.nutzFerienwohnung, p.ferienwohnung ? '1' : '2');
-    allg += tag(fm.V.nutzKurzfristig, p.kurzfristig ? '1' : '2');
-    allg += tag(fm.V.nutzAngehoerige, p.angehoerige ? '1' : '2');
+    allg += tag(fm.V.nutzFerienwohnung, p.ferienwohnung === 'ja' ? '1' : '2');
+    allg += tag(fm.V.nutzKurzfristig, p.kurzfristig === 'ja' ? '1' : '2');
+    allg += tag(fm.V.nutzAngehoerige, p.angehoerige === 'ja' ? '1' : '2');
     allg += '</Nutzung>\n';
     xml += `<Allg>\n${allg}</Allg>\n`;
 
@@ -1781,29 +1781,54 @@ function buildV(data) {
 ============================================================================= */
 function buildAUS(data) {
   const foreign = (data.anlageV || []).filter(isForeignProperty);
-  if (!foreign.length) return '';
-  let inner = '';
+  if (!foreign.length) return { xml: '', unresolvedForeignIncome: [] };
+  const unresolvedForeignIncome = [];
+  /* IMPLEMENTED: Option A, agreed directly - a person (or their tax
+     advisor) can now explicitly confirm the exemption method is
+     correct for their specific country's treaty. Confirmed
+     properties are included exactly as before. Unconfirmed ones are
+     genuinely, deliberately left out of what's actually transmitted,
+     not silently - the caller uses unresolvedForeignIncome to record
+     this persistently on the client itself, so it's not just a
+     message that scrolls by and gets forgotten once the rest of the
+     return is filed. */
+  /* CORRECTED: real, confirmed bug found while directly checking
+     whether every person in the household was actually considered -
+     this always hardcoded PersonA regardless of who genuinely owned
+     the property, even though property records already track real
+     ownership (p.owner - 'B' or 'joint' - already used correctly for
+     the domestic case in buildV). Grouped by owner here instead, one
+     AUS block per person who actually has confirmed foreign income,
+     joint ownership split the same way the domestic case already
+     does. Based on strong, direct evidence in the real field catalog
+     - no PersonB-specific Kennzahl exists anywhere in this context,
+     confirming the split happens at this wrapper level, not per
+     field - but not independently re-verified against the raw XSD
+     itself, which is worth doing before this goes out for real. */
+  const byPerson = { A: '', B: '' };
   foreign.forEach((p) => {
+    const i = (data.anlageV || []).indexOf(p);
     const net = N(p.mieteinnahmen) + N(p.nebenkosten) - N(p.werbungskosten);
     if (!p.land || !(N(p.mieteinnahmen) > 0)) return;
-    inner += '<Einz>\n';
-    inner += tag(fm.AUS.progStaat, p.land);
-    inner += tag(fm.AUS.progQuelle, p.street || p.objekt || 'Vermietung');
-    inner += tag(fm.AUS.progEinkunftsart, 'Vermietung und Verpachtung');
-    inner += wholeEuroTag(fm.AUS.progEinkuenfte, net);
-    inner += '</Einz>\n';
+    if (!p.dbaTreatmentConfirmed) {
+      unresolvedForeignIncome.push({ propertyIndex: i, land: p.land, net, owner: p.owner || 'A' });
+      return;
+    }
+    const oneEinz = (amount) => `<Einz>\n${tag(fm.AUS.progStaat, p.land)}${tag(fm.AUS.progQuelle, p.street || p.objekt || 'Vermietung')}${tag(fm.AUS.progEinkunftsart, 'Vermietung und Verpachtung')}${wholeEuroTag(fm.AUS.progEinkuenfte, amount)}</Einz>\n`;
+    if (p.owner === 'B') {
+      byPerson.B += oneEinz(net);
+    } else if (p.owner === 'joint') {
+      const half = Math.round(net / 2);
+      byPerson.A += oneEinz(half);
+      byPerson.B += oneEinz(net - half);
+    } else {
+      byPerson.A += oneEinz(net);
+    }
   });
-  if (!inner) return '';
-  /* CORRECTED: real, separate bug found while checking this area for
-     the same uniqueIndex issue confirmed elsewhere - Person is
-     genuinely required here too (minOccurs=1, confirmed directly), but
-     was never written at all. Property entries in this app's data
-     model don't currently track per-person ownership, so PersonA is
-     used as the honest, established default already used elsewhere in
-     this app whenever ownership isn't separately tracked - worth
-     revisiting if joint or spouse-owned foreign property support is
-     ever added. */
-  return `<AUS><Person>PersonA</Person>\n<Stfr_Ek_ProgV><P32b><Mitt>\n${inner}</Mitt></P32b></Stfr_Ek_ProgV>\n</AUS>\n`;
+  let xml = '';
+  if (byPerson.A) xml += `<AUS><Person>PersonA</Person>\n<Stfr_Ek_ProgV><P32b><Mitt>\n${byPerson.A}</Mitt></P32b></Stfr_Ek_ProgV>\n</AUS>\n`;
+  if (byPerson.B) xml += `<AUS><Person>PersonB</Person>\n<Stfr_Ek_ProgV><P32b><Mitt>\n${byPerson.B}</Mitt></P32b></Stfr_Ek_ProgV>\n</AUS>\n`;
+  return { xml, unresolvedForeignIncome };
 }
 
 /* =============================================================================
@@ -2749,7 +2774,8 @@ function buildEStXML(data, opts = {}) {
   const year = data.meta?.taxYear || 2025;
   const bundesland = bundeslandCode(data.hauptvordruck?.bundesland);
 
-  const skippedSections = [];
+   const skippedSections = [];
+  const unresolvedForeignIncome = [];
   if ((data.anlageN || []).some(n => N(n.zeile17_agLeistungenEntfernung) > 0))
     skippedSections.push('[MATERIAL] anlageN employer-provided commute allowance (Lohnsteuerbescheinigung line 17) was entered but not transmitted - the field previously used for this was confirmed placed under the wrong section (Wk/AWT/Fahrt, not ArbL, found via a genuine client submission returning feldUnbekannt). Its exact real meaning needs the same dedicated research the neighboring line 20 field already went through before it can be sent correctly.');
   if ((data.anlageV || []).some(p => p.werbungskosten > 0 && wkCategoryTotal(p) === 0))
@@ -2837,14 +2863,22 @@ function buildEStXML(data, opts = {}) {
   }
   (data.anlageV || []).forEach((p, i) => {
     const label = `anlageV property ${i + 1}`;
-    if (isForeignProperty(p)) {
-      /* Foreign rental is routed to Anlage AUS as exempt income with
-         Progressionsvorbehalt. Flagged so the user knows the treaty
-         question was NOT decided for them. */
+     if (isForeignProperty(p)) {
+      /* IMPLEMENTED: Option A, agreed directly before building this -
+         a person (or their tax advisor) can now explicitly confirm
+         the exemption method is correct for their specific country's
+         treaty. Confirmed: genuinely resolved, reported as an
+         informational confirmation, not a block. Unconfirmed: no
+         longer hard-blocks the whole submission - the income is
+         instead deliberately, honestly left out of what's actually
+         transmitted (see buildAUS above), with its own clear message
+         distinct from both an ordinary warning and a hard block. */
       if (!(N(p.mieteinnahmen) > 0)) {
         skippedSections.push(`${label}: a foreign country is set but no rental income was entered - nothing was transmitted for this property.`);
+      } else if (p.dbaTreatmentConfirmed) {
+        skippedSections.push(`${label}: foreign rental income was transmitted on Anlage AUS as tax-exempt income with Progressionsvorbehalt - confirmed by the user as the correct treatment for this country's tax treaty.`);
       } else {
-        skippedSections.push(`[MATERIAL] ${label}: foreign rental income was declared on Anlage AUS as tax-exempt income with Progressionsvorbehalt (the standard treatment under most double-taxation agreements). Whether the relevant treaty actually exempts this income rather than crediting foreign tax against German tax is a per-country legal question this app does not decide - worth confirming for the specific country before filing.`);
+        skippedSections.push(`[UNRESOLVED] ${label}: foreign rental income was NOT transmitted. Anlage AUS requires knowing whether this country's tax treaty exempts this income (with Progressionsvorbehalt) or credits foreign tax instead - a per-country legal question this app does not decide. This property's income is left out of this submission until confirmed. The rest of the return was not held up by this.`);
       }
       if (N(p.werbungskosten) > 0)
         skippedSections.push(`${label}: foreign rental expenses were subtracted to report a net figure, since Anlage AUS asks for net income rather than itemised costs.`);
@@ -2968,7 +3002,9 @@ function buildEStXML(data, opts = {}) {
   nutzdaten += buildNDHH(data); // confirmed real schema position: N_DHH is a genuine top-level sibling to N, directly after it
   nutzdaten += buildNAUS(data); // N_AUS
   nutzdaten += buildKAP(data);
-  nutzdaten += buildAUS(data); // foreign rental - confirmed position: after KAP, before R
+   const ausResult = buildAUS(data); // foreign rental - confirmed position: after KAP, before R
+  nutzdaten += ausResult.xml;
+  unresolvedForeignIncome.push(...ausResult.unresolvedForeignIncome);
   nutzdaten += buildR(data);
   nutzdaten += buildSO(data); // confirmed real schema position: directly after R/RAV_bAV/R_AUS
   nutzdaten += buildV(data);
@@ -2999,7 +3035,7 @@ ${nutzdaten}</Nutzdaten>
 </DatenTeil>
 </Elster>`;
 
-   return { xml, skippedSections };
+  return { xml, skippedSections, unresolvedForeignIncome };
 }
 
 /* IMPLEMENTED: addresses the production audit's own headline finding

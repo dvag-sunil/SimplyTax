@@ -828,7 +828,9 @@ en: {
  search_hint:"Type at least 2 characters to search.", search_no_results:"No match found for this yet.",
  search_category_note:"Selecting this adds a new entry with this category already chosen.",
  freigabe_unknown_error:"An error was reported without further detail.",
-  freigabe_material_gaps_title:"This can't be submitted yet", freigabe_material_gaps_sub:"These items need to be resolved before this return can be sent. They're not a formatting issue ERiC caught. They're real, open questions this app can't answer on its own.",
+   freigabe_material_gaps_title:"This can't be submitted yet", freigabe_material_gaps_sub:"These items need to be resolved before this return can be sent. They're not a formatting issue ERiC caught. They're real, open questions this app can't answer on its own.",
+  freigabe_unresolved_title:"Not included in this submission", freigabe_unresolved_sub:"The rest of this return will still be sent. These specific items will not be, since they still need confirmation - go back and confirm them if you're ready, or leave them out for now and handle them separately.",
+ unresolved_banner_title:"Foreign rental income not yet sent", unresolved_banner_sub:"This return may already be submitted, but the income below was deliberately left out because the tax treaty treatment for this country hasn't been confirmed. Once confirmed, this can be filed as a correction.", unresolved_banner_go:"Go confirm this",
  freigabe_warnings_title:"Please review before sending",
   freigabe_warnings_sub:"ERiC accepted this return, but the following items were sent using a safe default or were left out because the app cannot honestly determine them yet. Please double-check they are correct for your situation before proceeding.",
  freigabe_warnings_sub_rejected:"These items were also flagged, but they are not the reason this return was rejected - the error above is. Fix that first; these are worth reviewing once it does go through.",
@@ -984,7 +986,7 @@ en: {
  days_since_payment:"days since payment", refund_window_over:"past the 14-day refund window",
  m_kap:"Capital gains tax (est.)",
  step_prop:"Rental property", s_prop_lead:"Rental income (Anlage V) - one entry per property. Costs (loan interest, maintenance, depreciation, service charges...) count as expenses; a loss reduces the taxable income.",
- prop_address:"Property (address)", prop_street:"Street, house number", prop_plz:"Postcode", prop_city:"City", prop_rent:"Rental income (per year)", prop_costs:"Costs / expenses (per year)", add_prop:"Add property", prop_net:"Net result",
+  prop_address:"Property (address)", prop_street:"Street, house number", prop_plz:"Postcode", prop_plz_foreign_ph:"As used locally", prop_city:"City", prop_rent:"Rental income (per year)", prop_costs:"Costs / expenses (per year)", add_prop:"Add property", prop_net:"Net result",
  add_support_person:"Add another supported person",
  prop_costs_summary:"Rental deduction costs (Werbungskosten)", prop_costs_total:"Total deductible costs entered",
  prop_costs_hint:"The tax office requires these broken down by category, not one combined total.",
@@ -999,7 +1001,8 @@ en: {
  prop_wk_5j:"Maintenance cost, this year's deductible portion (§82b, spread over 5 years)", prop_wk_5j_hint:"If you chose to spread a large maintenance expense over 5 years instead of deducting it all at once, enter just this year's portion here.",
  prop_wk_ust:"VAT-liable letting costs", prop_wk_ust_hint:"Only applies if you charge VAT on this rental (e.g. certain commercial lets) - most residential lettings don't.",
  prop_country:"Country the property is in", prop_country_de:"Germany",
- prop_country_hint:"Property abroad is reported differently - usually tax-free in Germany, but it still raises the tax rate on your German income.",
+  prop_country_hint:"Property abroad is reported differently - usually tax-free in Germany, but it still raises the tax rate on your German income.",
+ prop_dba_confirm:"I have checked that {country}'s tax treaty with Germany actually exempts this rental income (rather than crediting foreign tax against German tax instead). If left unchecked, this property's income will not be included in the submission - the rest of the return can still be sent.",
  prop_address_hint:"Include the house number - the tax office requires street, postcode and city as three separate entries.",
  prop_unit:"Unit description", prop_unit_ph:"e.g. Ground floor left",
  prop_unit_hint:"The tax office needs a label for each rented unit alongside its rent. Leave blank for a single-unit property.",
@@ -1289,7 +1292,9 @@ de: {
  search_hint:"Mindestens 2 Zeichen zum Suchen eingeben.", search_no_results:"Dafür wurde noch nichts Passendes gefunden.",
  search_category_note:"Bei Auswahl wird ein neuer Eintrag mit dieser Kategorie angelegt.",
  freigabe_unknown_error:"Ein Fehler wurde ohne weitere Details gemeldet.",
-  freigabe_material_gaps_title:"Das kann noch nicht übermittelt werden", freigabe_material_gaps_sub:"Diese Punkte müssen geklärt werden, bevor diese Erklärung gesendet werden kann. Es handelt sich nicht um ein Formatproblem, das ERiC erkannt hat, sondern um echte, offene Fragen, die diese App nicht selbst beantworten kann.",
+   freigabe_material_gaps_title:"Das kann noch nicht übermittelt werden", freigabe_material_gaps_sub:"Diese Punkte müssen geklärt werden, bevor diese Erklärung gesendet werden kann. Es handelt sich nicht um ein Formatproblem, das ERiC erkannt hat, sondern um echte, offene Fragen, die diese App nicht selbst beantworten kann.",
+  freigabe_unresolved_title:"Nicht in dieser Übermittlung enthalten", freigabe_unresolved_sub:"Der Rest dieser Erklärung wird trotzdem gesendet. Diese Punkte jedoch nicht, da sie noch bestätigt werden müssen - gehen Sie zurück und bestätigen Sie sie, wenn Sie bereit sind, oder lassen Sie sie vorerst aus und klären Sie sie separat.",
+ unresolved_banner_title:"Ausländische Mieteinnahmen noch nicht gesendet", unresolved_banner_sub:"Diese Erklärung wurde möglicherweise bereits übermittelt, die untenstehenden Einkünfte wurden jedoch bewusst ausgelassen, da die steuerliche Behandlung laut Abkommen mit diesem Land noch nicht bestätigt wurde. Nach Bestätigung kann dies als Korrektur nachgereicht werden.", unresolved_banner_go:"Jetzt bestätigen",
  freigabe_warnings_title:"Bitte vor dem Versand prüfen",
   freigabe_warnings_sub:"ERiC hat diese Erklärung angenommen, die folgenden Punkte wurden jedoch mit einem sicheren Standardwert übermittelt oder ausgelassen, da die App sie derzeit nicht zuverlässig ermitteln kann. Bitte prüfen Sie vor dem Fortfahren, ob dies für Ihre Situation zutrifft.",
  freigabe_warnings_sub_rejected:"Diese Punkte wurden ebenfalls angemerkt, sind aber nicht der Grund für die Ablehnung dieser Erklärung - das ist der obige Fehler. Bitte diesen zuerst beheben; diese Punkte lohnt es sich zu prüfen, sobald die Erklärung durchgeht.",
@@ -1445,7 +1450,7 @@ de: {
  days_since_payment:"Tage seit Zahlung", refund_window_over:"außerhalb der 14-Tage-Rückerstattungsfrist",
  m_kap:"Kapitalertragsteuer (ca.)",
  step_prop:"Vermietung", s_prop_lead:"Einkünfte aus Vermietung (Anlage V) - ein Eintrag je Immobilie. Kosten (Darlehenszinsen, Instandhaltung, AfA, Nebenkosten...) zählen als Werbungskosten; ein Verlust mindert das zu versteuernde Einkommen.",
- prop_address:"Immobilie (Adresse)", prop_street:"Straße, Hausnummer", prop_plz:"Postleitzahl", prop_city:"Ort", prop_rent:"Mieteinnahmen (pro Jahr)", prop_costs:"Kosten / Aufwendungen (pro Jahr)", add_prop:"Immobilie hinzufügen", prop_net:"Ergebnis",
+  prop_address:"Immobilie (Adresse)", prop_street:"Straße, Hausnummer", prop_plz:"Postleitzahl", prop_plz_foreign_ph:"Wie vor Ort üblich", prop_city:"Ort", prop_rent:"Mieteinnahmen (pro Jahr)", prop_costs:"Kosten / Aufwendungen (pro Jahr)", add_prop:"Immobilie hinzufügen", prop_net:"Ergebnis",
  add_support_person:"Weitere unterstützte Person hinzufügen",
  prop_costs_summary:"Werbungskosten (Vermietung)", prop_costs_total:"Eingetragene abzugsfähige Kosten insgesamt",
  prop_costs_hint:"Das Finanzamt verlangt diese aufgeteilt nach Kategorie, nicht als eine Gesamtsumme.",
@@ -1460,7 +1465,8 @@ de: {
  prop_wk_5j:"Erhaltungsaufwand, diesjähriger abziehbarer Anteil (§82b, auf 5 Jahre verteilt)", prop_wk_5j_hint:"Wenn Sie einen größeren Erhaltungsaufwand auf 5 Jahre verteilt haben, statt ihn sofort abzusetzen, tragen Sie hier nur den diesjährigen Anteil ein.",
  prop_wk_ust:"Umsatzsteuerpflichtige Vermietungskosten", prop_wk_ust_hint:"Gilt nur, wenn Sie für diese Vermietung Umsatzsteuer berechnen (z. B. bestimmte gewerbliche Vermietungen) - bei den meisten Wohnvermietungen nicht zutreffend.",
  prop_country:"Belegenheitsstaat der Immobilie", prop_country_de:"Deutschland",
- prop_country_hint:"Auslandsimmobilien werden anders erklärt - meist in Deutschland steuerfrei, erhöhen aber den Steuersatz auf Ihre inländischen Einkünfte.",
+  prop_country_hint:"Auslandsimmobilien werden anders erklärt - meist in Deutschland steuerfrei, erhöhen aber den Steuersatz auf Ihre inländischen Einkünfte.",
+ prop_dba_confirm:"Ich habe geprüft, dass das Doppelbesteuerungsabkommen mit {country} diese Mieteinnahmen tatsächlich freistellt (statt die ausländische Steuer auf die deutsche Steuer anzurechnen). Bleibt dies unbestätigt, werden die Einkünfte aus dieser Immobilie nicht in der Übermittlung enthalten sein - der Rest der Erklärung kann trotzdem gesendet werden.",
  prop_address_hint:"Bitte mit Hausnummer angeben - das Finanzamt benötigt Straße, PLZ und Ort als drei getrennte Angaben.",
  prop_unit:"Bezeichnung der Wohneinheit", prop_unit_ph:"z. B. EG links",
  prop_unit_hint:"Das Finanzamt benötigt zu jeder vermieteten Einheit eine Bezeichnung samt Miete. Bei nur einer Einheit kann das Feld leer bleiben.",
@@ -3462,8 +3468,24 @@ function clientView(){
  <div class="phase-label">${t(g.label)}</div>
  ${g.steps.map(i=>stepItem(stepKeys[i],i)).join('')}
  </div>`).join('');
- const bodies=[stepPersonal,stepIncome,stepKap,stepWork,stepChildren,stepFamilySupport,stepSpecial,stepPrivIns,stepProp,stepHousehold,stepSummary,stepInquiries];
+  const bodies=[stepPersonal,stepIncome,stepKap,stepWork,stepChildren,stepFamilySupport,stepSpecial,stepPrivIns,stepProp,stepHousehold,stepSummary,stepInquiries];
+ /* IMPLEMENTED: Option A, agreed directly - persisted at submit time
+    on the client record itself (see server.js), so this stays
+    visible for as long as it's actually true, not just shown once in
+    a submit-time popup and then forgotten. Shown regardless of which
+    step is currently open, and regardless of submission status,
+    since the whole point is that this doesn't quietly disappear once
+    the return has otherwise been filed. */
+ const unresolvedBanner = (c.unresolvedForeignIncome||[]).length ? `<div class="infobox" style="background:#E8F1FB;border-color:#3B6FA0;margin:0 0 16px">
+ <div style="font-weight:600;margin-bottom:4px">ℹ ${t('unresolved_banner_title')} (${c.unresolvedForeignIncome.length})</div>
+ <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px">${t('unresolved_banner_sub')}</div>
+ <ul style="margin:0 0 8px;padding-left:18px;font-size:12.5px;line-height:1.5">
+ ${c.unresolvedForeignIncome.map(u=>`<li>${esc(u.land)}: ${eur(u.net)}</li>`).join('')}
+ </ul>
+ <button class="btn btn-ghost btn-sm" style="border-color:#3B6FA0;color:#3B6FA0;font-weight:700" onclick="S.step=8;render()">${t('unresolved_banner_go')} →</button>
+ </div>` : '';
  return `<main>
+ ${unresolvedBanner}
  <div class="crumbs"><a onclick="goDash()">← ${t('back_dash')}</a> &nbsp;/&nbsp; <b>${esc(c.p.firstName)} ${esc(c.p.lastName)}</b> · ${t('tax_year')} ${c.taxYear} · ${chip(c.status)}
  <span style="float:right;position:relative">
  <button class="btn-sm link-btn" onclick="event.stopPropagation();toggleAppSearch()" title="${t('search_title')}">🔍 ${t('search_title')}</button>
@@ -4270,9 +4292,15 @@ function stepProp(c){
  <span class="chip ${net>=0?'submitted':'review'}" style="margin-left:8px">${t('prop_net')}: ${eur(net)}</span></span>
  <span class="edit" onclick="delItem('props','${p.id}')">🗑 ${t('remove')}</span></div>
  <div style="padding:14px 16px">
- ${LF('props',p,'country',t('prop_country'),{select:[['Deutschland',t('prop_country_de')],...UNT_COUNTRIES.filter(x=>x!=='Deutschland').map(x=>[x,x])],hint:i===0?t('prop_country_hint'):''})}
+  ${LF('props',p,'country',t('prop_country'),{select:[['Deutschland',t('prop_country_de')],...UNT_COUNTRIES.filter(x=>x!=='Deutschland').map(x=>[x,x])],hint:i===0?t('prop_country_hint'):''})}
+ ${p.country && p.country!=='Deutschland' ? `<label style="display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.5;cursor:pointer;background:var(--amber-soft);border:1px solid var(--amber);border-radius:10px;padding:12px 14px;margin:0 0 14px">
+  <input type="checkbox" ${p.dbaTreatmentConfirmed?'checked':''} style="margin-top:3px" onchange="updItem('props','${p.id}','dbaTreatmentConfirmed',this.checked,0)">
+ <span>${t('prop_dba_confirm').replace('{country}', esc(p.country))}</span>
+ </label>` : ''}
  ${LF('props',p,'street',t('prop_street')+' *',{ph:'Musterstraße 1',hint:i===0?t('prop_address_hint'):''})}
- ${LF('props',p,'plz',t('prop_plz')+' *',{maxlength:5,pattern:'[0-9]{5}',inputmode:'numeric',ph:'12345'})}
+  ${(!p.country || p.country==='Deutschland')
+ ? LF('props',p,'plz',t('prop_plz')+' *',{maxlength:5,pattern:'[0-9]{5}',inputmode:'numeric',ph:'12345'})
+ : LF('props',p,'plz',t('prop_plz')+' *',{ph:t('prop_plz_foreign_ph')})}
  ${LF('props',p,'city',t('prop_city')+' *',{ph:'Offenbach'})}
  <div class="grid2">
  ${LF('props',p,'rent',t('prop_rent'),{euro:true,ph:'0,00 €'})}
@@ -5430,9 +5458,10 @@ function showFreigabeModal(c, data, validateResult){
     be able to wave through a genuine, unresolved gap - so the fix
     here is to catch this before the button is even clickable, not to
     weaken the backend check. */
-  const ericOk = validateResult && validateResult.ok;
+   const ericOk = validateResult && validateResult.ok;
  const materialWarnings = allWarnings.filter(w => w.startsWith('[MATERIAL]'));
- const warnings = allWarnings.filter(w => !w.startsWith('[MATERIAL]'));
+ const unresolvedWarnings = allWarnings.filter(w => w.startsWith('[UNRESOLVED]'));
+ const warnings = allWarnings.filter(w => !w.startsWith('[MATERIAL]') && !w.startsWith('[UNRESOLVED]'));
  const valid = ericOk && materialWarnings.length === 0;
  /* CORRECTED: real gap found via direct feedback - the app only ever
     showed one generic sentence ("ERiC could not confirm...") and threw
@@ -5493,6 +5522,15 @@ function showFreigabeModal(c, data, validateResult){
  <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.5">
  ${materialWarnings.map(w=>{ const text = w.replace(/^\[MATERIAL\]\s*/,''); const stepIndex=guessStepFromWarningText(w);
  return `<li style="margin-bottom:8px">${esc(text)}${stepIndex!=null?`<div style="margin-top:6px"><button class="btn btn-ghost btn-sm" style="border-color:var(--red);color:var(--red);font-weight:700" onclick="this.closest('.modal-bg').remove();S.step=${stepIndex};render()">${t('freigabe_go_to_section')} →</button></div>`:''}</li>`;
+ }).join('')}
+ </ul>
+  </div>`:''}
+ ${unresolvedWarnings.length?`<div class="infobox" style="background:#E8F1FB;border-color:#3B6FA0;margin-bottom:14px">
+ <div style="font-weight:600;margin-bottom:6px">ℹ ${t('freigabe_unresolved_title')} (${unresolvedWarnings.length})</div>
+ <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px">${t('freigabe_unresolved_sub')}</div>
+ <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.5">
+ ${unresolvedWarnings.map(w=>{ const text = w.replace(/^\[UNRESOLVED\]\s*/,''); const stepIndex=guessStepFromWarningText(w);
+ return `<li style="margin-bottom:8px">${esc(text)}${stepIndex!=null?`<div style="margin-top:6px"><button class="btn btn-ghost btn-sm" style="border-color:#3B6FA0;color:#3B6FA0;font-weight:700" onclick="this.closest('.modal-bg').remove();S.step=${stepIndex};render()">${t('freigabe_go_to_section')} →</button></div>`:''}</li>`;
  }).join('')}
  </ul>
  </div>`:''}
@@ -5749,7 +5787,7 @@ function buildElsterDataset(c){
  wkAfa:N(p.wkAfa), wkSonderabschr:N(p.wkSonderabschr), wkSchuldzins:N(p.wkSchuldzins), wkGeldbeschaff:N(p.wkGeldbeschaff),
  wkErhaltung:N(p.wkErhaltung), wk5JAbzugsfaehig:N(p.wk5JAbzugsfaehig), wkVerwaltung:N(p.wkVerwaltung), wkUstPflichtig:N(p.wkUstPflichtig), wkSonst:N(p.wkSonst),
  wohneinheit:p.unit||'', ferienwohnung:p.ferienwohnung==='ja', kurzfristig:p.kurzfristig==='ja',
- angehoerige:p.angehoerige==='ja', owner:p.owner||'', ergebnis:N(p.rent)-propCosts(p) })),
+  angehoerige:p.angehoerige==='ja', owner:p.owner||'', dbaTreatmentConfirmed:!!p.dbaTreatmentConfirmed, ergebnis:N(p.rent)-propCosts(p) })),
  anlageR:(c.rente||[]).map(r=>({ person:r.person==='B'?'B':'A', art:r.type||'gesetzlich',
  jahresbetrag:N(r.amount), rentenbeginn:r.startYear||'',
  /* FIXED: was backwards (sent percentage only for privat). The real ERiC

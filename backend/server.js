@@ -1246,7 +1246,7 @@ app.post('/api/eric/submit', auth, async (req, res) => {
        should ever omit the test flag. */
     const isProductionMode = process.env.ERIC_SUBMISSION_MODE === 'production';
     convertedData.meta = { ...convertedData.meta, testmerker: !isProductionMode };
-    const { xml, skippedSections } = buildEStXML(convertedData, {
+     const { xml, skippedSections, unresolvedForeignIncome } = buildEStXML(convertedData, {
       herstellerID: process.env.ERIC_HERSTELLER_ID,
     });
 
@@ -1301,7 +1301,7 @@ app.post('/api/eric/submit', auth, async (req, res) => {
       ).catch(e => console.error('[eric/submit] could not update approval record with outcome:', e.message));
     }
 
-     if (result.sent) {
+      if (result.sent) {
       /* CORRECTED: extractServerAnswer() in the worker was already
          writing a real transferTicket into the result object, but this
          endpoint never persisted or returned it - the TODO here was
@@ -1309,12 +1309,22 @@ app.post('/api/eric/submit', auth, async (req, res) => {
          (confirmed via the real ERiC API reference, EricMt
          GetErrormessagesFromXMLAnswer). Stored on the client record
          alongside status, not just a bare "submitted" flag. */
+      /* IMPLEMENTED: Option A, agreed directly - foreign rental income
+         left unconfirmed at submit time is genuinely excluded from
+         what was sent, not silently. Persisted here onto the client
+         record itself, using the same jsonb_set pattern as status and
+         transferTicket, so this is a real, durable fact about the
+         submission the person can still see later - not just a
+         message shown once in the submit response and then lost. */
       await pool.query(
         `UPDATE clients SET data = jsonb_set(
-           jsonb_set(data, '{status}', '"submitted"'),
-           '{transferTicket}', $3::jsonb
+           jsonb_set(
+             jsonb_set(data, '{status}', '"submitted"'),
+             '{transferTicket}', $3::jsonb
+           ),
+           '{unresolvedForeignIncome}', $4::jsonb
          ) WHERE id=$1 AND user_id=$2`,
-        [clientId, req.user.sub, JSON.stringify(result.transferTicket || null)]
+        [clientId, req.user.sub, JSON.stringify(result.transferTicket || null), JSON.stringify(unresolvedForeignIncome || [])]
       );
     } else {
       /* CORRECTED: real gap - previously nothing released the

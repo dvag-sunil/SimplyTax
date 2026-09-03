@@ -538,14 +538,14 @@ check('V does not emit E0701401 anywhere except Einn/Sum - the fabricated duplic
 })());
 check('foreign rental goes to Anlage AUS, NOT Anlage V (V has no country field at all)', (() => {
   const d = JSON.parse(JSON.stringify(sample));
-  d.anlageV = [{ objekt: 'Via Roma 5, Milano', land: 'Italien', mieteinnahmen: 12000, werbungskosten: 2000 }];
+  d.anlageV = [{ objekt: 'Via Roma 5, Milano', land: 'Italien', mieteinnahmen: 12000, werbungskosten: 2000, dbaTreatmentConfirmed: true }];
   const x = buildEStXML(d).xml;
   return x.includes('<AUS>') && x.includes('<E0603901>Italien</E0603901>')
     && x.includes('<E0603904>10000</E0603904>') && !x.includes('<V>');
 })());
 check('AUS sits between KAP and R in the confirmed top-level order', (() => {
   const d = JSON.parse(JSON.stringify(sample));
-  d.anlageV = [{ objekt: 'Via Roma 5, Milano', land: 'Italien', mieteinnahmen: 12000 }];
+  d.anlageV = [{ objekt: 'Via Roma 5, Milano', land: 'Italien', mieteinnahmen: 12000, dbaTreatmentConfirmed: true }];
   d.anlageR = [{ art: 'gesetzlich', jahresbetrag: 5000, rentenbeginn: '2015' }];
   const x = buildEStXML(d).xml;
   return x.indexOf('<KAP>') < x.indexOf('<AUS>') && x.indexOf('<AUS>') < x.indexOf('<R>');
@@ -616,10 +616,17 @@ check('domestic and foreign properties coexist - each routed to its own section'
   const d = JSON.parse(JSON.stringify(sample));
   d.anlageV = [
     { objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000 },
-    { objekt: 'Via Roma 5, Milano', land: 'Italien', mieteinnahmen: 12000 },
+    { objekt: 'Via Roma 5, Milano', land: 'Italien', mieteinnahmen: 12000, dbaTreatmentConfirmed: true },
   ];
   const x = buildEStXML(d).xml;
   return x.includes('<V>') && x.includes('<AUS>') && x.includes('<E0603901>Italien</E0603901>');
+})());
+
+check('V usage declarations (holiday let / short-term / relatives) correctly send "2" for an explicit "nein", not "1" - real bug found via direct testing: the old code only checked truthiness, and the string "nein" itself is truthy in JavaScript, so an explicit No was being silently transmitted as Yes', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.anlageV = [{ street: 'Musterstr. 1', plz: '12345', ort: 'Musterstadt', mieteinnahmen: 9000, ferienwohnung: 'ja', kurzfristig: 'nein', angehoerige: 'nein' }];
+  const x = buildEStXML(d).xml;
+  return x.includes('<E0700703>1</E0700703>') && x.includes('<E0700705>2</E0700705>') && x.includes('<E0700704>2</E0700704>');
 })());
 
 check('V accepts street/plz/ort as direct separate fields (real gap found via direct user feedback that free-text address parsing is fragile) - no parsing, no false warnings, confirmed via real Regel 3149', (() => {
@@ -767,10 +774,13 @@ check('V still works with the old combined objekt field for backward compatibili
   const x = buildEStXML(d).xml;
   return x.includes('<E0700407>Musterstr. 1</E0700407>') && x.includes('<E0700503>12345</E0700503>');
 })());
-check('foreign rental flags the treaty question rather than deciding it', (() => {
+check('foreign rental flags the treaty question rather than deciding it, and leaves it out of what is transmitted until confirmed', (() => {
   const d = JSON.parse(JSON.stringify(sample));
   d.anlageV = [{ objekt: 'Via Roma 5, Milano', land: 'Italien', mieteinnahmen: 12000 }];
-  return buildEStXML(d).skippedSections.some(s => s.includes('double-taxation'));
+  const r = buildEStXML(d);
+  return r.skippedSections.some(s => s.includes('[UNRESOLVED]') && s.includes('tax treaty'))
+    && !r.xml.includes('<AUS>')
+    && r.unresolvedForeignIncome.length === 1 && r.unresolvedForeignIncome[0].land === 'Italien';
 })());
 
 // EM_35c (energetic renovation) - full implementation
@@ -1567,7 +1577,7 @@ check('Same real bug class as KAP, found via systematic audit: foreign employmen
 
 check('Real, separate bug found while checking for the uniqueIndex issue: AUS now correctly includes the genuinely required Person tag, which was never written at all before this fix', (() => {
   const d = JSON.parse(JSON.stringify(sample));
-  d.anlageV = [{ street: 'Rue Test', plz: '75001', ort: 'Paris', land: 'Frankreich', mieteinnahmen: 12000, nebenkosten: 0, werbungskosten: 2000 }];
+  d.anlageV = [{ street: 'Rue Test', plz: '75001', ort: 'Paris', land: 'Frankreich', mieteinnahmen: 12000, nebenkosten: 0, werbungskosten: 2000, dbaTreatmentConfirmed: true }];
   const x = buildEStXML(d).xml;
   return x.includes('<AUS><Person>PersonA</Person>');
 })());
