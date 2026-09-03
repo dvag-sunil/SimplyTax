@@ -597,11 +597,25 @@ async function handleStripeReturn(){
  if(PAYMENT.provider==='stripe_backend' && BACKEND.enabled){
  const r=await api('/api/payments/verify','POST',{sessionId:sid});
  const c=S.clients.find(x=>x.id===r.clientId);
- if(r.paid && c){ c.pay={status:'paid',paidAt:Date.now(),amount:PAYMENT.pricePerReturn,txId:sid.slice(0,24)}; scheduleSave(); }
- } else if(PAYMENT.provider==='stripe_link'){
+ if(r.paid && c){
+ c.pay={status:'paid',paidAt:Date.now(),amount:PAYMENT.pricePerReturn,txId:sid.slice(0,24)}; scheduleSave();
+ /* CORRECTED: real, confirmed bug directly reported - the correct
+    client was already being found right above, but the app never
+    actually navigated back to it, landing on the dashboard instead.
+    Opens directly to this client's summary step (10 - the Review
+    & Submit screen), the same fields openClient() sets elsewhere,
+    but starting at the right step instead of its usual step 0, so
+    there's no visible flash of the first form page before jumping
+    to the right one. */
+ S.currentId=c.id; S.step=10; S.view='client'; S.scanState=null; S.aiFields={};
+ }
+  } else if(PAYMENT.provider==='stripe_link'){
  const pend=await kvGet('klarsteuer-pending-pay');
  const c=S.clients.find(x=>x.id===pend);
- if(c){ c.pay={status:'paid',paidAt:Date.now(),amount:PAYMENT.pricePerReturn,txId:sid.slice(0,24)}; scheduleSave(); }
+ if(c){
+ c.pay={status:'paid',paidAt:Date.now(),amount:PAYMENT.pricePerReturn,txId:sid.slice(0,24)}; scheduleSave();
+ S.currentId=c.id; S.step=10; S.view='client'; S.scanState=null; S.aiFields={};
+ }
  await kvDel('klarsteuer-pending-pay');
  }
  }catch(e){ console.error('stripe return:', e.message); }
@@ -612,9 +626,12 @@ async function handlePaypalReturn(){
  let qs=null; try{ qs=new URLSearchParams(location.search); }catch(e){ return; }
  const orderId=qs && qs.get('paypalOrderId'); if(!orderId) return;
  try{
- const r=await api('/api/payments/paypal/capture','POST',{orderId});
+  const r=await api('/api/payments/paypal/capture','POST',{orderId});
  const c=S.clients.find(x=>x.id===r.clientId);
- if(r.paid && c){ c.pay={status:'paid',paidAt:Date.now(),amount:PAYMENT.pricePerReturn,txId:('pp_'+orderId).slice(0,24)}; scheduleSave(); }
+ if(r.paid && c){
+ c.pay={status:'paid',paidAt:Date.now(),amount:PAYMENT.pricePerReturn,txId:('pp_'+orderId).slice(0,24)}; scheduleSave();
+ S.currentId=c.id; S.step=10; S.view='client'; S.scanState=null; S.aiFields={};
+ }
  }catch(e){ console.error('paypal return:', e.message); }
  try{ history.replaceState({},'',location.pathname); }catch(e){}
 }
