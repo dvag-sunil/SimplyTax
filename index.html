@@ -6724,21 +6724,38 @@ Return this exact JSON structure (use "" for any field not found or empty on the
  gap during backend auth/data fetch, especially on a cold-started free-tier server. */
 (function(){
  /* IMPLEMENTED: real fix for a genuine browser behavior, confirmed
-    directly via screen recording and research, not a bug in this
+     directly via screen recording and research, not a bug in this
     app's own logic (already thoroughly verified correct elsewhere -
     render() only ever runs once, with the right state, at the end of
-    boot). Per the actual HTTP spec, a browser is allowed to restore
-    an old, already-rendered snapshot of a page instantly on certain
+    boot, confirmed again directly via diagnostic logging). Per the
+    actual HTTP spec, a browser is allowed to restore an old,
+    already-rendered snapshot of a page instantly on certain
     navigations - including returning from a redirect like Stripe's
     checkout - without re-running any of its scripts at all, before
     the genuinely fresh page load finishes moments later and replaces
     it. That's what looked like "navigating to login": not this app
     showing the wrong screen, but the browser briefly showing an old,
-    unrelated snapshot from earlier in the session. GitHub Pages
-    doesn't support the server-side header that would normally
-    prevent this, so this is the standard client-side fix - detect a
-    restored snapshot and force a genuinely fresh reload immediately,
-    rather than let the stale one sit on screen at all. */
+    unrelated snapshot from earlier in the session.
+    CORRECTED: the fix below (reload on a detected restore) was only
+    ever cleaning up after the fact - by the time it can run, the
+    browser has already painted the stale snapshot, so the flash
+    still happened every single time, confirmed directly even though
+    every diagnostic log came back clean - which is exactly what a
+    reactive-only fix would produce, since the log only ever captures
+    the corrected second run, never the uncorrected first one (that
+    one never executes any of this app's own code at all, so it can't
+    log anything). Added the actual root-cause fix: a trivial,
+    otherwise-unused unload listener is a well-established, standard
+    technique specifically for opting a page out of this kind of
+    instant-restore eligibility entirely, so the stale snapshot is
+    never created or shown in the first place, rather than being
+    cleaned up a moment after it already was. GitHub Pages doesn't
+    support the server-side header that would normally achieve the
+    same thing, so this is the standard client-side alternative. */
+ window.addEventListener('unload', () => {});
+ /* Kept as a genuine backup for any case the fix above doesn't cover -
+    if a stale snapshot is ever still restored despite it, this still
+    forces a fresh reload rather than leaving the stale one showing. */
  window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
  /* pre-load the Finanzamt directory in the background - non-blocking,
  so the field just becomes fast/searchable once ready without delaying
