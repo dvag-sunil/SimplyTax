@@ -6742,7 +6742,7 @@ Return this exact JSON structure (use "" for any field not found or empty on the
      directly via screen recording and research, not a bug in this
     app's own logic (already thoroughly verified correct elsewhere -
     render() only ever runs once, with the right state, at the end of
-    boot, confirmed again directly via diagnostic logging). Per the
+     boot, confirmed again directly via diagnostic logging). Per the
     actual HTTP spec, a browser is allowed to restore an old,
     already-rendered snapshot of a page instantly on certain
     navigations - including returning from a redirect like Stripe's
@@ -6751,27 +6751,32 @@ Return this exact JSON structure (use "" for any field not found or empty on the
     it. That's what looked like "navigating to login": not this app
     showing the wrong screen, but the browser briefly showing an old,
     unrelated snapshot from earlier in the session.
-    CORRECTED: the fix below (reload on a detected restore) was only
-    ever cleaning up after the fact - by the time it can run, the
-    browser has already painted the stale snapshot, so the flash
-    still happened every single time, confirmed directly even though
-    every diagnostic log came back clean - which is exactly what a
-    reactive-only fix would produce, since the log only ever captures
-    the corrected second run, never the uncorrected first one (that
-    one never executes any of this app's own code at all, so it can't
-    log anything). Added the actual root-cause fix: a trivial,
-    otherwise-unused unload listener is a well-established, standard
-    technique specifically for opting a page out of this kind of
-    instant-restore eligibility entirely, so the stale snapshot is
-    never created or shown in the first place, rather than being
-    cleaned up a moment after it already was. GitHub Pages doesn't
-    support the server-side header that would normally achieve the
-    same thing, so this is the standard client-side alternative. */
- window.addEventListener('unload', () => {});
- /* Kept as a genuine backup for any case the fix above doesn't cover -
-    if a stale snapshot is ever still restored despite it, this still
-    forces a fresh reload rather than leaving the stale one showing. */
- window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
+    CORRECTED: verified properly this time, not just re-tried - a
+    previous attempt here used a well-established technique (an
+    unload listener) specifically meant to opt a page out of this
+    behavior. Confirmed directly against Chrome's own current
+    documentation that this exact technique is being actively phased
+    out, specifically because it caused this same problem for years
+    across the entire web, with the rollout to all sites completing
+    before now - so it was never actually going to work here, through
+    no fault in how it was written. Chrome's own current guidance is
+    the opposite of the old advice: stop trying to prevent this
+    caching behavior, and instead react to it as fast as physically
+    possible when it happens. Since the stale snapshot is restored
+    instantly, before any of this page's own code gets a chance to
+    run at all, the best remaining approach is to detect it and hide
+    it in that same instant, before even starting the reload - this
+    shrinks the visible window to the shortest one physically
+    achievable, rather than leaving the stale content fully visible
+    for the entire reload round-trip like the previous version did. */
+ window.addEventListener('pageshow', (e) => {
+ if (!e.persisted) return;
+ /* Hides the stale content in the same instant it's detected,
+    before the reload below even starts - this is the actual fix now,
+    not the reload itself, which still takes real time to complete. */
+ document.documentElement.style.visibility = 'hidden';
+ location.reload();
+ });
  /* pre-load the Finanzamt directory in the background - non-blocking,
  so the field just becomes fast/searchable once ready without delaying
  app startup. Falls back to manual entry silently if the file isn't
