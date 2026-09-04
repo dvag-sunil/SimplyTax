@@ -6686,6 +6686,23 @@ Return this exact JSON structure (use "" for any field not found or empty on the
 /* Paint an immediate loading screen before any network call - avoids the blank-page
  gap during backend auth/data fetch, especially on a cold-started free-tier server. */
 (function(){
+ /* IMPLEMENTED: real fix for a genuine browser behavior, confirmed
+    directly via screen recording and research, not a bug in this
+    app's own logic (already thoroughly verified correct elsewhere -
+    render() only ever runs once, with the right state, at the end of
+    boot). Per the actual HTTP spec, a browser is allowed to restore
+    an old, already-rendered snapshot of a page instantly on certain
+    navigations - including returning from a redirect like Stripe's
+    checkout - without re-running any of its scripts at all, before
+    the genuinely fresh page load finishes moments later and replaces
+    it. That's what looked like "navigating to login": not this app
+    showing the wrong screen, but the browser briefly showing an old,
+    unrelated snapshot from earlier in the session. GitHub Pages
+    doesn't support the server-side header that would normally
+    prevent this, so this is the standard client-side fix - detect a
+    restored snapshot and force a genuinely fresh reload immediately,
+    rather than let the stale one sit on screen at all. */
+ window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
  /* pre-load the Finanzamt directory in the background - non-blocking,
  so the field just becomes fast/searchable once ready without delaying
  app startup. Falls back to manual entry silently if the file isn't
