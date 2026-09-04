@@ -791,7 +791,7 @@ en: {
  s6_lead:"Extraordinary burdens and household services (§ 35a EStG - 20% of labor costs are credited directly against the tax).",
  medical:"Medical costs (extraordinary burden)", household:"Household services (labor costs)", handwerker:"Craftsmen services (labor costs)",
  s7_lead:"Check all data. Submission goes to the tax authority - in this prototype the transmission is simulated.",
- submit_elster:"Submit to the tax authority", resubmit:"Submitted on", edit:"Edit",
+ submit_elster:"Submit to the tax authority", submit_elster_unpaid:"Review & pay to submit", resubmit:"Submitted on", edit:"Edit",
  personal:"Personal data", income:"Employment income", insurance:"Insurance", work_exp:"Werbungskosten (work-related expenses)", special_exp:"Special expenses", household_g:"Household & other",
  meter_title:"Estimated refund", meter_nach:"Estimated back payment",
  veranlagung_compare_title:"Joint or separate - which is better?", veranlagung_compare_hint:"A comparison based on everything entered so far. Shared household items (donations, property, children's costs, insurance) are split evenly between the two individual estimates below, since German tax law lets couples allocate these themselves - treat the separate figure as a close approximation, not an exact calculation.",
@@ -929,7 +929,7 @@ en: {
   freigabe_warnings_sub:"ERiC accepted this return, but the following items were sent using a safe default or were left out because the app cannot honestly determine them yet. Please double-check they are correct for your situation before proceeding.",
  freigabe_warnings_sub_rejected:"These items were also flagged, but they are not the reason this return was rejected - the error above is. Fix that first; these are worth reviewing once it does go through.",
   freigabe_checkbox:"I have reviewed this data and release it for transmission to the tax office.",
- freigabe_payment_next:"Payment ({price}) is the next step, before anything is actually sent.", freigabe_continue_to_payment:"Continue to payment",
+ freigabe_payment_next:"You will be asked to pay {price} next. Your tax return is only sent to the Finanzamt once that payment is complete.", freigabe_continue_to_payment:"Continue to payment",
  freigabe_submit:"Release & submit", freigabe_not_sent:"Not transmitted",
  freigabe_not_sent_hint:"The tax office did not confirm receipt. This is expected while ERiC setup is still in progress; nothing was lost, your data is saved and you can try again later.",
  eric_unavailable:"Submission service unavailable", eric_error:"Submission error", eric_code:"ERiC code",
@@ -1069,7 +1069,7 @@ en: {
  separated_hint:"Married but permanently living apart (dauernd getrennt lebend) - taxed individually like separate assessment; spouse identity is still recorded on the main form. In the YEAR the separation began, joint assessment may still be chosen - pick 'Married' instead for that specific filing year.",
  single_parent_hint:"Yes = at least one child lives in your household and no other adult lives with you. Relief: €4,260 + €240 per further child - applied automatically.",
   pay_title:"Unlock this tax return", pay_sub:"Preparation and calculation are free. Downloading the PDF summary and submitting to the tax authority are enabled after payment for this return (one-time, per return).",
-  pay_now:"Pay now", pay_with_paypal:"Pay with PayPal", pay_locked:"Locked until payment", paid_on:"Paid on",
+  pay_now:"Pay now", pay_with_paypal:"Pay with PayPal", pay_locked:"Submitting to the tax office requires payment ({price})", paid_on:"Paid on",
   pay_sim_note:"Prototype: the payment is simulated. In production, Stripe Checkout runs via the backend and a webhook unlocks the return.",
  pay_vat_note:"Price includes statutory VAT.", pay_agb_link:"Terms of service", pay_privacy_link:"Privacy policy",
  pay_withdrawal_ack:"I agree that the PDF download and submission are unlocked immediately, and I acknowledge that once this digital service has been fully provided, my 14-day right of withdrawal expires.",
@@ -1258,7 +1258,7 @@ de: {
  s6_lead:"Außergewöhnliche Belastungen und haushaltsnahe Leistungen (§ 35a EStG - 20 % der Arbeitskosten werden direkt von der Steuer abgezogen).",
  medical:"Krankheitskosten (außergew. Belastung)", household:"Haushaltsnahe Dienstleistungen (Arbeitskosten)", handwerker:"Handwerkerleistungen (Arbeitskosten)",
  s7_lead:"Alle Daten prüfen. Die Abgabe erfolgt an das Finanzamt - im Prototyp wird die Übermittlung simuliert.",
- submit_elster:"An das Finanzamt übermitteln", resubmit:"Übermittelt am", edit:"Bearbeiten",
+ submit_elster:"An das Finanzamt übermitteln", submit_elster_unpaid:"Prüfen & bezahlen zum Übermitteln", resubmit:"Übermittelt am", edit:"Bearbeiten",
  personal:"Persönliche Daten", income:"Arbeitslohn", insurance:"Vorsorge", work_exp:"Werbungskosten", special_exp:"Sonderausgaben", household_g:"Haushalt & Sonstiges",
  meter_title:"Voraussichtliche Erstattung", meter_nach:"Voraussichtliche Nachzahlung",
  veranlagung_compare_title:"Zusammen oder einzeln - was ist günstiger?", veranlagung_compare_hint:"Ein Vergleich auf Basis der bisher eingegebenen Daten. Gemeinsame Haushaltsposten (Spenden, Immobilie, Kinderkosten, Versicherungen) werden in den beiden Einzelschätzungen unten hälftig aufgeteilt, da das Gesetz Paaren hier eine eigene Aufteilung erlaubt - die Einzelveranlagungs-Zahl ist daher eine gute Näherung, keine exakte Berechnung.",
@@ -1396,7 +1396,7 @@ de: {
   freigabe_warnings_sub:"ERiC hat diese Erklärung angenommen, die folgenden Punkte wurden jedoch mit einem sicheren Standardwert übermittelt oder ausgelassen, da die App sie derzeit nicht zuverlässig ermitteln kann. Bitte prüfen Sie vor dem Fortfahren, ob dies für Ihre Situation zutrifft.",
  freigabe_warnings_sub_rejected:"Diese Punkte wurden ebenfalls angemerkt, sind aber nicht der Grund für die Ablehnung dieser Erklärung - das ist der obige Fehler. Bitte diesen zuerst beheben; diese Punkte lohnt es sich zu prüfen, sobald die Erklärung durchgeht.",
   freigabe_checkbox:"Ich habe diese Daten geprüft und gebe sie zur Übermittlung an das Finanzamt frei.",
- freigabe_payment_next:"Die Zahlung ({price}) ist der nächste Schritt, bevor tatsächlich etwas gesendet wird.", freigabe_continue_to_payment:"Weiter zur Zahlung",
+ freigabe_payment_next:"Als Nächstes werden Sie um die Zahlung von {price} gebeten. Ihre Steuererklärung wird erst nach erfolgter Zahlung an das Finanzamt gesendet.", freigabe_continue_to_payment:"Weiter zur Zahlung",
  freigabe_submit:"Freigeben & übermitteln", freigabe_not_sent:"Nicht übermittelt",
  freigabe_not_sent_hint:"Das Finanzamt hat den Eingang nicht bestätigt. Das ist erwartbar, solange die ERiC-Einrichtung noch läuft; es geht nichts verloren, Ihre Daten sind gespeichert und Sie können es später erneut versuchen.",
  eric_unavailable:"Übermittlungsdienst nicht verfügbar", eric_error:"Übermittlungsfehler", eric_code:"ERiC-Code",
@@ -1536,7 +1536,7 @@ de: {
  separated_hint:"Verheiratet, aber dauernd getrennt lebend - Einzelveranlagung wie bei getrennter Veranlagung; die Daten des Ehegatten werden weiterhin auf dem Hauptvordruck erfasst. Im Jahr des Trennungsbeginns ist die Zusammenveranlagung meist noch möglich - für dieses Jahr stattdessen 'Verheiratet' wählen.",
  single_parent_hint:"Ja = mindestens ein Kind lebt in Ihrem Haushalt und keine weitere volljährige Person wohnt bei Ihnen. Entlastung: 4.260 € + 240 € je weiteres Kind - wird automatisch angesetzt.",
  pay_title:"Diese Steuererklärung freischalten", pay_sub:"Erfassung und Berechnung sind kostenlos. PDF-Download und Übermittlung an das Finanzamt werden nach Zahlung für diese Erklärung freigeschaltet (einmalig, je Erklärung).",
-  pay_now:"Jetzt bezahlen", pay_with_paypal:"Mit PayPal bezahlen", pay_locked:"Bis zur Zahlung gesperrt", paid_on:"Bezahlt am",
+  pay_now:"Jetzt bezahlen", pay_with_paypal:"Mit PayPal bezahlen", pay_locked:"Die Übermittlung an das Finanzamt erfordert eine Zahlung ({price})", paid_on:"Bezahlt am",
   pay_sim_note:"Prototyp: Die Zahlung wird simuliert. In Produktion läuft Stripe Checkout über das Backend; ein Webhook schaltet die Erklärung frei.",
  pay_vat_note:"Preis inkl. gesetzlicher MwSt.", pay_agb_link:"AGB", pay_privacy_link:"Datenschutzerklärung",
  pay_withdrawal_ack:"Ich bin damit einverstanden, dass der PDF-Download und die Übermittlung sofort freigeschaltet werden, und weiß, dass mein 14-tägiges Widerrufsrecht mit vollständiger Erbringung dieser digitalen Leistung erlischt.",
@@ -5004,15 +5004,16 @@ function stepSummary(c){
  ${sumGroup(t('step_kap'),2,kapRows)}
  ${sumGroup(t('step_prop'),8,propRows)}
  ${sumGroup(t('household_g'),9,[[t('medical'),m(c.ex.medical)],[t('household'),m(c.ex.household)],[t('handwerker'),m(c.ex.handwerker)]])}
- <div style="margin-top:22px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;align-items:center">
- ${PAYMENT.enabled ? (isPaid(c)
- ? `<span class="chip submitted">✓ ${t('paid_on')} ${dateStr(c.pay.paidAt)} · ${c.pay.txId}</span>`
-  : `<span class="chip review">🔒 ${t('pay_locked')} - ${eurPrice(PAYMENT.pricePerReturn)}</span>`) : ''}
+  <div style="margin-top:22px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;align-items:center">
  <button class="btn btn-ghost" onclick="exportPDF()">📄 ${t('pdf_btn')}</button>
  <button class="btn btn-ghost" onclick="exportElster()">⇪ ${t('export_elster')}</button>
+ </div>
+ <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;align-items:center">
+ ${PAYMENT.enabled && isPaid(c) ? `<span class="chip submitted">✓ ${t('paid_on')} ${dateStr(c.pay.paidAt)} · ${c.pay.txId}</span>` : ''}
  ${submitted
  ? `<div class="extract-ok" style="text-align:center;margin-top:0">✓ ${t('resubmit')} ${dateStr(c.submittedAt)} · ${t('transfer_ticket')}: <b>${c.transferTicket}</b></div>`
- : `<button class="btn btn-amber" style="font-size:15px;padding:13px 30px" onclick="submitElster()">📤 ${t('submit_elster')}</button>`}
+ : `<button class="btn btn-amber" style="font-size:15px;padding:13px 30px" onclick="submitElster()">${(PAYMENT.enabled && !isPaid(c)) ? '💳 '+t('submit_elster_unpaid') : '📤 '+t('submit_elster')}</button>
+ ${PAYMENT.enabled && !isPaid(c) ? `<span style="font-size:12px;color:var(--ink-soft)">${t('pay_locked').replace('{price}', eurPrice(PAYMENT.pricePerReturn))}</span>` : ''}`}
  </div>`;
 }
 /* Real, styled modal replacing the browser's native alert() for
