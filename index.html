@@ -593,9 +593,11 @@ async function payWithPaypal(btn){
 async function handleStripeReturn(){
  let qs=null; try{ qs=new URLSearchParams(location.search); }catch(e){ return; }
  const sid=qs && qs.get('session_id'); if(!sid) return;
+ console.log('[DIAG] handleStripeReturn starting. S.loggedIn=', S.loggedIn, 'S.clients.length=', S.clients.length);
  try{
  if(PAYMENT.provider==='stripe_backend' && BACKEND.enabled){
- const r=await api('/api/payments/verify','POST',{sessionId:sid});
+  const r=await api('/api/payments/verify','POST',{sessionId:sid});
+ console.log('[DIAG] /api/payments/verify succeeded. r=', JSON.stringify(r));
  /* CORRECTED: real, confirmed bug found while directly investigating
     a report that the navigation fix below still wasn't working -
     S.clients is only populated inside loadState()'s success path,
@@ -608,21 +610,26 @@ async function handleStripeReturn(){
     would silently do nothing. A successful, auth-protected call here
     is itself proof the session is genuinely valid right now, so this
     no longer depends on that earlier check having already gone
-    right - it loads what's needed itself if it's missing. */
+     right - it loads what's needed itself if it's missing. */
  if(!S.loggedIn || !S.clients.length){
- try{ const me=await api('/api/auth/me'); S.user=me.user; await loadUserData(); S.loggedIn=true; startTokenRefreshTimer(); }
- catch(e){ /* genuinely not logged in - nothing more to do here */ }
+ console.log('[DIAG] fallback re-check triggered (S.loggedIn or S.clients was falsy)');
+ try{ const me=await api('/api/auth/me'); S.user=me.user; await loadUserData(); S.loggedIn=true; startTokenRefreshTimer(); console.log('[DIAG] fallback re-check SUCCEEDED. S.clients.length now=', S.clients.length); }
+ catch(e){ console.log('[DIAG] fallback re-check FAILED:', e.message); }
  }
  const c=S.clients.find(x=>x.id===r.clientId);
+ console.log('[DIAG] looking for clientId=', r.clientId, 'found=', !!c, 'in S.clients of length', S.clients.length);
  if(r.paid && c){
  c.pay={status:'paid',paidAt:Date.now(),amount:PAYMENT.pricePerReturn,txId:sid.slice(0,24)}; scheduleSave();
  /* Opens directly to this client's summary step (10 - the Review
     & Submit screen), the same fields openClient() sets elsewhere,
     but starting at the right step instead of its usual step 0, so
     there's no visible flash of the first form page before jumping
-     to the right one. */
+      to the right one. */
  S.currentId=c.id; S.step=10; S.view='client'; S.scanState=null; S.aiFields={};
   if(c._pendingSubmitData) S._pendingStartupModal='__post_payment_submit__';
+ console.log('[DIAG] navigation set: S.view=client, S.currentId=', c.id);
+ } else {
+ console.log('[DIAG] navigation NOT set - either r.paid was false or client was not found. r.paid=', r.paid);
  }
  } else if(PAYMENT.provider==='stripe_link'){
  const pend=await kvGet('klarsteuer-pending-pay');
@@ -634,7 +641,8 @@ async function handleStripeReturn(){
  }
  await kvDel('klarsteuer-pending-pay');
  }
- }catch(e){ console.error('stripe return:', e.message); }
+ }catch(e){ console.log('[DIAG] handleStripeReturn top-level catch fired:', e.message); }
+ console.log('[DIAG] handleStripeReturn ending. Final S.loggedIn=', S.loggedIn, 'S.view=', S.view);
   try{ history.replaceState({},'',location.pathname); }catch(e){}
 }
 /* on return from PayPal's approval page (return_url contains ?paypalOrderId=...) */
@@ -674,12 +682,30 @@ let tokenRefreshTimer = null;
    would still succeed or naturally reveal a genuinely expired session
    via the existing 401 handling, without this needing its own special
    error/logout logic. */
+/* IMPLEMENTED: real, confirmed problem found directly in a network
+   log - roughly ten separate calls to /api/auth/refresh firing in a
+   short window, far more than the timer below or the visibility
+   listener should ever produce on their own. A single-flight guard -
+   if a refresh is already in progress, every other caller now waits
+   for and reuses that same request instead of starting a new,
+   overlapping one. This also closes a real race condition that
+   existed regardless of what was triggering the extra calls: an
+   older response resolving after a newer one could have silently
+   overwritten a valid, fresh token with a stale one. */
+let refreshInFlight = null;
+async function refreshAuthToken(){
+ if(refreshInFlight) return refreshInFlight;
+ refreshInFlight = (async () => {
+ try{ const r = await api('/api/auth/refresh','POST'); authToken = r.token; }
+ finally{ refreshInFlight = null; }
+ })();
+ return refreshInFlight;
+}
 function startTokenRefreshTimer(){
  if(tokenRefreshTimer) clearInterval(tokenRefreshTimer);
- tokenRefreshTimer = setInterval(async () => {
+ tokenRefreshTimer = setInterval(() => {
  if(!S.loggedIn || !BACKEND.enabled) return;
-  try{ const r = await api('/api/auth/refresh','POST'); authToken = r.token; }
- catch(e){ /* best-effort - see comment above */ }
+ refreshAuthToken().catch(()=>{ /* best-effort - see comment above */ });
   }, 30*60*1000); // every 30 minutes, well within the 2-hour token window
 }
 /* IMPLEMENTED: addresses the actual root cause behind a reported
@@ -691,10 +717,9 @@ function startTokenRefreshTimer(){
    tab backgrounded for a while. Refreshing again the moment the tab
    becomes visible catches a missed tick before the person ever
    reaches submit, rather than only surfacing as an error afterward. */
-document.addEventListener('visibilitychange', async () => {
+document.addEventListener('visibilitychange', () => {
  if(document.visibilityState!=='visible' || !S.loggedIn || !BACKEND.enabled) return;
- try{ const r = await api('/api/auth/refresh','POST'); authToken = r.token; }
- catch(e){ /* best-effort, same as the timer above - a genuinely expired session still surfaces normally via the existing 401 handling */ }
+ refreshAuthToken().catch(()=>{ /* best-effort, same as the timer above - a genuinely expired session still surfaces normally via the existing 401 handling */ });
 });
 async function api(path, method='GET', body){
  const r = await fetch(BACKEND.baseUrl+path, {
@@ -1967,8 +1992,8 @@ async function loadState(){
     browser, so there's nothing to check for locally first. Simply
     attempts /api/auth/me; success means a valid session exists,
     failure means it doesn't or has expired. */
- try{ const r=await api('/api/auth/me'); S.user=r.user; await loadUserData(); S.loggedIn=true; S.view='dash'; startTokenRefreshTimer(); }
- catch(e){ /* no valid session - show the login screen, the default state */ }
+  try{ const r=await api('/api/auth/me'); S.user=r.user; await loadUserData(); S.loggedIn=true; S.view='dash'; startTokenRefreshTimer(); console.log('[DIAG] loadState: /api/auth/me SUCCEEDED'); }
+ catch(e){ console.log('[DIAG] loadState: /api/auth/me FAILED:', e.message); }
  return;
  }
  const acc=await kvGet('klarsteuer-accounts'); if(acc){ try{ S.accounts=JSON.parse(acc)||[]; }catch(e){} }
@@ -6756,9 +6781,9 @@ Return this exact JSON structure (use "" for any field not found or empty on the
  const el=document.getElementById('boot-msg');
  if(el) el.textContent = STR[langGuess]?.loading_slow || STR.en.loading_slow;
  }, 3000);
- (async()=>{
+  (async()=>{
   try{ await loadState(); await handleStripeReturn(); await handlePaypalReturn(); }
- finally{ clearTimeout(slowTimer); render(); }
+ finally{ clearTimeout(slowTimer); console.log('[DIAG] about to call the ONE final render(). S.loggedIn=', S.loggedIn, 'S.view=', S.view); render(); }
  })();
 })();
 </script>
