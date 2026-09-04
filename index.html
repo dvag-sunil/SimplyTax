@@ -139,8 +139,9 @@
  .csub{font-size:12.5px;color:var(--ink-soft)}
  .chip{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:3px 11px;font-size:12.5px;font-weight:600}
  .chip::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
- .chip.draft{background:var(--blue-soft);color:#3A5A7C}
+  .chip.draft{background:var(--blue-soft);color:#3A5A7C}
  .chip.review{background:var(--amber-soft);color:var(--amber)}
+ .chip.paid_pending{background:var(--amber-soft);color:var(--amber)}
  .chip.submitted{background:var(--teal-soft);color:var(--teal)}
  .refund-cell{font-weight:700}
  .refund-cell.pos{color:var(--teal)} .refund-cell.neg{color:var(--red)}
@@ -753,7 +754,7 @@ en: {
   search_ph:"Search by name...", all_statuses:"All statuses", all_years:"All years",
    new_client:"Start a tax return", client:"Name", tax_year:"Tax year", status:"Status", est_refund:"Est. refund", updated:"Updated",
    
- status_draft:"Draft", status_review:"In review", status_submitted:"Submitted",
+  status_draft:"Draft", status_review:"In review", status_submitted:"Submitted", status_paid_pending:"Paid, not submitted",
   empty_title:"No tax returns yet", empty_sub:"Start your first tax return.",
  first_name:"First name", last_name:"Last name", marital:"Marital status",
  single:"Single", married:"Married - joint assessment (Zusammenveranlagung)",
@@ -1220,7 +1221,7 @@ de: {
   search_ph:"Nach Name suchen...", all_statuses:"Alle Status", all_years:"Alle Jahre",
    new_client:"Neue Steuererklärung", client:"Name", tax_year:"Steuerjahr", status:"Status", est_refund:"Gesch. Erstattung", updated:"Aktualisiert",
    
- status_draft:"Entwurf", status_review:"In Prüfung", status_submitted:"Übermittelt",
+  status_draft:"Entwurf", status_review:"In Prüfung", status_submitted:"Übermittelt", status_paid_pending:"Bezahlt, nicht übermittelt",
   empty_title:"Noch keine Steuererklärung", empty_sub:"Beginnen Sie Ihre erste Steuererklärung.",
  first_name:"Vorname", last_name:"Nachname", marital:"Familienstand",
  single:"Ledig", married:"Verheiratet - Zusammenveranlagung",
@@ -2932,8 +2933,17 @@ function loginView(){
 }
 
 /* ---------------- dashboard ---------------- */
-function chip(status){
- const map={draft:['draft',t('status_draft')],review:['review',t('status_review')],submitted:['submitted',t('status_submitted')]};
+function chip(c){
+ /* CORRECTED: real gap, reported directly - this only ever looked at
+    c.status, which never changes on payment alone, only on an actual
+    submission. A return genuinely paid for but not yet submitted was
+    showing the exact same generic "Draft" label as one barely
+    started at all - losing a real, meaningful distinction the person
+    actually cares about. Takes the full client record now, not just
+    the bare status string, so it can check payment status too. */
+ const paidNotSubmitted = c.status !== 'submitted' && c.pay && c.pay.status === 'paid';
+ const status = paidNotSubmitted ? 'paid_pending' : c.status;
+ const map={draft:['draft',t('status_draft')],review:['review',t('status_review')],submitted:['submitted',t('status_submitted')],paid_pending:['paid_pending',t('status_paid_pending')]};
  const m=map[status]||map.draft; return `<span class="chip ${m[0]}">${m[1]}</span>`;
 }
 function dashView(){
@@ -2943,7 +2953,11 @@ function dashView(){
  let list = cs.filter(c=>{
  const name=(c.p.firstName+' '+c.p.lastName).toLowerCase();
  if(S.search && !name.includes(S.search.toLowerCase())) return false;
- if(S.fStatus!=='all' && c.status!==S.fStatus) return false;
+  if(S.fStatus!=='all'){
+ const paidNotSubmitted = c.status !== 'submitted' && c.pay && c.pay.status === 'paid';
+ const effectiveStatus = paidNotSubmitted ? 'paid_pending' : c.status;
+ if(effectiveStatus !== S.fStatus) return false;
+ }
  if(S.fYear!=='all' && String(c.taxYear)!==S.fYear) return false;
  return true;
  }).sort((a,b)=>b.updatedAt-a.updatedAt);
@@ -2956,7 +2970,7 @@ function dashView(){
  <span class="cname">${esc(c.p.firstName)} ${esc(c.p.lastName)}</span>
  <div class="csub" style="margin-left:44px">${esc(c.p.city||' - ')}</div></td>
  <td class="num">${c.taxYear}</td>
- <td>${chip(c.status)}${(c.inq||[]).some(q=>q.status==='open')?` <span class="chip review" title="${t('step_inq')}">❓ ${(c.inq||[]).filter(q=>q.status==='open').length}</span>`:''}</td>
+ <td>${chip(c)}${(c.inq||[]).some(q=>q.status==='open')?` <span class="chip review" title="${t('step_inq')}">❓ ${(c.inq||[]).filter(q=>q.status==='open').length}</span>`:''}</td>
  <td class="refund-cell num ${cls}">${(e.paid>0||e.zvE>0||e.kap>0)?eur(e.refund):' - '}</td>
  <td class="csub num">${dateStr(c.updatedAt)}</td>
  <td style="text-align:right;white-space:nowrap">
@@ -2996,7 +3010,8 @@ function dashView(){
  <div class="search">🔎<input placeholder="${t('search_ph')}" value="${esc(S.search)}" oninput="S.search=this.value;renderKeepFocus(this)"></div>
  <select class="filter-sel" onchange="S.fStatus=this.value;render()">
  <option value="all" ${S.fStatus==='all'?'selected':''}>${t('all_statuses')}</option>
- <option value="draft" ${S.fStatus==='draft'?'selected':''}>${t('status_draft')}</option>
+  <option value="draft" ${S.fStatus==='draft'?'selected':''}>${t('status_draft')}</option>
+ <option value="paid_pending" ${S.fStatus==='paid_pending'?'selected':''}>${t('status_paid_pending')}</option>
  <option value="review" ${S.fStatus==='review'?'selected':''}>${t('status_review')}</option>
  <option value="submitted" ${S.fStatus==='submitted'?'selected':''}>${t('status_submitted')}</option>
  </select>
@@ -3619,7 +3634,7 @@ function clientView(){
  </div>` : '';
  return `<main>
  ${unresolvedBanner}
- <div class="crumbs"><a onclick="goDash()">← ${t('back_dash')}</a> &nbsp;/&nbsp; <b>${esc(c.p.firstName)} ${esc(c.p.lastName)}</b> · ${t('tax_year')} ${c.taxYear} · ${chip(c.status)}
+ <div class="crumbs"><a onclick="goDash()">← ${t('back_dash')}</a> &nbsp;/&nbsp; <b>${esc(c.p.firstName)} ${esc(c.p.lastName)}</b> · ${t('tax_year')} ${c.taxYear} · ${chip(c)}
  <span style="float:right;position:relative">
  <button class="btn-sm link-btn" onclick="event.stopPropagation();toggleAppSearch()" title="${t('search_title')}">🔍 ${t('search_title')}</button>
  ${S.searchOpen?searchBox(c):''}
