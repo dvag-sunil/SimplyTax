@@ -5600,10 +5600,22 @@ function showFreigabeModal(c, data, validateResult){
     be able to wave through a genuine, unresolved gap - so the fix
     here is to catch this before the button is even clickable, not to
     weaken the backend check. */
-   const ericOk = validateResult && validateResult.ok;
+    const ericOk = validateResult && validateResult.ok;
  const materialWarnings = allWarnings.filter(w => w.startsWith('[MATERIAL]'));
  const unresolvedWarnings = allWarnings.filter(w => w.startsWith('[UNRESOLVED]'));
- const warnings = allWarnings.filter(w => !w.startsWith('[MATERIAL]') && !w.startsWith('[UNRESOLVED]'));
+ /* IMPLEMENTED: real, fair design point raised directly - something
+    already actively confirmed by the person, via a deliberate action
+    like the foreign-income checkbox, is genuinely different from
+    something the system silently defaulted without ever asking (like
+    the AfA depreciation note just below, which stays visible on
+    purpose since nobody actually approved that choice). A confirmed
+    item doesn't belong in a "please double-check this" list anymore -
+    showing it there again looked like the confirmation hadn't been
+    respected, which is exactly the confusion this was raised over.
+    The actual record of what was confirmed and when is still kept in
+    the real submitted data and audit log - this only changes what
+    shows on this specific screen. */
+ const warnings = allWarnings.filter(w => !w.startsWith('[MATERIAL]') && !w.startsWith('[UNRESOLVED]') && !w.startsWith('[CONFIRMED]'));
  const valid = ericOk && materialWarnings.length === 0;
  /* CORRECTED: real gap found via direct feedback - the app only ever
     showed one generic sentence ("ERiC could not confirm...") and threw

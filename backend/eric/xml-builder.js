@@ -2876,7 +2876,7 @@ function buildEStXML(data, opts = {}) {
       if (!(N(p.mieteinnahmen) > 0)) {
         skippedSections.push(`${label}: a foreign country is set but no rental income was entered - nothing was transmitted for this property.`);
       } else if (p.dbaTreatmentConfirmed) {
-        skippedSections.push(`${label}: foreign rental income was transmitted on Anlage AUS as tax-exempt income with Progressionsvorbehalt - confirmed by the user as the correct treatment for this country's tax treaty.`);
+         skippedSections.push(`[CONFIRMED] ${label}: foreign rental income was transmitted on Anlage AUS as tax-exempt income with Progressionsvorbehalt - confirmed by the user as the correct treatment for this country's tax treaty.`);
       } else {
         skippedSections.push(`[UNRESOLVED] ${label}: foreign rental income was NOT transmitted. Anlage AUS requires knowing whether this country's tax treaty exempts this income (with Progressionsvorbehalt) or credits foreign tax instead - a per-country legal question this app does not decide. This property's income is left out of this submission until confirmed. The rest of the return was not held up by this.`);
       }
