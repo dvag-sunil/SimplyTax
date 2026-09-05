@@ -646,10 +646,14 @@ async function handleStripeReturn(){
  console.log('[DIAG] handleStripeReturn ending. Final S.loggedIn=', S.loggedIn, 'S.view=', S.view);
   try{ history.replaceState({},'',location.pathname); }catch(e){}
 }
-/* on return from PayPal's approval page (return_url contains ?paypalOrderId=...) */
+/* on return from PayPal's approval page - PayPal itself appends its
+   own "token" query parameter (the order ID) when redirecting back,
+   confirmed directly against PayPal's own documentation - there's no
+   custom parameter to add on our own side, unlike Stripe's
+   {CHECKOUT_SESSION_ID} substitution which PayPal doesn't support. */
 async function handlePaypalReturn(){
  let qs=null; try{ qs=new URLSearchParams(location.search); }catch(e){ return; }
- const orderId=qs && qs.get('paypalOrderId'); if(!orderId) return;
+ const orderId=qs && qs.get('token'); if(!orderId) return;
  try{
    const r=await api('/api/payments/paypal/capture','POST',{orderId});
  /* Same real fix as handleStripeReturn above, for the same reason -

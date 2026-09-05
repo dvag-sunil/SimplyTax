@@ -1108,7 +1108,17 @@ app.post('/api/payments/paypal/create-order', auth, async (req, res) => {
         description: 'SimplyTax — Freischaltung Steuererklärung' + (code ? ` (${code})` : ''),
       }],
       application_context: {
-        return_url: FRONTEND_URL + '?paypalOrderId={id}',
+         /* CORRECTED: real, confirmed cause of a reported failure - PayPal
+           genuinely rejects this kind of template placeholder in
+           return_url outright, confirmed directly by the actual error
+           it returns. Unlike Stripe's {CHECKOUT_SESSION_ID}
+           substitution, PayPal doesn't support this at all - every
+           official PayPal example uses a plain URL with nothing
+           appended. PayPal instead automatically adds its own
+           "token" query parameter (the order ID itself) when
+           redirecting the buyer back, confirmed across multiple
+           official examples - the frontend reads that instead now. */
+        return_url: FRONTEND_URL,
         cancel_url: FRONTEND_URL,
       },
     }),
