@@ -1140,14 +1140,28 @@ app.post('/api/payments/paypal/capture', auth, async (req, res) => {
      (see below) surfaces here as an error PayPal itself reports as
      ORDER_ALREADY_CAPTURED - treated as success too, since the money
      already genuinely moved, just via the other path. */
-  const alreadyCaptured = !r.ok && order.name === 'UNPROCESSABLE_ENTITY' &&
+   const alreadyCaptured = !r.ok && order.name === 'UNPROCESSABLE_ENTITY' &&
     (order.details || []).some(d => d.issue === 'ORDER_ALREADY_CAPTURED');
   if (!r.ok && !alreadyCaptured) return res.json({ paid: false });
+  /* CORRECTED: real, confirmed bug caught by directly checking
+     PayPal's own documented error format, not assumed correct -
+     their error response for this specific case is a generic error
+     shape (name, message, details) with no order data in it at all,
+     so the extraction below would always have failed exactly when
+     this path was meant to handle it. Fetches the real order
+     separately via PayPal's own "show order details" endpoint in
+     that case, which returns the genuine order regardless of its
+     capture history. */
+  const realOrder = alreadyCaptured
+    ? await (await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders/${orderId}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      })).json()
+    : order;
   let custom;
-  try { custom = JSON.parse(order.purchase_units?.[0]?.custom_id || order.purchase_units?.[0]?.payments?.captures?.[0]?.custom_id || '{}'); }
+  try { custom = JSON.parse(realOrder.purchase_units?.[0]?.custom_id || realOrder.purchase_units?.[0]?.payments?.captures?.[0]?.custom_id || '{}'); }
   catch (e) { custom = {}; }
   if (!custom.userId || !custom.clientId || custom.userId !== req.user.sub) return res.json({ paid: false });
-  const capture = order.purchase_units?.[0]?.payments?.captures?.[0];
+  const capture = realOrder.purchase_units?.[0]?.payments?.captures?.[0];
   const amountCents = capture ? Math.round(parseFloat(capture.amount.value) * 100) : PRICE_CENTS;
   await markPaid(custom.userId, custom.clientId, 'pp_' + orderId, amountCents);
   res.json({ paid: true, clientId: custom.clientId });
