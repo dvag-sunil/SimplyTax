@@ -5008,8 +5008,7 @@ function stepSummary(c){
  N(a.workDaysForeign)>0?t('work_days_abroad')+': '+a.workDaysForeign+'/'+N(a.workDaysTotal):'',
  a.legalBasis?t('legal_basis')+': '+a.legalBasis.toUpperCase():''].filter(Boolean).join(' · '))];
  });
- return `<h2>${t('step7')}</h2><p class="lead">${t('s7_lead')}</p>
- ${(c.p.marital==='married'||c.p.marital==='married_sep') ? veranlagungCompareCard(c) : ''}
+  return `<h2>${t('step7')}</h2><p class="lead">${t('s7_lead')}</p>
  ${sumGroup(t('personal'),0,[
  [t('client'),esc(c.p.firstName+' '+c.p.lastName)],
  [t('birth_date'),esc(c.p.birthDate)],
