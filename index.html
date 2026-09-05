@@ -654,23 +654,31 @@ async function handleStripeReturn(){
 async function handlePaypalReturn(){
  let qs=null; try{ qs=new URLSearchParams(location.search); }catch(e){ return; }
  const orderId=qs && qs.get('token'); if(!orderId) return;
+ console.log('[DIAG] handlePaypalReturn starting at', Date.now(), '- S.loggedIn=', S.loggedIn, 'S.clients.length=', S.clients.length);
  try{
    const r=await api('/api/payments/paypal/capture','POST',{orderId});
+ console.log('[DIAG] /api/payments/paypal/capture returned at', Date.now(), '- r=', JSON.stringify(r));
  /* Same real fix as handleStripeReturn above, for the same reason -
     a successful, auth-protected call here is proof the session is
     genuinely valid now, regardless of whether the earlier, separate
     session check succeeded. */
  if(!S.loggedIn || !S.clients.length){
- try{ const me=await api('/api/auth/me'); S.user=me.user; await loadUserData(); S.loggedIn=true; startTokenRefreshTimer(); }
- catch(e){ /* genuinely not logged in - nothing more to do here */ }
+ console.log('[DIAG] fallback re-check triggered at', Date.now());
+ try{ const me=await api('/api/auth/me'); S.user=me.user; await loadUserData(); S.loggedIn=true; startTokenRefreshTimer(); console.log('[DIAG] fallback re-check SUCCEEDED at', Date.now(), '- S.clients.length now=', S.clients.length); }
+ catch(e){ console.log('[DIAG] fallback re-check FAILED at', Date.now(), ':', e.message); }
  }
  const c=S.clients.find(x=>x.id===r.clientId);
+ console.log('[DIAG] looking for clientId=', r.clientId, 'found=', !!c, 'at', Date.now());
  if(r.paid && c){
   c.pay={status:'paid',paidAt:Date.now(),amount:PAYMENT.pricePerReturn,txId:('pp_'+orderId).slice(0,24)}; scheduleSave();
  S.currentId=c.id; S.step=10; S.view='client'; S.scanState=null; S.aiFields={};
  if(c._pendingSubmitData) S._pendingStartupModal='__post_payment_submit__';
+ console.log('[DIAG] navigation set at', Date.now());
+ } else {
+ console.log('[DIAG] navigation NOT set at', Date.now(), '- r.paid=', r.paid);
  }
- }catch(e){ console.error('paypal return:', e.message); }
+ }catch(e){ console.log('[DIAG] handlePaypalReturn top-level catch fired at', Date.now(), ':', e.message); }
+ console.log('[DIAG] handlePaypalReturn ending at', Date.now(), '- Final S.loggedIn=', S.loggedIn, 'S.view=', S.view);
  try{ history.replaceState({},'',location.pathname); }catch(e){}
 }
 let authToken = null;
@@ -1997,8 +2005,8 @@ async function loadState(){
     browser, so there's nothing to check for locally first. Simply
     attempts /api/auth/me; success means a valid session exists,
     failure means it doesn't or has expired. */
-  try{ const r=await api('/api/auth/me'); S.user=r.user; await loadUserData(); S.loggedIn=true; S.view='dash'; startTokenRefreshTimer(); console.log('[DIAG] loadState: /api/auth/me SUCCEEDED'); }
- catch(e){ console.log('[DIAG] loadState: /api/auth/me FAILED:', e.message); }
+   try{ const r=await api('/api/auth/me'); S.user=r.user; await loadUserData(); S.loggedIn=true; S.view='dash'; startTokenRefreshTimer(); console.log('[DIAG] loadState: /api/auth/me SUCCEEDED at', Date.now()); }
+ catch(e){ console.log('[DIAG] loadState: /api/auth/me FAILED at', Date.now(), ':', e.message); }
  return;
  }
  const acc=await kvGet('klarsteuer-accounts'); if(acc){ try{ S.accounts=JSON.parse(acc)||[]; }catch(e){} }
@@ -6821,9 +6829,10 @@ Return this exact JSON structure (use "" for any field not found or empty on the
  const el=document.getElementById('boot-msg');
  if(el) el.textContent = STR[langGuess]?.loading_slow || STR.en.loading_slow;
  }, 3000);
-  (async()=>{
+   (async()=>{
+  console.log('[DIAG] boot sequence starting at', Date.now());
   try{ await loadState(); await handleStripeReturn(); await handlePaypalReturn(); }
- finally{ clearTimeout(slowTimer); console.log('[DIAG] about to call the ONE final render(). S.loggedIn=', S.loggedIn, 'S.view=', S.view); render(); }
+  finally{ clearTimeout(slowTimer); console.log('[DIAG] about to call the ONE final render() at', Date.now(), '. S.loggedIn=', S.loggedIn, 'S.view=', S.view); render(); }
  })();
 })();
 </script>
