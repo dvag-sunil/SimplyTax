@@ -1113,10 +1113,23 @@ app.post('/api/payments/paypal/create-order', auth, async (req, res) => {
       },
     }),
   });
-  if (!r.ok) return res.status(502).json({ error: 'paypal_order_failed' });
+   if (!r.ok) {
+    /* CORRECTED: real, confirmed gap - the actual, specific reason
+       PayPal rejected this request was never read or logged
+       anywhere, only a generic error code sent to the frontend.
+       Logging the real response body here so the actual cause is
+       visible in the server's own logs, not hidden behind a generic
+       message neither of us could diagnose from. */
+    const errBody = await r.text().catch(() => '(could not read response body)');
+    console.error(`[paypal] create-order failed, status ${r.status}:`, errBody);
+    return res.status(502).json({ error: 'paypal_order_failed' });
+  }
   const order = await r.json();
   const approveLink = (order.links || []).find(l => l.rel === 'approve');
-  if (!approveLink) return res.status(502).json({ error: 'paypal_order_failed' });
+  if (!approveLink) {
+    console.error('[paypal] create-order succeeded but no approve link was returned:', JSON.stringify(order));
+    return res.status(502).json({ error: 'paypal_order_failed' });
+  }
   res.json({ url: approveLink.href, orderId: order.id });
 });
 
