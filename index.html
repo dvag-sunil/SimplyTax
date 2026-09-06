@@ -6780,8 +6780,31 @@ Return this exact JSON structure (use "" for any field not found or empty on the
     shrinks the visible window to the shortest one physically
     achievable, rather than leaving the stale content fully visible
     for the entire reload round-trip like the previous version did. */
+   /* IMPLEMENTED: restored after further research, alongside the fix
+    below rather than instead of it - the earlier decision to remove
+    this was based specifically on Google Chrome's own deprecation of
+    honoring this signal, but Brave (a separately-maintained browser
+    sharing Chrome's engine, not Chrome itself) doesn't necessarily
+    follow that same rollout schedule, and current documentation
+    still describes this as disabling the cache "on most browsers" in
+    the present tense, not as something universally obsolete. Costs
+    nothing to keep both in place at once. */
+ window.addEventListener('unload', () => {});
  window.addEventListener('pageshow', (e) => {
+ /* IMPLEMENTED: real, direct gap in the diagnostics up to now - this
+    fires as part of an OLD, resumed page's own execution if a stale
+    snapshot is ever restored, not as part of a fresh load. That's
+    exactly why nothing about this ever showed up in any previous log
+    even with Preserve log on - a resumed page doesn't re-run its
+    script from scratch, so it has nothing new to log unless
+    something inside it explicitly does, which this never did before.
+    Logging every time this fires, and the actual value of
+    e.persisted specifically, is the direct way to finally prove or
+    disprove this mechanism, rather than continuing to infer it
+    indirectly from timing alone. */
+ console.log('[DIAG] pageshow fired at', Date.now(), '- e.persisted=', e.persisted);
  if (!e.persisted) return;
+ console.log('[DIAG] persisted restore detected - hiding stale content and reloading now at', Date.now());
  /* Hides the stale content in the same instant it's detected,
     before the reload below even starts - this is the actual fix now,
     not the reload itself, which still takes real time to complete. */
