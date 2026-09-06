@@ -6811,11 +6811,23 @@ Return this exact JSON structure (use "" for any field not found or empty on the
  document.documentElement.style.visibility = 'hidden';
  location.reload();
  });
- /* pre-load the Finanzamt directory in the background - non-blocking,
- so the field just becomes fast/searchable once ready without delaying
- app startup. Falls back to manual entry silently if the file isn't
- deployed yet (see loadFinanzamtDirectory's own fallback). */
- loadFinanzamtDirectory().then(()=>render());
+  /* CORRECTED: this is the actual, confirmed root cause of a
+    long-running reported bug, found by extracting real screenshots
+    from a performance trace and tracing the visible login screen
+    back to this exact line - not the browser cache, not the CDN, not
+    the login-check sequence itself (all genuinely ruled out first).
+    This call fires whenever this background, same-origin fetch
+    finishes, completely independently of whether the real login
+    check - a slower, cross-origin round trip to a different server -
+    has finished confirming the session yet. Being same-origin and
+    fast, this one was very often winning that race, calling render()
+    while the login state still sat at its default, unconfirmed
+    value - which render() then drew, correctly and faithfully, as
+    the login screen, even though that wasn't the real, final answer.
+    Now this only draws if the real boot sequence has already
+    finished; otherwise this data will be there anyway, naturally,
+    once that sequence's own, correctly-timed draw happens. */
+ loadFinanzamtDirectory().then(()=>{ if(bootComplete) render(); });
  /* password-reset deep link from the email */
  try{
  if(typeof location!=='undefined' && location.search){
@@ -6852,10 +6864,16 @@ Return this exact JSON structure (use "" for any field not found or empty on the
  const el=document.getElementById('boot-msg');
  if(el) el.textContent = STR[langGuess]?.loading_slow || STR.en.loading_slow;
  }, 3000);
+ /* Set true only once the real boot sequence below has actually
+    drawn the correct, final screen - the signal the background
+    Finanzamt-directory fetch above waits on before it's allowed to
+    trigger its own render(), so it can never draw the screen first
+    with a still-unconfirmed login state. */
+ let bootComplete = false;
    (async()=>{
   console.log('[DIAG] boot sequence starting at', Date.now());
   try{ await loadState(); await handleStripeReturn(); await handlePaypalReturn(); }
-  finally{ clearTimeout(slowTimer); console.log('[DIAG] about to call the ONE final render() at', Date.now(), '. S.loggedIn=', S.loggedIn, 'S.view=', S.view); render(); }
+  finally{ clearTimeout(slowTimer); bootComplete = true; console.log('[DIAG] about to call the ONE final render() at', Date.now(), '. S.loggedIn=', S.loggedIn, 'S.view=', S.view); render(); }
  })();
 })();
 </script>
