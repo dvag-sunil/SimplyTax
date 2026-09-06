@@ -1026,16 +1026,21 @@ app.delete('/api/clients/:id', auth, async (req, res) => {
 /* create a Checkout session for one return */
 /* Discount codes - server-side source of truth. Must be kept in sync with the DISCOUNTS
    table in index.html if you also run the 'simulated' payment mode; for real Stripe
-   payments THIS table is the only one that actually determines the amount charged. */
+   payments THIS table is the only one that actually determines the amount charged.
+   type:'percent' (0-100), 'fixed' (EUR off), or 'final' (sets the absolute final price
+   in EUR directly, regardless of the base price - for codes meant to always land on one
+   specific total). */
 const DISCOUNTS = {
   WELCOME10: { type: 'percent', value: 10 },
   SAVE5: { type: 'fixed', value: 5 },
+  TAXFILE: { type: 'final', value: 10 },
 };
 function discountedCents(code) {
   const d = DISCOUNTS[String(code || '').trim().toUpperCase()];
   if (!d) return { cents: PRICE_CENTS, code: null };
-  const off = d.type === 'percent' ? Math.round(PRICE_CENTS * d.value / 100) : Math.round(d.value * 100);
-  return { cents: Math.max(50, PRICE_CENTS - off), code: String(code).trim().toUpperCase() };  // never below 0.50 EUR
+  const cents = d.type === 'final' ? Math.round(d.value * 100)
+    : PRICE_CENTS - (d.type === 'percent' ? Math.round(PRICE_CENTS * d.value / 100) : Math.round(d.value * 100));
+  return { cents: Math.max(50, cents), code: String(code).trim().toUpperCase() };  // never below 0.50 EUR
 }
 
 app.post('/api/payments/checkout', auth, async (req, res) => {

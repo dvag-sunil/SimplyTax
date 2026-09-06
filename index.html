@@ -275,19 +275,23 @@
  backend (see /backend). false = local/browser storage only (current mode).
 ===================================================================== */
 const BACKEND = { enabled:true, baseUrl:'__BACKEND_URL__' }; // ← Replaced automatically at deploy time by the GitHub Actions workflow (.github/workflows/deploy.yml) based on which branch triggered the build - never edit this value directly, edit the workflow's own URLs instead if a Render URL ever changes
-/* DISCOUNT CODES - edit this list to add/remove promo codes. type:'percent' (0-100) or 'fixed' (EUR off).
+/* DISCOUNT CODES - edit this list to add/remove promo codes. type:'percent' (0-100),
+ 'fixed' (EUR off), or 'final' (sets the absolute final price directly, regardless of
+ the base price - used for codes meant to always land on one specific total, since a
+ 'fixed' off-amount would silently drift if the base price ever changes later).
  Client-side table is used for the 'simulated' payment mode; for real Stripe payments the SAME codes
  must also exist in backend/server.js (DISCOUNTS) since the server is the source of truth for the
  actual amount charged - never trust a client-computed discount for a real payment. */
 const DISCOUNTS = {
  WELCOME10:{ type:'percent', value:10 },
- SAVE5:{ type:'fixed', value:5 }
+ SAVE5:{ type:'fixed', value:5 },
+ TAXFILE:{ type:'final', value:10 }
 };
 function computeDiscount(code, price){
  const d = DISCOUNTS[String(code||'').trim().toUpperCase()];
  if(!d) return null;
- const off = d.type==='percent' ? price*d.value/100 : d.value;
- const final = Math.max(0, Math.round((price-off)*100)/100);
+ const final = d.type==='final' ? Math.max(0, d.value)
+ : Math.max(0, Math.round((price-(d.type==='percent' ? price*d.value/100 : d.value))*100)/100);
  return { code:String(code).trim().toUpperCase(), off:Math.round((price-final)*100)/100, final };
 }
 /* PAYMENT TOGGLE - Steuerfuchs model: preparation & calculation free, payment unlocks
