@@ -1692,10 +1692,16 @@ app.post('/api/eric/inquiry-message', auth, async (req, res) => {
        never trusted from the client. Reuses the exact same
        ERIC_SUBMISSION_MODE-driven logic as /api/eric/submit above for
        consistency, rather than a second, separate on/off switch. */
-    const isProductionMode = process.env.ERIC_SUBMISSION_MODE === 'production';
+     const isProductionMode = process.env.ERIC_SUBMISSION_MODE === 'production';
+    /* Real, related gap found while fixing the datenartVersion issue
+       above - the tax number needs converting into ELSTER's specific
+       required format before use, the same genuine requirement the
+       main tax return submission already handles via this same
+       function, which this new route never called at all. */
+    const converted = await convertSteuernummerForSubmission({ hauptvordruck });
     const data = {
       meta: { testmerker: !isProductionMode },
-      hauptvordruck,
+      hauptvordruck: converted.hauptvordruck,
       inhalt: { subject, text },
       datenlieferant: stored.datenlieferant,
     };
@@ -1706,7 +1712,7 @@ app.post('/api/eric/inquiry-message', auth, async (req, res) => {
       attachment: attachmentOpt,
     });
 
-    const result = await ericService.submit(xml, 'Eing_sonstNachr_22');
+    const result = await ericService.submit(xml, 'SonstigeNachrichten_22');
     audit(req.user.sub, 'eric_inquiry_message', { clientId, inquiryId, rc: result.rc, sent: result.sent, transferTicket: result.transferTicket || null });
 
     if (result.sent) {
