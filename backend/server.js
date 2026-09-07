@@ -1730,9 +1730,11 @@ app.post('/api/eric/inquiry-message', auth, async (req, res) => {
       );
     }
 
-    res.json({
+     res.json({
       ok: result.sent,
       rc: result.rc,
+      resultXml: result.resultXml,
+      serverXml: result.serverXml,
       transferTicket: result.transferTicket || null,
       returncodeTH: result.returncodeTH || null,
       fehlertextTH: result.fehlertextTH || null,

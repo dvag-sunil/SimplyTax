@@ -5930,12 +5930,12 @@ async function attachInqFile(id, input){
     document storage elsewhere which also allows Word docs and images -
     checked again on the server regardless, since a client-side check
     alone is never authoritative. */
- if(!/\.pdf$/i.test(f.name) && f.type!=='application/pdf'){ alert(t('inq_attach_bad_type')); return; }
+ if(!/\.pdf$/i.test(f.name) && f.type!=='application/pdf'){ showInfoModal(t('inq_attach_bad_type')); return; }
  const dataUrl = await readDataUrl(f);
  if(!dataUrl) return;
  const base64 = dataUrl.slice(dataUrl.indexOf(',')+1);
  const bytes = Math.round(base64.length * 0.75);
- if(bytes > 10*1024*1024){ alert(t('inq_attach_too_big')); return; } // real, confirmed 10 MiB limit for this specific channel
+ if(bytes > 10*1024*1024){ showInfoModal(t('inq_attach_too_big')); return; } // real, confirmed 10 MiB limit for this specific channel
  S.inqAttachments = S.inqAttachments || {};
  S.inqAttachments[id] = { name:f.name, base64 };
  render();
@@ -5943,7 +5943,7 @@ async function attachInqFile(id, input){
 function removeInqAttachment(id){ if(S.inqAttachments) delete S.inqAttachments[id]; render(); }
 async function sendInq(id){
  const c=cur(); const q=(c.inq||[]).find(x=>x.id===id); if(!q) return;
- if(!(q.a||'').trim()){ alert(t('err_fields')); return; }
+ if(!(q.a||'').trim()){ showInfoModal(t('err_fields')); return; }
  const attachment = S.inqAttachments?.[id];
  /* The legally-required disclosure (see the comment on the string
     itself) has to be shown and acknowledged before anything with an
@@ -5964,6 +5964,24 @@ async function sendInq(id){
  }
  await sendInqNow(id);
 }
+/* IMPLEMENTED: real request, addressed directly - every failure path
+   below used to fall back to the browser's own native alert() box,
+   which looks and behaves nothing like the rest of this app. The
+   actual send failure now gets its own dedicated modal, matching the
+   exact same pattern already used for the main tax return submission's
+   own failure state (see performSubmission above) - a real error icon,
+   the genuine ELSTER return code, and ELSTER's own stated reason when
+   it provides one, rather than a generic message in a jarring, unstyled
+   dialog. */
+function showInquiryFailedModal(rc, fehlertext){
+ const slot=document.getElementById('modal-slot'); if(!slot) return;
+ slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal" style="text-align:center">
+ <div style="font-size:40px;margin-bottom:8px">⚠</div><h2>${t('inq_send_failed')}</h2>
+ <p style="color:var(--ink-soft);font-size:13.5px">${t('eric_code')}: <b>${esc(rc)}</b></p>
+ ${fehlertext ? `<p style="color:var(--ink-soft);font-size:12.5px;margin-top:8px">${esc(fehlertext)}</p>` : ''}
+ <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('close')}</button>
+ </div></div>`;
+}
 async function sendInqNow(id){
  const c=cur(); const q=(c.inq||[]).find(x=>x.id===id); if(!q) return;
  const attachment = S.inqAttachments?.[id];
@@ -5976,14 +5994,14 @@ async function sendInqNow(id){
  subject:q.q ? q.q.slice(0,99) : undefined, text:q.a,
  attachment: attachment ? { base64:attachment.base64, filename:attachment.name } : undefined,
  });
- if(!r.ok){ if(btn) setBtnBusy(btn,false); alert(t('inq_send_failed')+(r.fehlertextTH?' ('+r.fehlertextTH+')':'')); return; }
+ if(!r.ok){ if(btn) setBtnBusy(btn,false); showInquiryFailedModal(r.rc, r.fehlertextTH); return; }
  q.sentAt=Date.now(); q.ticket=r.transferTicket||null; q.status='answered';
  if(S.inqAttachments) delete S.inqAttachments[id];
  c.updatedAt=Date.now(); scheduleSave(); render();
  } catch(e){
  if(btn) setBtnBusy(btn,false);
- if(e && e.message==='eric_unavailable'){ alert(t('inq_eric_unavailable')); return; }
- alert(t('inq_send_failed'));
+ if(e && e.message==='eric_unavailable'){ showInfoModal(t('inq_eric_unavailable')); return; }
+ showInfoModal(t('inq_send_failed'));
  }
 }
 function delInq(id){ const c=cur(); c.inq=(c.inq||[]).filter(x=>x.id!==id); if(S.inqAttachments) delete S.inqAttachments[id]; c.updatedAt=Date.now(); scheduleSave(); render(); }
