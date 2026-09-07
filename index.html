@@ -275,25 +275,15 @@
  backend (see /backend). false = local/browser storage only (current mode).
 ===================================================================== */
 const BACKEND = { enabled:true, baseUrl:'__BACKEND_URL__' }; // ← Replaced automatically at deploy time by the GitHub Actions workflow (.github/workflows/deploy.yml) based on which branch triggered the build - never edit this value directly, edit the workflow's own URLs instead if a Render URL ever changes
-/* DISCOUNT CODES - edit this list to add/remove promo codes. type:'percent' (0-100),
- 'fixed' (EUR off), or 'final' (sets the absolute final price directly, regardless of
- the base price - used for codes meant to always land on one specific total, since a
- 'fixed' off-amount would silently drift if the base price ever changes later).
- Client-side table is used for the 'simulated' payment mode; for real Stripe payments the SAME codes
- must also exist in backend/server.js (DISCOUNTS) since the server is the source of truth for the
- actual amount charged - never trust a client-computed discount for a real payment. */
-const DISCOUNTS = {
- WELCOME10:{ type:'percent', value:10 },
- SAVE5:{ type:'fixed', value:5 },
- TAXFILE:{ type:'final', value:10 }
-};
-function computeDiscount(code, price){
- const d = DISCOUNTS[String(code||'').trim().toUpperCase()];
- if(!d) return null;
- const final = d.type==='final' ? Math.max(0, d.value)
- : Math.max(0, Math.round((price-(d.type==='percent' ? price*d.value/100 : d.value))*100)/100);
- return { code:String(code).trim().toUpperCase(), off:Math.round((price-final)*100)/100, final };
-}
+/* IMPLEMENTED: real, valid concern raised directly - discount codes and their actual
+ values used to live here, in the page's own JavaScript, readable by anyone who opened
+ the source - no cracking needed at all to find a code, even one meant to be private.
+ The actual codes and their values now live only on the server (see server.js), which
+ already was, and remains, the sole authority on what a real payment actually charges -
+ this change is about not letting code names be casually discoverable, not about
+ closing a payment-tampering risk, since none existed here to begin with. applyDiscount()
+ below now asks the server to check one code at a time instead of looking anything up
+ itself. */
 /* PAYMENT TOGGLE - Steuerfuchs model: preparation & calculation free, payment unlocks
  PDF download + ELSTER submission PER RETURN. Prototype simulates the payment;
  production connects Stripe Checkout via the backend (see production checklist). */
@@ -501,7 +491,7 @@ function showPayModal(){
  <div class="success-mark" style="background:var(--amber-soft);color:var(--amber)">🔒</div>
  <h2>${t('pay_title')}</h2>
  <p style="color:var(--ink-soft);font-size:14px;margin:8px 0 14px">${t('pay_sub')}</p>
- <div id="pay-amount-box">${payAmountHtml(applied ? computeDiscount(applied, PAYMENT.pricePerReturn) : null)}</div>
+ <div id="pay-amount-box">${payAmountHtml((applied && c.pay && c.pay.discountFinal!=null) ? { code:applied, final:c.pay.discountFinal, off:c.pay.discountOff } : null)}</div>
  <p style="font-size:11.5px;color:var(--ink-soft);margin:2px 0 0">${t('pay_vat_note')}</p>
  <div class="field" style="max-width:260px;margin:14px auto 0;text-align:left">
  <label>${t('discount_label')}</label>
@@ -537,17 +527,20 @@ function payAmountHtml(d){
  <div style="font-size:12.5px;color:var(--teal-dark);margin-top:2px">${t('discount_saved').replace('{amount}',eurPrice(d.off))}</div>`;
  return `<div class="ticket" style="font-family:Georgia,serif;font-size:24px;letter-spacing:0">${eurPrice(PAYMENT.pricePerReturn)}</div>`;
 }
-function applyDiscount(){
+async function applyDiscount(){
  const c=cur(); if(!c) return;
  const code=(document.getElementById('disc-code')?.value||'').trim();
  const msgEl=document.getElementById('disc-msg');
- if(!code){ c.pay={...(c.pay||{}), discountCode:null}; document.getElementById('pay-amount-box').innerHTML=payAmountHtml(null); if(msgEl) msgEl.classList.add('hidden'); return; }
- const d=computeDiscount(code, PAYMENT.pricePerReturn);
- if(!d){
+ if(!code){ c.pay={...(c.pay||{}), discountCode:null, discountFinal:null, discountOff:null}; document.getElementById('pay-amount-box').innerHTML=payAmountHtml(null); if(msgEl) msgEl.classList.add('hidden'); return; }
+ let r;
+ try{ r = await api('/api/payments/discount-preview','POST',{code}); }
+ catch(e){ if(msgEl){ msgEl.textContent=t('discount_invalid'); msgEl.style.color='var(--red)'; msgEl.classList.remove('hidden'); } return; }
+ if(!r.valid){
  if(msgEl){ msgEl.textContent=t('discount_invalid'); msgEl.style.color='var(--red)'; msgEl.classList.remove('hidden'); }
  return;
  }
- c.pay={ ...(c.pay||{}), discountCode:d.code };
+ const d = { code:r.code, final:r.finalCents/100, off:r.offCents/100 };
+ c.pay={ ...(c.pay||{}), discountCode:d.code, discountFinal:d.final, discountOff:d.off };
  document.getElementById('pay-amount-box').innerHTML=payAmountHtml(d);
  if(msgEl){ msgEl.textContent=t('discount_ok').replace('{code}',d.code); msgEl.style.color='var(--teal-dark)'; msgEl.classList.remove('hidden'); }
 }
@@ -571,8 +564,10 @@ async function payNow(btn){
  + 'client_reference_id=' + encodeURIComponent(c.id);
  return;
  }
- /* simulated (prototype) - apply the client-side discount table */
- const d = discountCode ? computeDiscount(discountCode, PAYMENT.pricePerReturn) : null;
+  /* simulated (prototype) - uses whatever was already confirmed by the server
+ when applyDiscount() ran, since the discount rules themselves no longer
+ live client-side at all. */
+ const d = (discountCode && c.pay && c.pay.discountFinal!=null) ? { code:discountCode, final:c.pay.discountFinal, off:c.pay.discountOff } : null;
  c.pay={ status:'paid', paidAt:Date.now(), amount:d?d.final:PAYMENT.pricePerReturn,
  discountCode:d?d.code:null, discountOff:d?d.off:0,
  txId:'PAY-'+Math.random().toString(36).slice(2,8).toUpperCase() };
@@ -1101,7 +1096,7 @@ en: {
   pay_sim_note:"Prototype: the payment is simulated. In production, Stripe Checkout runs via the backend and a webhook unlocks the return.",
  pay_vat_note:"Price includes statutory VAT.", pay_agb_link:"Terms of service", pay_privacy_link:"Privacy policy",
  pay_withdrawal_ack:"I agree that the PDF download and submission are unlocked immediately, and I acknowledge that once this digital service has been fully provided, my 14-day right of withdrawal expires.",
- discount_label:"Discount code (optional)", discount_ph:"e.g. WELCOME10", discount_apply:"Apply",
+ discount_label:"Discount code (optional)", discount_ph:"e.g. SAVE10", discount_apply:"Apply",
  discount_ok:"Code {code} applied.", discount_invalid:"This code is not valid.",
  discount_saved:"You saved {amount}",
  paid_not_submitted:"Paid, not yet submitted",
@@ -1568,7 +1563,7 @@ de: {
   pay_sim_note:"Prototyp: Die Zahlung wird simuliert. In Produktion läuft Stripe Checkout über das Backend; ein Webhook schaltet die Erklärung frei.",
  pay_vat_note:"Preis inkl. gesetzlicher MwSt.", pay_agb_link:"AGB", pay_privacy_link:"Datenschutzerklärung",
  pay_withdrawal_ack:"Ich bin damit einverstanden, dass der PDF-Download und die Übermittlung sofort freigeschaltet werden, und weiß, dass mein 14-tägiges Widerrufsrecht mit vollständiger Erbringung dieser digitalen Leistung erlischt.",
- discount_label:"Rabattcode (optional)", discount_ph:"z. B. WELCOME10", discount_apply:"Anwenden",
+ discount_label:"Rabattcode (optional)", discount_ph:"z. B. SAVE10", discount_apply:"Anwenden",
  discount_ok:"Code {code} angewendet.", discount_invalid:"Dieser Code ist nicht gültig.",
  discount_saved:"Du sparst {amount}",
  paid_not_submitted:"Bezahlt, noch nicht abgegeben",

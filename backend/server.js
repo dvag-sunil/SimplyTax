@@ -1040,8 +1040,25 @@ function discountedCents(code) {
   if (!d) return { cents: PRICE_CENTS, code: null };
   const cents = d.type === 'final' ? Math.round(d.value * 100)
     : PRICE_CENTS - (d.type === 'percent' ? Math.round(PRICE_CENTS * d.value / 100) : Math.round(d.value * 100));
-  return { cents: Math.max(50, cents), code: String(code).trim().toUpperCase() };  // never below 0.50 EUR
+   return { cents: Math.max(50, cents), code: String(code).trim().toUpperCase() };  // never below 0.50 EUR
 }
+
+/* IMPLEMENTED: real, valid concern raised directly - the discount codes and their
+   values used to sit in the frontend's own JavaScript, in plain sight, readable by
+   anyone who opened the page's source - no cracking or guessing needed at all to find
+   a code name, even one meant to be given out privately. This lets the frontend check
+   one specific code at a time against the real, authoritative table below, without ever
+   holding the codes or their values itself. Reuses discountedCents() directly rather
+   than duplicating its logic, so there is still only one place discount rules live.
+   Only ever confirms or denies the one code asked about - never returns the full list -
+   so this endpoint itself can't be used to enumerate every valid code either. */
+app.post('/api/payments/discount-preview', auth, async (req, res) => {
+  const { code } = req.body || {};
+  if (!code) return res.json({ valid: false });
+  const { cents, code: normalized } = discountedCents(code);
+  if (!normalized) return res.json({ valid: false });
+  res.json({ valid: true, code: normalized, finalCents: cents, offCents: PRICE_CENTS - cents });
+});
 
 app.post('/api/payments/checkout', auth, async (req, res) => {
   if (!stripe) return res.status(501).json({ error: 'stripe_disabled' });
