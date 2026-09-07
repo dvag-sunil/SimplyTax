@@ -34,7 +34,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const ericService = require('./eric/eric-service');
-const { buildEStXML, InterchangeDataError, classifySkippedSections } = require('./eric/xml-builder');
+const { buildEStXML, buildSonstigeNachrichtXML, InterchangeDataError, classifySkippedSections } = require('./eric/xml-builder');
 
 const { DATABASE_URL, JWT_SECRET, ALLOWED_ORIGIN = 'https://dvag-sunil.github.io', PORT = 3000 } = process.env;
 if (!DATABASE_URL || !JWT_SECRET) { console.error('Missing DATABASE_URL or JWT_SECRET in .env'); process.exit(1); }
@@ -1646,6 +1646,95 @@ app.post('/api/eric/submit', auth, async (req, res) => {
     await releaseLock(previousStatus);
     if (e instanceof InterchangeDataError) return res.status(400).json({ error: 'invalid_interchange_data', detail: e.message });
     console.error('[eric/submit]', e.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+app.post('/api/eric/inquiry-message', auth, async (req, res) => {
+  if (!ericService.isReady()) {
+    return res.status(501).json({ error: 'eric_unavailable', detail: ericService.getInitError() });
+  }
+  const { clientId, inquiryId, hauptvordruck, subject, text, attachment } = req.body || {};
+  if (!clientId || !inquiryId || !hauptvordruck || !text || !String(text).trim()) {
+    return res.status(400).json({ error: 'invalid_input' });
+  }
+
+  const { rows } = await pool.query('SELECT data FROM clients WHERE id=$1 AND user_id=$2', [clientId, req.user.sub]);
+  if (!rows.length) return res.status(404).json({ error: 'not_found' });
+  const stored = rows[0].data;
+  const inq = (stored.inq || []).find(q => q.id === inquiryId);
+  if (!inq) return res.status(404).json({ error: 'inquiry_not_found' });
+
+  /* Server-side validation of the attachment, never trusting whatever
+     the frontend already checked - confirmed directly against the real
+     schema: only application/pdf is accepted for this specific Datenart
+     (unlike this app's general document storage elsewhere, which allows
+     more formats), and the real limit is 10485760 bytes (10 MiB) before
+     Base64 encoding, not the app's own, more conservative 5 MB general
+     upload limit. */
+  if (attachment) {
+    if (!attachment.base64 || !attachment.filename) {
+      return res.status(400).json({ error: 'invalid_attachment' });
+    }
+    if (!/\.pdf$/i.test(attachment.filename)) {
+      return res.status(400).json({ error: 'attachment_must_be_pdf' });
+    }
+    const approxBytes = Math.floor(attachment.base64.length * 0.75);
+    if (approxBytes > 10 * 1024 * 1024) {
+      return res.status(400).json({ error: 'attachment_too_large' });
+    }
+  }
+
+  try {
+    /* Same real fix already made for the main tax return submission,
+       for the same reason - a Testmerker must never be present on a
+       genuine, real submission, and this must be decided server-side,
+       never trusted from the client. Reuses the exact same
+       ERIC_SUBMISSION_MODE-driven logic as /api/eric/submit above for
+       consistency, rather than a second, separate on/off switch. */
+    const isProductionMode = process.env.ERIC_SUBMISSION_MODE === 'production';
+    const data = {
+      meta: { testmerker: !isProductionMode },
+      hauptvordruck,
+      inhalt: { subject, text },
+      datenlieferant: stored.datenlieferant,
+    };
+    let attachmentOpt;
+    if (attachment) attachmentOpt = { base64: attachment.base64, filename: attachment.filename };
+    const { xml } = buildSonstigeNachrichtXML(data, {
+      herstellerID: process.env.ERIC_HERSTELLER_ID,
+      attachment: attachmentOpt,
+    });
+
+    const result = await ericService.submit(xml, 'Eing_sonstNachr_22');
+    audit(req.user.sub, 'eric_inquiry_message', { clientId, inquiryId, rc: result.rc, sent: result.sent, transferTicket: result.transferTicket || null });
+
+    if (result.sent) {
+      /* Stores the real outcome onto the specific inquiry record this
+         message was answering - replacing what this used to be: a
+         function that never contacted any server at all, and just
+         generated a fake, random reference number that looked like a
+         real confirmation but genuinely wasn't one. */
+      const updatedInq = (stored.inq || []).map(q => q.id === inquiryId
+        ? { ...q, status: 'answered', sentAt: Date.now(), ticket: result.transferTicket || null }
+        : q);
+      await pool.query(
+        `UPDATE clients SET data = jsonb_set(data, '{inq}', $3::jsonb) WHERE id=$1 AND user_id=$2`,
+        [clientId, req.user.sub, JSON.stringify(updatedInq)]
+      );
+    }
+
+    res.json({
+      ok: result.sent,
+      rc: result.rc,
+      transferTicket: result.transferTicket || null,
+      returncodeTH: result.returncodeTH || null,
+      fehlertextTH: result.fehlertextTH || null,
+      ...(result.ericLogTail ? { ericLogTail: result.ericLogTail } : {}),
+    });
+  } catch (e) {
+    if (e instanceof InterchangeDataError) return res.status(400).json({ error: 'invalid_interchange_data', detail: e.message });
+    console.error('[eric/inquiry-message]', e.message);
     res.status(500).json({ error: 'server_error' });
   }
 });

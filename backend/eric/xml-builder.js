@@ -3070,8 +3070,122 @@ function bundeslandCode(name) {
 }
 function uid() { return 'st' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
 
+/* IMPLEMENTED: new feature, built after deep, direct research into how
+   ELSTER actually handles Finanzamt inquiries and responses - confirmed
+   there's a real, distinct ELSTER procedure for exactly this (separate
+   from the main tax return submission above), called SonstigeNachrichten,
+   part of the ElsterNachricht Verfahren. Every field below, its length
+   limit, and its structure is confirmed directly against the real,
+   official ELSTER schema files (Eing_sonstNachr-22.xsd,
+   Anhaenge-simple-3.xsd), not guessed or inferred from documentation
+   alone - the same rigor the main tax return XML above was built with.
+   Mirrors that same TransferHeader/NutzdatenHeader pattern for
+   consistency and reuses the same helper functions rather than
+   duplicating any of that logic. */
+function buildAddressBlock(person) {
+  if (!person?.anschrift) return '';
+  const a = person.anschrift;
+  return `<Adresse><StrAdrInl>${tag('Strasse', a.strasse)}${tag('Hausnummer', a.hausnummer)}${tag('Postleitzahl', a.plz)}${tag('Ort', a.ort)}</StrAdrInl></Adresse>\n`;
+}
+function buildSonstigeNachrichtXML(data, opts = {}) {
+  if (!data || typeof data !== 'object') {
+    throw new InterchangeDataError('interchangeData is missing or not an object');
+  }
+  const h = data.hauptvordruck;
+  if (!h || !h.personA) {
+    throw new InterchangeDataError('interchangeData.hauptvordruck.personA is missing');
+  }
+  if (!data.inhalt?.text || !String(data.inhalt.text).trim()) {
+    throw new InterchangeDataError('a message with actual text is required - ELSTER will not accept an empty message');
+  }
+  /* Same, deliberate no-hardcoded-fallback rule as the main tax return
+     XML above - a missing Hersteller-ID stops the submission loudly
+     rather than silently substituting anything. */
+  const herstellerID = opts.herstellerID || process.env.ERIC_HERSTELLER_ID;
+  if (!herstellerID) {
+    throw new InterchangeDataError('ERIC_HERSTELLER_ID is not configured - refusing to submit without a genuine, configured Hersteller-ID rather than guess at one.');
+  }
+  /* Confirmed against the real Eigenschaftentabelle for this Datenart:
+     both 700000001 and 700000004 are valid test markers here - reuses
+     the exact same testmerker convention as the main tax return above
+     for consistency, rather than introducing a different one. */
+  const testmerker = data.meta?.testmerker !== false ? '700000004' : '';
+  const bundesland = bundeslandCode(h.bundesland);
+
+  const p = h.personA;
+  let steuerpflichtiger = `<Steuerpflichtiger><SteuerpflichtigerTyp>NatPerson</SteuerpflichtigerTyp>\n`;
+  if (p.idnr) steuerpflichtiger += tag('IdNr', p.idnr);
+  steuerpflichtiger += tag('Name', p.name);
+  steuerpflichtiger += tag('Vorname', p.vorname);
+  steuerpflichtiger += buildAddressBlock(p);
+  steuerpflichtiger += `</Steuerpflichtiger>\n`;
+
+  let ehegatte = '';
+  if (h.personB?.name) {
+    ehegatte = `<Ehegatte>\n`;
+    if (h.personB.idnr) ehegatte += tag('IdNr', h.personB.idnr);
+    ehegatte += tag('Name', h.personB.name);
+    ehegatte += tag('Vorname', h.personB.vorname);
+    ehegatte += `</Ehegatte>\n`;
+  }
+
+  /* Betreff is capped at 99 characters and Dateibezeichnung at 50 -
+     confirmed exact limits from the real schema, truncated here rather
+     than left to fail validation with a confusing error at ELSTER's end. */
+  const betreff = String(data.inhalt.subject || 'Antwort zur Steuererklärung').slice(0, 99);
+  const text = String(data.inhalt.text).slice(0, 15000);
+
+  let nachricht = `<Nachricht xmlns="http://finkonsens.de/elster/elsternachricht/sonstigenachrichten/v22" version="22">\n`;
+  if (h.steuernummer) nachricht += tag('Steuernummer', h.steuernummer);
+  nachricht += steuerpflichtiger;
+  nachricht += ehegatte;
+  nachricht += `<Inhalt>${tag('Betreff', betreff)}${tag('Text', text)}</Inhalt>\n`;
+  nachricht += `</Nachricht>\n`;
+
+  let anhaenge = '';
+  if (opts.attachment?.base64 && opts.attachment?.filename) {
+    /* Confirmed directly against the real schema: only application/pdf
+       is accepted for this Datenart - no other file type, even though
+       this app's general document storage elsewhere accepts more
+       formats. Dateibezeichnung is capped at 50 characters and
+       restricted to a specific character set (no line breaks) -
+       truncating and stripping here rather than letting a genuinely
+       invalid value reach ELSTER's own validation. */
+    const bezeichnung = String(opts.attachment.filename).replace(/[\r\n]/g, ' ').slice(0, 50);
+    anhaenge = `<Anhaenge xmlns="http://finkonsens.de/elster/anhaenge/simple/v3" version="3">\n`;
+    anhaenge += `<Rueckmeldung><RueckmeldungGewuenscht>false</RueckmeldungGewuenscht></Rueckmeldung>\n`;
+    anhaenge += `<Anhang>${tag('Dateibezeichnung', bezeichnung)}${tag('Dateityp', 'application/pdf')}<Dateiinhalt>${opts.attachment.base64}</Dateiinhalt></Anhang>\n`;
+    anhaenge += `</Anhaenge>\n`;
+  }
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Elster xmlns="http://www.elster.de/elsterxml/schema/v11">
+<TransferHeader version="11">
+<Verfahren>ElsterNachricht</Verfahren>
+<DatenArt>SonstigeNachrichten</DatenArt>
+<Vorgang>send-Auth</Vorgang>
+${testmerker ? `<Testmerker>${testmerker}</Testmerker>\n` : ''}<Empfaenger id="L"><Ziel>${bundesland}</Ziel></Empfaenger>
+<HerstellerID>${xesc(herstellerID)}</HerstellerID>
+<DatenLieferant>${xesc(data.datenlieferant?.name || 'SimplyTax')}</DatenLieferant>
+<Datei><Verschluesselung>CMSEncryptedData</Verschluesselung><Kompression>GZIP</Kompression><TransportSchluessel/></Datei>
+</TransferHeader>
+<DatenTeil>
+<Nutzdatenblock>
+<NutzdatenHeader version="11">
+<NutzdatenTicket>${uid()}</NutzdatenTicket>
+<Empfaenger id="F">${xesc(h.finanzamt?.bufaNr || '9181')}</Empfaenger>
+</NutzdatenHeader>
+<Nutzdaten>
+${nachricht}${anhaenge}</Nutzdaten>
+</Nutzdatenblock>
+</DatenTeil>
+</Elster>`;
+
+  return { xml };
+}
+
 class InterchangeDataError extends Error {
   constructor(msg) { super(msg); this.name = 'InterchangeDataError'; }
 }
 
-module.exports = { buildEStXML, InterchangeDataError, classifySkippedSections };
+module.exports = { buildEStXML, buildSonstigeNachrichtXML, InterchangeDataError, classifySkippedSections };

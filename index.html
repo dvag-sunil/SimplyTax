@@ -914,7 +914,13 @@ en: {
  add_doc:"Add document", doc_too_big:"File is too large (max. 5 MB after compression). Larger receipts cannot be forwarded to the Finanzamt electronically.", doc_bad_type:"Only PDF, Word (.doc/.docx) and image files are allowed.", no_docs:"No documents attached yet.", download:"Download",
   step_inq:"Finanzamt inquiries", s_inq_lead:"Questions from the Finanzamt (Rückfragen) usually reach you by post. Log them here and record your answer. In the production version, electronic notices are retrieved via the tax authority's official portal.",
  add_inq:"Add inquiry", inq_q:"Question from the Finanzamt", inq_a:"Answer / internal note",
- inq_open:"Open", inq_answered:"Answered", no_inq:"No inquiries logged yet.", mark_answered:"Mark answered", reopen:"Reopen",
+  inq_open:"Open", inq_answered:"Answered", no_inq:"No inquiries logged yet.", mark_answered:"Mark answered", reopen:"Reopen",
+ inq_attach:"Attach a document (optional)", inq_attach_hint:"PDF only, max. 10 MB. Sent directly to your Finanzamt along with this message.",
+ inq_attach_add:"Attach PDF", inq_attach_remove:"Remove",
+ inq_attach_bad_type:"Only PDF files can be sent through this channel.", inq_attach_too_big:"This PDF is too large (max. 10 MB).",
+ inq_disclosure_title:"Before you send this attachment", inq_disclosure_confirm:"I understand, send now", inq_disclosure_cancel:"Cancel",
+ inq_disclosure_text:"Your attachments are automatically checked on the tax administration's servers for harmful content (e.g. viruses, trojans). Active content (e.g. interactive elements, buttons, self-updating text) is also removed from all attachments to protect the tax administration's systems.\n\nIf one of your attachments is identified as harmful during this check, it is deleted and does not reach processing at the Finanzamt. Other attachments not identified as harmful are not deleted. Every deletion of an attachment is documented in the tax administration's system, and the responsible caseworker at the Finanzamt is informed that the attachment was deleted. The caseworker may then contact you again and request the attachment by post, for example. Contacting them yourself is therefore not necessary and will not speed up the process.\n\nThe deletion of an attachment or the removal of active elements has no effect on the actual form or request itself. Only the submitted form or request is relevant for meeting a deadline. Since digital documents can be altered, they only serve as a means of demonstrating plausibility - please keep the original document as well.",
+ inq_send_failed:"Could not send - please try again.", inq_eric_unavailable:"The connection to ELSTER is not available right now.",
  inq_send:"Send answer to the tax authority", inq_sent_on:"Sent to Finanzamt on",
  inq_send_hint:"In production this transmits as a 'Sonstige Nachricht an das Finanzamt' (Belege as Belegnachreichung) via ERiC - simulated here.",
   pdf_btn:"Download PDF summary", pdf_title:"Income tax return - summary",
@@ -1381,7 +1387,13 @@ de: {
  add_doc:"Beleg hinzufügen", doc_too_big:"Datei ist zu groß (max. 5 MB nach Komprimierung). Größere Belege können nicht elektronisch an das Finanzamt weitergereicht werden.", doc_bad_type:"Nur PDF-, Word- (.doc/.docx) und Bilddateien sind erlaubt.", no_docs:"Noch keine Belege angehängt.", download:"Herunterladen",
   step_inq:"Rückfragen Finanzamt", s_inq_lead:"Rückfragen des Finanzamts erreichen Sie in der Regel per Post. Erfassen Sie sie hier und dokumentieren Sie Ihre Antwort. In der Produktionsversion werden elektronische Mitteilungen über das offizielle Finanzamt-Portal abgerufen.",
  add_inq:"Rückfrage erfassen", inq_q:"Frage des Finanzamts", inq_a:"Antwort / interne Notiz",
- inq_open:"Offen", inq_answered:"Beantwortet", no_inq:"Noch keine Rückfragen erfasst.", mark_answered:"Als beantwortet markieren", reopen:"Wieder öffnen",
+  inq_open:"Offen", inq_answered:"Beantwortet", no_inq:"Noch keine Rückfragen erfasst.", mark_answered:"Als beantwortet markieren", reopen:"Wieder öffnen",
+ inq_attach:"Dokument anhängen (optional)", inq_attach_hint:"Nur PDF, max. 10 MB. Wird zusammen mit dieser Nachricht direkt an Ihr Finanzamt gesendet.",
+ inq_attach_add:"PDF anhängen", inq_attach_remove:"Entfernen",
+ inq_attach_bad_type:"Über diesen Weg können nur PDF-Dateien gesendet werden.", inq_attach_too_big:"Diese PDF-Datei ist zu groß (max. 10 MB).",
+ inq_disclosure_title:"Bevor Sie diesen Anhang senden", inq_disclosure_confirm:"Verstanden, jetzt senden", inq_disclosure_cancel:"Abbrechen",
+ inq_disclosure_text:"Ihre Anhänge werden auf den Servern der Finanzverwaltung automatisiert auf schadhafte Inhalte (z. B. Viren, Trojaner, etc.) geprüft. Zudem werden zum Schutz der Systeme in der Finanzverwaltung aktive Inhalte (z. B. interaktive Elemente, Schaltflächen, sich selbständig aktualisierende Texte) aus allen Anhängen entfernt.\n\nSollte einer Ihrer Anhänge bei der Prüfung als schadhaft identifiziert werden, wird dieser gelöscht und gelangt nicht zur Bearbeitung in das Finanzamt. Weitere Anhänge, die nicht als schadhaft identifiziert wurden, werden nicht gelöscht. Jede Löschung eines Anhangs wird im System der Finanzverwaltung dokumentiert und der zuständige Bearbeiter im Finanzamt erhält die Information, dass der Anhang gelöscht wurde. Der Bearbeiter kann daraufhin nochmals mit Ihnen in Kontakt treten und den Anhang beispielsweise postalisch anfordern. Eine Kontaktaufnahme von Ihrer Seite ist daher nicht erforderlich und führt zu keiner Beschleunigung des Prozesses.\n\nDie Löschung eines Anhangs oder die Entfernung aktiver Elemente hat keine Auswirkung auf das eigentliche Formular oder den Antrag. Ausschließlich das eingereichte Formular oder der Antrag sind für eine Fristwahrung relevant. Da digitale Dokumente änderbar sind, stellen sie lediglich ein Mittel der Glaubhaftmachung dar. Bitte verwahren Sie daher weiterhin das Original.",
+ inq_send_failed:"Senden fehlgeschlagen - bitte erneut versuchen.", inq_eric_unavailable:"Die Verbindung zu ELSTER ist derzeit nicht verfügbar.",
  inq_send:"Antwort an das Finanzamt senden", inq_sent_on:"An das Finanzamt gesendet am",
  inq_send_hint:"In Produktion erfolgt die Übermittlung als 'Sonstige Nachricht an das Finanzamt' (Belege als Belegnachreichung) über ERiC - hier simuliert.",
   pdf_btn:"PDF-Zusammenfassung herunterladen", pdf_title:"Einkommensteuererklärung - Zusammenfassung",
@@ -5871,7 +5883,9 @@ async function confirmFreigabeAndSubmit(clientId){
 
 /* --- step 9: Finanzamt inquiries (Rückfragen) --- */
 function stepInquiries(c){
- const list=(c.inq||[]).slice().sort((a,b)=>b.ts-a.ts).map(q=>`<div class="sum-group">
+ const list=(c.inq||[]).slice().sort((a,b)=>b.ts-a.ts).map(q=>{
+ const att = S.inqAttachments?.[q.id];
+ return `<div class="sum-group">
  <div class="head"><span>${dateStr(q.ts)} &nbsp; ${q.status==='open'
  ?`<span class="chip review">${t('inq_open')}</span>`
  :`<span class="chip submitted">${t('inq_answered')}</span>`}</span>
@@ -5881,13 +5895,21 @@ function stepInquiries(c){
  <div style="padding:14px 16px">
  <div class="field"><label>${t('inq_q')}</label><textarea rows="2" onchange="updInq('${q.id}','q',this.value)">${esc(q.q)}</textarea></div>
  <div class="field" style="margin-bottom:0"><label>${t('inq_a')}</label><textarea rows="2" onchange="updInq('${q.id}','a',this.value)">${esc(q.a)}</textarea></div>
+ ${!q.sentAt ? `<div class="field" style="margin-top:10px;margin-bottom:0">
+ <label>${t('inq_attach')}</label>
+ <p style="font-size:11.5px;color:var(--ink-soft);margin:0 0 6px">${t('inq_attach_hint')}</p>
+ ${att
+ ? `<span class="chip submitted">📎 ${esc(att.name)}</span> <button class="btn-sm link-btn" onclick="removeInqAttachment('${q.id}')">${t('inq_attach_remove')}</button>`
+ : `<button class="btn btn-ghost btn-sm" onclick="document.getElementById('inqFileInput-${q.id}').click()">📎 ${t('inq_attach_add')}</button>
+ <input type="file" id="inqFileInput-${q.id}" accept="application/pdf,.pdf" style="display:none" onchange="attachInqFile('${q.id}',this)">`}
+ </div>` : ''}
  <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
  ${q.sentAt
- ? `<span class="chip submitted">✓ ${t('inq_sent_on')} ${dateStr(q.sentAt)} · ${q.ticket}</span>`
- : `<button class="btn btn-primary btn-sm" onclick="sendInq('${q.id}')">📤 ${t('inq_send')}</button>
+ ? `<span class="chip submitted">✓ ${t('inq_sent_on')} ${dateStr(q.sentAt)}${q.ticket?' · '+esc(q.ticket):''}</span>`
+ : `<button class="btn btn-primary btn-sm" id="inqSendBtn-${q.id}" onclick="sendInq('${q.id}')">📤 ${t('inq_send')}</button>
  <span style="font-size:11.5px;color:var(--ink-soft)">${t('inq_send_hint')}</span>`}
  </div>
- </div></div>`).join('');
+ </div></div>`;}).join('');
  return `<h2>${t('step_inq')}</h2><p class="lead">${t('s_inq_lead')}</p>
  ${list || `<div class="sum-group"><div class="sum-row"><span class="l" style="font-style:italic">${t('no_inq')}</span></div></div>`}
  <div style="margin-top:14px"><button class="btn btn-primary" onclick="addInq()">＋ ${t('add_inq')}</button></div>
@@ -5896,13 +5918,75 @@ function stepInquiries(c){
 function addInq(){ const c=cur(); (c.inq=c.inq||[]).push({id:uid(),ts:Date.now(),q:'',a:'',status:'open'}); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function updInq(id,f,v){ const c=cur(); const q=(c.inq||[]).find(x=>x.id===id); if(q){ q[f]=v; c.updatedAt=Date.now(); scheduleSave(); } }
 function toggleInq(id){ const c=cur(); const q=(c.inq||[]).find(x=>x.id===id); if(q){ q.status=q.status==='open'?'answered':'open'; c.updatedAt=Date.now(); scheduleSave(); render(); } }
-function sendInq(id){
+/* IMPLEMENTED: a genuinely separate, in-memory holding spot for an
+   inquiry's attachment, not saved onto the client record at all - the
+   file only needs to exist for the moment it's actually sent, and never
+   needs to survive a page reload the way the return's own data does. */
+async function attachInqFile(id, input){
+ const f = input.files?.[0]; input.value='';
+ if(!f) return;
+ /* Confirmed directly against the real ELSTER schema for this specific
+    channel: only PDF is accepted here, unlike this app's general
+    document storage elsewhere which also allows Word docs and images -
+    checked again on the server regardless, since a client-side check
+    alone is never authoritative. */
+ if(!/\.pdf$/i.test(f.name) && f.type!=='application/pdf'){ alert(t('inq_attach_bad_type')); return; }
+ const dataUrl = await readDataUrl(f);
+ if(!dataUrl) return;
+ const base64 = dataUrl.slice(dataUrl.indexOf(',')+1);
+ const bytes = Math.round(base64.length * 0.75);
+ if(bytes > 10*1024*1024){ alert(t('inq_attach_too_big')); return; } // real, confirmed 10 MiB limit for this specific channel
+ S.inqAttachments = S.inqAttachments || {};
+ S.inqAttachments[id] = { name:f.name, base64 };
+ render();
+}
+function removeInqAttachment(id){ if(S.inqAttachments) delete S.inqAttachments[id]; render(); }
+async function sendInq(id){
  const c=cur(); const q=(c.inq||[]).find(x=>x.id===id); if(!q) return;
  if(!(q.a||'').trim()){ alert(t('err_fields')); return; }
- q.sentAt=Date.now(); q.ticket='FA-'+c.taxYear+'-'+Math.random().toString(36).slice(2,8).toUpperCase();
- q.status='answered'; c.updatedAt=Date.now(); scheduleSave(); render();
+ const attachment = S.inqAttachments?.[id];
+ /* The legally-required disclosure (see the comment on the string
+    itself) has to be shown and acknowledged before anything with an
+    attachment actually sends - not required at all when there's no
+    attachment, since it specifically concerns what happens to attached
+    files. */
+ if(attachment){
+ const slot=document.getElementById('modal-slot');
+ slot.innerHTML=`<div class="modal-bg"><div class="modal">
+ <h2>${t('inq_disclosure_title')}</h2>
+ <p style="font-size:13px;color:var(--ink-soft);white-space:pre-line;margin:10px 0 18px">${esc(t('inq_disclosure_text'))}</p>
+ <div style="display:flex;gap:10px;justify-content:center">
+ <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('inq_disclosure_cancel')}</button>
+ <button class="btn btn-primary" onclick="this.closest('.modal-bg').remove();sendInqNow('${id}')">${t('inq_disclosure_confirm')}</button>
+ </div>
+ </div></div>`;
+ return;
+ }
+ await sendInqNow(id);
 }
-function delInq(id){ const c=cur(); c.inq=(c.inq||[]).filter(x=>x.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
+async function sendInqNow(id){
+ const c=cur(); const q=(c.inq||[]).find(x=>x.id===id); if(!q) return;
+ const attachment = S.inqAttachments?.[id];
+ const btn=document.getElementById('inqSendBtn-'+id);
+ if(btn) setBtnBusy(btn,true);
+ try{
+ const data = buildElsterDataset(c);
+ const r = await api('/api/eric/inquiry-message','POST',{
+ clientId:c.id, inquiryId:id, hauptvordruck:data.hauptvordruck,
+ subject:q.q ? q.q.slice(0,99) : undefined, text:q.a,
+ attachment: attachment ? { base64:attachment.base64, filename:attachment.name } : undefined,
+ });
+ if(!r.ok){ if(btn) setBtnBusy(btn,false); alert(t('inq_send_failed')+(r.fehlertextTH?' ('+r.fehlertextTH+')':'')); return; }
+ q.sentAt=Date.now(); q.ticket=r.transferTicket||null; q.status='answered';
+ if(S.inqAttachments) delete S.inqAttachments[id];
+ c.updatedAt=Date.now(); scheduleSave(); render();
+ } catch(e){
+ if(btn) setBtnBusy(btn,false);
+ if(e && e.message==='eric_unavailable'){ alert(t('inq_eric_unavailable')); return; }
+ alert(t('inq_send_failed'));
+ }
+}
+function delInq(id){ const c=cur(); c.inq=(c.inq||[]).filter(x=>x.id!==id); if(S.inqAttachments) delete S.inqAttachments[id]; c.updatedAt=Date.now(); scheduleSave(); render(); }
 
 /* ---------------- ELSTER canonical dataset (handover format for the ERiC backend adapter) ---------------- */
 function buildElsterDataset(c){
