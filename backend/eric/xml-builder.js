@@ -3120,12 +3120,23 @@ function buildSonstigeNachrichtXML(data, opts = {}) {
   steuerpflichtiger += buildAddressBlock(p);
   steuerpflichtiger += `</Steuerpflichtiger>\n`;
 
-  let ehegatte = '';
+   let ehegatte = '';
   if (h.personB?.name) {
     ehegatte = `<Ehegatte>\n`;
     if (h.personB.idnr) ehegatte += tag('IdNr', h.personB.idnr);
     ehegatte += tag('Name', h.personB.name);
     ehegatte += tag('Vorname', h.personB.vorname);
+    /* CORRECTED: real, confirmed bug - ELSTER rejected this outright
+       (eEing_316 / Angaben_Ehegatte_aber_keine_Anschrift): any spouse
+       information at all requires an address alongside it, which this
+       never included. This app's own data model doesn't store a
+       separate address for a spouse at all - married couples share one
+       household address in the main tax return data - so the primary
+       filer's own address is reused here, which is the correct,
+       reasonable behavior for the actual data this app collects. A
+       distinct spouse address is still preferred if one is ever
+       genuinely present. */
+    ehegatte += buildAddressBlock(h.personB.anschrift ? h.personB : p);
     ehegatte += `</Ehegatte>\n`;
   }
 
