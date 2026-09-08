@@ -2964,12 +2964,12 @@ function buildEStXML(data, opts = {}) {
       } else if (p.dbaTreatmentConfirmed) {
           skippedSections.push(MSG(
     `[CONFIRMED] ${label}: foreign rental income was transmitted on Anlage AUS as tax-exempt income with Progressionsvorbehalt - confirmed by the user as the correct treatment for this country's tax treaty.`,
-    `[BESTÄTIGT] ${label}: Die ausländischen Mieteinnahmen wurden in der Anlage AUS als steuerfreie Einkünfte mit Progressionsvorbehalt übermittelt - vom Nutzer als korrekte Behandlung gemäß dem Doppelbesteuerungsabkommen mit diesem Land bestätigt.`
+     `[CONFIRMED] ${label}: Die ausländischen Mieteinnahmen wurden in der Anlage AUS als steuerfreie Einkünfte mit Progressionsvorbehalt übermittelt - vom Nutzer als korrekte Behandlung gemäß dem Doppelbesteuerungsabkommen mit diesem Land bestätigt.`
   ));
       } else {
          skippedSections.push(MSG(
     `[UNRESOLVED] ${label}: foreign rental income was NOT transmitted. Anlage AUS requires knowing whether this country's tax treaty exempts this income (with Progressionsvorbehalt) or credits foreign tax instead - a per-country legal question this app does not decide. This property's income is left out of this submission until confirmed. The rest of the return was not held up by this.`,
-    `[UNGEKLÄRT] ${label}: Die ausländischen Mieteinnahmen wurden NICHT übermittelt. Die Anlage AUS setzt voraus zu wissen, ob das Doppelbesteuerungsabkommen mit diesem Land diese Einkünfte freistellt (mit Progressionsvorbehalt) oder stattdessen die ausländische Steuer anrechnet - eine länderspezifische rechtliche Frage, die diese App nicht selbst entscheidet. Die Einkünfte aus dieser Immobilie fehlen daher in dieser Übermittlung, bis dies geklärt ist. Der Rest der Erklärung wurde dadurch nicht aufgehalten.`
+     `[UNRESOLVED] ${label}: Die ausländischen Mieteinnahmen wurden NICHT übermittelt. Die Anlage AUS setzt voraus zu wissen, ob das Doppelbesteuerungsabkommen mit diesem Land diese Einkünfte freistellt (mit Progressionsvorbehalt) oder stattdessen die ausländische Steuer anrechnet - eine länderspezifische rechtliche Frage, die diese App nicht selbst entscheidet. Die Einkünfte aus dieser Immobilie fehlen daher in dieser Übermittlung, bis dies geklärt ist. Der Rest der Erklärung wurde dadurch nicht aufgehalten.`
   ));
       }
       if (N(p.werbungskosten) > 0)
