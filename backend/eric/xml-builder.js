@@ -2554,18 +2554,30 @@ function buildHA35a(data) {
 /* =============================================================================
    Wage-replacement benefits + loss carryforward + energetic renovation
 ============================================================================= */
-function buildEM35c(data) {
+ function buildEM35c(data) {
   const e = data.par35cEnergetisch;
   if (!e || !e.street) return '';
+  /* IMPLEMENTED: real, direct problem raised - the previous version
+     only ever told the person to manually work out and enter their own
+     half, with no field anywhere in the app to actually do that. This
+     now genuinely does the halving itself: under §26a separate
+     assessment with this property marked jointly owned, every actual
+     cost figure below - each renovation category, and any prior-year
+     amounts - is halved before being used, so only this filer's own
+     real share of what was actually paid is ever declared here. This
+     doesn't rely on any dedicated ELSTER ownership-split field for this
+     deduction (not confirmed to exist without the real schema for this
+     specific piece, unlike Anlage V's own, separately-confirmed split
+     fields) - it simply declares a smaller, genuinely correct amount,
+     which needs no special mechanism to be valid. */
+  const isPar26aEM35c = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
+  const splitEM35c = isPar26aEM35c && e.owner === 'joint';
+  const half = v => splitEM35c ? Math.round(N(v) / 2) : N(v);
   /* Confirmed exact sequence via the raw XSD, not the summary sheet
      (which has misled twice elsewhere in this project):
        Obj > Allg (address/building/area/prior-claim)
        Obj > Aufw > E0240902, Massn (start date, measure categories, Sum)
-       Obj > EM_Vorj (prior-year amounts, optional)
-     Ownership split (Eigent) and community/partnership shares
-     (Ant_35c) are NOT implemented - defaults to sole ownership, the
-     common case for this app, matching the same scoping used for
-     Anlage V's Erm_Zuord_Ek attribution. */
+       Obj > EM_Vorj (prior-year amounts, optional) */
   let allg = '<Allg>\n';
   allg += tag(fm.EM_35c.street, e.street);
   allg += tag(fm.EM_35c.buildDate, formatDateDE(e.buildDate));
@@ -2576,8 +2588,8 @@ function buildEM35c(data) {
   allg += '</Allg>\n';
 
   const categories = [
-    ['measureWalls', 'Waende', e.walls], ['measureRoof', 'Dach', e.roof], ['measureCeiling', 'Geschossd', e.ceiling],
-    ['measureWindows', 'Fenst_Tuer', e.windows], ['measureVentilation', 'Lueftung', e.ventilation], ['measureHeating', 'Heizung', e.heating],
+    ['measureWalls', 'Waende', half(e.walls)], ['measureRoof', 'Dach', half(e.roof)], ['measureCeiling', 'Geschossd', half(e.ceiling)],
+    ['measureWindows', 'Fenst_Tuer', half(e.windows)], ['measureVentilation', 'Lueftung', half(e.ventilation)], ['measureHeating', 'Heizung', half(e.heating)],
   ];
   const total = categories.reduce((sum, [, , v]) => sum + N(v), 0);
   if (total <= 0) return ''; // no measure amount entered - nothing genuinely to declare
@@ -2593,10 +2605,11 @@ function buildEM35c(data) {
    let vorj = '';
   const taxYearForEM = Number(data.meta?.taxYear) || 2025;
   const hasPriorYear2 = fm.isFieldSupportedForYear(fm.EM_35c.priorYear2, taxYearForEM);
-  if (N(e.priorYear1) > 0 || (hasPriorYear2 && N(e.priorYear2) > 0)) {
+  const priorYear1 = half(e.priorYear1), priorYear2 = half(e.priorYear2);
+  if (N(priorYear1) > 0 || (hasPriorYear2 && N(priorYear2) > 0)) {
     vorj = '<EM_Vorj>\n';
-    if (N(e.priorYear1) > 0) vorj += wholeEuroTag(fm.EM_35c.priorYear1, e.priorYear1);
-    if (hasPriorYear2 && N(e.priorYear2) > 0) vorj += wholeEuroTag(fm.EM_35c.priorYear2, e.priorYear2);
+    if (N(priorYear1) > 0) vorj += wholeEuroTag(fm.EM_35c.priorYear1, priorYear1);
+    if (hasPriorYear2 && N(priorYear2) > 0) vorj += wholeEuroTag(fm.EM_35c.priorYear2, priorYear2);
     vorj += '</EM_Vorj>\n';
   }
 
@@ -2995,19 +3008,33 @@ function buildEStXML(data, opts = {}) {
     '[MATERIAL] EM_35c (energetic renovation) - a measure amount was entered but the renovation start date was not, and ERiC requires both together (Regel 102240006). Found via testing against a genuine client file - the return will be rejected until this date is filled in.',
     '[MATERIAL] EM_35c (energetische Sanierung) - es wurde ein Maßnahmenbetrag angegeben, aber nicht der Beginn der Baumaßnahme, und ERiC verlangt beide Angaben zusammen (Regel 102240006). Gefunden bei Tests mit einer echten Kundendatei - die Erklärung wird abgelehnt, bis dieses Datum ausgefüllt ist.'
   ));
-     if (emTotal > 0 && data.hauptvordruck?.personB) {
+      if (emTotal > 0 && data.hauptvordruck?.personB) {
       const isPar26aEM = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
-      if (isPar26aEM) {
+      if (isPar26aEM && !em.owner) {
+        /* Mirrors exactly how Anlage V's own "no owner selected" case
+           already works - blocks until the person actually sets this,
+           rather than silently guessing or defaulting to the full
+           amount, which would risk both spouses claiming the whole
+           thing on their own separate returns. */
         skippedSections.push(MSG(
-    '[MATERIAL] EM_35c (energetic renovation) - this app has no field anywhere to split renovation costs between spouses for this specific deduction, unlike a rental property\'s ownership split. Under §26a separate assessment, each spouse\'s own tax liability genuinely depends on who claims this - if this property and its renovation were jointly paid for, only this filer\'s own share of the actual costs should be entered here (not the full amount), with the other share entered on the spouse\'s own, separate return instead. Please confirm the correct split with a Steuerberater before submitting, since this app cannot determine or apply it automatically.',
-    '[MATERIAL] EM_35c (energetische Sanierung) - diese App bietet für diesen Abzug keine Möglichkeit, die Sanierungskosten zwischen den Ehepartnern aufzuteilen, anders als bei der Eigentumsaufteilung einer vermieteten Immobilie. Bei der Einzelveranlagung nach §26a hängt die tatsächliche Steuerlast jedes Ehepartners hiervon ab - wurden diese Immobilie und die Sanierung gemeinsam finanziert, sollte hier nur der eigene Anteil der tatsächlichen Kosten eingetragen werden (nicht der Gesamtbetrag), während der übrige Anteil auf der eigenständigen Erklärung des Ehepartners einzutragen ist. Bitte die korrekte Aufteilung vor der Übermittlung mit einem Steuerberater klären, da die App dies nicht automatisch ermitteln oder anwenden kann.'
+    '[MATERIAL] EM_35c (energetic renovation) - who owns this property was not set. Under §26a separate assessment, this is required so the app knows whether to send your own half of the actual costs (if jointly owned) or the full amount (if solely yours) - without it, this can\'t be sent correctly. Please select an owner in the Haushalt & Sonstige section.',
+    '[MATERIAL] EM_35c (energetische Sanierung) - der Eigentümer dieser Immobilie wurde nicht ausgewählt. Bei der Einzelveranlagung nach §26a wird dies benötigt, damit die App weiß, ob Ihr eigener Anteil der tatsächlichen Kosten (bei gemeinsamem Eigentum) oder der Gesamtbetrag (bei alleinigem Eigentum) übermittelt werden soll - ohne diese Angabe kann dies nicht korrekt übermittelt werden. Bitte im Abschnitt Haushalt & Sonstige einen Eigentümer auswählen.'
   ));
-      } else {
+       } else if (isPar26aEM && em.owner === 'joint') {
+        const ownHalf = Math.round((N(em.walls||0)+N(em.roof||0)+N(em.ceiling||0)+N(em.windows||0)+N(em.ventilation||0)+N(em.heating||0))/2);
+        skippedSections.push(MSG(
+    `[SENT] EM_35c (energetic renovation) - marked as jointly owned. Only this filer's own half of the actual renovation costs (${ownHalf} €) was included on this return - the other half belongs on the spouse's own, separate return.`,
+    `[SENT] EM_35c (energetische Sanierung) - als gemeinschaftliches Eigentum markiert. Nur der eigene Anteil dieses Antragstellers an den tatsächlichen Sanierungskosten (${ownHalf} €) wurde in diese Erklärung übernommen - der übrige Anteil gehört auf die eigenständige Erklärung des Ehepartners.`
+  ));
+      } else if (!isPar26aEM) {
         skippedSections.push(MSG(
     '[SENT] EM_35c (energetic renovation) - this app has no field to attribute this deduction between spouses; it was sent as part of this joint return as entered. For a joint return, this has no real effect since both spouses\' figures are combined into one shared result regardless of whose name is on which entry - nothing to change here.',
     '[SENT] EM_35c (energetische Sanierung) - diese App bietet kein Feld, um diesen Abzug zwischen den Ehepartnern zuzuordnen; er wurde als Teil dieser gemeinsamen Erklärung genau wie eingegeben übermittelt. Bei einer Zusammenveranlagung hat dies keine tatsächliche Auswirkung, da die Werte beider Ehepartner ohnehin zu einem gemeinsamen Ergebnis zusammengeführt werden, unabhängig davon, wessen Name bei welchem Eintrag steht - hier ist nichts zu ändern.'
   ));
       }
+      /* isPar26aEM && (em.owner === 'A' || em.owner === 'B'): sole
+         ownership genuinely confirmed by the person - the full amount
+         is correctly theirs alone, nothing to flag at all. */
     }
     if (em.buildDate && em.measureStart) {
       const years = (new Date(em.measureStart) - new Date(em.buildDate)) / (365.25 * 24 * 3600 * 1000);

@@ -1138,8 +1138,9 @@ en: {
  prop_nebenkosten:"Service charges paid by tenant (per year)",
  prop_nebenkosten_hint:"If left empty, the return declares that no service charges were separately agreed.",
  prop_ferien:"Used as a holiday let?", prop_kurzfristig:"Let short-term?", prop_angehoerige:"Rented to relatives?",
- prop_owner:"Who owns this property?", prop_owner_a:"Person A", prop_owner_b:"Person B", prop_owner_joint:"Both, jointly (50/50)",
+  prop_owner:"Who owns this property?", prop_owner_a:"Person A", prop_owner_b:"Person B", prop_owner_joint:"Both, jointly (50/50)",
  prop_owner_hint:"Determines how the rental surplus or deficit is split between you and your spouse for this property.",
+ energ_owner:"Who owns this property?", energ_owner_hint:"You're filing separately (§26a). If this property and its renovation were jointly paid for, select this so only your own half of the costs is included on your own return - your spouse enters their own half on theirs.",
  prop_foreign_hint:"For a property abroad, only the country, rental income and costs are needed here - it is reported as tax-free income with Progressionsvorbehalt. Please confirm the tax treaty with that country before filing.",
  sec_sv:"Social insurance (lines 22-28)", sec_more:"More fields (lines 8-21, 29-34)",
  sec_more_8_21:"More wage tax fields (lines 8-21)",
@@ -1616,8 +1617,9 @@ de: {
  prop_nebenkosten:"Umlagen / Nebenkosten vom Mieter (pro Jahr)",
  prop_nebenkosten_hint:"Bleibt das Feld leer, wird erklärt, dass Neben-/Betriebskosten nicht gesondert vereinbart wurden.",
  prop_ferien:"Als Ferienwohnung genutzt?", prop_kurzfristig:"Kurzfristig vermietet?", prop_angehoerige:"An Angehörige vermietet?",
- prop_owner:"Wem gehört diese Immobilie?", prop_owner_a:"Person A", prop_owner_b:"Person B", prop_owner_joint:"Beiden, gemeinsam (50/50)",
+  prop_owner:"Wem gehört diese Immobilie?", prop_owner_a:"Person A", prop_owner_b:"Person B", prop_owner_joint:"Beiden, gemeinsam (50/50)",
  prop_owner_hint:"Bestimmt, wie der Überschuss oder Verlust dieser Immobilie zwischen Ihnen und Ihrem Ehepartner aufgeteilt wird.",
+ energ_owner:"Wem gehört diese Immobilie?", energ_owner_hint:"Sie wählen die Einzelveranlagung (§26a). Wurden diese Immobilie und die Sanierung gemeinsam finanziert, wählen Sie dies, damit nur Ihr eigener Kostenanteil in Ihre eigene Erklärung übernommen wird - Ihr Ehepartner trägt seinen Anteil in seiner eigenen Erklärung ein.",
  prop_foreign_hint:"Bei einer Auslandsimmobilie werden hier nur Staat, Mieteinnahmen und Kosten benötigt - die Erklärung erfolgt als steuerfreie Einkünfte mit Progressionsvorbehalt. Bitte prüfen Sie vorab das Doppelbesteuerungsabkommen mit dem betreffenden Staat.",
  sec_sv:"Sozialversicherung (Zeilen 22-28)", sec_more:"Weitere Felder (Zeilen 8-21, 29-34)",
  sec_more_8_21:"Weitere Lohnsteuerfelder (Zeilen 8-21)",
@@ -4967,23 +4969,22 @@ function stepHousehold(c){
  ${F('ex','household',t('household'),{euro:true,ph:'0,00 €'})}
  ${F('ex','handwerker',t('handwerker'),{euro:true,ph:'0,00 €'})}
  </div>
- <div class="section-label">${t('sec_energ')}</div>
+  <div class="section-label">${t('sec_energ')}</div>
  <p style="font-size:12.5px;color:var(--ink-soft);margin:-4px 0 12px">${t('energ_intro')}</p>
- ${(()=>{ const total=EM35C_MEASURES.reduce((s,m)=>s+N(c.oth['em'+m.key]),0);
-   if(!(total>0)) return '';
-   const on=c.oth.emEnabled!==false;
-   return `<div class="infobox" style="padding:8px 10px;margin:0 0 12px;background:${on?'var(--teal-soft)':'var(--paper-soft)'};border-color:${on?'var(--teal)':'var(--border)'}">
-   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-   <span style="font-size:12.5px">🏠 ${on?t('energ_status_included'):t('energ_status_excluded')} <b>${eur(total)}</b></span>
-    <button class="link-btn" style="padding:0;font-size:12px;color:var(--teal-dark);font-weight:700;text-decoration:underline" onclick="toggleEm35cEnabled()">${on?t('energ_exclude'):t('energ_include')}</button>
-   </div>
-   ${!on?`<div class="hint" style="margin-top:4px">${t('energ_excluded_hint')}</div>`:''}
-   </div>`;
- })()}
  <div class="grid2">
  ${F('oth','emStreet',t('energ_street'),{ph:'Musterstraße 1'})}
  ${F('oth','emPlzOrt',t('energ_plzort'),{ph:'12345 Musterstadt'})}
  </div>
+ ${c.p.marital==='married_sep'?`<div class="field${reqCls(c.oth.emOwner)}">
+ <label>${t('energ_owner')} *</label>
+ <select onchange="upd('oth','emOwner',this.value)">
+ <option value="">${t('select')}</option>
+ <option value="A" ${c.oth.emOwner==='A'?'selected':''}>${t('prop_owner_a')}</option>
+ <option value="B" ${c.oth.emOwner==='B'?'selected':''}>${t('prop_owner_b')}</option>
+ <option value="joint" ${c.oth.emOwner==='joint'?'selected':''}>${t('prop_owner_joint')}</option>
+ </select>
+ <div class="hint">${t('energ_owner_hint')}</div>
+ </div>`:''}
  <div class="grid2">
  ${F('oth','emBuildDate',t('energ_builddate'),{type:'date',hint:t('energ_builddate_hint')})}
  ${F('oth','emMeasureStart',t('energ_measurestart'),{type:'date'})}
@@ -5000,7 +5001,7 @@ function stepHousehold(c){
  <div style="margin:10px 0 6px;font-size:13px;font-weight:600">${t('energ_measures_label')}</div>
  ${EM35C_MEASURES.map(m=>`<div style="margin-bottom:8px">
  <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer">
- <input type="checkbox" ${c.oth['em'+m.key+'Sel']?'checked':''} onchange="upd('oth','em${m.key}Sel',this.checked?'1':''); render();">
+  <input type="checkbox" ${c.oth['em'+m.key+'Sel']?'checked':''} onchange="upd('oth','em${m.key}Sel',this.checked?'1':''); if(!this.checked) upd('oth','em${m.key}',''); render();">
  ${t('energ_m_'+m.key)}
  </label>
  ${c.oth['em'+m.key+'Sel']?`<div style="margin-top:6px">${F('oth','em'+m.key,'',{euro:true,ph:'0,00 €'})}</div>`:''}
@@ -5014,10 +5015,21 @@ function stepHousehold(c){
  ${t('energ_has_prior_years')}
  </label>
  </div>
- ${c.oth.emHasPriorYears?`<div class="grid2">
+  ${c.oth.emHasPriorYears?`<div class="grid2">
  ${F('oth','emPriorYear1',t('energ_prioryear1'),{euro:true,ph:'0,00 €'})}
  ${F('oth','emPriorYear2',t('energ_prioryear2'),{euro:true,ph:'0,00 €'})}
  </div>`:''}
+  ${(()=>{ const total=EM35C_MEASURES.reduce((s,m)=>s+(c.oth['em'+m.key+'Sel']?N(c.oth['em'+m.key]):0),0);
+   if(!(total>0)) return '';
+   const on=c.oth.emEnabled!==false;
+   return `<div class="infobox" style="padding:8px 10px;margin:12px 0 0;background:${on?'var(--teal-soft)':'var(--paper-soft)'};border-color:${on?'var(--teal)':'var(--border)'}">
+   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+   <span style="font-size:12.5px">🏠 ${on?t('energ_status_included'):t('energ_status_excluded')} <b>${eur(total)}</b></span>
+    <button class="link-btn" style="padding:0;font-size:12px;color:var(--teal-dark);font-weight:700;text-decoration:underline" onclick="toggleEm35cEnabled()">${on?t('energ_exclude'):t('energ_include')}</button>
+   </div>
+   ${!on?`<div class="hint" style="margin-top:4px">${t('energ_excluded_hint')}</div>`:''}
+   </div>`;
+ })()}
  <div class="section-label">${t('sec_disab')}</div>
  <p style="font-size:12.5px;color:var(--ink-soft);margin:-4px 0 12px">${t('disab_hint')}</p>
  <div class="grid3">
@@ -6282,11 +6294,11 @@ function buildElsterDataset(c){
  (rentePct, now shared at top level) - not a separately user-entered
  figure, since the wizard never asks for one for gesetzlich. */
  ertragsanteilProzent:(r.type||'gesetzlich')==='gesetzlich'?rentePct(r.startYear):null })),
- par35cEnergetisch: c.oth.emEnabled===false ? {} : { street:c.oth.emStreet||'', buildDate:c.oth.emBuildDate||'', plzOrt:c.oth.emPlzOrt||'',
+   par35cEnergetisch: c.oth.emEnabled===false ? {} : (()=>{ const emVal=k=>c.oth['em'+k+'Sel']?N(c.oth['em'+k]):0; return { street:c.oth.emStreet||'', buildDate:c.oth.emBuildDate||'', plzOrt:c.oth.emPlzOrt||'',
  areaTotal:N(c.oth.emAreaTotal), areaOwn:N(c.oth.emAreaOwn), priorClaim:c.oth.emPriorClaim==='ja', otherFunding:c.oth.emOtherFunding==='ja',
- measureStart:c.oth.emMeasureStart||'', walls:N(c.oth.emWalls), roof:N(c.oth.emRoof), ceiling:N(c.oth.emCeiling),
- windows:N(c.oth.emWindows), ventilation:N(c.oth.emVentilation), heating:N(c.oth.emHeating),
- priorYear1:N(c.oth.emPriorYear1), priorYear2:N(c.oth.emPriorYear2) },
+ measureStart:c.oth.emMeasureStart||'', walls:emVal('Walls'), roof:emVal('Roof'), ceiling:emVal('Ceiling'),
+ windows:emVal('Windows'), ventilation:emVal('Ventilation'), heating:emVal('Heating'),
+ priorYear1:N(c.oth.emPriorYear1), priorYear2:N(c.oth.emPriorYear2), owner:c.oth.emOwner||'' }; })(),
  weitereAngaben:{ ersatzleistungen:N(c.oth.ersatz), verlustvortrag:N(c.oth.lossCarry),
  realsplittingAnlageU:Math.min(N(c.oth.realsplitting),13805), realsplitIdnr:(c.oth.realsplitIdnr||'').replace(/\s/g,''), realsplitName:c.oth.realsplitName||'',
  behinderung:{ gdbA:c.oth.gdbA||'', gdbB:c.oth.gdbB||'', fahrtA:N(c.oth.fahrtA), fahrtB:N(c.oth.fahrtB),
@@ -6449,7 +6461,7 @@ function importElsterDataset(data){
     emAreaTotal: em.areaTotal||'', emAreaOwn: em.areaOwn||'', emPriorClaim: em.priorClaim?'ja':'nein', emOtherFunding: em.otherFunding?'ja':'nein',
     emMeasureStart: em.measureStart||'', emWalls: em.walls||'', emRoof: em.roof||'', emCeiling: em.ceiling||'',
     emWindows: em.windows||'', emVentilation: em.ventilation||'', emHeating: em.heating||'',
-    emPriorYear1: em.priorYear1||'', emPriorYear2: em.priorYear2||'',
+     emPriorYear1: em.priorYear1||'', emPriorYear2: em.priorYear2||'', emOwner: em.owner||'',
   }); else c.oth.emEnabled = false;
 
   const wa = data.weitereAngaben || {};
