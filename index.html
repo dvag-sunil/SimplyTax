@@ -955,8 +955,12 @@ en: {
    freigabe_material_gaps_title:"This can't be submitted yet", freigabe_material_gaps_sub:"These items need to be resolved before this return can be sent. They're not a formatting issue ERiC caught. They're real, open questions this app can't answer on its own.",
   freigabe_unresolved_title:"Not included in this submission", freigabe_unresolved_sub:"The rest of this return will still be sent. These specific items will not be, since they still need confirmation - go back and confirm them if you're ready, or leave them out for now and handle them separately.",
  unresolved_banner_title:"Foreign rental income not yet sent", unresolved_banner_sub:"This return may already be submitted, but the income below was deliberately left out because the tax treaty treatment for this country hasn't been confirmed. Once confirmed, this can be filed as a correction.", unresolved_banner_go:"Go confirm this",
- freigabe_warnings_title:"Please review before sending",
+  freigabe_warnings_title:"Please review before sending",
   freigabe_warnings_sub:"ERiC accepted this return, but the following items were sent using a safe default or were left out because the app cannot honestly determine them yet. Please double-check they are correct for your situation before proceeding.",
+ freigabe_sent_title:"Sent using a safe default - please verify",
+  freigabe_sent_sub:"ERiC accepted this return. Each item below WAS transmitted, but using a safe default or assumption rather than something you confirmed yourself - please check it's correct for your situation.",
+ freigabe_omitted_title:"Left out - not transmitted",
+  freigabe_omitted_sub:"Each item below was NOT included in this submission at all, because the app cannot honestly determine it yet. The rest of the return was not held up by this.",
  freigabe_warnings_sub_rejected:"These items were also flagged, but they are not the reason this return was rejected - the error above is. Fix that first; these are worth reviewing once it does go through.",
   freigabe_checkbox:"I have reviewed this data and release it for transmission to the tax office.",
  freigabe_payment_next:"You will be asked to pay {price} next. Your tax return is only sent to the Finanzamt once that payment is complete.", freigabe_continue_to_payment:"Continue to payment",
@@ -1429,8 +1433,12 @@ de: {
    freigabe_material_gaps_title:"Das kann noch nicht übermittelt werden", freigabe_material_gaps_sub:"Diese Punkte müssen geklärt werden, bevor diese Erklärung gesendet werden kann. Es handelt sich nicht um ein Formatproblem, das ERiC erkannt hat, sondern um echte, offene Fragen, die diese App nicht selbst beantworten kann.",
   freigabe_unresolved_title:"Nicht in dieser Übermittlung enthalten", freigabe_unresolved_sub:"Der Rest dieser Erklärung wird trotzdem gesendet. Diese Punkte jedoch nicht, da sie noch bestätigt werden müssen - gehen Sie zurück und bestätigen Sie sie, wenn Sie bereit sind, oder lassen Sie sie vorerst aus und klären Sie sie separat.",
  unresolved_banner_title:"Ausländische Mieteinnahmen noch nicht gesendet", unresolved_banner_sub:"Diese Erklärung wurde möglicherweise bereits übermittelt, die untenstehenden Einkünfte wurden jedoch bewusst ausgelassen, da die steuerliche Behandlung laut Abkommen mit diesem Land noch nicht bestätigt wurde. Nach Bestätigung kann dies als Korrektur nachgereicht werden.", unresolved_banner_go:"Jetzt bestätigen",
- freigabe_warnings_title:"Bitte vor dem Versand prüfen",
+  freigabe_warnings_title:"Bitte vor dem Versand prüfen",
   freigabe_warnings_sub:"ERiC hat diese Erklärung angenommen, die folgenden Punkte wurden jedoch mit einem sicheren Standardwert übermittelt oder ausgelassen, da die App sie derzeit nicht zuverlässig ermitteln kann. Bitte prüfen Sie vor dem Fortfahren, ob dies für Ihre Situation zutrifft.",
+ freigabe_sent_title:"Mit sicherem Standardwert übermittelt - bitte prüfen",
+  freigabe_sent_sub:"ERiC hat diese Erklärung angenommen. Jeder Punkt unten WURDE übermittelt, jedoch mit einem sicheren Standardwert oder einer Annahme statt einer von Ihnen bestätigten Angabe - bitte prüfen Sie, ob dies für Ihre Situation zutrifft.",
+ freigabe_omitted_title:"Ausgelassen - nicht übermittelt",
+  freigabe_omitted_sub:"Jeder Punkt unten wurde NICHT in diese Übermittlung aufgenommen, da die App ihn derzeit nicht zuverlässig ermitteln kann. Der Rest der Erklärung wurde dadurch nicht aufgehalten.",
  freigabe_warnings_sub_rejected:"Diese Punkte wurden ebenfalls angemerkt, sind aber nicht der Grund für die Ablehnung dieser Erklärung - das ist der obige Fehler. Bitte diesen zuerst beheben; diese Punkte lohnt es sich zu prüfen, sobald die Erklärung durchgeht.",
   freigabe_checkbox:"Ich habe diese Daten geprüft und gebe sie zur Übermittlung an das Finanzamt frei.",
  freigabe_payment_next:"Als Nächstes werden Sie um die Zahlung von {price} gebeten. Ihre Steuererklärung wird erst nach erfolgter Zahlung an das Finanzamt gesendet.", freigabe_continue_to_payment:"Weiter zur Zahlung",
@@ -5308,7 +5316,7 @@ async function submitElsterReal(c){
  try{
  const data = buildElsterDataset(c);
  let vr;
-  try{ vr = await api('/api/eric/validate','POST',{clientId:c.id, interchangeData:data}); }
+   try{ vr = await api('/api/eric/validate','POST',{clientId:c.id, interchangeData:data, lang:S.lang}); }
  catch(e){
  setBusy(false);
  /* CORRECTED: same real bug fixed above, in the second place it
@@ -5759,7 +5767,17 @@ function showFreigabeModal(c, data, validateResult){
     The actual record of what was confirmed and when is still kept in
     the real submitted data and audit log - this only changes what
     shows on this specific screen. */
- const warnings = allWarnings.filter(w => !w.startsWith('[MATERIAL]') && !w.startsWith('[UNRESOLVED]') && !w.startsWith('[CONFIRMED]'));
+  const sentWarnings = allWarnings.filter(w => w.startsWith('[SENT]'));
+ const omittedWarnings = allWarnings.filter(w => w.startsWith('[OMITTED]'));
+ /* IMPLEMENTED: real, direct concern raised - the single list this used
+    to be blended two genuinely different situations (something sent
+    with a default value, versus something genuinely left out of the
+    submission entirely) behind one shared, either/or subtitle, with
+    nothing telling the reader which applied to which item below
+    without reading each one's own text carefully. Split into two,
+    separately-labeled groups instead, so which situation applies is
+    clear from the heading alone, not something to work out. */
+ const warnings = allWarnings.filter(w => !w.startsWith('[MATERIAL]') && !w.startsWith('[UNRESOLVED]') && !w.startsWith('[CONFIRMED]') && !w.startsWith('[SENT]') && !w.startsWith('[OMITTED]'));
  const valid = ericOk && materialWarnings.length === 0;
  /* CORRECTED: real gap found via direct feedback - the app only ever
     showed one generic sentence ("ERiC could not confirm...") and threw
@@ -5832,6 +5850,24 @@ function showFreigabeModal(c, data, validateResult){
  }).join('')}
  </ul>
  </div>`:''}
+  ${sentWarnings.length?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin-bottom:14px">
+ <div style="font-weight:600;margin-bottom:6px">📤 ${t('freigabe_sent_title')} (${sentWarnings.length})</div>
+ <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px">${t('freigabe_sent_sub')}</div>
+ <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.5">
+ ${sentWarnings.map(w=>{ const text = w.replace(/^\[SENT\]\s*/,''); const stepIndex=guessStepFromWarningText(w);
+ return `<li style="margin-bottom:8px">${esc(text)}${stepIndex!=null?`<div style="margin-top:6px"><button class="btn btn-ghost btn-sm" style="border-color:var(--amber);color:var(--amber);font-weight:700" onclick="this.closest('.modal-bg').remove();S.step=${stepIndex};render()">${t('freigabe_go_to_section')} →</button></div>`:''}</li>`;
+ }).join('')}
+ </ul>
+ </div>`:''}
+ ${omittedWarnings.length?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin-bottom:14px">
+ <div style="font-weight:600;margin-bottom:6px">🚫 ${t('freigabe_omitted_title')} (${omittedWarnings.length})</div>
+ <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px">${t('freigabe_omitted_sub')}</div>
+ <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.5">
+ ${omittedWarnings.map(w=>{ const text = w.replace(/^\[OMITTED\]\s*/,''); const stepIndex=guessStepFromWarningText(w);
+ return `<li style="margin-bottom:8px">${esc(text)}${stepIndex!=null?`<div style="margin-top:6px"><button class="btn btn-ghost btn-sm" style="border-color:var(--amber);color:var(--amber);font-weight:700" onclick="this.closest('.modal-bg').remove();S.step=${stepIndex};render()">${t('freigabe_go_to_section')} →</button></div>`:''}</li>`;
+ }).join('')}
+ </ul>
+ </div>`:''}
  ${warnings.length?`<div class="infobox" style="background:var(--amber-soft);border-color:var(--amber);margin-bottom:14px">
  <div style="font-weight:600;margin-bottom:6px">⚠ ${t('freigabe_warnings_title')} (${warnings.length})</div>
  <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px">${t(valid?'freigabe_warnings_sub':'freigabe_warnings_sub_rejected')}</div>
@@ -5876,7 +5912,7 @@ async function performSubmission(c, data){
  setBusy(true);
  try{
  c.freigabe = { at: Date.now(), dataHash: await sha256Hex(JSON.stringify(data)) };
- const sr = await api('/api/eric/submit','POST',{ clientId:c.id, interchangeData:data, freigabeConfirmed:true });
+  const sr = await api('/api/eric/submit','POST',{ clientId:c.id, interchangeData:data, freigabeConfirmed:true, lang:S.lang });
  setBusy(false);
  const m=document.querySelector('.modal-bg'); if(m) m.remove();
  const slot=document.getElementById('modal-slot');

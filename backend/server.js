@@ -1367,7 +1367,7 @@ app.post('/api/eric/validate', auth, async (req, res) => {
   if (!ericService.isReady()) {
     return res.status(501).json({ error: 'eric_unavailable', detail: ericService.getInitError() });
   }
-  const { clientId, interchangeData } = req.body || {};
+   const { clientId, interchangeData, lang } = req.body || {};
   if (!clientId || !interchangeData) return res.status(400).json({ error: 'invalid_input' });
    /* IMPLEMENTED: real gap found via a direct route-by-route review,
      specifically the test the audit itself names as something to
@@ -1393,8 +1393,9 @@ app.post('/api/eric/validate', auth, async (req, res) => {
   }
   try {
     const convertedData = await convertSteuernummerForSubmission(interchangeData);
-    const { xml, skippedSections } = buildEStXML(convertedData, {
+     const { xml, skippedSections } = buildEStXML(convertedData, {
       herstellerID: process.env.ERIC_HERSTELLER_ID,
+      lang,
     });
     const result = await ericService.validate(xml, 'ESt_' + (convertedData.meta?.taxYear || 2025));
     audit(req.user.sub, 'eric_validate', { clientId, rc: result.rc, ok: result.rc === 0 });
@@ -1435,7 +1436,7 @@ app.post('/api/eric/submit', auth, async (req, res) => {
   if (!ericService.isReady()) {
     return res.status(501).json({ error: 'eric_unavailable', detail: ericService.getInitError() });
   }
-  const { clientId, interchangeData, freigabeConfirmed } = req.body || {};
+   const { clientId, interchangeData, freigabeConfirmed, lang } = req.body || {};
    if (!clientId || !interchangeData) return res.status(400).json({ error: 'invalid_input' });
   if (!freigabeConfirmed) return res.status(400).json({ error: 'freigabe_required' });
 
@@ -1540,8 +1541,9 @@ app.post('/api/eric/submit', auth, async (req, res) => {
        should ever omit the test flag. */
     const isProductionMode = process.env.ERIC_SUBMISSION_MODE === 'production';
     convertedData.meta = { ...convertedData.meta, testmerker: !isProductionMode };
-     const { xml, skippedSections, unresolvedForeignIncome } = buildEStXML(convertedData, {
+      const { xml, skippedSections, unresolvedForeignIncome } = buildEStXML(convertedData, {
       herstellerID: process.env.ERIC_HERSTELLER_ID,
+      lang,
     });
 
     /* IMPLEMENTED: the production audit's own headline recommendation
