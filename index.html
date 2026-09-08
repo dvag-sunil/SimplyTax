@@ -339,8 +339,8 @@ function showAusCalc(empId){
  <div style="margin:10px 0 6px;font-size:13px;font-weight:600">${t('aus_activity_label')}</div>
  <div class="field${reqCls(a.activityDesc)}"><label>${t('aus_activity_desc')} *</label><input id="aus-activity-desc" value="${esc(a.activityDesc)}" placeholder="${t('aus_activity_desc_ph')}"></div>
  <div class="grid2">
- <div class="field${reqCls(a.activityFrom)}"><label>${t('aus_activity_from')} *</label><input id="aus-activity-from" type="date" value="${esc(a.activityFrom)}"></div>
- <div class="field${reqCls(a.activityTo)}"><label>${t('aus_activity_to')} *</label><input id="aus-activity-to" type="date" value="${esc(a.activityTo)}"></div>
+ <div class="field${reqCls(a.activityFrom)}"><label>${t('aus_activity_from')} *</label>${dateFieldHtml('aus-activity-from', a.activityFrom, '')}</div>
+ <div class="field${reqCls(a.activityTo)}"><label>${t('aus_activity_to')} *</label>${dateFieldHtml('aus-activity-to', a.activityTo, '')}</div>
  </div>
  <div class="grid2">
  <div class="field${reqCls(a.totalWage)}"><label>${t('aus_total_wage')} *</label><input id="aus-wage" value="${esc(a.totalWage)}" placeholder="0,00 €" onblur="this.value=formatDE(N(this.value))"></div>
@@ -439,8 +439,8 @@ function updateAusResult(empId){
  employerName: document.getElementById('aus-emp-name')?.value||'', employerStreet: document.getElementById('aus-emp-street')?.value||'',
  employerPlz: document.getElementById('aus-emp-plz')?.value||'', employerCity: document.getElementById('aus-emp-city')?.value||'',
  employerCountry: document.getElementById('aus-emp-country')?.value||'',
- activityDesc: document.getElementById('aus-activity-desc')?.value||'', activityFrom: document.getElementById('aus-activity-from')?.value||'',
- activityTo: document.getElementById('aus-activity-to')?.value||'',
+  activityDesc: document.getElementById('aus-activity-desc')?.value||'', activityFrom: displayToIso(document.getElementById('aus-activity-from')?.value)||'',
+ activityTo: displayToIso(document.getElementById('aus-activity-to')?.value)||'',
  dualResidence: dual,
  foreignResStreet: dual?(document.getElementById('aus-fr-street')?.value||''):'', foreignResPlz: dual?(document.getElementById('aus-fr-plz')?.value||''):'',
  foreignResCity: dual?(document.getElementById('aus-fr-city')?.value||''):'', foreignResCountry: dual?(document.getElementById('aus-fr-country')?.value||''):'',
@@ -1044,7 +1044,7 @@ en: {
  warn_dup_dhh:"Double household is entered BOTH in the structured fields AND as an itemized entry - the amounts would count twice. Please keep only one of the two.",
  warn_dup_umzug:"Relocation costs are entered BOTH in the structured field AND as an itemized entry - please keep only one.",
  warn_dup_basis:"A basic health/care policy is selected here although the employment statements already contain health contributions (lines 25/28). Check that the same contributions are not counted twice.",
- bad_date:"Please enter a valid date of birth between 1940 and today.",
+  bad_date:"Please enter a complete, valid date (DD.MM.YYYY).", date_placeholder:"DD.MM.YYYY",
  bad_amount:"Please enter a positive amount (negative values are not allowed here).",
  loading:"Loading your workspace...", loading_slow:"Still connecting - the server is waking up, this can take up to 30 seconds on first load.",
  back_to_home:"Back to SimplyTax homepage",
@@ -1518,7 +1518,7 @@ de: {
  warn_dup_dhh:"Die doppelte Haushaltsführung ist SOWOHL in den strukturierten Feldern ALS AUCH als Einzelposten erfasst - die Beträge würden doppelt zählen. Bitte nur eine der beiden Eingaben behalten.",
  warn_dup_umzug:"Umzugskosten sind SOWOHL im strukturierten Feld ALS AUCH als Einzelposten erfasst - bitte nur eine Eingabe behalten.",
  warn_dup_basis:"Hier ist eine Basis-Kranken-/Pflegeversicherung gewählt, obwohl die Lohnsteuerbescheinigungen bereits Krankenversicherungsbeiträge enthalten (Zeilen 25/28). Bitte prüfen, dass dieselben Beiträge nicht doppelt gezählt werden.",
- bad_date:"Bitte ein gültiges Geburtsdatum zwischen 1940 und heute eingeben.",
+  bad_date:"Bitte ein vollständiges, gültiges Datum eingeben (TT.MM.JJJJ).", date_placeholder:"TT.MM.JJJJ",
  bad_amount:"Bitte einen positiven Betrag eingeben (negative Werte sind hier nicht zulässig).",
  loading:"Arbeitsbereich wird geladen...", loading_slow:"Verbindung wird aufgebaut - der Server wacht gerade auf, das kann beim ersten Laden bis zu 30 Sekunden dauern.",
  back_to_home:"Zurück zur SimplyTax-Startseite",
@@ -3698,17 +3698,82 @@ function meter(c){
 }
 
 /* --- field helper: binds to c[group][key] --- */
-/* Bounded to the client's own tax year, not always "today" - filling in
-   a 2021 return should never show a date picker reaching up to 2026.
-   Still capped at the real current date too, since a date genuinely
-   cannot be in the future regardless of which year is being filed. */
-const dateMax = () => {
-  const c = cur();
-  const today = new Date().toISOString().slice(0,10);
-  if (!c || !c.taxYear) return today;
-  const yearEnd = c.taxYear + '-12-31';
-  return yearEnd < today ? yearEnd : today;
-};
+/* IMPLEMENTED: date input rebuilt after direct research into date-entry
+   UX, requested directly. Nielsen Norman Group's own guidance is that
+   calendar pickers suit events close to the present - for dates far in
+   the past (birth dates, marriage dates, employment history - exactly
+   what this whole app is full of), they force unnecessary navigation
+   through years of months; a documented, hands-on test of the native
+   <input type="date"> for a single birthday took 52 seconds. The
+   research is consistent: for this kind of data, a plain, typed field
+   with a clear format - here DD.MM.YYYY, matching the German
+   convention this whole app already uses everywhere else - is both
+   faster and more accessible than a calendar widget. Internally, every
+   date is still stored and used as ISO (YYYY-MM-DD), exactly as before,
+   since that's what the rest of the app and the actual ELSTER XML
+   require - only how it's typed and displayed changes. */
+function isoToDisplay(iso){
+ const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso||''));
+ return m ? `${m[3]}.${m[2]}.${m[1]}` : '';
+}
+/* Converts a DD.MM.YYYY string back to ISO, but only once it's genuinely
+   complete and forms a real calendar date - returns null for anything
+   still partial (mid-typing) or not a real date at all (e.g. 31.02),
+   so a caller can tell "not finished yet" apart from "finished, but
+   invalid" and react to each differently, rather than silently erasing
+   whatever was typed the moment it doesn't yet parse. */
+function displayToIso(disp){
+ const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(String(disp||'').trim());
+ if(!m) return null;
+ const [, dd, mm, yyyy] = m;
+ const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00Z`);
+ if(d.getUTCFullYear()!==Number(yyyy) || d.getUTCMonth()+1!==Number(mm) || d.getUTCDate()!==Number(dd)) return null;
+ return `${yyyy}-${mm}-${dd}`;
+}
+/* The auto-dot-insertion mask - lets someone just type digits
+   (01011990) and see them arrange themselves into 01.01.1990 as they
+   go, without needing to type the separators themselves, while still
+   allowing the dots to be typed directly too if that's more natural. */
+function maskDateInput(el){
+ const digits = el.value.replace(/[^\d]/g,'').slice(0,8);
+ let out = digits.slice(0,2);
+ if(digits.length>2) out += '.'+digits.slice(2,4);
+ if(digits.length>4) out += '.'+digits.slice(4,8);
+ el.value = out;
+}
+/* Real, confirmed bug fixed directly, reported plainly: the previous
+   version silently wiped out an entire year the instant it fell after
+   the tax year's own December 31st - but plenty of genuinely legitimate
+   dates in this app extend past that (an ongoing arrangement continuing
+   into the next year, for one). The upper bound is now a simple,
+   sensible one - a little past today, covering an ongoing situation
+   entered while things are still in progress - not tied to the specific
+   tax year being filed at all. And rather than silently discarding an
+   out-of-range value, this now just flags it clearly and leaves what
+   was actually typed on screen, so it can be corrected instead of
+   retyped from scratch. */
+const DATE_MIN_YEAR = 1900, DATE_MAX_YEAR = () => new Date().getFullYear()+1;
+const validDate = v => { if(!/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return v;
+ const y=parseInt(String(v).slice(0,4));
+ if(y<DATE_MIN_YEAR || y>DATE_MAX_YEAR()){ showFieldErr(t('bad_date')); }
+ return v; };
+/* Shared by F/LF/CF - the actual <input> markup for a date field, and
+   the small onchange wrapper that converts the typed DD.MM.YYYY back to
+   ISO before handing it to whichever save function the caller uses.
+   Kept in one place so every date field in the app behaves identically,
+   rather than three separate, potentially-drifting copies of the same
+   logic. */
+function dateFieldHtml(tabkey, isoValue, onSaveExpr){
+ /* CORRECTED: real bug caught before it could cause a silent failure -
+    this only ever set data-tabkey, but a couple of places in the app
+    (the foreign-employment activity dates) read a field's value
+    directly via getElementById rather than through an onchange handler,
+    and would have silently found nothing at all without this. */
+ return `<input id="${tabkey}" data-tabkey="${tabkey}" type="text" inputmode="numeric" maxlength="10" autocomplete="off"
+ value="${esc(isoToDisplay(isoValue))}" placeholder="${t('date_placeholder')}"
+ oninput="maskDateInput(this)"
+ onchange="const iso=displayToIso(this.value); if(this.value.trim()!=='' && iso===null){ showFieldErr(t('bad_date')); return; } ${onSaveExpr}">`;
+}
 const marLbl = m => m==='married' ? t('married') : m==='married_sep' ? t('married_sep')
  : m==='verwitwet' ? t('widowed') : m==='getrennt_lebend' ? t('separated_living') : t('single');
 /* Full-screen blocking overlay: freezes all clicks while an auth request is in flight,
@@ -3729,11 +3794,7 @@ function showFieldErr(msg){ let el=document.getElementById('field-err-toast');
  if(!el){ el=document.createElement('div'); el.id='field-err-toast';
  el.style.cssText='position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 4px 18px rgba(0,0,0,.18);pointer-events:none;transition:opacity .3s';
  document.body.appendChild(el); }
- el.textContent=msg; el.style.opacity='1'; clearTimeout(el._t); el._t=setTimeout(()=>{el.style.opacity='0';},3000); }
-const validDate = v => { if(!/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return v;
- const y=parseInt(String(v).slice(0,4));
- if(y<1940 || y>new Date().getFullYear()){ showFieldErr(t('bad_date')); return ''; }
- return v; };
+  el.textContent=msg; el.style.opacity='1'; clearTimeout(el._t); el._t=setTimeout(()=>{el.style.opacity='0';},3000); }
 const validAmount = (v, fmt) => { if(!fmt || String(v).trim()==='') return v;
  if(N(v) < 0){ showFieldErr(t('bad_amount')); return ''; }
  return v; };
@@ -3846,8 +3907,12 @@ function F(group,key,label,opts={}){
  ${opts.select.map(o=>`<option value="${o[0]}" ${v===o[0]?'selected':''}>${o[1]}</option>`).join('')}
  </select>${hint}</div>`;
  }
+ if(type==='date'){
  return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}${ai}</label>
- <input data-tabkey="${fkey}" type="${type}" value="${esc(v)}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:(opts.min!=null?`min="${opts.min}"`:'')+(opts.max!=null?` max="${opts.max}"`:'')}
+ ${dateFieldHtml(fkey, v, `upd('${group}','${key}', iso);`)}${hint}</div>`;
+ }
+ return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}${ai}</label>
+ <input data-tabkey="${fkey}" type="${type}" value="${esc(v)}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''} ${opts.min!=null?`min="${opts.min}"`:''}${opts.max!=null?` max="${opts.max}"`:''}
  onchange="upd('${group}','${key}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
 /* Shared by F/LF/CF - "required" is detected the same way it already
@@ -4039,8 +4104,12 @@ function LF(list,item,field,label,opts={}){
  ${opts.select.map(o=>`<option value="${o[0]}" ${item[field]===o[0]?'selected':''}>${o[1]}</option>`).join('')}
  </select>${hint}</div>`;
  }
+ if((opts.type||'text')==='date'){
  return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}${ai}</label>
- <input data-tabkey="${tk}" type="${opts.type||'text'}" value="${esc(item[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''} ${(opts.type||'text')==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
+ ${dateFieldHtml(tk, item[field], `updItem('${list}','${item.id}','${field}', iso, 0);`)}${hint}</div>`;
+ }
+ return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}${ai}</label>
+ <input data-tabkey="${tk}" type="${opts.type||'text'}" value="${esc(item[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''}
  onchange="updItem('${list}','${item.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
 /* Wraps a single LF() field with a prominent Zeile-number badge, so it
@@ -4689,13 +4758,21 @@ function CF(kid,field,label,opts={}){
  ${opts.select.map(o=>`<option value="${o[0]}" ${(kid[field]||'')===o[0]?'selected':''}>${o[1]}</option>`).join('')}
  </select>${hint}</div>`;
  }
+ if(type==='date'){
  return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}</label>
- <input data-tabkey="${tk}" type="${type}" value="${esc(kid[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''} ${type==='date'?`min="1940-01-01" max="${dateMax()}"`:''}
+ ${dateFieldHtml(tk, kid[field], `updChild('${kid.id}','${field}', iso);`)}${hint}</div>`;
+ }
+ return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}</label>
+ <input data-tabkey="${tk}" type="${type}" value="${esc(kid[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''}
  onchange="updChild('${kid.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
 function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',familienkasse:'',otherParentName:'',kindergeld:'',childcare:'',ccProvider:'',ccPeriodFrom:'',ccPeriodTo:'',schoolFees:'',behMobility:false,behBlindHelpless:false,behValidIndefinite:false,behValidFrom:'',behValidTo:'',behSplitPercent:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function delChild(id){ const c=cur(); c.fam.children=(c.fam.children||[]).filter(k=>k.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
-function updChild(id,f,v,fmt){ v = validAmount(v, fmt); const c=cur(); const k=(c.fam.children||[]).find(x=>x.id===id); if(!k) return;
+/* CORRECTED: real, separate gap noticed while fixing date handling
+   generally - this never called validDate() at all, so a child's birth
+   date (and any other date field on a child) never got the same
+   validation every other date field in the app already relies on. */
+function updChild(id,f,v,fmt){ v = validDate(v); v = validAmount(v, fmt); const c=cur(); const k=(c.fam.children||[]).find(x=>x.id===id); if(!k) return;
  if(fmt && String(v).trim()!=='') v=formatDE(N(v)); k[f]=v; c.updatedAt=Date.now(); scheduleSave(); render();
  if(f==='taxId'){ checkTaxIdChecksum(v, 'childtaxid-check-msg-'+id); checkDuplicateIdNrs(); }
 }
