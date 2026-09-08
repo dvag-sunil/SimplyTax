@@ -2995,11 +2995,20 @@ function buildEStXML(data, opts = {}) {
     '[MATERIAL] EM_35c (energetic renovation) - a measure amount was entered but the renovation start date was not, and ERiC requires both together (Regel 102240006). Found via testing against a genuine client file - the return will be rejected until this date is filled in.',
     '[MATERIAL] EM_35c (energetische Sanierung) - es wurde ein Maßnahmenbetrag angegeben, aber nicht der Beginn der Baumaßnahme, und ERiC verlangt beide Angaben zusammen (Regel 102240006). Gefunden bei Tests mit einer echten Kundendatei - die Erklärung wird abgelehnt, bis dieses Datum ausgefüllt ist.'
   ));
-    if (emTotal > 0 && data.hauptvordruck?.personB)
-       skippedSections.push(MSG(
-    '[SENT] EM_35c (energetic renovation) - ownership was attributed entirely to the primary filer. The app does not collect a per-property ownership split, so if this property is jointly owned with the spouse, the attribution should be reviewed.',
-    '[SENT] EM_35c (energetische Sanierung) - das Eigentum wurde vollständig der hauptantragstellenden Person zugeordnet. Die App erfasst keine objektbezogene Eigentumsaufteilung; falls diese Immobilie gemeinsam mit dem Ehepartner gehört, sollte diese Zuordnung überprüft werden.'
+     if (emTotal > 0 && data.hauptvordruck?.personB) {
+      const isPar26aEM = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
+      if (isPar26aEM) {
+        skippedSections.push(MSG(
+    '[MATERIAL] EM_35c (energetic renovation) - this app has no field anywhere to split renovation costs between spouses for this specific deduction, unlike a rental property\'s ownership split. Under §26a separate assessment, each spouse\'s own tax liability genuinely depends on who claims this - if this property and its renovation were jointly paid for, only this filer\'s own share of the actual costs should be entered here (not the full amount), with the other share entered on the spouse\'s own, separate return instead. Please confirm the correct split with a Steuerberater before submitting, since this app cannot determine or apply it automatically.',
+    '[MATERIAL] EM_35c (energetische Sanierung) - diese App bietet für diesen Abzug keine Möglichkeit, die Sanierungskosten zwischen den Ehepartnern aufzuteilen, anders als bei der Eigentumsaufteilung einer vermieteten Immobilie. Bei der Einzelveranlagung nach §26a hängt die tatsächliche Steuerlast jedes Ehepartners hiervon ab - wurden diese Immobilie und die Sanierung gemeinsam finanziert, sollte hier nur der eigene Anteil der tatsächlichen Kosten eingetragen werden (nicht der Gesamtbetrag), während der übrige Anteil auf der eigenständigen Erklärung des Ehepartners einzutragen ist. Bitte die korrekte Aufteilung vor der Übermittlung mit einem Steuerberater klären, da die App dies nicht automatisch ermitteln oder anwenden kann.'
   ));
+      } else {
+        skippedSections.push(MSG(
+    '[SENT] EM_35c (energetic renovation) - this app has no field to attribute this deduction between spouses; it was sent as part of this joint return as entered. For a joint return, this has no real effect since both spouses\' figures are combined into one shared result regardless of whose name is on which entry - nothing to change here.',
+    '[SENT] EM_35c (energetische Sanierung) - diese App bietet kein Feld, um diesen Abzug zwischen den Ehepartnern zuzuordnen; er wurde als Teil dieser gemeinsamen Erklärung genau wie eingegeben übermittelt. Bei einer Zusammenveranlagung hat dies keine tatsächliche Auswirkung, da die Werte beider Ehepartner ohnehin zu einem gemeinsamen Ergebnis zusammengeführt werden, unabhängig davon, wessen Name bei welchem Eintrag steht - hier ist nichts zu ändern.'
+  ));
+      }
+    }
     if (em.buildDate && em.measureStart) {
       const years = (new Date(em.measureStart) - new Date(em.buildDate)) / (365.25 * 24 * 3600 * 1000);
       if (years < 10)
