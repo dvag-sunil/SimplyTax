@@ -3153,7 +3153,22 @@ function buildSonstigeNachrichtXML(data, opts = {}) {
        invalid value reach ELSTER's own validation. */
     const bezeichnung = String(opts.attachment.filename).replace(/[\r\n]/g, ' ').slice(0, 50);
     anhaenge = `<Anhaenge xmlns="http://finkonsens.de/elster/anhaenge/simple/v3" version="3">\n`;
-    anhaenge += `<Rueckmeldung><RueckmeldungGewuenscht>false</RueckmeldungGewuenscht></Rueckmeldung>\n`;
+    /* CORRECTED: real, confirmed bug - ELSTER's own validation
+       rejected this outright with a specific, unambiguous rule
+       (Anhaenge_21 / Rueckmeldung_ist_nicht_True): for this exact
+       data type, requesting the automatic confirmation is mandatory,
+       not a preference this app gets to opt out of. The original
+       false here was an unverified assumption, not confirmed against
+       anything - ELSTER's own rejection settled it directly. Note
+       this is a one-way commitment: setting this true means ELSTER
+       will generate a real follow-up confirmation (e.g. whether the
+       attachment passed its virus scan) that this app does not yet
+       have a way to actually retrieve (that's the separate
+       ElsterDatenabholung mechanism, not built here) - honestly
+       tracked as a real, remaining gap rather than silently ignored,
+       not something to solve by reintroducing the false that just
+       failed. */
+    anhaenge += `<Rueckmeldung><RueckmeldungGewuenscht>true</RueckmeldungGewuenscht></Rueckmeldung>\n`;
     anhaenge += `<Anhang>${tag('Dateibezeichnung', bezeichnung)}${tag('Dateityp', 'application/pdf')}<Dateiinhalt>${opts.attachment.base64}</Dateiinhalt></Anhang>\n`;
     anhaenge += `</Anhaenge>\n`;
   }
