@@ -1712,25 +1712,26 @@ app.post('/api/eric/inquiry-message', auth, async (req, res) => {
       attachment: attachmentOpt,
     });
 
-    const result = await ericService.submit(xml, 'SonstigeNachrichten_22');
+     const result = await ericService.submit(xml, 'SonstigeNachrichten_22');
     audit(req.user.sub, 'eric_inquiry_message', { clientId, inquiryId, rc: result.rc, sent: result.sent, transferTicket: result.transferTicket || null });
 
-    if (result.sent) {
-      /* Stores the real outcome onto the specific inquiry record this
-         message was answering - replacing what this used to be: a
-         function that never contacted any server at all, and just
-         generated a fake, random reference number that looked like a
-         real confirmation but genuinely wasn't one. */
-      const updatedInq = (stored.inq || []).map(q => q.id === inquiryId
-        ? { ...q, status: 'answered', sentAt: Date.now(), ticket: result.transferTicket || null }
-        : q);
-      await pool.query(
-        `UPDATE clients SET data = jsonb_set(data, '{inq}', $3::jsonb) WHERE id=$1 AND user_id=$2`,
-        [clientId, req.user.sub, JSON.stringify(updatedInq)]
-      );
-    }
+    /* CORRECTED: real, confirmed bug - this used to also write the
+       updated inquiry directly to the database itself, right here,
+       completely separately from this app's one, existing, established
+       save mechanism (the bulk client sync already triggered by the
+       frontend immediately after a successful send). Two independent,
+       uncoordinated writers touching the exact same data raced each
+       other - whichever one happened to finish last silently discarded
+       whatever the other had just written, which is the direct,
+       confirmed cause of a reported bug where sent inquiries appeared
+       duplicated or their real content was lost after navigating away
+       and back. The fix isn't to make this write smarter - it's that
+       this route never needed a second writer at all. It now only
+       reports the real outcome back; the frontend's own existing save
+       flow is the single, sole place this gets persisted, exactly like
+       every other field in this app already works. */
 
-     res.json({
+    res.json({
       ok: result.sent,
       rc: result.rc,
       resultXml: result.resultXml,
