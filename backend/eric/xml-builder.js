@@ -1540,20 +1540,33 @@ function buildVLegacy(data, entries) {
     allg += tag(fm.V.nutzAngehoerige, p.angehoerige === 'ja' ? '1' : '2');
     inner += `<Allg>\n${allg}</Allg>\n`;
 
-    if (N(p.mieteinnahmen) > 0) {
+     if (N(p.mieteinnahmen) > 0) {
+      /* CORRECTED: real, confirmed bug found via direct user report and
+         a genuine ERiC rejection, for the exact filing type reported -
+         §26a separate assessment with a jointly-owned property. This
+         filer's own return needs to report only their own half of the
+         actual rent and service charges here too, not the full,
+         combined property figures - otherwise these fields disagree
+         with the halved einnahmenSum further down in this same entry.
+         Determined here, earlier than before, so it covers these
+         fields as well as the ones further down. */
+      const isPar26aVLegacy = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
+      const splitLegacy = isPar26aVLegacy && p.owner === 'joint';
+      const mieteOwn = splitLegacy ? Math.round(N(p.mieteinnahmen)/2) : N(p.mieteinnahmen);
+      const nebenOwn = splitLegacy ? Math.round(N(p.nebenkosten)/2) : N(p.nebenkosten);
       /* Einn/Mieteinn/Whg/Einz - confirmed real 2022 context has NO
          Wohneinheit label field (E0701202 does not exist here for this
          year) - only the amount, unlike 2023+. */
       inner += '<Einn>\n<Mieteinn><Whg>\n';
-      inner += `<Einz>\n${wholeEuroTag(fm.V.mieteinnahmen, p.mieteinnahmen)}</Einz>\n`;
-      inner += `<Sum>\n${wholeEuroTag(fm.V.mieteinnahmenSum, p.mieteinnahmen)}</Sum>\n`;
+      inner += `<Einz>\n${wholeEuroTag(fm.V.mieteinnahmen, mieteOwn)}</Einz>\n`;
+      inner += `<Sum>\n${wholeEuroTag(fm.V.mieteinnahmenSum, mieteOwn)}</Sum>\n`;
       inner += '</Whg></Mieteinn>\n';
       /* Einn/Uml_sonst - confirmed real 2022 context has no "not
          separately agreed" alternative declaration (that specific
          Regel is 2023+ only) - only emit an amount when there
          genuinely is one. */
-      if (N(p.nebenkosten) > 0) {
-        inner += `<Uml_sonst>\n${wholeEuroTag(fm.V.nebenkosten, p.nebenkosten)}</Uml_sonst>\n`;
+      if (nebenOwn > 0) {
+        inner += `<Uml_sonst>\n${wholeEuroTag(fm.V.nebenkosten, nebenOwn)}</Uml_sonst>\n`;
       }
       inner += '</Einn>\n';
 
@@ -1569,7 +1582,7 @@ function buildVLegacy(data, entries) {
          directly via wkCategoryTotal (the same figure Wk's own Se_WK
          total will show), so this reordering doesn't change any
          actual number, just the sequence these two blocks appear in. */
-      const wkTotal = wkCategoryTotal(p);
+       const wkTotal = wkCategoryTotal(p);
 
       /* Erm_Zuord_Ek - confirmed real 2022 context: the income sum,
          Überschuss, and ownership attribution all sit here directly,
@@ -1577,8 +1590,15 @@ function buildVLegacy(data, entries) {
          itemized above (same categories, same field codes as 2023+,
          confirmed identical), so the Überschuss correctly subtracts
          them rather than reporting gross income. */
-      const totalIncome = N(p.mieteinnahmen) + N(p.nebenkosten);
-      const ueberschuss = totalIncome - wkTotal;
+       const wkP = splitLegacy ? { ...p,
+        wkAfa: Math.round(N(p.wkAfa)/2), wkSonderabschr: Math.round(N(p.wkSonderabschr)/2),
+        wkSchuldzins: Math.round(N(p.wkSchuldzins)/2), wkGeldbeschaff: Math.round(N(p.wkGeldbeschaff)/2),
+        wkErhaltung: Math.round(N(p.wkErhaltung)/2), wk5JAbzugsfaehig: Math.round(N(p.wk5JAbzugsfaehig)/2),
+        wkVerwaltung: Math.round(N(p.wkVerwaltung)/2), wkUstPflichtig: Math.round(N(p.wkUstPflichtig)/2),
+        wkSonst: Math.round(N(p.wkSonst)/2) } : p;
+      const totalIncome = mieteOwn + nebenOwn;
+      const wkTotalOwn = splitLegacy ? wkCategoryTotal(wkP) : wkTotal;
+      const ueberschuss = totalIncome - wkTotalOwn;
       /* CORRECTED: real, confirmed gap - the surplus was always
          attributed entirely to Person A, never actually split, even
          though the real schema has dedicated fields for exactly this
@@ -1595,30 +1615,39 @@ function buildVLegacy(data, entries) {
          once within Wk/Se_WK above. ERiC genuinely requires both,
          confirmed via a real rejection even though the underlying
          figures were already correct. Genuinely absent for 2023+. */
-      inner += wholeEuroTag(fm.V.werbungskostenTransfer, wkTotal);
+      inner += wholeEuroTag(fm.V.werbungskostenTransfer, wkTotalOwn);
       inner += wholeEuroTag(fm.V.ueberschuss, ueberschuss);
       /* CORRECTED: real, confirmed gap found via a systematic audit -
          this owner split allowed sending Person B's share even under
          §26a separate assessment, where no data for the other spouse
          belongs on this return at all. Matching the same real rule
          already applied to donations: owner B now sends nothing here
-         (belongs on the spouse's own return), and joint now sends
-         only this filer's own half. */
-      const isPar26aVLegacy = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
+         (belongs on the spouse's own return). Under §26a, totalIncome/
+         wkTotalOwn above are already this filer's own half (see
+         splitLegacy), so the full (already-halved) ueberschuss is this
+         filer's entire share - not halved again here. */
       if (p.owner === 'B') {
         if (!isPar26aVLegacy) inner += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss);
       } else if (p.owner === 'joint') {
-        const half = Math.round(ueberschuss / 2);
-        inner += wholeEuroTag(fm.V.ueberschussZuordA, half);
-        if (!isPar26aVLegacy) inner += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss - half);
+        if (isPar26aVLegacy) {
+          inner += wholeEuroTag(fm.V.ueberschussZuordA, ueberschuss);
+        } else {
+          const half = Math.round(ueberschuss / 2);
+          inner += wholeEuroTag(fm.V.ueberschussZuordA, half);
+          inner += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss - half);
+        }
       } else {
         inner += wholeEuroTag(fm.V.ueberschussZuordA, ueberschuss);
       }
       inner += '</Erm_Zuord_Ek>\n';
 
-      /* Wk block now correctly follows Erm_Zuord_Ek per the confirmed
-         real element order above. */
-      const wkResult = buildWkBlock(p, data.meta?.taxYear);
+        /* Wk block now correctly follows Erm_Zuord_Ek per the confirmed
+         real element order above. wkP was already built above (see
+         where wkTotalOwn is derived from it) - reused here so the
+         itemized detail and the summary total stay guaranteed
+         consistent by construction, not two separately-computed
+         figures that happen to agree. */
+      const wkResult = buildWkBlock(wkP, data.meta?.taxYear);
       inner += wkResult.xml;
     }
     inner += '</Ek_b_Gst>\n';
@@ -1701,30 +1730,61 @@ function buildV(data) {
     allg += '</Nutzung>\n';
     xml += `<Allg>\n${allg}</Allg>\n`;
 
-    /* Einn - Mieteinn, then Uml, then Sum (confirmed order). Each unit
+     /* Einn - Mieteinn, then Uml, then Sum (confirmed order). Each unit
        needs a label paired with its amount (Regel 100750262). */
     if (N(p.mieteinnahmen) > 0) {
+      /* CORRECTED: real, confirmed bug found via direct user report and
+         a genuine ERiC rejection, for the exact filing type reported -
+         §26a separate assessment with a jointly-owned property. This
+         filer's own return needs to report only their own half of the
+         actual rent, service charges, deductible costs, and the
+         resulting surplus - not the full, combined property figures
+         with only the final surplus then halved. That mismatch (full
+         income/costs, but only a half surplus attributed) is exactly
+         what ERiC's own validation rejected. Halved at the source here
+         - the actual rent and service-charge amounts themselves, not
+         just their later combined total - since this app only collects
+         one combined rent figure for the whole property rather than a
+         genuine per-person split. */
+      const isPar26aVMain = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
+      const splitMain = isPar26aVMain && p.owner === 'joint';
+      const mieteOwn = splitMain ? Math.round(N(p.mieteinnahmen)/2) : N(p.mieteinnahmen);
+      const nebenOwn = splitMain ? Math.round(N(p.nebenkosten)/2) : N(p.nebenkosten);
       const label = p.wohneinheit || 'Wohneinheit 1';
       xml += '<Einn>\n<Mieteinn><Whg>\n';
-      xml += `<Einz>\n${tag(fm.V.wohneinheit, label)}${wholeEuroTag(fm.V.mieteinnahmen, p.mieteinnahmen)}</Einz>\n`;
-      xml += `<Sum>\n${wholeEuroTag(fm.V.mieteinnahmenSum, p.mieteinnahmen)}</Sum>\n`;
+      xml += `<Einz>\n${tag(fm.V.wohneinheit, label)}${wholeEuroTag(fm.V.mieteinnahmen, mieteOwn)}</Einz>\n`;
+      xml += `<Sum>\n${wholeEuroTag(fm.V.mieteinnahmenSum, mieteOwn)}</Sum>\n`;
       xml += '</Whg></Mieteinn>\n';
       /* Regel 100750265: either an amount, or an explicit declaration
          that service charges were not separately agreed. */
-      if (N(p.nebenkosten) > 0) {
-        xml += `<Uml>\n${wholeEuroTag(fm.V.nebenkosten, p.nebenkosten)}</Uml>\n`;
+      if (nebenOwn > 0) {
+        xml += `<Uml>\n${wholeEuroTag(fm.V.nebenkosten, nebenOwn)}</Uml>\n`;
       } else {
         xml += `<Uml>\n${tag(fm.V.nebenkostenNichtVereinbart, '1')}</Uml>\n`;
       }
       /* Regel 100700004: the overall income total. Service charges are
          themselves income, so they are included in the sum. */
-      const totalIncome = N(p.mieteinnahmen) + N(p.nebenkosten);
+      const totalIncome = mieteOwn + nebenOwn;
       xml += `<Sum>\n${wholeEuroTag(fm.V.einnahmenSum, totalIncome)}</Sum>\n`;
       xml += '</Einn>\n';
 
-      const wkResult = buildWkBlock(p, data.meta?.taxYear);
+      /* buildWkBlock reads each cost category directly from p, not from
+         any later summary total - needs the same halved figures used
+         above, or the itemized detail here would still show the full,
+         un-halved amounts and disagree with the rest of this entry.
+         wkTotalOwn is derived from summing these same halved
+         categories (rather than separately rounding the combined
+         total) so the two figures can never land on two different
+         numbers due to rounding. */
+      const wkP = splitMain ? { ...p,
+        wkAfa: Math.round(N(p.wkAfa)/2), wkSonderabschr: Math.round(N(p.wkSonderabschr)/2),
+        wkSchuldzins: Math.round(N(p.wkSchuldzins)/2), wkGeldbeschaff: Math.round(N(p.wkGeldbeschaff)/2),
+        wkErhaltung: Math.round(N(p.wkErhaltung)/2), wk5JAbzugsfaehig: Math.round(N(p.wk5JAbzugsfaehig)/2),
+        wkVerwaltung: Math.round(N(p.wkVerwaltung)/2), wkUstPflichtig: Math.round(N(p.wkUstPflichtig)/2),
+        wkSonst: Math.round(N(p.wkSonst)/2) } : p;
+      const wkResult = buildWkBlock(wkP, data.meta?.taxYear);
       xml += wkResult.xml;
-      const wkTotal = wkCategoryTotal(p);
+      const wkTotal = splitMain ? wkCategoryTotal(wkP) : wkCategoryTotal(p);
 
       /* CORRECTED (second pass) - real bug found via the actual client
          file returning "feldUnbekannt": the previous version wrapped
@@ -1756,16 +1816,21 @@ function buildV(data) {
          used elsewhere in this app for shared items. */
        xml += '<Erm_Zuord_Ek>\n';
       xml += wholeEuroTag(fm.V.ueberschuss, ueberschuss);
-      /* CORRECTED: same real gap just fixed in buildVLegacy - see the
-         detailed comment there. For §26a, owner B sends nothing here
-         and joint sends only this filer's own half. */
-      const isPar26aVMain = data.hauptvordruck?.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
+      /* CORRECTED: real, confirmed gap - under §26a, totalIncome/
+         wkTotal above are already this filer's own half (see
+         splitMain), so this already-halved ueberschuss is this filer's
+         entire share - not halved again here, and owner B sends
+         nothing (belongs on the spouse's own, separate return). */
       if (p.owner === 'B') {
         if (!isPar26aVMain) xml += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss);
       } else if (p.owner === 'joint') {
-        const half = Math.round(ueberschuss / 2);
-        xml += wholeEuroTag(fm.V.ueberschussZuordA, half);
-        if (!isPar26aVMain) xml += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss - half);
+        if (isPar26aVMain) {
+          xml += wholeEuroTag(fm.V.ueberschussZuordA, ueberschuss);
+        } else {
+          const half = Math.round(ueberschuss / 2);
+          xml += wholeEuroTag(fm.V.ueberschussZuordA, half);
+          xml += wholeEuroTag(fm.V.ueberschussZuordB, ueberschuss - half);
+        }
       } else {
         xml += wholeEuroTag(fm.V.ueberschussZuordA, ueberschuss);
       }
