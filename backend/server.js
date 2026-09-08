@@ -1648,7 +1648,33 @@ app.post('/api/eric/submit', auth, async (req, res) => {
     console.error('[eric/submit]', e.message);
     res.status(500).json({ error: 'server_error' });
   }
-});
+ });
+
+/* IMPLEMENTED: real, direct request - when ELSTER rejects a message for
+   a plausibility reason (rc 610001002), the actual, specific, human-
+   readable explanation of what's wrong is already present in the raw
+   result buffer - but was never being extracted or shown anywhere, only
+   the bare numeric code. This pulls out every such explanation ELSTER
+   provides (there can genuinely be more than one problem in a single
+   rejection, not just one), so the actual reason - and, when it points
+   at one, which specific piece of information is missing - can be shown
+   directly, giving someone an actual chance to fix it themselves and
+   resend, rather than a code with no way to act on it. No XML parsing
+   library exists anywhere in this codebase, so this is a direct,
+   targeted extraction matched to the exact, predictable structure of
+   ERiC's own return buffer, not a new dependency for one small piece. */
+function extractPlausibilityErrors(resultXml) {
+  if (!resultXml) return [];
+  const blocks = resultXml.match(/<FehlerRegelpruefung>[\s\S]*?<\/FehlerRegelpruefung>/g) || [];
+  return blocks.map(block => {
+    const grab = (tag) => { const m = block.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`)); return m ? m[1].trim() : null; };
+    return {
+      text: grab('Text'),
+      field: grab('Feldidentifikator'),
+      id: grab('FachlicheFehlerId'),
+    };
+  }).filter(e => e.text);
+}
 
 app.post('/api/eric/inquiry-message', auth, async (req, res) => {
   if (!ericService.isReady()) {
@@ -1731,11 +1757,12 @@ app.post('/api/eric/inquiry-message', auth, async (req, res) => {
        flow is the single, sole place this gets persisted, exactly like
        every other field in this app already works. */
 
-    res.json({
+     res.json({
       ok: result.sent,
       rc: result.rc,
       resultXml: result.resultXml,
       serverXml: result.serverXml,
+      plausibilityErrors: extractPlausibilityErrors(result.resultXml),
       transferTicket: result.transferTicket || null,
       returncodeTH: result.returncodeTH || null,
       fehlertextTH: result.fehlertextTH || null,

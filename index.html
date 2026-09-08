@@ -920,7 +920,8 @@ en: {
  inq_attach_bad_type:"Only PDF files can be sent through this channel.", inq_attach_too_big:"This PDF is too large (max. 10 MB).",
  inq_disclosure_title:"Before you send this attachment", inq_disclosure_confirm:"I understand, send now", inq_disclosure_cancel:"Cancel",
  inq_disclosure_text:"Your attachments are automatically checked on the tax administration's servers for harmful content (e.g. viruses, trojans). Active content (e.g. interactive elements, buttons, self-updating text) is also removed from all attachments to protect the tax administration's systems.\n\nIf one of your attachments is identified as harmful during this check, it is deleted and does not reach processing at the Finanzamt. Other attachments not identified as harmful are not deleted. Every deletion of an attachment is documented in the tax administration's system, and the responsible caseworker at the Finanzamt is informed that the attachment was deleted. The caseworker may then contact you again and request the attachment by post, for example. Contacting them yourself is therefore not necessary and will not speed up the process.\n\nThe deletion of an attachment or the removal of active elements has no effect on the actual form or request itself. Only the submitted form or request is relevant for meeting a deadline. Since digital documents can be altered, they only serve as a means of demonstrating plausibility - please keep the original document as well.",
- inq_send_failed:"Could not send - please try again.", inq_eric_unavailable:"The connection to ELSTER is not available right now.",
+  inq_send_failed:"Could not send - please try again.", inq_eric_unavailable:"The connection to ELSTER is not available right now.",
+ inq_send_failed_hint:"ELSTER rejected this message for the following reason(s), in its own official German wording. Once fixed, you can send this again:",
  inq_send:"Send answer to the tax authority", inq_sent_on:"Sent to Finanzamt on",
  inq_send_hint:"In production this transmits as a 'Sonstige Nachricht an das Finanzamt' (Belege as Belegnachreichung) via ERiC - simulated here.",
   pdf_btn:"Download PDF summary", pdf_title:"Income tax return - summary",
@@ -1393,7 +1394,8 @@ de: {
  inq_attach_bad_type:"Über diesen Weg können nur PDF-Dateien gesendet werden.", inq_attach_too_big:"Diese PDF-Datei ist zu groß (max. 10 MB).",
  inq_disclosure_title:"Bevor Sie diesen Anhang senden", inq_disclosure_confirm:"Verstanden, jetzt senden", inq_disclosure_cancel:"Abbrechen",
  inq_disclosure_text:"Ihre Anhänge werden auf den Servern der Finanzverwaltung automatisiert auf schadhafte Inhalte (z. B. Viren, Trojaner, etc.) geprüft. Zudem werden zum Schutz der Systeme in der Finanzverwaltung aktive Inhalte (z. B. interaktive Elemente, Schaltflächen, sich selbständig aktualisierende Texte) aus allen Anhängen entfernt.\n\nSollte einer Ihrer Anhänge bei der Prüfung als schadhaft identifiziert werden, wird dieser gelöscht und gelangt nicht zur Bearbeitung in das Finanzamt. Weitere Anhänge, die nicht als schadhaft identifiziert wurden, werden nicht gelöscht. Jede Löschung eines Anhangs wird im System der Finanzverwaltung dokumentiert und der zuständige Bearbeiter im Finanzamt erhält die Information, dass der Anhang gelöscht wurde. Der Bearbeiter kann daraufhin nochmals mit Ihnen in Kontakt treten und den Anhang beispielsweise postalisch anfordern. Eine Kontaktaufnahme von Ihrer Seite ist daher nicht erforderlich und führt zu keiner Beschleunigung des Prozesses.\n\nDie Löschung eines Anhangs oder die Entfernung aktiver Elemente hat keine Auswirkung auf das eigentliche Formular oder den Antrag. Ausschließlich das eingereichte Formular oder der Antrag sind für eine Fristwahrung relevant. Da digitale Dokumente änderbar sind, stellen sie lediglich ein Mittel der Glaubhaftmachung dar. Bitte verwahren Sie daher weiterhin das Original.",
- inq_send_failed:"Senden fehlgeschlagen - bitte erneut versuchen.", inq_eric_unavailable:"Die Verbindung zu ELSTER ist derzeit nicht verfügbar.",
+  inq_send_failed:"Senden fehlgeschlagen - bitte erneut versuchen.", inq_eric_unavailable:"Die Verbindung zu ELSTER ist derzeit nicht verfügbar.",
+ inq_send_failed_hint:"ELSTER hat diese Nachricht aus folgendem/n Grund/Gründen abgelehnt. Nach Behebung kann sie erneut gesendet werden:",
  inq_send:"Antwort an das Finanzamt senden", inq_sent_on:"An das Finanzamt gesendet am",
  inq_send_hint:"In Produktion erfolgt die Übermittlung als 'Sonstige Nachricht an das Finanzamt' (Belege als Belegnachreichung) über ERiC - hier simuliert.",
   pdf_btn:"PDF-Zusammenfassung herunterladen", pdf_title:"Einkommensteuererklärung - Zusammenfassung",
@@ -5973,13 +5975,23 @@ async function sendInq(id){
    the genuine ELSTER return code, and ELSTER's own stated reason when
    it provides one, rather than a generic message in a jarring, unstyled
    dialog. */
-function showInquiryFailedModal(rc, fehlertext){
+function showInquiryFailedModal(rc, fehlertext, plausibilityErrors){
  const slot=document.getElementById('modal-slot'); if(!slot) return;
- slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal" style="text-align:center">
+ const errs = Array.isArray(plausibilityErrors) ? plausibilityErrors.filter(e=>e && e.text) : [];
+ slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal" style="${errs.length?'':'text-align:center'}">
+ ${errs.length ? `
+ <h2>⚠ ${t('inq_send_failed')}</h2>
+ <p style="color:var(--ink-soft);font-size:13.5px;margin:6px 0 14px">${t('inq_send_failed_hint')}</p>
+ <ul style="margin:0 0 16px;padding-left:18px;font-size:12.5px;line-height:1.5">
+ ${errs.map(e=>`<li style="margin-bottom:8px">${esc(e.text)}</li>`).join('')}
+ </ul>
+ <p style="color:var(--ink-soft);font-size:11.5px">${t('eric_code')}: <b>${esc(rc)}</b></p>
+ ` : `
  <div style="font-size:40px;margin-bottom:8px">⚠</div><h2>${t('inq_send_failed')}</h2>
  <p style="color:var(--ink-soft);font-size:13.5px">${t('eric_code')}: <b>${esc(rc)}</b></p>
  ${fehlertext ? `<p style="color:var(--ink-soft);font-size:12.5px;margin-top:8px">${esc(fehlertext)}</p>` : ''}
- <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('close')}</button>
+ `}
+ <button class="btn ${errs.length?'btn-primary':'btn-ghost'}" onclick="this.closest('.modal-bg').remove()">${t('close')}</button>
  </div></div>`;
 }
 async function sendInqNow(id){
@@ -5994,7 +6006,7 @@ async function sendInqNow(id){
  subject:q.q ? q.q.slice(0,99) : undefined, text:q.a,
  attachment: attachment ? { base64:attachment.base64, filename:attachment.name } : undefined,
  });
- if(!r.ok){ if(btn) setBtnBusy(btn,false); showInquiryFailedModal(r.rc, r.fehlertextTH); return; }
+ if(!r.ok){ if(btn) setBtnBusy(btn,false); showInquiryFailedModal(r.rc, r.fehlertextTH, r.plausibilityErrors); return; }
  q.sentAt=Date.now(); q.ticket=r.transferTicket||null; q.status='answered';
  if(S.inqAttachments) delete S.inqAttachments[id];
  c.updatedAt=Date.now(); scheduleSave(); render();
