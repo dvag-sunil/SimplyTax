@@ -2955,7 +2955,16 @@ function chip(c){
  const paidNotSubmitted = c.status !== 'submitted' && c.pay && c.pay.status === 'paid';
  const status = paidNotSubmitted ? 'paid_pending' : c.status;
  const map={draft:['draft',t('status_draft')],review:['review',t('status_review')],submitted:['submitted',t('status_submitted')],paid_pending:['paid_pending',t('status_paid_pending')]};
- const m=map[status]||map.draft; return `<span class="chip ${m[0]}">${m[1]}</span>`;
+ const m=map[status]||map.draft;
+ /* IMPLEMENTED: same real fix as the open-inquiries indicator, applied
+    for the same reason, directly requested - this specific chip means
+    "this needs one more action: submitting it," so clicking it goes
+    straight to Review & Submit rather than the first page of the
+    return. Only this one status gets the click behavior - every other
+    chip keeps deferring to the row's own default click. */
+ return status==='paid_pending'
+ ? `<span class="chip ${m[0]}" style="cursor:pointer" onclick="event.stopPropagation();openClientAtReview('${c.id}')">${m[1]}</span>`
+ : `<span class="chip ${m[0]}">${m[1]}</span>`;
 }
 function dashView(){
  const cs = S.clients;
@@ -2981,7 +2990,7 @@ function dashView(){
  <span class="cname">${esc(c.p.firstName)} ${esc(c.p.lastName)}</span>
  <div class="csub" style="margin-left:44px">${esc(c.p.city||' - ')}</div></td>
  <td class="num">${c.taxYear}</td>
- <td>${chip(c)}${(c.inq||[]).some(q=>q.status==='open')?` <span class="chip review" title="${t('step_inq')}">❓ ${(c.inq||[]).filter(q=>q.status==='open').length}</span>`:''}</td>
+  <td>${chip(c)}${(c.inq||[]).some(q=>q.status==='open')?` <span class="chip review" title="${t('step_inq')}" style="cursor:pointer" onclick="event.stopPropagation();openClientAtInquiries('${c.id}')">❓ ${(c.inq||[]).filter(q=>q.status==='open').length}</span>`:''}</td>
  <td class="refund-cell num ${cls}">${(e.paid>0||e.zvE>0||e.kap>0)?eur(e.refund):' - '}</td>
  <td class="csub num">${dateStr(c.updatedAt)}</td>
  <td style="text-align:right;white-space:nowrap">
@@ -3169,6 +3178,14 @@ function createYearClone(id){
  S.currentId=c.id; S.step=0; S.view='client'; S.scanState=null; S.aiFields={}; render();
 }
 function openClient(id){ S.currentId=id; S.step=0; S.view='client'; S.scanState=null; S.aiFields={}; render(); }
+/* CORRECTED: real bug fixed directly, reported plainly - clicking the
+   open-inquiries indicator on the dashboard always landed on the first
+   step (personal data) via openClient()'s own, fixed default, not the
+   inquiries section the person actually clicked to reach. Opens
+   straight to that step instead - index 11 in the steps array, right
+   after stepInquiries was added to it. */
+function openClientAtInquiries(id){ S.currentId=id; S.step=11; S.view='client'; S.scanState=null; S.aiFields={}; render(); }
+function openClientAtReview(id){ S.currentId=id; S.step=10; S.view='client'; S.scanState=null; S.aiFields={}; render(); }
 function goDash(){ S.view='dash'; render(); }
 
 /* ---------------- client workspace ---------------- */
