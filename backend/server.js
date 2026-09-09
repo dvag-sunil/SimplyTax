@@ -1417,7 +1417,16 @@ app.post('/api/eric/validate', auth, async (req, res) => {
          correctly. The worker-side and frontend-side fixes were both
          genuinely deployed and correct; this route in between was the
          actual break. */
-      ...(result.ericLogTail ? { ericLogTail: result.ericLogTail } : {}),
+      /* IMPLEMENTED: real, direct concern raised - ericLogTail is a raw
+         dump of the ERiC library's own internal log, which genuinely
+         includes internal server detail (file paths, library internals)
+         that has no business reaching a real customer's browser in
+         production, even though it's genuinely useful while testing.
+         Reuses the same production/test distinction this app already
+         uses elsewhere (ERIC_SUBMISSION_MODE), rather than a new,
+         separate flag - included whenever this isn't a genuine
+         production deployment, omitted whenever it is. */
+      ...(result.ericLogTail && process.env.ERIC_SUBMISSION_MODE !== 'production' ? { ericLogTail: result.ericLogTail } : {}),
     });
   } catch (e) {
     if (e instanceof InterchangeDataError) return res.status(400).json({ error: 'invalid_interchange_data', detail: e.message });
@@ -1642,7 +1651,16 @@ app.post('/api/eric/submit', auth, async (req, res) => {
       skippedSections,
       /* Same real fix as /api/eric/validate above - ericLogTail was
          being silently dropped here too. */
-      ...(result.ericLogTail ? { ericLogTail: result.ericLogTail } : {}),
+      /* IMPLEMENTED: real, direct concern raised - ericLogTail is a raw
+         dump of the ERiC library's own internal log, which genuinely
+         includes internal server detail (file paths, library internals)
+         that has no business reaching a real customer's browser in
+         production, even though it's genuinely useful while testing.
+         Reuses the same production/test distinction this app already
+         uses elsewhere (ERIC_SUBMISSION_MODE), rather than a new,
+         separate flag - included whenever this isn't a genuine
+         production deployment, omitted whenever it is. */
+      ...(result.ericLogTail && process.env.ERIC_SUBMISSION_MODE !== 'production' ? { ericLogTail: result.ericLogTail } : {}),
     });
    } catch (e) {
     await releaseLock(previousStatus);
@@ -1768,7 +1786,16 @@ app.post('/api/eric/inquiry-message', auth, async (req, res) => {
       transferTicket: result.transferTicket || null,
       returncodeTH: result.returncodeTH || null,
       fehlertextTH: result.fehlertextTH || null,
-      ...(result.ericLogTail ? { ericLogTail: result.ericLogTail } : {}),
+      /* IMPLEMENTED: real, direct concern raised - ericLogTail is a raw
+         dump of the ERiC library's own internal log, which genuinely
+         includes internal server detail (file paths, library internals)
+         that has no business reaching a real customer's browser in
+         production, even though it's genuinely useful while testing.
+         Reuses the same production/test distinction this app already
+         uses elsewhere (ERIC_SUBMISSION_MODE), rather than a new,
+         separate flag - included whenever this isn't a genuine
+         production deployment, omitted whenever it is. */
+      ...(result.ericLogTail && process.env.ERIC_SUBMISSION_MODE !== 'production' ? { ericLogTail: result.ericLogTail } : {}),
     });
   } catch (e) {
     if (e instanceof InterchangeDataError) return res.status(400).json({ error: 'invalid_interchange_data', detail: e.message });
