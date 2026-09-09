@@ -2422,6 +2422,14 @@ const TARIFF = {
  2023:{gfb:10908, z1e:15999, a1:979.18, z2e:62809, a2:192.59, c2:966.53, z3e:277825, r3:.42, d3:9972.98, r4:.45, d4:18307.73},
  2024:{gfb:11784, z1e:17005, a1:954.80, z2e:66760, a2:181.19, c2:991.21, z3e:277825, r3:.42, d3:10636.31, r4:.45, d4:18971.06},
  2025:{gfb:12096, z1e:17443, a1:932.30, z2e:68480, a2:176.64, c2:1015.13, z3e:277825, r3:.42, d3:10911.92, r4:.45, d4:19246.67},
+ /* IMPLEMENTED: real, direct gap found while verifying the tax-rate
+    formula against official sources - 2026 was previously missing
+    entirely, silently falling back to the 2025 row above even though
+    nearly every constant genuinely differs between the two years.
+    Confirmed word-for-word against § 32a EStG's actual current text,
+    in force since 01.01.2026 (Steuerfortentwicklungsgesetz, BGBl. I
+    Nr. 449 v. 23.12.2024) - not estimated or extrapolated. */
+ 2026:{gfb:12348, z1e:17799, a1:914.51, z2e:69878, a2:173.10, c2:1034.87, z3e:277825, r3:.42, d3:11135.63, r4:.45, d4:19470.38},
 };
 function estBase(zvE, year){
  const T = TARIFF[year] || TARIFF[2025]; const x = Math.floor(zvE);
