@@ -2651,8 +2651,21 @@ function computeEstimate(c){
      directly contradicting the UI's own promise that excluding it
      means nothing is counted. Now genuinely respects the same toggle
      state already used for the display elsewhere in the app. */
-  const energEnabled = c.oth?.emEnabled !== false;
-  const energTotal = energEnabled ? ['Walls','Roof','Ceiling','Windows','Ventilation','Heating'].reduce((s,k)=>s+N(c.oth['em'+k]),0) : 0;
+   /* CORRECTED: real, confirmed bug found via direct user report - two
+     separate gaps in this one line. First: the same "phantom data"
+     issue already fixed elsewhere in this app - a value whose checkbox
+     wasn't actually checked was still being counted here, the same
+     stale-but-hidden problem. Second, and the one directly reported:
+     this never checked c.oth.emOwner at all, so changing "who owns
+     this property" had zero effect on the number shown here, even
+     though the backend now genuinely halves the same real figures for
+     §26a separate assessment before transmitting them. Both are fixed
+     together so this estimate stays honest about what actually gets
+     sent, not a separate, independently-drifting calculation. */
+  const isPar26aEnerg = c.p.marital === 'married_sep';
+  const energHalf = isPar26aEnerg && c.oth?.emOwner === 'joint';
+  const energRaw = energEnabled ? ['Walls','Roof','Ceiling','Windows','Ventilation','Heating'].reduce((s,k)=>s+(c.oth['em'+k+'Sel']?N(c.oth['em'+k]):0),0) : 0;
+  const energTotal = energHalf ? Math.round(energRaw/2) : energRaw;
  const energ = Math.min(Math.min(energTotal,200000)*0.07, 14000);
  const credit = Math.min(N(c.ex.household)*0.20, 4000) + Math.min(N(c.ex.handwerker)*0.20, 1200) + energ;
  const taxAfter = Math.max(0, tax - credit);
@@ -2737,7 +2750,24 @@ function computeEstimatePerPerson(c, person){
  clone.sa = clone.sa||{}; clone.sa.donations = half(c.sa?.donations);
  clone.props = (clone.props||[]).map((p,i)=>{ const orig=(c.props||[])[i]; if(orig){ p.rent=half(orig.rent); } return p; });
  clone.oth = clone.oth||{};
- ['realsplitting','soGain','soUnterhalt','lossCarry','ersatz','emWalls','emRoof','emCeiling','emWindows','emVentilation','emHeating'].forEach(k=>{ clone.oth[k]=half(c.oth?.[k]); });
+  ['realsplitting','soGain','soUnterhalt','lossCarry','ersatz'].forEach(k=>{ clone.oth[k]=half(c.oth?.[k]); });
+ /* CORRECTED: real, confirmed bug found via direct user report - these
+    six fields used to sit in the generic "no per-spouse data exists,
+    approximate 50/50" list above, which is exactly why the estimate
+    never changed no matter which option was picked in the ownership
+    dropdown - this function never looked at that choice at all. Real,
+    explicit ownership data now exists for this one item (see emOwner),
+    so it's handled on its own: the full amount goes to whichever
+    person is the sole owner, zero to the other, or an honest half each
+    if marked joint - matching exactly what the backend now actually
+    calculates and transmits, not a generic approximation anymore. */
+ ['emWalls','emRoof','emCeiling','emWindows','emVentilation','emHeating'].forEach(k=>{
+ const raw = N(c.oth?.[k]);
+ const owner = c.oth?.emOwner;
+ clone.oth[k] = owner === 'joint' ? (raw ? String(raw/2) : c.oth?.[k])
+ : owner === person ? c.oth?.[k]
+ : owner ? '0' : (raw ? String(raw/2) : c.oth?.[k]); // no owner chosen yet: same 50/50 approximation as before
+ });
  clone.ins = clone.ins||{}; ['rv','kv','pv','av','other'].forEach(k=>{ clone.ins[k]=half(c.ins?.[k]); });
  clone.kap = (c.kap||[]).map(k=>{ const k2={...k}; ['gains','k7','k18','k19','k12','k13'].forEach(f=>{k2[f]=half(k[f]);}); return k2; });
  return computeEstimate(clone);
