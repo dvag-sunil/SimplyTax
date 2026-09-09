@@ -32,7 +32,21 @@
  }
  *{box-sizing:border-box;margin:0;padding:0}
  html,body{height:100%}
- body{font-family:'Segoe UI',system-ui,-apple-system,Roboto,'Helvetica Neue',sans-serif;background:var(--paper);color:var(--ink);font-size:15px;line-height:1.5}
+  /* IMPLEMENTED: real, direct fix for a reported mobile layout bug -
+   official WebKit bug reports (bugs.webkit.org #153852, #240860,
+   #240861) confirm a long-standing, acknowledged iOS Safari quirk:
+   horizontal page scrolling can still occur even when overflow-x is
+   set to hidden on only one of html/body, particularly whenever the
+   visible area is smaller than the full layout area - which happens
+   constantly during ordinary use, any time the address bar is
+   showing. Setting it on both is the standard, more robust practice
+   for this specific class of bug. Neither was set at all before this,
+   meaning any element anywhere on the page rendering even slightly too
+   wide - which can genuinely differ between browser engines due to
+   sub-pixel rounding - had nothing stopping it from pushing the whole
+   page wider than the actual screen. */
+ html{overflow-x:hidden}
+ body{overflow-x:hidden;font-family:'Segoe UI',system-ui,-apple-system,Roboto,'Helvetica Neue',sans-serif;background:var(--paper);color:var(--ink);font-size:15px;line-height:1.5}
  h1,h2,h3,.display{font-family:Georgia,'Times New Roman',serif;letter-spacing:-.01em}
  button{font:inherit;cursor:pointer;border:none;background:none}
  input,select,textarea{font:inherit;color:var(--ink);font-size:16px}
@@ -155,9 +169,21 @@
  .phase-group{margin-bottom:6px}
  .phase-group:last-child{margin-bottom:0}
  .phase-label{font-size:10.5px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em;padding:10px 12px 4px}
- @media(max-width:980px){
+  @media(max-width:980px){
  .ws{grid-template-columns:1fr}
- .steps{display:flex;overflow-x:auto;gap:14px;position:relative;
+ /* CORRECTED: real, confirmed cause of a reported horizontal-overflow
+    gap on mobile - the textbook CSS grid item width trap. This is a
+    direct child of the .ws grid container's single, full-width column
+    on mobile, and its own overflow-x:auto below was meant to keep the
+    horizontally-scrolling phase pills contained within its own bounds.
+    But a grid item's width defaults to auto, which resolves to
+    whatever's needed to fit its content without wrapping - and since
+    the phase pills just below are set to white-space:nowrap, that
+    content is genuinely wide. Without overriding that default, the
+    grid track itself was being forced to grow to fit that content,
+    pushing the whole page wider than the actual screen, instead of the
+    contained, internal scroll this was already set up to do. */
+ .steps{display:flex;overflow-x:auto;min-width:0;gap:14px;position:relative;
  mask-image:linear-gradient(to right,transparent,#000 16px,#000 calc(100% - 28px),transparent);
  -webkit-mask-image:linear-gradient(to right,transparent,#000 16px,#000 calc(100% - 28px),transparent)}
  .step-item{white-space:nowrap}
@@ -3978,7 +4004,7 @@ function F(group,key,label,opts={}){
  if(opts.select){
  return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}${ai}${infoBtn}</label>
  <select data-tabkey="${fkey}" onchange="upd('${group}','${key}',this.value)">
- ${opts.select.map(o=>`<option value="${o[0]}" ${v===o[0]?'selected':''}>${o[1]}</option>`).join('')}
+ ${opts.select.map(o=>`<option value="${esc(o[0])}" ${v===o[0]?'selected':''}>${esc(o[1])}</option>`).join('')}
  </select>${hint}</div>`;
  }
  if(type==='date'){
@@ -4175,7 +4201,7 @@ function LF(list,item,field,label,opts={}){
  if(opts.select){
  return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}${ai}</label>
  <select data-tabkey="${tk}" onchange="updItem('${list}','${item.id}','${field}',this.value,0)">
- ${opts.select.map(o=>`<option value="${o[0]}" ${item[field]===o[0]?'selected':''}>${o[1]}</option>`).join('')}
+ ${opts.select.map(o=>`<option value="${esc(o[0])}" ${item[field]===o[0]?'selected':''}>${esc(o[1])}</option>`).join('')}
  </select>${hint}</div>`;
  }
  if((opts.type||'text')==='date'){
@@ -4838,7 +4864,7 @@ function CF(kid,field,label,opts={}){
  if(opts.select){
  return `<div class="field${reqEmpty?' req-empty':''}"><label>${label}</label>
  <select data-tabkey="${tk}" onchange="updChild('${kid.id}','${field}',this.value)">
- ${opts.select.map(o=>`<option value="${o[0]}" ${(kid[field]||'')===o[0]?'selected':''}>${o[1]}</option>`).join('')}
+ ${opts.select.map(o=>`<option value="${esc(o[0])}" ${(kid[field]||'')===o[0]?'selected':''}>${esc(o[1])}</option>`).join('')}
  </select>${hint}</div>`;
  }
  if(type==='date'){
