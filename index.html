@@ -2662,6 +2662,7 @@ function computeEstimate(c){
      §26a separate assessment before transmitting them. Both are fixed
      together so this estimate stays honest about what actually gets
      sent, not a separate, independently-drifting calculation. */
+   const energEnabled = c.oth?.emEnabled !== false;
   const isPar26aEnerg = c.p.marital === 'married_sep';
   const energHalf = isPar26aEnerg && c.oth?.emOwner === 'joint';
   const energRaw = energEnabled ? ['Walls','Roof','Ceiling','Windows','Ventilation','Heating'].reduce((s,k)=>s+(c.oth['em'+k+'Sel']?N(c.oth['em'+k]):0),0) : 0;
