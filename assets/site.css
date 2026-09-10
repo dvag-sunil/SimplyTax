@@ -45,7 +45,7 @@ img,svg{max-width:100%;display:block}
    Widened from 400px to 480px to reliably cover the 390-430px range
    most current phones actually use, not just the narrowest tier. */
 @media(max-width:480px){
-  .nav-in{gap:8px;height:auto;padding:10px 0;justify-content:flex-start}
+  .nav-in{gap:8px;height:auto;padding:10px 22px;justify-content:flex-start}
   .logo{font-size:17px}
   .logo>span{padding:1px 5px;margin-left:5px;font-size:9px}
   .nav-links{gap:8px}
