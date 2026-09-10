@@ -273,8 +273,24 @@
     matter more here, not less. */
  .sum-group .head .edit{display:inline-flex;align-items:center;min-height:44px;padding:4px 0}
  /* Header controls wrap onto a second row instead of overflowing off-screen */
- .topbar{flex-wrap:wrap;row-gap:8px;padding:10px 14px}
+ .topbar{flex-wrap:wrap;row-gap:8px;padding:8px 12px;gap:8px}
  .topbar .spacer{flex-basis:100%;height:0}
+ /* Real, confirmed report: "Log out" text was routinely pushed to a
+    second row on mobile. Tightened the whole row's sizing so the
+    common case fits on one line - logo and badge shrunk, gaps tightened,
+    logout already switched to a compact icon button above. The user's
+    own name is unpredictable-length real data, so rather than let it
+    alone force a wrap, it's capped with an ellipsis as a safety net -
+    still fully shown (not hidden), just guaranteed not to blow out the
+    row on an unusually long name. flex-wrap stays on as a fallback so
+    nothing is ever clipped outright if it still doesn't fit. */
+ .topbar .logo{font-size:16px}
+ .topbar .logo .logo-mark{width:24px;height:24px;font-size:13px}
+ .topbar .logo>span{padding:1px 5px;margin-left:4px;font-size:9px}
+ .lang-toggle button{padding:5px 10px;min-width:38px;font-size:12px}
+ .user-name-btn{max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block}
+ .logout-btn{padding:0;width:44px;justify-content:center}
+ .topbar .link-btn{padding:9px 10px;font-size:13px}
  /* Real, confirmed gap found via audit: once the topbar above wraps to
     two rows (two 44px control rows + 8px row-gap + 20px padding ≈
     116px), it's taller than the 74px offset the sticky meter below was
@@ -2970,6 +2986,19 @@ function render(){
     is actually on screen with both a Steuernummer and Finanzamt already
     present, so the message always reflects a genuine, current result. */
  if(S.view==='client' && S.step===0){ const cc=cur(); if(cc && cc.p.steuernummer && cc.p.faNumber) checkSteuernummerChecksum(); }
+ /* CORRECTED: real, confirmed bug directly reported by a user - the
+    step navigator's horizontal scroll position was silently reset to
+    zero on every single render, because render() rebuilds the whole
+    page via innerHTML above rather than patching just what changed.
+    That's why the selected section always appeared to "stay on the
+    first item" no matter which step was actually active - the DOM was
+    being torn down and rebuilt, taking its scroll position with it.
+    Re-centers the real active item after every render instead. No
+    animation is requested, so this is instant, not a visible scrolling
+    motion - render() also fires on ordinary field edits, and an
+    animated recenter on every keystroke would be far worse than the
+    bug it fixes. */
+ if(S.view==='client'){ const activeStep=app.querySelector('.step-item.on'); if(activeStep) activeStep.scrollIntoView({inline:'center',block:'nearest'}); }
 }
 /* Tab key across fields: intercept Tab/Shift+Tab on any tracked field, commit its value
  (via blur, same as clicking away), and queue the next/previous field to be focused
@@ -3055,7 +3084,7 @@ function topbar(){
  <button class="${S.lang==='en'?'on':''}" onclick="setLang('en')">${t('lang_en')}</button>
  <button class="${S.lang==='de'?'on':''}" onclick="setLang('de')">${t('lang_de')}</button>
  </div>
-   ${S.loggedIn?`<span class="user-name-btn" style="font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer" onclick="showSettings()" title="${t('settings')}">👤 ${esc(S.user?.name||'')}</span><button class="link-btn" onclick="showSettings()">⚙ ${t('settings')}</button><button class="link-btn" onclick="logout()">${t('logout')}</button>`:''}
+   ${S.loggedIn?`<span class="user-name-btn" style="font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer" onclick="showSettings()" title="${t('settings')}">👤 ${esc(S.user?.name||'')}</span><button class="link-btn" onclick="showSettings()">⚙ ${t('settings')}</button><button class="link-btn logout-btn" onclick="logout()" title="${t('logout')}" aria-label="${t('logout')}">🚪</button>`:''}
  </div>`;
 }
 
