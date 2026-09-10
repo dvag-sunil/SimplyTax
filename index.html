@@ -244,6 +244,18 @@
     starts. Brought down to match what .modal already does correctly. */
  .panel{padding:20px 16px}
  .panel h2{font-size:19px}
+ /* Real, confirmed gap found via audit: this header row is shared by
+    every repeatable financial item across the whole app (employment,
+    rental property, pension, insurance, platform income, work
+    expenses - 15 usages, 7 different step screens). Its label is
+    genuine unpredictable-length user data (an employer name, a full
+    street address, a platform name), sitting in a non-wrapping flex
+    row directly against the delete action with no room to shrink - a
+    long real address could push "Remove" off the edge of a 360px
+    screen entirely. Wrapping keeps every character of the user's own
+    data visible rather than truncating it, so this is layout-only. */
+ .sum-group .head{flex-wrap:wrap;row-gap:4px}
+ .sum-group .head>span:first-child{min-width:0;overflow-wrap:break-word}
  /* Enlarge small tap targets to the 44px accessibility minimum on touch screens */
   .link-btn{padding:11px 14px;font-size:14px;min-height:44px;display:inline-flex;align-items:center}
  .info-btn-sm{width:44px;height:44px;line-height:44px;font-size:17px}
@@ -1986,7 +1998,7 @@ function reminderPanel(cs){
  return `<div class="infobox" style="margin-top:-6px;margin-bottom:20px;border-color:var(--amber);background:var(--amber-soft)">
  <b>🔔 ${t('paid_not_submitted')}</b> - ${t('reminder_lead')}
  <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
- ${stale.map(({c,days})=>`<div style="display:flex;justify-content:space-between;align-items:center;background:#fff;border-radius:8px;padding:8px 12px;font-size:13.5px">
+ ${stale.map(({c,days})=>`<div style="display:flex;justify-content:space-between;align-items:center;background:#fff;border-radius:8px;padding:8px 12px;font-size:13.5px;flex-wrap:wrap;row-gap:4px">
  <span onclick="openClient('${c.id}')" style="cursor:pointer;font-weight:600;color:var(--ink)">${esc(c.p.firstName+' '+c.p.lastName)} · ${c.taxYear}</span>
  <span class="chip ${days>=14?'':'review'}" style="${days>=14?'background:var(--red-soft);color:var(--red)':''}">${days} ${t('days_since_payment')}${days>=14?' - '+t('refund_window_over'):''}</span>
  </div>`).join('')}
