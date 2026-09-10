@@ -314,7 +314,20 @@
  .login-card{padding:28px 22px}
  /* Dashboard stat cards and toolbar controls get more breathing room */
  .stats{grid-template-columns:1fr 1fr}
- .search{min-width:0}
+ /* Real, confirmed bug found via direct rendering: the two filter
+    dropdowns had no flex constraint at all, so each sized itself to
+    fit its own content ("Alle Status") first, leaving only leftover
+    scraps of the row for the search box - which is exactly why it was
+    crushed down to ~53px with its placeholder text spilling out past
+    its own edge instead of wrapping or clipping inside it. Giving all
+    three an equal, fair share (and tightening each one's own padding)
+    is what actually gets them onto one line, confirmed by re-rendering
+    afterward rather than assumed. */
+ .toolbar{gap:8px;flex-wrap:nowrap}
+ .search{flex:1;min-width:0;padding:0 8px}
+ .search input{font-size:13px}
+ .search input::placeholder{overflow:hidden;text-overflow:ellipsis}
+ .filter-sel{flex:1;min-width:0;padding:9px 6px;font-size:12.5px}
  /* Real, confirmed gap found via audit: the dashboard client table had
     no mobile handling at all - a 6-column table forced onto a 360-393px
     screen either overflows sideways or crushes columns unreadably, on
