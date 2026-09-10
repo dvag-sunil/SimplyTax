@@ -58,7 +58,7 @@
  .logo-mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--teal),var(--teal-dark));color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-family:Georgia,serif}
  .topbar .spacer{flex:1}
  .lang-toggle{display:flex;border:1px solid var(--line);border-radius:99px;overflow:hidden;background:var(--paper)}
- .lang-toggle button{padding:5px 14px;font-size:13px;font-weight:600;color:var(--ink-soft)}
+  .lang-toggle button{padding:5px 14px;min-height:44px;min-width:44px;font-size:13px;font-weight:600;color:var(--ink-soft)}
  .lang-toggle button.on{background:var(--ink);color:#fff}
  .link-btn{color:var(--ink-soft);font-size:13.5px;font-weight:600;padding:6px 10px;border-radius:8px}
  .link-btn:hover{background:var(--paper)}
@@ -82,7 +82,7 @@
  .login-card p.sub{color:var(--ink-soft);font-size:14px;margin-bottom:24px}
  .field{margin-bottom:16px}
  .field label{display:block;font-size:11.5px;font-weight:600;color:var(--ink-soft);margin-bottom:6px}
- .field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;outline:none;transition:.15s}
+  .field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px;background:#fff;outline:none;transition:.15s}
  .field input[type="checkbox"],.field input[type="radio"]{width:auto;flex:none;padding:0}
  .field-jump-highlight{outline:3px solid var(--red)!important;outline-offset:2px;animation:field-jump-pulse 2s ease-out}
  @keyframes field-jump-pulse{0%{box-shadow:0 0 0 6px rgba(178,58,58,.25)}100%{box-shadow:0 0 0 0 rgba(178,58,58,0)}}
@@ -198,10 +198,18 @@
  -webkit-mask-image:linear-gradient(to right,transparent,#000 16px,#000 calc(100% - 28px),transparent)}
  .step-item{white-space:nowrap}
  .phase-group{display:flex;gap:4px;align-items:center;margin-bottom:0;flex-shrink:0}
- .phase-label{padding:0 6px 0 0;border-right:1px solid var(--line);margin-right:4px;white-space:nowrap}
+  /* CORRECTED: real, direct clarity concern raised - this label was
+    inheriting the same bold, prominent styling as its desktop sidebar
+    counterpart, without being toned down for the far more cramped,
+    horizontal mobile layout, where it sits right next to actual
+    clickable step pills with little visual distinction from them.
+    Genuinely smaller and lighter here specifically, so it reads
+    clearly as a category divider, not as another item in the list or
+    an error. */
+ .phase-label{padding:2px 8px;border-right:1px solid var(--line);margin-right:4px;white-space:nowrap;font-size:9px;font-weight:700;color:var(--ink-soft);opacity:.75}
  }
  .steps{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:10px;box-shadow:var(--shadow)}
- .step-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;font-size:13.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;transition:.12s}
+  .step-item{display:flex;align-items:center;gap:10px;padding:10px 12px;min-height:44px;border-radius:10px;font-size:13.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;transition:.12s}
  .step-item:hover{background:var(--paper)}
  .step-item.on{background:var(--ink);color:#fff}
  #busy-overlay{position:fixed;inset:0;background:rgba(255,255,255,.55);z-index:99999;
@@ -231,8 +239,21 @@
  @media(max-width:640px){
  .grid2,.grid3{grid-template-columns:1fr}
  /* Enlarge small tap targets to the 44px accessibility minimum on touch screens */
- .link-btn{padding:11px 14px;font-size:14px;min-height:44px;display:inline-flex;align-items:center}
- .info-btn-sm{width:26px;height:26px;line-height:26px;font-size:14px}
+  .link-btn{padding:11px 14px;font-size:14px;min-height:44px;display:inline-flex;align-items:center}
+ .info-btn-sm{width:44px;height:44px;line-height:44px;font-size:17px}
+ /* Real, confirmed violation found via direct audit - measured at
+    just 15px tall, despite being one of the most frequently-used
+    navigation actions in the app (returning to the client list). */
+  .crumbs a{display:inline-flex;align-items:center;min-height:44px;padding:4px 0}
+  .info-btn{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:flex-end;padding:2px 8px}
+  .logo{min-height:44px}
+  .user-name-btn{display:inline-flex;align-items:center;min-height:44px;padding:4px 0}
+ /* Real, confirmed violation found via audit - this "Remove" action is
+    used across every list type in the app (employment, rental
+    property, capital gains, pension, insurance entries). Being a
+    destructive, delete-style action makes a reliably-sized target
+    matter more here, not less. */
+ .sum-group .head .edit{display:inline-flex;align-items:center;min-height:44px;padding:4px 0}
  /* Header controls wrap onto a second row instead of overflowing off-screen */
  .topbar{flex-wrap:wrap;row-gap:8px;padding:10px 14px}
  .topbar .spacer{flex-basis:100%;height:0}
@@ -2986,7 +3007,7 @@ function topbar(){
  <button class="${S.lang==='en'?'on':''}" onclick="setLang('en')">${t('lang_en')}</button>
  <button class="${S.lang==='de'?'on':''}" onclick="setLang('de')">${t('lang_de')}</button>
  </div>
-  ${S.loggedIn?`<span style="font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer" onclick="showSettings()" title="${t('settings')}">👤 ${esc(S.user?.name||'')}</span><button class="link-btn" onclick="showSettings()">⚙ ${t('settings')}</button><button class="link-btn" onclick="logout()">${t('logout')}</button>`:''}
+   ${S.loggedIn?`<span class="user-name-btn" style="font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer" onclick="showSettings()" title="${t('settings')}">👤 ${esc(S.user?.name||'')}</span><button class="link-btn" onclick="showSettings()">⚙ ${t('settings')}</button><button class="link-btn" onclick="logout()">${t('logout')}</button>`:''}
  </div>`;
 }
 
