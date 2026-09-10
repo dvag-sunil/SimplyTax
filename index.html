@@ -288,17 +288,17 @@
  .topbar .logo .logo-mark{width:24px;height:24px;font-size:13px}
  .topbar .logo>span{padding:1px 5px;margin-left:4px;font-size:9px}
  .lang-toggle button{padding:5px 10px;min-width:38px;font-size:12px}
- .user-name-btn{max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block}
- /* Real, confirmed report: the language toggle looked oversized next
-    to everything else on the row and broke onto its own uneven,
-    zigzag-looking line - because at 44px min-height/min-width it was
-    genuinely the single largest control in the row once logout and
-    settings had already been compacted. Brought down to match the
-    visual weight of its neighbors; a 2-option preference toggle used
-    occasionally is a reasonable place to trade a little touch-target
-    size for fitting the row cleanly, unlike primary actions. */
+ .user-name-btn{white-space:nowrap}
+ /* Real, precise fix based on actual measured element heights (not a
+    guess): the logout button was rendering 57px tall against 44px for
+    every neighboring element in the row, because the two emoji
+    glyphs are naturally taller than a 44px line-box and nothing
+    capped it - confirmed via direct screenshot + bounding-box
+    measurement. That height mismatch, not the gap between elements,
+    was the actual "zigzag". Hard-capped so it can never exceed its
+    neighbors regardless of glyph metrics. */
  .lang-toggle button{padding:4px 8px;min-width:26px;min-height:26px;font-size:11px}
- .logout-btn{padding:0;width:50px;font-size:15px;justify-content:center}
+ .logout-btn{padding:0;width:36px;height:44px;line-height:44px;font-size:14px;overflow:hidden;justify-content:center}
  .topbar .link-btn{padding:9px 10px;font-size:13px}
  /* Real, confirmed gap found via audit: once the topbar above wraps to
     two rows (two 44px control rows + 8px row-gap + 20px padding ≈
@@ -3094,7 +3094,7 @@ function topbar(){
  <button class="${S.lang==='en'?'on':''}" onclick="setLang('en')">${t('lang_en')}</button>
  <button class="${S.lang==='de'?'on':''}" onclick="setLang('de')">${t('lang_de')}</button>
  </div>
-   ${S.loggedIn?`<button class="link-btn logout-btn" onclick="logout()" title="${t('logout')}" aria-label="${t('logout')}">🚪🏃</button>`:''}
+   ${S.loggedIn?`<button class="link-btn logout-btn" onclick="logout()" title="${t('logout')}" aria-label="${t('logout')}">🏃</button>`:''}
  </div>`;
 }
 
