@@ -87,7 +87,7 @@
  .field-jump-highlight{outline:3px solid var(--red)!important;outline-offset:2px;animation:field-jump-pulse 2s ease-out}
  @keyframes field-jump-pulse{0%{box-shadow:0 0 0 6px rgba(178,58,58,.25)}100%{box-shadow:0 0 0 0 rgba(178,58,58,0)}}
  .search-popover{position:absolute;top:28px;right:0;width:320px;max-width:90vw;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:10px;z-index:50;text-align:left}
- .search-popover input{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px;margin-bottom:6px}
+ .search-popover input{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:16px;min-height:44px;margin-bottom:6px}
  .search-results-list{list-style:none;margin:0;padding:0;max-height:280px;overflow-y:auto}
  .search-results-list li{padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13.5px;font-weight:600}
  .search-results-list li:hover{background:var(--paper-soft)}
@@ -238,6 +238,12 @@
  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px 16px}
  @media(max-width:640px){
  .grid2,.grid3{grid-template-columns:1fr}
+ /* Real, confirmed gap found via audit: 28px of horizontal padding on
+    the container wrapping every form step removes over 15% of a
+    360px-wide screen's width in pure whitespace before any content
+    starts. Brought down to match what .modal already does correctly. */
+ .panel{padding:20px 16px}
+ .panel h2{font-size:19px}
  /* Enlarge small tap targets to the 44px accessibility minimum on touch screens */
   .link-btn{padding:11px 14px;font-size:14px;min-height:44px;display:inline-flex;align-items:center}
  .info-btn-sm{width:44px;height:44px;line-height:44px;font-size:17px}
@@ -257,6 +263,13 @@
  /* Header controls wrap onto a second row instead of overflowing off-screen */
  .topbar{flex-wrap:wrap;row-gap:8px;padding:10px 14px}
  .topbar .spacer{flex-basis:100%;height:0}
+ /* Real, confirmed gap found via audit: once the topbar above wraps to
+    two rows (two 44px control rows + 8px row-gap + 20px padding ≈
+    116px), it's taller than the 74px offset the sticky meter below was
+    tuned for on the single-row desktop topbar - so the meter was
+    sticking too high and tucking under the taller mobile topbar
+    instead of settling cleanly beneath it. */
+ .meter{top:124px}
  /* Modal action rows stack full-width instead of squeezing side by side */
  .modal [style*="justify-content:flex-end"]{flex-wrap:wrap}
  .modal [style*="justify-content:flex-end"] .btn{flex:1;min-width:120px}
@@ -265,9 +278,32 @@
  /* Dashboard stat cards and toolbar controls get more breathing room */
  .stats{grid-template-columns:1fr 1fr}
  .search{min-width:0}
+ /* Real, confirmed gap found via audit: the dashboard client table had
+    no mobile handling at all - a 6-column table forced onto a 360-393px
+    screen either overflows sideways or crushes columns unreadably, on
+    the single most-visited screen in the app. Same data, same click
+    behavior, same buttons - only rebuilt as a stacked card per client
+    instead of a table row, using the data-label attributes on each td
+    as the field caption. */
+ .client-table thead{display:none}
+ .client-table, .client-table tbody, .client-table tr{display:block;width:100%}
+ .client-table{border-spacing:0}
+ .client-table tr{border-bottom:8px solid var(--paper);padding:14px 16px}
+ .client-table tr:last-child{border-bottom:none}
+ .client-table td{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:none;text-align:right}
+ .client-table td[data-label]::before{content:attr(data-label);font-size:12px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;text-align:left;flex:none}
+ .client-table td:first-child{padding:0 0 10px;justify-content:flex-start}
+ .client-table td:first-child .csub{margin-left:0!important;margin-top:2px}
+ .client-table td.actions-cell{padding-top:10px;border-top:1px solid var(--line);justify-content:flex-end}
  }
  @media(max-width:400px){
  .stats{grid-template-columns:1fr}
+ /* Tuned specifically to the 360px-wide tier (Galaxy A/S-series,
+    confirmed via device research as the single most common real-world
+    mobile viewport, alongside 390-393px) rather than just inheriting
+    whatever the 640px tier above happens to leave room for. */
+ .panel{padding:16px 12px}
+ .client-table td[data-label]::before{font-size:11px}
  }
  .section-label{font-size:12px;font-weight:800;color:var(--teal);text-transform:uppercase;letter-spacing:.08em;margin:20px 0 12px;padding-top:16px;border-top:1px solid var(--line)}
  .section-label:first-of-type{margin-top:0;padding-top:0;border-top:none}
@@ -3103,11 +3139,11 @@ function dashView(){
  <td><span class="avatar">${esc((c.p.firstName[0]||'')+(c.p.lastName[0]||''))}</span>
  <span class="cname">${esc(c.p.firstName)} ${esc(c.p.lastName)}</span>
  <div class="csub" style="margin-left:44px">${esc(c.p.city||' - ')}</div></td>
- <td class="num">${c.taxYear}</td>
-  <td>${chip(c)}${(c.inq||[]).some(q=>q.status==='open')?` <span class="chip review" title="${t('step_inq')}" style="cursor:pointer" onclick="event.stopPropagation();openClientAtInquiries('${c.id}')">❓ ${(c.inq||[]).filter(q=>q.status==='open').length}</span>`:''}</td>
- <td class="refund-cell num ${cls}">${(e.paid>0||e.zvE>0||e.kap>0)?eur(e.refund):' - '}</td>
- <td class="csub num">${dateStr(c.updatedAt)}</td>
- <td style="text-align:right;white-space:nowrap">
+ <td class="num" data-label="${t('tax_year')}">${c.taxYear}</td>
+  <td data-label="${t('status')}">${chip(c)}${(c.inq||[]).some(q=>q.status==='open')?` <span class="chip review" title="${t('step_inq')}" style="cursor:pointer" onclick="event.stopPropagation();openClientAtInquiries('${c.id}')">❓ ${(c.inq||[]).filter(q=>q.status==='open').length}</span>`:''}</td>
+ <td class="refund-cell num ${cls}" data-label="${t('est_refund')}">${(e.paid>0||e.zvE>0||e.kap>0)?eur(e.refund):' - '}</td>
+ <td class="csub num" data-label="${t('updated')}">${dateStr(c.updatedAt)}</td>
+ <td class="actions-cell" style="text-align:right;white-space:nowrap">
  <button class="btn-sm link-btn" title="${t('pdf_btn')}" onclick="event.stopPropagation();S.currentId='${c.id}';exportPDF()">📄</button>
  <button class="btn-sm link-btn" title="${t('new_year')}" onclick="event.stopPropagation();showNewYear('${c.id}')">⧉ ${t('year')}</button>
  <button class="btn-sm link-btn" onclick="event.stopPropagation();delClient('${c.id}')">🗑</button></td>
