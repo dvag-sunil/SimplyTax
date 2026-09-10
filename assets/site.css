@@ -29,19 +29,28 @@ img,svg{max-width:100%;display:block}
 .nav-links a{color:var(--ink-soft);font-weight:600}
 .nav-links a:hover{color:var(--teal)}
 @media(max-width:760px){.nav-links a:not(.btn){display:none}}
-/* Real, confirmed gap found via audit: this nav bar is a non-wrapping
-   flex row present on every page in the site, and its CTA button text
-   is translation-driven (can run long in German). At the 360px tier -
-   the single most common real-world mobile viewport - the logo,
-   language toggle, and CTA button had no mobile-specific sizing at
-   all and could genuinely overflow the ~316px available. Tightened
-   without hiding or removing anything: same links, same button, same
-   text, just sized to reliably fit on one line. */
-@media(max-width:400px){
-  .nav-in{gap:8px}
+/* Real, confirmed gaps found via direct rendering + computed-style
+   checks, not guesses:
+   - .logo .beta below never matched anything - the actual BETA badge
+     in every page's markup is a plain inline-styled span with no
+     class, so this rule was dead CSS the whole time. Replaced with a
+     selector that matches the real element.
+   - the language toggle button ("DE"/"EN") was never addressed by the
+     earlier mobile pass at all - only the CTA button's class was
+     covered, a completely different element - confirmed via computed
+     styles showing it still full-size.
+   - .nav-links' 26px gap between the toggle and the CTA button reads
+     as excessive once both controls are already compact, and was part
+     of what looked like uneven/wrong spacing.
+   Widened from 400px to 480px to reliably cover the 390-430px range
+   most current phones actually use, not just the narrowest tier. */
+@media(max-width:480px){
+  .nav-in{gap:8px;height:auto;padding:10px 0;justify-content:flex-start}
   .logo{font-size:17px}
-  .logo .beta{padding:1px 5px;margin-left:5px}
-  .nav-in .btn{padding:9px 14px;font-size:13px}
+  .logo>span{padding:1px 5px;margin-left:5px;font-size:9px}
+  .nav-links{gap:8px}
+  .nav-in .btn{padding:8px 12px;font-size:12.5px}
+  .nav-in .lang-btn{padding:6px 10px!important;font-size:11px!important;min-height:36px!important}
 }
 
 /* buttons */
