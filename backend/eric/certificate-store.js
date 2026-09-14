@@ -107,7 +107,20 @@ module.exports = function mountCertificateStore(app, pool, auth) {
     try { parsed = parseAndValidatePfx(pfxBuffer, password); }
     catch { return res.status(400).json({ error: 'invalid_certificate_or_password' }); }
 
-    const { encrypted, iv, authTag } = encryptBuffer(pfxBuffer);
+    let encrypted, iv, authTag;
+    try {
+      ({ encrypted, iv, authTag } = encryptBuffer(pfxBuffer));
+    } catch (e) {
+      /* Real bug found from a live 500 in production: this was
+         previously unguarded, so a missing/malformed CERT_ENCRYPTION_KEY
+         crashed here uncaught - even though the certificate and
+         password were already confirmed valid one line above. Logged
+         specifically so this is immediately diagnosable in Render's
+         logs, without ever exposing key/encryption detail to the
+         client response itself. */
+      console.error('[certificate-store] encryption failed - check CERT_ENCRYPTION_KEY is set and is exactly 64 hex characters:', e.message);
+      return res.status(500).json({ error: 'server_encryption_not_configured' });
+    }
     try {
       await pool.query(
         `INSERT INTO user_certificates (user_id, pfx_encrypted, pfx_iv, pfx_auth_tag, original_filename, subject_cn, valid_until, uploaded_at)

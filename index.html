@@ -1211,6 +1211,7 @@ en: {
  cert_upload_btn:"Save certificate", cert_upload_hint:"Don't have one yet? You can register for free at <a href=\"https://www.elster.de/eportal/registrierung-auswahl\" target=\"_blank\" rel=\"noopener\">elster.de ↗</a> - it can take a few days by post, or faster with your German ID card.",
  cert_upload_success:"Certificate saved.", cert_err_no_file:"Please choose your .pfx file.", cert_err_no_pass:"Please enter the certificate password.",
  cert_err_invalid:"That file and password don't seem to match, or the file isn't a valid certificate. Please check and try again.",
+ cert_err_server:"Something went wrong on our end saving your certificate - this isn't about your file or password. Please try again shortly.",
  cert_predpay_title:"Before you pay", cert_predpay_body:"To submit your return, you'll sign it with your own ELSTER certificate. If you don't have one yet, that's fine - you can pay now and add it later, any time before you actually submit.",
  cert_predpay_reassure:"Paying now does not require having your certificate ready. You can come back to add it whenever you have it.",
  cert_predpay_setup_now:"Set it up now", cert_predpay_pay_later:"Pay now, add it later",
@@ -1706,6 +1707,7 @@ de: {
  cert_upload_btn:"Zertifikat speichern", cert_upload_hint:"Noch keins? Sie können sich kostenlos auf <a href=\"https://www.elster.de/eportal/registrierung-auswahl\" target=\"_blank\" rel=\"noopener\">elster.de ↗</a> registrieren - das kann per Post einige Tage dauern, oder schneller mit dem Personalausweis gehen.",
  cert_upload_success:"Zertifikat gespeichert.", cert_err_no_file:"Bitte wählen Sie Ihre .pfx-Datei aus.", cert_err_no_pass:"Bitte geben Sie das Zertifikatspasswort ein.",
  cert_err_invalid:"Datei und Passwort passen nicht zusammen, oder die Datei ist kein gültiges Zertifikat. Bitte prüfen und erneut versuchen.",
+ cert_err_server:"Bei uns ist beim Speichern Ihres Zertifikats etwas schiefgelaufen - das liegt nicht an Ihrer Datei oder Ihrem Passwort. Bitte versuchen Sie es in Kürze erneut.",
  cert_predpay_title:"Bevor Sie zahlen", cert_predpay_body:"Zur Übermittlung signieren Sie Ihre Erklärung mit Ihrem eigenen ELSTER-Zertifikat. Falls Sie noch keins haben, ist das kein Problem - Sie können jetzt zahlen und es später hinzufügen, jederzeit bevor Sie tatsächlich übermitteln.",
  cert_predpay_reassure:"Für die Zahlung müssen Sie Ihr Zertifikat noch nicht bereit haben. Sie können es später hinzufügen, sobald Sie es haben.",
  cert_predpay_setup_now:"Jetzt einrichten", cert_predpay_pay_later:"Jetzt zahlen, später hinzufügen",
@@ -2531,7 +2533,8 @@ async function uploadCertificate(btn){
  uploadCertMsg(t('cert_upload_success'), true);
  setTimeout(renderCertStatusArea, 700);
  }catch(e){
- uploadCertMsg(t('cert_err_invalid'), false);
+ if(e && e.message==='server_encryption_not_configured'){ uploadCertMsg(t('cert_err_server'), false); }
+ else { uploadCertMsg(t('cert_err_invalid'), false); }
  }
  setBtnBusy(btn, false);
 }
