@@ -80,7 +80,7 @@ function parseAndValidatePfx(pfxBuffer, password) {
 module.exports = function mountCertificateStore(app, pool, auth) {
   pool.query(`CREATE TABLE IF NOT EXISTS user_certificates (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL,
     pfx_encrypted TEXT NOT NULL,
     pfx_iv TEXT NOT NULL,
     pfx_auth_tag TEXT NOT NULL,
@@ -89,7 +89,21 @@ module.exports = function mountCertificateStore(app, pool, auth) {
     valid_until TIMESTAMPTZ,
     uploaded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE(user_id)
-  )`).catch(e => console.error('[certificate-store] table init failed:', e.message));
+  )`).then(() => console.log('[certificate-store] user_certificates table ready'))
+    .catch(e => {
+      /* Real bug found from a live production error: the previous
+         version declared user_id INTEGER REFERENCES users(id), which
+         requires an exact type match with users.id to succeed - it
+         didn't match, so this failed silently at every startup and
+         the table was never actually created, while the rest of the
+         server kept running normally with no obvious sign anything
+         was wrong. Matches the exact same TEXT-with-no-FK-constraint
+         pattern the existing submission_approvals table already uses
+         successfully in this same codebase, rather than guessing at
+         a type. Now also fails loudly, not just silently logged, so
+         a future schema issue can't hide the same way this one did. */
+      console.error('[certificate-store] FATAL: table init failed, certificate upload will not work:', e.message);
+    });
 
   /* Upload (or replace) the certificate for the logged-in user.
      Body: { pfxBase64, password, filename }
