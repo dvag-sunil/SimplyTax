@@ -467,6 +467,12 @@ function auth(req, res, next) {
   try { req.user = jwt.verify(token, JWT_SECRET); next(); }
   catch { return res.status(401).json({ error: 'invalid_token' }); }
 }
+/* NEW, SEPARATE FEATURE (own file, own table, own routes) — customer-
+   provided ELSTER certificate storage. Does not touch or import from
+   the existing ERiC submission flow. See certificate-store.js header
+   for the full explanation and required setup (node-forge dependency,
+   CERT_ENCRYPTION_KEY env var). */
+require('./eric/certificate-store')(app, pool, auth);
 /* IMPLEMENTED: addresses the real trade-off shortening the base token
    lifetime above creates - without this, someone in the middle of a
    long tax return would be logged out every 2 hours, which is a real

@@ -659,7 +659,7 @@ function showPayModal(){
  <div style="display:flex;flex-direction:column;gap:10px;align-items:center">
  <div style="display:flex;gap:10px;justify-content:center">
  <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
- <button class="btn btn-primary" id="pay-now-btn" disabled onclick="payNow(this)">💳 ${t('pay_now')}</button>
+ <button class="btn btn-primary" id="pay-now-btn" disabled onclick="showCertificateInfoBeforePayment(this)">💳 ${t('pay_now')}</button>
  </div>
  <button class="btn btn-ghost" id="pay-paypal-btn" disabled onclick="payWithPaypal(this)" style="border-color:#003087;color:#003087;font-weight:700">${t('pay_with_paypal')}</button>
  </div></div></div>`;
@@ -1200,6 +1200,20 @@ en: {
   export_data_section:"Download my data", export_data_hint:"Download everything associated with your account - your details, every tax return, and records of any returns already submitted - as a single file.",
  export_data_pass:"Current password (required to confirm)", export_data_btn:"Download my data", export_data_done:"Your data export has downloaded.",
  delete_account_section:"Delete account", delete_account_warning:"This permanently deletes your account and all draft/unsubmitted tax returns and uploaded documents. Records of returns you've already submitted are kept as required by German tax law (§ 87d AO), separate from your account.",
+ cert_section:"ELSTER certificate", cert_section_hint:"If you'd like to submit using your own ELSTER certificate instead, you can add it here.",
+ cert_manage_btn:"Manage my ELSTER certificate",
+ cert_title:"Your ELSTER certificate", cert_sub:"Used to submit your tax return under your own signature. Your certificate file is stored securely; your password is never saved and is asked for again at submission time.",
+ cert_loading:"Checking…",
+ cert_on_file:"Certificate on file", cert_valid_until:"Valid until",
+ cert_expiring_soon:"Your certificate expires in {days} days. You may want to renew it on elster.de before your next submission.",
+ cert_remove_btn:"Remove certificate", cert_remove_confirm:"Remove your stored certificate? You'll need to upload it again before submitting.",
+ cert_file_label:"Certificate file (.pfx)", cert_pass_label:"Certificate password",
+ cert_upload_btn:"Save certificate", cert_upload_hint:"Don't have one yet? You can register for free at elster.de - it can take a few days by post, or faster with your German ID card.",
+ cert_upload_success:"Certificate saved.", cert_err_no_file:"Please choose your .pfx file.", cert_err_no_pass:"Please enter the certificate password.",
+ cert_err_invalid:"That file and password don't seem to match, or the file isn't a valid certificate. Please check and try again.",
+ cert_predpay_title:"Before you pay", cert_predpay_body:"To submit your return, you'll sign it with your own ELSTER certificate. If you don't have one yet, that's fine - you can pay now and add it later, any time before you actually submit.",
+ cert_predpay_reassure:"Paying now does not require having your certificate ready. You can come back to add it whenever you have it.",
+ cert_predpay_setup_now:"Set it up now", cert_predpay_pay_later:"Pay now, add it later",
  delete_account_pass:"Current password (required to confirm)", delete_account_btn:"Delete my account",
  confirm_del_account_title:"Delete account", confirm_del_account_body:"Are you sure you want to permanently delete your account?",
  confirm_del_account_permanent:"This is permanent - your account, all draft/unsubmitted tax returns, and uploaded documents will be removed and cannot be recovered. You will be signed out immediately.",
@@ -1679,6 +1693,20 @@ de: {
   export_data_section:"Meine Daten herunterladen", export_data_hint:"Laden Sie alles herunter, was mit Ihrem Konto verknüpft ist - Ihre Angaben, jede Steuererklärung und Nachweise bereits übermittelter Erklärungen - als eine einzelne Datei.",
  export_data_pass:"Aktuelles Passwort (zur Bestätigung erforderlich)", export_data_btn:"Meine Daten herunterladen", export_data_done:"Ihr Datenexport wurde heruntergeladen.",
  delete_account_section:"Konto löschen", delete_account_warning:"Dies löscht Ihr Konto sowie alle Entwürfe/nicht übermittelten Steuererklärungen und hochgeladenen Dokumente endgültig. Nachweise bereits übermittelter Erklärungen werden gemäß § 87d AO gesondert von Ihrem Konto aufbewahrt.",
+ cert_section:"ELSTER-Zertifikat", cert_section_hint:"Wenn Sie stattdessen mit Ihrem eigenen ELSTER-Zertifikat übermitteln möchten, können Sie es hier hinterlegen.",
+ cert_manage_btn:"ELSTER-Zertifikat verwalten",
+ cert_title:"Ihr ELSTER-Zertifikat", cert_sub:"Wird verwendet, um Ihre Steuererklärung mit Ihrer eigenen Signatur zu übermitteln. Ihre Zertifikatsdatei wird sicher gespeichert; Ihr Passwort wird nie gespeichert und bei der Übermittlung erneut abgefragt.",
+ cert_loading:"Wird geprüft…",
+ cert_on_file:"Zertifikat hinterlegt", cert_valid_until:"Gültig bis",
+ cert_expiring_soon:"Ihr Zertifikat läuft in {days} Tagen ab. Sie sollten es vor der nächsten Übermittlung auf elster.de verlängern.",
+ cert_remove_btn:"Zertifikat entfernen", cert_remove_confirm:"Gespeichertes Zertifikat entfernen? Sie müssen es vor der nächsten Übermittlung erneut hochladen.",
+ cert_file_label:"Zertifikatsdatei (.pfx)", cert_pass_label:"Zertifikatspasswort",
+ cert_upload_btn:"Zertifikat speichern", cert_upload_hint:"Noch keins? Sie können sich kostenlos auf elster.de registrieren - das kann per Post einige Tage dauern, oder schneller mit dem Personalausweis gehen.",
+ cert_upload_success:"Zertifikat gespeichert.", cert_err_no_file:"Bitte wählen Sie Ihre .pfx-Datei aus.", cert_err_no_pass:"Bitte geben Sie das Zertifikatspasswort ein.",
+ cert_err_invalid:"Datei und Passwort passen nicht zusammen, oder die Datei ist kein gültiges Zertifikat. Bitte prüfen und erneut versuchen.",
+ cert_predpay_title:"Bevor Sie zahlen", cert_predpay_body:"Zur Übermittlung signieren Sie Ihre Erklärung mit Ihrem eigenen ELSTER-Zertifikat. Falls Sie noch keins haben, ist das kein Problem - Sie können jetzt zahlen und es später hinzufügen, jederzeit bevor Sie tatsächlich übermitteln.",
+ cert_predpay_reassure:"Für die Zahlung müssen Sie Ihr Zertifikat noch nicht bereit haben. Sie können es später hinzufügen, sobald Sie es haben.",
+ cert_predpay_setup_now:"Jetzt einrichten", cert_predpay_pay_later:"Jetzt zahlen, später hinzufügen",
  delete_account_pass:"Aktuelles Passwort (zur Bestätigung erforderlich)", delete_account_btn:"Mein Konto löschen",
  confirm_del_account_title:"Konto löschen", confirm_del_account_body:"Möchten Sie Ihr Konto wirklich endgültig löschen?",
  confirm_del_account_permanent:"Dies ist endgültig - Ihr Konto, alle Entwürfe/nicht übermittelten Steuererklärungen und hochgeladenen Dokumente werden entfernt und können nicht wiederhergestellt werden. Sie werden sofort abgemeldet.",
@@ -2408,6 +2436,9 @@ function showSettings(){
  <p style="color:var(--ink-soft);font-size:12.5px;margin:0 0 10px">${t('delete_account_warning')}</p>
  <div class="field"><label>${t('delete_account_pass')}</label><input id="st-del-pass" type="password" placeholder="••••••••"></div>
  <button class="btn btn-ghost" style="width:100%;justify-content:center;color:#B4432F;border-color:#B4432F" onclick="confirmDeleteAccount()">${t('delete_account_btn')}</button>
+ <div class="section-label" style="margin-top:20px">${t('cert_section')}</div>
+ <p style="color:var(--ink-soft);font-size:12.5px;margin:0 0 10px">${t('cert_section_hint')}</p>
+ <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="this.closest('.modal-bg').remove();showCertificateSettings()">${t('cert_manage_btn')}</button>
  <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
  <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
  <button class="btn btn-primary" onclick="saveSettings(this)">${t('save')}</button>
@@ -2427,6 +2458,104 @@ function stMsg(msg, ok){
  el.textContent=msg; el.classList.remove('hidden');
  el.style.background = ok ? 'var(--teal-soft)' : 'var(--red-soft)';
  el.style.color = ok ? 'var(--teal-dark)' : 'var(--red)';
+}
+
+/* ============================================================
+   NEW, SEPARATE FEATURE — customer's own ELSTER certificate.
+   Everything below is additive: new functions, new modals, own
+   API calls under /api/certificate/*. Does not read from or call
+   into the existing submission/payment logic above, except for
+   the one deliberate, minimal hook at the end of this block
+   (redirecting the pay button to show info first).
+   ============================================================ */
+
+async function certStatus(){
+ try{ return await api('/api/certificate/status'); }catch(e){ return {hasCertificate:false}; }
+}
+
+function showCertificateSettings(){
+ const slot=document.getElementById('modal-slot'); if(!slot) return;
+ slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal">
+ <h2>${t('cert_title')}</h2>
+ <p style="color:var(--ink-soft);font-size:13.5px;margin:6px 0 16px">${t('cert_sub')}</p>
+ <div id="cert-status-area">${t('cert_loading')}</div>
+ <div style="display:flex;justify-content:flex-end;margin-top:14px">
+ <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('close')}</button>
+ </div></div></div>`;
+ renderCertStatusArea();
+}
+
+async function renderCertStatusArea(){
+ const area=document.getElementById('cert-status-area'); if(!area) return;
+ const st = await certStatus();
+ if(st.hasCertificate){
+ const expiryWarn = st.expiringSoon
+ ? `<div class="infobox" style="border-color:var(--amber);background:var(--amber-soft);margin-top:10px">⚠ ${t('cert_expiring_soon').replace('{days}', st.daysUntilExpiry)}</div>` : '';
+ area.innerHTML = `<div class="infobox" style="border-color:var(--teal);background:var(--teal-soft)">
+ ✓ ${t('cert_on_file')}<br>
+ <b>${esc(st.subjectCN||st.filename||'')}</b><br>
+ <span style="font-size:12.5px;color:var(--ink-soft)">${t('cert_valid_until')}: ${st.validUntil?new Date(st.validUntil).toLocaleDateString():'—'}</span>
+ </div>${expiryWarn}
+ <button class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:12px;color:#B4432F;border-color:#B4432F" onclick="deleteCertificate()">${t('cert_remove_btn')}</button>`;
+ } else {
+ area.innerHTML = `<div class="field"><label>${t('cert_file_label')}</label><input type="file" id="cert-file-input" accept=".pfx,.p12"></div>
+ <div class="field"><label>${t('cert_pass_label')}</label><input type="password" id="cert-pass-input" placeholder="••••••••"></div>
+ <div id="cert-upload-msg" class="hidden" style="border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:10px"></div>
+ <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="uploadCertificate(this)">${t('cert_upload_btn')}</button>
+ <p style="color:var(--ink-soft);font-size:12px;margin-top:10px">${t('cert_upload_hint')}</p>`;
+ }
+}
+
+function uploadCertMsg(msg, ok){
+ const el=document.getElementById('cert-upload-msg'); if(!el) return;
+ el.textContent=msg; el.classList.remove('hidden');
+ el.style.background = ok ? 'var(--teal-soft)' : 'var(--red-soft)';
+ el.style.color = ok ? 'var(--teal-dark)' : 'var(--red)';
+}
+
+async function uploadCertificate(btn){
+ const fileInput = document.getElementById('cert-file-input');
+ const password = document.getElementById('cert-pass-input')?.value || '';
+ const file = fileInput?.files?.[0];
+ if(!file){ uploadCertMsg(t('cert_err_no_file'), false); return; }
+ if(!password){ uploadCertMsg(t('cert_err_no_pass'), false); return; }
+ setBtnBusy(btn, true);
+ try{
+ const buf = await file.arrayBuffer();
+ const pfxBase64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+ await api('/api/certificate/upload', 'POST', { pfxBase64, password, filename: file.name });
+ uploadCertMsg(t('cert_upload_success'), true);
+ setTimeout(renderCertStatusArea, 700);
+ }catch(e){
+ uploadCertMsg(t('cert_err_invalid'), false);
+ }
+ setBtnBusy(btn, false);
+}
+
+async function deleteCertificate(){
+ if(!confirm(t('cert_remove_confirm'))) return;
+ try{ await api('/api/certificate', 'DELETE'); }catch(e){}
+ renderCertStatusArea();
+}
+
+/* Pre-payment informational screen. Shown when the customer clicks
+   "Pay now" and hasn't yet stored a certificate - explains why it's
+   needed, before they pay, and makes clear paying now does not
+   require having it ready yet. If a certificate is already on file,
+   this is skipped entirely and payment proceeds exactly as before. */
+async function showCertificateInfoBeforePayment(btn){
+ const st = await certStatus();
+ if(st.hasCertificate){ payNow(btn); return; } // already set up - no interruption, unchanged behavior
+ const slot=document.getElementById('modal-slot'); if(!slot) return;
+ slot.innerHTML=`<div class="modal-bg"><div class="modal">
+ <h2>${t('cert_predpay_title')}</h2>
+ <p style="color:var(--ink-soft);font-size:14px;margin:8px 0 16px;line-height:1.6">${t('cert_predpay_body')}</p>
+ <div class="infobox" style="margin-bottom:16px">${t('cert_predpay_reassure')}</div>
+ <div style="display:flex;flex-direction:column;gap:10px">
+ <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="this.closest('.modal-bg').remove();showCertificateSettings()">${t('cert_predpay_setup_now')}</button>
+ <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="this.closest('.modal-bg').remove();payNow(document.getElementById('pay-now-btn'))">${t('cert_predpay_pay_later')}</button>
+ <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
+ </div></div></div>`;
 }
 async function doChangeEmail(btn){
  const email=(document.getElementById('st-email-new')?.value||'').trim().toLowerCase();
