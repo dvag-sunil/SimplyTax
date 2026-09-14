@@ -2539,8 +2539,16 @@ async function uploadCertificate(btn){
  setBtnBusy(btn, false);
 }
 
-async function deleteCertificate(){
- if(!confirm(t('cert_remove_confirm'))) return;
+function deleteCertificate(){
+ const area=document.getElementById('cert-status-area'); if(!area) return;
+ area.innerHTML = `<div class="infobox" style="background:var(--red-soft);border-color:var(--red);font-size:13px">⚠ ${t('cert_remove_confirm')}</div>
+ <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
+ <button class="btn btn-ghost" onclick="renderCertStatusArea()">${t('cancel')}</button>
+ <button class="btn" style="background:var(--red);border-color:var(--red)" onclick="doDeleteCertificate(this)">🗑 ${t('cert_remove_btn')}</button>
+ </div>`;
+}
+async function doDeleteCertificate(btn){
+ setBtnBusy(btn, true);
  try{ await api('/api/certificate', 'DELETE'); }catch(e){}
  renderCertStatusArea();
 }
