@@ -1214,6 +1214,8 @@ en: {
  cert_predpay_title:"Before you pay", cert_predpay_body:"To submit your return, you'll sign it with your own ELSTER certificate. If you don't have one yet, that's fine - you can pay now and add it later, any time before you actually submit.",
  cert_predpay_reassure:"Paying now does not require having your certificate ready. You can come back to add it whenever you have it.",
  cert_predpay_setup_now:"Set it up now", cert_predpay_pay_later:"Pay now, add it later",
+ cert_submit_title:"Sign and submit", cert_submit_sub:"Enter your ELSTER certificate password to sign and send your return as {name}.",
+ cert_err_invalid_at_submit:"That password doesn't match your certificate. Please check and try again.",
  delete_account_pass:"Current password (required to confirm)", delete_account_btn:"Delete my account",
  confirm_del_account_title:"Delete account", confirm_del_account_body:"Are you sure you want to permanently delete your account?",
  confirm_del_account_permanent:"This is permanent - your account, all draft/unsubmitted tax returns, and uploaded documents will be removed and cannot be recovered. You will be signed out immediately.",
@@ -1707,6 +1709,8 @@ de: {
  cert_predpay_title:"Bevor Sie zahlen", cert_predpay_body:"Zur Übermittlung signieren Sie Ihre Erklärung mit Ihrem eigenen ELSTER-Zertifikat. Falls Sie noch keins haben, ist das kein Problem - Sie können jetzt zahlen und es später hinzufügen, jederzeit bevor Sie tatsächlich übermitteln.",
  cert_predpay_reassure:"Für die Zahlung müssen Sie Ihr Zertifikat noch nicht bereit haben. Sie können es später hinzufügen, sobald Sie es haben.",
  cert_predpay_setup_now:"Jetzt einrichten", cert_predpay_pay_later:"Jetzt zahlen, später hinzufügen",
+ cert_submit_title:"Signieren und übermitteln", cert_submit_sub:"Geben Sie Ihr ELSTER-Zertifikatspasswort ein, um Ihre Erklärung als {name} zu signieren und zu senden.",
+ cert_err_invalid_at_submit:"Dieses Passwort passt nicht zu Ihrem Zertifikat. Bitte prüfen Sie es und versuchen Sie es erneut.",
  delete_account_pass:"Aktuelles Passwort (zur Bestätigung erforderlich)", delete_account_btn:"Mein Konto löschen",
  confirm_del_account_title:"Konto löschen", confirm_del_account_body:"Möchten Sie Ihr Konto wirklich endgültig löschen?",
  confirm_del_account_permanent:"Dies ist endgültig - Ihr Konto, alle Entwürfe/nicht übermittelten Steuererklärungen und hochgeladenen Dokumente werden entfernt und können nicht wiederhergestellt werden. Sie werden sofort abgemeldet.",
@@ -6262,11 +6266,49 @@ function showFreigabeModal(c, data, validateResult){
    review screen a second time - see handleStripeReturn/
    handlePaypalReturn and the new lightweight confirmation this now
    uses instead. */
-async function performSubmission(c, data){
+/* NEW: only interposes when the customer has their own certificate on
+   file. Otherwise falls straight through to performSubmission exactly
+   as every existing call already does - zero behavior change for the
+   default path. */
+async function promptCertPasswordThenSubmit(c, data){
+ const st = await certStatus();
+ if(!st.hasCertificate){ await performSubmission(c, data); return; }
+ const slot=document.getElementById('modal-slot'); if(!slot) return;
+ slot.innerHTML=`<div class="modal-bg"><div class="modal">
+ <h2>${t('cert_submit_title')}</h2>
+ <p style="color:var(--ink-soft);font-size:13.5px;margin:6px 0 16px">${t('cert_submit_sub').replace('{name}', esc(st.subjectCN||''))}</p>
+ <div class="field"><label>${t('cert_pass_label')}</label><input type="password" id="cert-submit-pass" placeholder="••••••••"></div>
+ <div id="cert-submit-msg" class="hidden" style="border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:10px"></div>
+ <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px">
+ <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
+ <button class="btn btn-primary" id="cert-submit-go-btn" onclick="submitWithCertPassword('${c.id}')">📤 ${t('freigabe_submit')}</button>
+ </div></div></div>`;
+ S._certSubmitData = data; // held only in memory for this one confirm step, same lifetime as _freigabePending elsewhere
+}
+async function submitWithCertPassword(clientId){
+ const c=cur(); if(!c || c.id!==clientId || !S._certSubmitData) return;
+ const pass = document.getElementById('cert-submit-pass')?.value || '';
+ const msgEl = document.getElementById('cert-submit-msg');
+ if(!pass){ if(msgEl){ msgEl.textContent=t('cert_err_no_pass'); msgEl.classList.remove('hidden'); msgEl.style.background='var(--red-soft)'; msgEl.style.color='var(--red)'; } return; }
+ const btn = document.getElementById('cert-submit-go-btn');
+ setBtnBusy(btn, true);
+ try{
+ await performSubmission(c, S._certSubmitData, pass);
+ delete S._certSubmitData;
+ }catch(e){
+ setBtnBusy(btn, false);
+ if(e && e.message==='wrong_certificate_password'){
+ if(msgEl){ msgEl.textContent=t('cert_err_invalid_at_submit'); msgEl.classList.remove('hidden'); msgEl.style.background='var(--red-soft)'; msgEl.style.color='var(--red)'; }
+ return;
+ }
+ throw e; // any other failure already has its own handling inside performSubmission
+ }
+}
+async function performSubmission(c, data, certificatePassword){
  setBusy(true);
  try{
  c.freigabe = { at: Date.now(), dataHash: await sha256Hex(JSON.stringify(data)) };
-  const sr = await api('/api/eric/submit','POST',{ clientId:c.id, interchangeData:data, freigabeConfirmed:true, lang:S.lang });
+  const sr = await api('/api/eric/submit','POST',{ clientId:c.id, interchangeData:data, freigabeConfirmed:true, lang:S.lang, ...(certificatePassword?{certificatePassword}:{}) });
  setBusy(false);
  const m=document.querySelector('.modal-bg'); if(m) m.remove();
  const slot=document.getElementById('modal-slot');
@@ -6296,6 +6338,9 @@ async function performSubmission(c, data){
  }
  } catch(e){
  setBusy(false);
+ if(e && (e.message==='wrong_certificate_password' || e.message==='no_certificate_on_file')){
+ throw e; // handled inline by submitWithCertPassword's own modal, not shown as a generic alert here
+ }
  if(e && e.message==='material_gaps' && Array.isArray(e.materialGaps) && e.materialGaps.length){
  const m=document.querySelector('.modal-bg'); if(m) m.remove();
  const slot=document.getElementById('modal-slot');
@@ -6339,7 +6384,7 @@ function showPostPaymentSubmitModal(){
 }
 async function confirmPostPaymentSubmit(clientId){
  const c=cur(); if(!c || c.id!==clientId || !c._pendingSubmitData) return;
- await performSubmission(c, c._pendingSubmitData);
+ await promptCertPasswordThenSubmit(c, c._pendingSubmitData);
 }
 async function confirmFreigabeAndSubmit(clientId){
  const c=cur(); if(!c || c.id!==clientId) return;
@@ -6364,7 +6409,7 @@ async function confirmFreigabeAndSubmit(clientId){
  showPayModal();
  return;
  }
-  await performSubmission(c, pending.data);
+  await promptCertPasswordThenSubmit(c, pending.data);
 }
 
 /* --- step 9: Finanzamt inquiries (Rückfragen) --- */

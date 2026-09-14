@@ -472,7 +472,8 @@ function auth(req, res, next) {
    the existing ERiC submission flow. See certificate-store.js header
    for the full explanation and required setup (node-forge dependency,
    CERT_ENCRYPTION_KEY env var). */
-require('./eric/certificate-store')(app, pool, auth);
+const certificateStore = require('./eric/certificate-store');
+certificateStore(app, pool, auth);
 /* IMPLEMENTED: addresses the real trade-off shortening the base token
    lifetime above creates - without this, someone in the middle of a
    long tax return would be logged out every 2 hours, which is a real
@@ -1451,7 +1452,7 @@ app.post('/api/eric/submit', auth, async (req, res) => {
   if (!ericService.isReady()) {
     return res.status(501).json({ error: 'eric_unavailable', detail: ericService.getInitError() });
   }
-   const { clientId, interchangeData, freigabeConfirmed, lang } = req.body || {};
+   const { clientId, interchangeData, freigabeConfirmed, lang, certificatePassword } = req.body || {};
    if (!clientId || !interchangeData) return res.status(400).json({ error: 'invalid_input' });
   if (!freigabeConfirmed) return res.status(400).json({ error: 'freigabe_required' });
 
@@ -1602,7 +1603,32 @@ app.post('/api/eric/submit', auth, async (req, res) => {
       return res.status(500).json({ error: 'approval_evidence_failed' });
     }
 
-    const result = await ericService.submit(xml, 'ESt_' + (convertedData.meta?.taxYear || 2025));
+    /* NEW, additive: only runs when the customer is submitting with their
+       own certificate. certificatePassword is optional - when absent,
+       certOverride stays undefined and submit() behaves exactly as it
+       always has (the default Hersteller-ID path, from env vars). */
+    let certOverride;
+    let tempCertPath;
+    if (certificatePassword) {
+      let pfxBuffer;
+      try {
+        pfxBuffer = await certificateStore.getDecryptedCertificate(pool, req.user.sub, certificatePassword);
+      } catch (e) {
+        await releaseLock(previousStatus);
+        const code = e.code === 'wrong_certificate_password' ? 'wrong_certificate_password' : 'no_certificate_on_file';
+        return res.status(400).json({ error: code });
+      }
+      tempCertPath = path.join('/tmp', `cert-${req.user.sub}-${cryptoNode.randomBytes(8).toString('hex')}.pfx`);
+      fs.writeFileSync(tempCertPath, pfxBuffer, { mode: 0o600 });
+      certOverride = { certPath: tempCertPath, certPin: certificatePassword };
+    }
+
+    let result;
+    try {
+      result = await ericService.submit(xml, 'ESt_' + (convertedData.meta?.taxYear || 2025), certOverride);
+    } finally {
+      if (tempCertPath) fs.unlink(tempCertPath, () => {}); // best-effort cleanup, never blocks the response
+    }
     audit(req.user.sub, 'eric_submit', { clientId, rc: result.rc, sent: result.sent, transferTicket: result.transferTicket || null });
 
     if (approvalId) {

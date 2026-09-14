@@ -83,8 +83,11 @@ function getInitError() { return initError; }
 function validate(xml, datenartVersion) {
   return callWorker('validate', { xml, datenartVersion });
 }
-function submit(xml, datenartVersion) {
-  return callWorker('submit', { xml, datenartVersion });
+function submit(xml, datenartVersion, certOverride) {
+  // certOverride: optional { certPath, certPin } - only used when a customer's
+  // own certificate applies to this specific submission. Omitted entirely for
+  // every existing call, which is the default Hersteller-ID path, unchanged.
+  return callWorker('submit', { xml, datenartVersion, ...(certOverride || {}) });
 }
 function validateFields(fields) {
   // fields: { taxId?, iban?, bic? } - only the keys present get checked

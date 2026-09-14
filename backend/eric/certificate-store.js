@@ -152,3 +152,26 @@ module.exports = function mountCertificateStore(app, pool, auth) {
 
   console.log('[certificate-store] mounted /api/certificate/* routes (separate, additive module)');
 };
+
+/* Separate, explicit export used only at actual submission time (called
+   from server.js's /api/eric/submit route, not from anywhere inside this
+   module's own routes above). Given a userId and the password the
+   customer just typed in, fetches their stored encrypted certificate,
+   decrypts it, and confirms the password actually opens it - throwing
+   a clear, specific error otherwise so the caller can show the right
+   message rather than a generic failure.
+   Returns the decrypted .pfx as a Buffer. Never logs or persists the
+   password anywhere - it only ever exists in memory for the duration
+   of this one call. */
+async function getDecryptedCertificate(pool, userId, password) {
+  const { rows } = await pool.query(
+    'SELECT pfx_encrypted, pfx_iv, pfx_auth_tag FROM user_certificates WHERE user_id=$1', [userId]
+  );
+  if (!rows.length) { const e = new Error('no_certificate_on_file'); e.code = 'no_certificate_on_file'; throw e; }
+  const pfxBuffer = decryptBuffer(rows[0].pfx_encrypted, rows[0].pfx_iv, rows[0].pfx_auth_tag);
+  try { parseAndValidatePfx(pfxBuffer, password); } // throws if the password is wrong - fail before ever touching disk
+  catch { const e = new Error('wrong_certificate_password'); e.code = 'wrong_certificate_password'; throw e; }
+  return pfxBuffer;
+}
+
+module.exports.getDecryptedCertificate = getDecryptedCertificate;

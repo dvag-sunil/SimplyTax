@@ -290,8 +290,17 @@ function handleValidate(msg) {
 }
 
 function handleSubmit(msg) {
-  const CERT_PATH = process.env.ERIC_CERT_PATH || '';
-  const CERT_PIN = process.env.ERIC_CERT_PIN || '';
+  // Prefers a certificate passed with this specific request (a customer's
+  // own, decrypted just for this call) over the server's own default
+  // env vars. This is deliberately NOT env-var overwriting - this worker
+  // is a separate OS process, forked once with its own fixed copy of
+  // process.env, so changing the parent's env afterward would never
+  // reach it. Passing the values through the message itself, which the
+  // worker already receives per call, is what actually makes this work.
+  // Every existing call omits msg.certPath/certPin, so this line is a
+  // no-op fallback to exactly today's behavior for the default path.
+  const CERT_PATH = msg.certPath || process.env.ERIC_CERT_PATH || '';
+  const CERT_PIN = msg.certPin || process.env.ERIC_CERT_PIN || '';
   if (!CERT_PATH || !CERT_PIN) {
     return { rc: -1, error: 'ERIC_CERT_PATH / ERIC_CERT_PIN not configured on this server' };
   }
