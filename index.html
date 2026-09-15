@@ -753,7 +753,7 @@ async function handleStripeReturn(){
     no longer depends on that earlier check having already gone
      right - it loads what's needed itself if it's missing. */
  if(!S.loggedIn || !S.clients.length){
- try{ const me=await api('/api/auth/me'); S.user=me.user; S.certificateRequired=!!me.certificateRequired; await loadUserData(); S.loggedIn=true; startTokenRefreshTimer();  }
+ try{ const me=await api('/api/auth/me'); S.user=me.user; S.certificateRequired=!!me.certificateRequired; if(S.certificateRequired) certStatus().then(()=>{ if(S.view==='client') render(); }); await loadUserData(); S.loggedIn=true; startTokenRefreshTimer();  }
  catch(e){  }
  }
  const c=S.clients.find(x=>x.id===r.clientId);
@@ -796,7 +796,7 @@ async function handlePaypalReturn(){
     genuinely valid now, regardless of whether the earlier, separate
     session check succeeded. */
  if(!S.loggedIn || !S.clients.length){
- try{ const me=await api('/api/auth/me'); S.user=me.user; S.certificateRequired=!!me.certificateRequired; await loadUserData(); S.loggedIn=true; startTokenRefreshTimer();  }
+ try{ const me=await api('/api/auth/me'); S.user=me.user; S.certificateRequired=!!me.certificateRequired; if(S.certificateRequired) certStatus().then(()=>{ if(S.view==='client') render(); }); await loadUserData(); S.loggedIn=true; startTokenRefreshTimer();  }
  catch(e){  }
  }
  const c=S.clients.find(x=>x.id===r.clientId);
@@ -1213,6 +1213,7 @@ en: {
  cert_err_invalid:"That file and password don't seem to match, or the file isn't a valid certificate. Please check and try again.",
  cert_err_server:"Something went wrong on our end saving your certificate - this isn't about your file or password. Please try again shortly.",
  cert_required_now:"Submitting now requires your own ELSTER certificate. Please add it under Settings, then come back to submit.",
+ cert_review_warning:"You haven't added your ELSTER certificate yet. You can still pay now - just add your certificate before you actually submit.",
  cert_predpay_title:"Before you pay", cert_predpay_body:"To submit your return, you'll sign it with your own ELSTER certificate. If you don't have one yet, that's fine - you can pay now and add it later, any time before you actually submit.",
  cert_predpay_reassure:"Paying now does not require having your certificate ready. You can come back to add it whenever you have it.",
  cert_predpay_setup_now:"Set it up now", cert_predpay_pay_later:"Pay now, add it later",
@@ -1710,6 +1711,7 @@ de: {
  cert_err_invalid:"Datei und Passwort passen nicht zusammen, oder die Datei ist kein gültiges Zertifikat. Bitte prüfen und erneut versuchen.",
  cert_err_server:"Bei uns ist beim Speichern Ihres Zertifikats etwas schiefgelaufen - das liegt nicht an Ihrer Datei oder Ihrem Passwort. Bitte versuchen Sie es in Kürze erneut.",
  cert_required_now:"Zur Übermittlung wird nun Ihr eigenes ELSTER-Zertifikat benötigt. Bitte hinterlegen Sie es unter Einstellungen und kommen Sie danach zurück.",
+ cert_review_warning:"Sie haben noch kein ELSTER-Zertifikat hinterlegt. Sie können trotzdem jetzt zahlen - fügen Sie Ihr Zertifikat einfach hinzu, bevor Sie tatsächlich übermitteln.",
  cert_predpay_title:"Bevor Sie zahlen", cert_predpay_body:"Zur Übermittlung signieren Sie Ihre Erklärung mit Ihrem eigenen ELSTER-Zertifikat. Falls Sie noch keins haben, ist das kein Problem - Sie können jetzt zahlen und es später hinzufügen, jederzeit bevor Sie tatsächlich übermitteln.",
  cert_predpay_reassure:"Für die Zahlung müssen Sie Ihr Zertifikat noch nicht bereit haben. Sie können es später hinzufügen, sobald Sie es haben.",
  cert_predpay_setup_now:"Jetzt einrichten", cert_predpay_pay_later:"Jetzt zahlen, später hinzufügen",
@@ -2201,7 +2203,7 @@ async function loadState(){
     browser, so there's nothing to check for locally first. Simply
     attempts /api/auth/me; success means a valid session exists,
     failure means it doesn't or has expired. */
-   try{ const r=await api('/api/auth/me'); S.user=r.user; S.certificateRequired=!!r.certificateRequired; await loadUserData(); S.loggedIn=true; S.view='dash'; startTokenRefreshTimer();  }
+   try{ const r=await api('/api/auth/me'); S.user=r.user; S.certificateRequired=!!r.certificateRequired; if(S.certificateRequired) certStatus(); await loadUserData(); S.loggedIn=true; S.view='dash'; startTokenRefreshTimer();  }
  catch(e){  }
  return;
  }
@@ -2478,7 +2480,8 @@ function stMsg(msg, ok){
    ============================================================ */
 
 async function certStatus(){
- try{ return await api('/api/certificate/status'); }catch(e){ return {hasCertificate:false}; }
+ try{ const r = await api('/api/certificate/status'); S.certStatus = r; return r; }
+ catch(e){ const r = {hasCertificate:false}; S.certStatus = r; return r; }
 }
 
 function showCertificateSettings(){
@@ -5532,6 +5535,11 @@ function stepSummary(c){
  <button class="btn btn-ghost" onclick="exportPDF()">📄 ${t('pdf_btn')}</button>
  <button class="btn btn-ghost" onclick="exportElster()">⇪ ${t('export_elster')}</button>
  </div>
+ ${(S.certificateRequired && S.certStatus && !S.certStatus.hasCertificate && !submitted) ? `
+ <div class="infobox" style="border-color:var(--amber);background:var(--amber-soft);margin-top:16px;text-align:center">
+ 🔏 ${t('cert_review_warning')}
+ <div style="margin-top:8px"><button class="btn btn-ghost" style="font-size:13px;padding:8px 14px" onclick="showCertificateSettings()">${t('cert_manage_btn')}</button></div>
+ </div>` : ''}
  <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;align-items:center">
  ${PAYMENT.enabled && isPaid(c) ? `<span class="chip submitted">✓ ${t('paid_on')} ${dateStr(c.pay.paidAt)} · ${c.pay.txId}</span>` : ''}
  ${submitted
