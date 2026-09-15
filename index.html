@@ -1068,6 +1068,7 @@ en: {
  inq_send:"Send answer to the tax authority", inq_sent_on:"Sent to Finanzamt on",
  inq_send_hint:"In production this transmits as a 'Sonstige Nachricht an das Finanzamt' (Belege as Belegnachreichung) via ERiC - simulated here.",
   pdf_btn:"Download PDF summary", pdf_title:"Income tax return - summary",
+ pdf_locked_hint:"Unlocks once payment is complete.",
  pdf_est:"Estimated result", pdf_generated:"Generated on", pdf_docs:"Attached documents (Belege)",
  pdf_page:"Page", pdf_fail:"The PDF library could not be loaded. Please check the internet connection and try again.",
  tab_signin:"Sign in", tab_register:"Create account",
@@ -1269,7 +1270,7 @@ en: {
   pay_now:"Pay now", pay_with_paypal:"Pay with PayPal", pay_locked:"Submitting to the tax office requires payment ({price})", paid_on:"Paid on",
   pay_sim_note:"Prototype: the payment is simulated. In production, Stripe Checkout runs via the backend and a webhook unlocks the return.",
  pay_vat_note:"Price includes statutory VAT.", pay_agb_link:"Terms of service", pay_privacy_link:"Privacy policy",
- pay_withdrawal_ack:"I agree that submission is unlocked immediately, and I acknowledge that once this digital service has been fully provided, my 14-day right of withdrawal expires.",
+ pay_withdrawal_ack:"I agree that the PDF download and submission are unlocked immediately, and I acknowledge that once this digital service has been fully provided, my 14-day right of withdrawal expires.",
  discount_label:"Discount code (optional)", discount_ph:"e.g. SAVE10", discount_apply:"Apply",
  discount_ok:"Code {code} applied.", discount_invalid:"This code is not valid.",
  discount_saved:"You saved {amount}",
@@ -1569,6 +1570,7 @@ de: {
  inq_send:"Antwort an das Finanzamt senden", inq_sent_on:"An das Finanzamt gesendet am",
  inq_send_hint:"In Produktion erfolgt die Übermittlung als 'Sonstige Nachricht an das Finanzamt' (Belege als Belegnachreichung) über ERiC - hier simuliert.",
   pdf_btn:"PDF-Zusammenfassung herunterladen", pdf_title:"Einkommensteuererklärung - Zusammenfassung",
+ pdf_locked_hint:"Wird freigeschaltet, sobald die Zahlung abgeschlossen ist.",
  pdf_est:"Voraussichtliches Ergebnis", pdf_generated:"Erstellt am", pdf_docs:"Angehängte Belege",
  pdf_page:"Seite", pdf_fail:"Die PDF-Bibliothek konnte nicht geladen werden. Bitte Internetverbindung prüfen und erneut versuchen.",
  tab_signin:"Anmelden", tab_register:"Konto erstellen",
@@ -1770,7 +1772,7 @@ de: {
   pay_now:"Jetzt bezahlen", pay_with_paypal:"Mit PayPal bezahlen", pay_locked:"Die Übermittlung an das Finanzamt erfordert eine Zahlung ({price})", paid_on:"Bezahlt am",
   pay_sim_note:"Prototyp: Die Zahlung wird simuliert. In Produktion läuft Stripe Checkout über das Backend; ein Webhook schaltet die Erklärung frei.",
  pay_vat_note:"Preis inkl. gesetzlicher MwSt.", pay_agb_link:"AGB", pay_privacy_link:"Datenschutzerklärung",
- pay_withdrawal_ack:"Ich bin damit einverstanden, dass die Übermittlung sofort freigeschaltet wird, und weiß, dass mein 14-tägiges Widerrufsrecht mit vollständiger Erbringung dieser digitalen Leistung erlischt.",
+ pay_withdrawal_ack:"Ich bin damit einverstanden, dass der PDF-Download und die Übermittlung sofort freigeschaltet werden, und weiß, dass mein 14-tägiges Widerrufsrecht mit vollständiger Erbringung dieser digitalen Leistung erlischt.",
  discount_label:"Rabattcode (optional)", discount_ph:"z. B. SAVE10", discount_apply:"Anwenden",
  discount_ok:"Code {code} angewendet.", discount_invalid:"Dieser Code ist nicht gültig.",
  discount_saved:"Du sparst {amount}",
@@ -5556,8 +5558,9 @@ function stepSummary(c){
  ${sumGroup(t('step_prop'),8,propRows)}
  ${sumGroup(t('household_g'),9,[[t('medical'),m(c.ex.medical)],[t('household'),m(c.ex.household)],[t('handwerker'),m(c.ex.handwerker)]])}
   <div style="margin-top:22px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;align-items:center">
- <button class="btn btn-ghost" onclick="exportPDF()">📄 ${t('pdf_btn')}</button>
+ <button class="btn btn-ghost" onclick="exportPDF()" ${isPaid(c)?'':'disabled'} title="${isPaid(c)?'':t('pdf_locked_hint')}">📄 ${t('pdf_btn')}</button>
  </div>
+ ${(!isPaid(c) && !submitted) ? `<p style="text-align:center;color:var(--ink-soft);font-size:12.5px;margin-top:6px">${t('pdf_locked_hint')}</p>` : ''}
  ${(S.certificateRequired && S.certStatus && !S.certStatus.hasCertificate && !submitted) ? `
  <div class="infobox" style="border-color:var(--amber);background:var(--amber-soft);margin-top:16px;text-align:center">
  🔏 ${t('cert_review_warning')}
@@ -6959,14 +6962,13 @@ async function ensureJsPDF(){
  return !!(window.jspdf && window.jspdf.jsPDF);
 }
 async function exportPDF(){
- const c=cur(); if(!c) return;
- /* CORRECTED: real gate removed, requested directly - this produces a
-    summary document, not something that gets submitted to ELSTER, so
-    requiring payment to download it made little sense. It was also
-    inconsistent with exportElster() just below, the actual
-    submittable-structure JSON dataset, which already has no such
-    gate at all - payment still genuinely gates the one thing that
-    matters, the real submission itself (see submitElster). */
+ const c=cur(); if(!c || !isPaid(c)) return;
+ /* Real gate restored, requested directly: the payment screen's own
+    consent checkbox explicitly tells the customer "I agree that the
+    PDF download and submission are unlocked immediately" as part of
+    the digital-content withdrawal-right disclosure required by law -
+    so the button's actual behavior needs to match that promise, not
+    contradict it. */
  if(!await ensureJsPDF()){ printFallback(c); return; }
  try{ buildPDF(c); }
  catch(err){ console.error('PDF generation failed:', err); printFallback(c); }
