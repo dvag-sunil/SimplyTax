@@ -1200,20 +1200,21 @@ en: {
   export_data_section:"Download my data", export_data_hint:"Download everything associated with your account - your details, every tax return, and records of any returns already submitted - as a single file.",
  export_data_pass:"Current password (required to confirm)", export_data_btn:"Download my data", export_data_done:"Your data export has downloaded.",
  delete_account_section:"Delete account", delete_account_warning:"This permanently deletes your account and all draft/unsubmitted tax returns and uploaded documents. Records of returns you've already submitted are kept as required by German tax law (§ 87d AO), separate from your account.",
- cert_section:"ELSTER certificate", cert_section_hint:"If you'd like to submit using your own ELSTER certificate instead, you can add it here.",
- cert_manage_btn:"Manage my ELSTER certificate",
- cert_title:"Your ELSTER certificate", cert_sub:"Used to submit your tax return under your own signature. Your certificate file is stored securely; your password is never saved and is asked for again at submission time.",
+ cert_section:"Digital signature (ELSTER certificate)", cert_section_hint:"Sign your return electronically with your own ELSTER certificate - the official digital signature every German tax office recognizes.",
+ cert_manage_btn:"Set up my digital signature",
+ cert_title:"Your digital signature", cert_sub:"Your certificate file is stored securely on our servers; your password is never saved and is simply asked for again each time you submit.",
+ cert_explainer:"Think of it as your electronic signature for the Finanzamt. It's how the tax office knows a return really came from you - the same official method every German tax return, whether filed by hand, through ELSTER directly, or through software like ours, ultimately relies on. It's issued by the tax authority itself, completely free, and takes just a few minutes to set up once.",
  cert_loading:"Checking…",
- cert_on_file:"Certificate on file", cert_valid_until:"Valid until",
- cert_expiring_soon:"Your certificate expires in {days} days. You may want to renew it on elster.de before your next submission.",
- cert_remove_btn:"Remove certificate", cert_remove_confirm:"Remove your stored certificate? You'll need to upload it again before submitting.",
+ cert_on_file:"Digital signature on file", cert_valid_until:"Valid until",
+ cert_expiring_soon:"Your digital signature expires in {days} days. You may want to renew it on elster.de before your next submission.",
+ cert_remove_btn:"Remove", cert_remove_confirm:"Remove your digital signature? You'll need to add it again before submitting.",
  cert_file_label:"Certificate file (.pfx)", cert_pass_label:"Certificate password",
- cert_upload_btn:"Save certificate", cert_upload_hint:"Don't have one yet? You can register for free at <a href=\"https://www.elster.de/eportal/registrierung-auswahl\" target=\"_blank\" rel=\"noopener\">elster.de ↗</a> - it can take a few days by post, or faster with your German ID card.",
- cert_upload_success:"Certificate saved.", cert_err_no_file:"Please choose your .pfx file.", cert_err_no_pass:"Please enter the certificate password.",
+ cert_upload_btn:"Save my digital signature", cert_upload_hint:"Don't have one yet? It's free and only takes a few minutes to set up at <a href=\"https://www.elster.de/eportal/registrierung-auswahl\" target=\"_blank\" rel=\"noopener\">elster.de ↗</a>, Germany's official tax portal - usually a few days by post, or much faster with your German ID card.",
+ cert_upload_success:"Your digital signature is saved.", cert_err_no_file:"Please choose your .pfx file.", cert_err_no_pass:"Please enter the certificate password.",
  cert_err_invalid:"That file and password don't seem to match, or the file isn't a valid certificate. Please check and try again.",
- cert_err_server:"Something went wrong on our end saving your certificate - this isn't about your file or password. Please try again shortly.",
- cert_required_now:"Submitting now requires your own ELSTER certificate. Please add it under Settings, then come back to submit.",
- cert_review_warning:"You haven't added your ELSTER certificate yet. You can still pay now - just add your certificate before you actually submit.",
+ cert_err_server:"Something went wrong on our end saving your digital signature - this isn't about your file or password. Please try again shortly.",
+ cert_required_now:"Submitting now requires your own digital signature. Please add it under Settings, then come back to submit.",
+ cert_review_warning:"You haven't set up your digital signature yet. No problem - you can still pay now and add it any time before you actually submit.",
  cert_predpay_title:"Before you pay", cert_predpay_body:"To submit your return, you'll sign it with your own ELSTER certificate. If you don't have one yet, that's fine - you can pay now and add it later, any time before you actually submit.",
  cert_predpay_reassure:"Paying now does not require having your certificate ready. You can come back to add it whenever you have it.",
  cert_predpay_setup_now:"Set it up now", cert_predpay_pay_later:"Pay now, add it later",
@@ -1698,20 +1699,21 @@ de: {
   export_data_section:"Meine Daten herunterladen", export_data_hint:"Laden Sie alles herunter, was mit Ihrem Konto verknüpft ist - Ihre Angaben, jede Steuererklärung und Nachweise bereits übermittelter Erklärungen - als eine einzelne Datei.",
  export_data_pass:"Aktuelles Passwort (zur Bestätigung erforderlich)", export_data_btn:"Meine Daten herunterladen", export_data_done:"Ihr Datenexport wurde heruntergeladen.",
  delete_account_section:"Konto löschen", delete_account_warning:"Dies löscht Ihr Konto sowie alle Entwürfe/nicht übermittelten Steuererklärungen und hochgeladenen Dokumente endgültig. Nachweise bereits übermittelter Erklärungen werden gemäß § 87d AO gesondert von Ihrem Konto aufbewahrt.",
- cert_section:"ELSTER-Zertifikat", cert_section_hint:"Wenn Sie stattdessen mit Ihrem eigenen ELSTER-Zertifikat übermitteln möchten, können Sie es hier hinterlegen.",
- cert_manage_btn:"ELSTER-Zertifikat verwalten",
- cert_title:"Ihr ELSTER-Zertifikat", cert_sub:"Wird verwendet, um Ihre Steuererklärung mit Ihrer eigenen Signatur zu übermitteln. Ihre Zertifikatsdatei wird sicher gespeichert; Ihr Passwort wird nie gespeichert und bei der Übermittlung erneut abgefragt.",
+ cert_section:"Digitale Signatur (ELSTER-Zertifikat)", cert_section_hint:"Unterschreiben Sie Ihre Erklärung elektronisch mit Ihrem eigenen ELSTER-Zertifikat - der offiziellen digitalen Signatur, die jedes deutsche Finanzamt anerkennt.",
+ cert_manage_btn:"Digitale Signatur einrichten",
+ cert_title:"Ihre digitale Signatur", cert_sub:"Ihre Zertifikatsdatei wird sicher auf unseren Servern gespeichert; Ihr Passwort wird nie gespeichert und bei jeder Übermittlung einfach erneut abgefragt.",
+ cert_explainer:"Stellen Sie es sich als Ihre elektronische Unterschrift für das Finanzamt vor. So weiß die Finanzverwaltung, dass eine Erklärung wirklich von Ihnen stammt - dieselbe offizielle Methode, auf die jede deutsche Steuererklärung letztlich zurückgreift, ob von Hand, direkt über ELSTER oder über Software wie unsere eingereicht. Es wird von der Finanzverwaltung selbst ausgestellt, ist komplett kostenlos und ist einmalig in wenigen Minuten eingerichtet.",
  cert_loading:"Wird geprüft…",
- cert_on_file:"Zertifikat hinterlegt", cert_valid_until:"Gültig bis",
- cert_expiring_soon:"Ihr Zertifikat läuft in {days} Tagen ab. Sie sollten es vor der nächsten Übermittlung auf elster.de verlängern.",
- cert_remove_btn:"Zertifikat entfernen", cert_remove_confirm:"Gespeichertes Zertifikat entfernen? Sie müssen es vor der nächsten Übermittlung erneut hochladen.",
+ cert_on_file:"Digitale Signatur hinterlegt", cert_valid_until:"Gültig bis",
+ cert_expiring_soon:"Ihre digitale Signatur läuft in {days} Tagen ab. Sie sollten sie vor der nächsten Übermittlung auf elster.de verlängern.",
+ cert_remove_btn:"Entfernen", cert_remove_confirm:"Digitale Signatur entfernen? Sie müssen sie vor der nächsten Übermittlung erneut hinzufügen.",
  cert_file_label:"Zertifikatsdatei (.pfx)", cert_pass_label:"Zertifikatspasswort",
- cert_upload_btn:"Zertifikat speichern", cert_upload_hint:"Noch keins? Sie können sich kostenlos auf <a href=\"https://www.elster.de/eportal/registrierung-auswahl\" target=\"_blank\" rel=\"noopener\">elster.de ↗</a> registrieren - das kann per Post einige Tage dauern, oder schneller mit dem Personalausweis gehen.",
- cert_upload_success:"Zertifikat gespeichert.", cert_err_no_file:"Bitte wählen Sie Ihre .pfx-Datei aus.", cert_err_no_pass:"Bitte geben Sie das Zertifikatspasswort ein.",
+ cert_upload_btn:"Digitale Signatur speichern", cert_upload_hint:"Noch keine? Kostenlos und in wenigen Minuten eingerichtet auf <a href=\"https://www.elster.de/eportal/registrierung-auswahl\" target=\"_blank\" rel=\"noopener\">elster.de ↗</a>, dem offiziellen Steuerportal - meist wenige Tage per Post, oder deutlich schneller mit dem Personalausweis.",
+ cert_upload_success:"Ihre digitale Signatur ist gespeichert.", cert_err_no_file:"Bitte wählen Sie Ihre .pfx-Datei aus.", cert_err_no_pass:"Bitte geben Sie das Zertifikatspasswort ein.",
  cert_err_invalid:"Datei und Passwort passen nicht zusammen, oder die Datei ist kein gültiges Zertifikat. Bitte prüfen und erneut versuchen.",
- cert_err_server:"Bei uns ist beim Speichern Ihres Zertifikats etwas schiefgelaufen - das liegt nicht an Ihrer Datei oder Ihrem Passwort. Bitte versuchen Sie es in Kürze erneut.",
- cert_required_now:"Zur Übermittlung wird nun Ihr eigenes ELSTER-Zertifikat benötigt. Bitte hinterlegen Sie es unter Einstellungen und kommen Sie danach zurück.",
- cert_review_warning:"Sie haben noch kein ELSTER-Zertifikat hinterlegt. Sie können trotzdem jetzt zahlen - fügen Sie Ihr Zertifikat einfach hinzu, bevor Sie tatsächlich übermitteln.",
+ cert_err_server:"Bei uns ist beim Speichern Ihrer digitalen Signatur etwas schiefgelaufen - das liegt nicht an Ihrer Datei oder Ihrem Passwort. Bitte versuchen Sie es in Kürze erneut.",
+ cert_required_now:"Zur Übermittlung wird nun Ihre eigene digitale Signatur benötigt. Bitte richten Sie sie unter Einstellungen ein und kommen Sie danach zurück.",
+ cert_review_warning:"Sie haben Ihre digitale Signatur noch nicht eingerichtet. Kein Problem - Sie können trotzdem jetzt zahlen und sie jederzeit hinzufügen, bevor Sie tatsächlich übermitteln.",
  cert_predpay_title:"Bevor Sie zahlen", cert_predpay_body:"Zur Übermittlung signieren Sie Ihre Erklärung mit Ihrem eigenen ELSTER-Zertifikat. Falls Sie noch keins haben, ist das kein Problem - Sie können jetzt zahlen und es später hinzufügen, jederzeit bevor Sie tatsächlich übermitteln.",
  cert_predpay_reassure:"Für die Zahlung müssen Sie Ihr Zertifikat noch nicht bereit haben. Sie können es später hinzufügen, sobald Sie es haben.",
  cert_predpay_setup_now:"Jetzt einrichten", cert_predpay_pay_later:"Jetzt zahlen, später hinzufügen",
@@ -2489,6 +2491,7 @@ function showCertificateSettings(){
  slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal">
  <h2>${t('cert_title')}</h2>
  <p style="color:var(--ink-soft);font-size:13.5px;margin:6px 0 16px">${t('cert_sub')}</p>
+ <div class="infobox" style="margin-bottom:16px;font-size:13px;line-height:1.55">✍️ ${t('cert_explainer')}</div>
  <div id="cert-status-area">${t('cert_loading')}</div>
  <div style="display:flex;justify-content:flex-end;margin-top:14px">
  <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('close')}</button>
@@ -3728,6 +3731,11 @@ function firstMissingFieldTabkey(c,i){
    where synonyms are sparse, so label/hint search (layered on top of
    this) still has a real step to land on. */
 const SEARCH_STATIC_INDEX = [
+ { step:null, action:'certificate', anlage:[], en:'Digital signature (ELSTER certificate)', de:'Digitale Signatur (ELSTER-Zertifikat)',
+   enHint:'Sign and submit your return with your own official digital signature - set it up here.',
+   deHint:'Unterschreiben und übermitteln Sie Ihre Erklärung mit Ihrer eigenen offiziellen digitalen Signatur - hier einrichten.',
+   synonyms:['elster','certificate','digital signature','electronic signature','signature','pfx','sign','submit','elster certificate','identity',
+     'zertifikat','signatur','unterschrift','elektronische unterschrift','elster zertifikat','identität','übermitteln'] },
  { step:0, anlage:['ESt 1 A','Hauptvordruck'], en:'Personal data', de:'Persönliche Daten',
    enHint:'Your name, address, tax ID, marital status, and Finanzamt - the basic details every return needs.',
    deHint:'Name, Adresse, Steuer-ID, Familienstand und Finanzamt - die Grunddaten, die jede Erklärung braucht.',
@@ -3798,6 +3806,7 @@ function buildSearchIndex(c){
    label: S.lang==='de' ? e.de : e.en,
    hint: S.lang==='de' ? e.deHint : e.enHint,
    text: [e.en, e.de, ...e.anlage, ...e.synonyms].join(' ').toLowerCase(),
+   action: e.action || null,
    tabkey: null,
  }));
  /* CORRECTED: real gap found via direct feedback - the itemized
@@ -3944,6 +3953,7 @@ function renderSearchResultsOnly(){
 function selectSearchResult(i){
  const r = (S._lastSearchResults||[])[i]; if(!r) return;
  S.searchOpen = false; S.searchQuery = '';
+ if(r.action==='certificate'){ showCertificateSettings(); return; }
  if(r.isDoc){ S.step = r.section ? SEARCH_SECTION_TO_STEP[r.section] ?? 0 : 0; render(); return; }
  if(r.step!=null) S.step = r.step;
  if(r.createList){
