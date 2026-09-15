@@ -29,6 +29,7 @@ img,svg{max-width:100%;display:block}
 .nav-links a{color:var(--ink-soft);font-weight:600}
 .nav-links a:hover{color:var(--teal)}
 @media(max-width:760px){.nav-links a:not(.btn){display:none}}
+.nav-toggle{display:none;background:none;border:none;cursor:pointer;padding:0;order:-1}
 /* Real, confirmed gaps found via direct rendering + computed-style
    checks, not guesses:
    - .logo .beta below never matched anything - the actual BETA badge
@@ -45,12 +46,40 @@ img,svg{max-width:100%;display:block}
    Widened from 400px to 480px to reliably cover the 390-430px range
    most current phones actually use, not just the narrowest tier. */
 @media(max-width:480px){
-  .nav-in{gap:8px;height:auto;padding:10px 22px;justify-content:flex-start}
+  .nav-in{gap:8px;height:auto;padding:10px 22px;justify-content:flex-start;position:relative}
   .logo{font-size:17px}
   .logo>span{padding:1px 5px;margin-left:5px;font-size:9px}
   .nav-links{gap:8px}
-  .nav-in .btn{padding:8px 12px;font-size:12.5px}
-  .nav-in .lang-btn{padding:6px 10px!important;font-size:11px!important;min-height:36px!important}
+  /* Real, requested fix: padding-only sizing doesn't guarantee identical
+     rendered height across elements with different font-sizes (12.5px
+     button text vs 11px toggle text) - each was landing at a slightly
+     different actual height despite similar-looking padding values.
+     Giving all three a fixed, explicit height removes that ambiguity
+     rather than trying to tune padding to coincidentally match. */
+  .nav-in .btn, .nav-in .lang-btn, .nav-toggle{height:36px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}
+  .nav-in .btn{padding:0 12px;font-size:12.5px}
+  .nav-in .lang-btn{padding:0 10px!important;font-size:11px!important;min-height:0!important}
+  /* Hamburger toggle: hidden on desktop (see base .nav-toggle rule
+     above), shown only at this narrow tier. order:-1 above places it
+     first among .nav-links' children, giving the requested visual
+     order left-to-right: burger, language, Start now. */
+  .nav-toggle{display:inline-flex;width:36px}
+  .nav-toggle svg{width:18px;height:18px;stroke:var(--ink)}
+  /* The anchor links (Funktionen, Eignung, Ablauf, Preis, FAQ) drop
+     down as a full-width panel below the bar when the toggle is
+     opened, rather than just staying invisible - the language button
+     and CTA stay put in the main bar regardless, since they're
+     separate flex siblings unaffected by this absolute positioning. */
+  .nav-links.mobile-open a:not(.btn){
+    display:block!important;position:absolute;width:100%;left:0;
+    background:var(--card);border-bottom:1px solid var(--line);
+    padding:14px 22px;font-size:16px;box-shadow:var(--shadow)
+  }
+  .nav-links.mobile-open a:not(.btn):nth-of-type(1){top:100%}
+  .nav-links.mobile-open a:not(.btn):nth-of-type(2){top:calc(100% + 46px)}
+  .nav-links.mobile-open a:not(.btn):nth-of-type(3){top:calc(100% + 92px)}
+  .nav-links.mobile-open a:not(.btn):nth-of-type(4){top:calc(100% + 138px)}
+  .nav-links.mobile-open a:not(.btn):nth-of-type(5){top:calc(100% + 184px)}
 }
 
 /* buttons */

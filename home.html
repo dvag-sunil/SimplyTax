@@ -19,6 +19,9 @@
  <div class="wrap nav-in">
  <div class="logo">Simply<b>Tax</b><span style="font-size:10px;font-weight:700;letter-spacing:.04em;color:#D98A1F;background:#FBF1DF;border:1px solid #D98A1F;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle">BETA</span></div>
  <div class="nav-links">
+ <button class="nav-toggle" id="navToggle" onclick="toggleMobileNav()" aria-label="Menu" aria-expanded="false">
+ <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+ </button>
  <a href="#funktionen" data-i18n="nav_features"></a>
  <a href="#eignung" data-i18n="nav_elig"></a>
  <a href="#ablauf" data-i18n="nav_how"></a>
@@ -485,6 +488,18 @@ function toggleLang(){
  try{ localStorage.setItem('simplytax-home-lang', LANG); }catch(e){}
  applyLang();
 }
+function toggleMobileNav(){
+ const links = document.querySelector('.nav-links');
+ const toggle = document.getElementById('navToggle');
+ const open = links.classList.toggle('mobile-open');
+ toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+document.querySelectorAll('.nav-links a:not(.btn)').forEach(a=>{
+ a.addEventListener('click', ()=>{ document.querySelector('.nav-links')?.classList.remove('mobile-open'); });
+});
+window.addEventListener('resize', ()=>{
+ if(window.innerWidth > 480) document.querySelector('.nav-links')?.classList.remove('mobile-open');
+});
 applyLang();
 </script>
 
