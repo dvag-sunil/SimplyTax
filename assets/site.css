@@ -76,7 +76,7 @@ img,svg{max-width:100%;display:block}
   .nav-links.mobile-open a:not(.btn){
     display:block!important;position:absolute;width:100%;left:0;
     background:var(--card);border-bottom:1px solid var(--line);
-    padding:14px 22px;font-size:16px;box-shadow:var(--shadow)
+    padding:14px 22px;font-size:16px;box-shadow:var(--shadow);text-align:right
   }
   .nav-links.mobile-open a:not(.btn):nth-of-type(1){top:100%}
   .nav-links.mobile-open a:not(.btn):nth-of-type(2){top:calc(100% + 46px)}
