@@ -753,7 +753,7 @@ async function handleStripeReturn(){
     no longer depends on that earlier check having already gone
      right - it loads what's needed itself if it's missing. */
  if(!S.loggedIn || !S.clients.length){
- try{ const me=await api('/api/auth/me'); S.user=me.user; await loadUserData(); S.loggedIn=true; startTokenRefreshTimer();  }
+ try{ const me=await api('/api/auth/me'); S.user=me.user; S.certificateRequired=!!me.certificateRequired; await loadUserData(); S.loggedIn=true; startTokenRefreshTimer();  }
  catch(e){  }
  }
  const c=S.clients.find(x=>x.id===r.clientId);
@@ -796,7 +796,7 @@ async function handlePaypalReturn(){
     genuinely valid now, regardless of whether the earlier, separate
     session check succeeded. */
  if(!S.loggedIn || !S.clients.length){
- try{ const me=await api('/api/auth/me'); S.user=me.user; await loadUserData(); S.loggedIn=true; startTokenRefreshTimer();  }
+ try{ const me=await api('/api/auth/me'); S.user=me.user; S.certificateRequired=!!me.certificateRequired; await loadUserData(); S.loggedIn=true; startTokenRefreshTimer();  }
  catch(e){  }
  }
  const c=S.clients.find(x=>x.id===r.clientId);
@@ -1212,6 +1212,7 @@ en: {
  cert_upload_success:"Certificate saved.", cert_err_no_file:"Please choose your .pfx file.", cert_err_no_pass:"Please enter the certificate password.",
  cert_err_invalid:"That file and password don't seem to match, or the file isn't a valid certificate. Please check and try again.",
  cert_err_server:"Something went wrong on our end saving your certificate - this isn't about your file or password. Please try again shortly.",
+ cert_required_now:"Submitting now requires your own ELSTER certificate. Please add it under Settings, then come back to submit.",
  cert_predpay_title:"Before you pay", cert_predpay_body:"To submit your return, you'll sign it with your own ELSTER certificate. If you don't have one yet, that's fine - you can pay now and add it later, any time before you actually submit.",
  cert_predpay_reassure:"Paying now does not require having your certificate ready. You can come back to add it whenever you have it.",
  cert_predpay_setup_now:"Set it up now", cert_predpay_pay_later:"Pay now, add it later",
@@ -1708,6 +1709,7 @@ de: {
  cert_upload_success:"Zertifikat gespeichert.", cert_err_no_file:"Bitte wählen Sie Ihre .pfx-Datei aus.", cert_err_no_pass:"Bitte geben Sie das Zertifikatspasswort ein.",
  cert_err_invalid:"Datei und Passwort passen nicht zusammen, oder die Datei ist kein gültiges Zertifikat. Bitte prüfen und erneut versuchen.",
  cert_err_server:"Bei uns ist beim Speichern Ihres Zertifikats etwas schiefgelaufen - das liegt nicht an Ihrer Datei oder Ihrem Passwort. Bitte versuchen Sie es in Kürze erneut.",
+ cert_required_now:"Zur Übermittlung wird nun Ihr eigenes ELSTER-Zertifikat benötigt. Bitte hinterlegen Sie es unter Einstellungen und kommen Sie danach zurück.",
  cert_predpay_title:"Bevor Sie zahlen", cert_predpay_body:"Zur Übermittlung signieren Sie Ihre Erklärung mit Ihrem eigenen ELSTER-Zertifikat. Falls Sie noch keins haben, ist das kein Problem - Sie können jetzt zahlen und es später hinzufügen, jederzeit bevor Sie tatsächlich übermitteln.",
  cert_predpay_reassure:"Für die Zahlung müssen Sie Ihr Zertifikat noch nicht bereit haben. Sie können es später hinzufügen, sobald Sie es haben.",
  cert_predpay_setup_now:"Jetzt einrichten", cert_predpay_pay_later:"Jetzt zahlen, später hinzufügen",
@@ -2199,7 +2201,7 @@ async function loadState(){
     browser, so there's nothing to check for locally first. Simply
     attempts /api/auth/me; success means a valid session exists,
     failure means it doesn't or has expired. */
-   try{ const r=await api('/api/auth/me'); S.user=r.user; await loadUserData(); S.loggedIn=true; S.view='dash'; startTokenRefreshTimer();  }
+   try{ const r=await api('/api/auth/me'); S.user=r.user; S.certificateRequired=!!r.certificateRequired; await loadUserData(); S.loggedIn=true; S.view='dash'; startTokenRefreshTimer();  }
  catch(e){  }
  return;
  }
@@ -2559,6 +2561,7 @@ async function doDeleteCertificate(btn){
    require having it ready yet. If a certificate is already on file,
    this is skipped entirely and payment proceeds exactly as before. */
 async function showCertificateInfoBeforePayment(btn){
+ if(!S.certificateRequired){ payNow(btn); return; } // flag off - today's exact current behavior, no certificate UI at all
  const st = await certStatus();
  if(st.hasCertificate){ payNow(btn); return; } // already set up - no interruption, unchanged behavior
  const slot=document.getElementById('modal-slot'); if(!slot) return;
@@ -6282,6 +6285,7 @@ function showFreigabeModal(c, data, validateResult){
    as every existing call already does - zero behavior change for the
    default path. */
 async function promptCertPasswordThenSubmit(c, data){
+ if(!S.certificateRequired){ await performSubmission(c, data); return; } // flag off - default fallback, unchanged
  const st = await certStatus();
  if(!st.hasCertificate){ await performSubmission(c, data); return; }
  const slot=document.getElementById('modal-slot'); if(!slot) return;
@@ -6351,6 +6355,11 @@ async function performSubmission(c, data, certificatePassword){
  setBusy(false);
  if(e && (e.message==='wrong_certificate_password' || e.message==='no_certificate_on_file')){
  throw e; // handled inline by submitWithCertPassword's own modal, not shown as a generic alert here
+ }
+ if(e && e.message==='certificate_required'){
+ const m=document.querySelector('.modal-bg'); if(m) m.remove();
+ showInfoModal(t('cert_required_now'));
+ return;
  }
  if(e && e.message==='material_gaps' && Array.isArray(e.materialGaps) && e.materialGaps.length){
  const m=document.querySelector('.modal-bg'); if(m) m.remove();

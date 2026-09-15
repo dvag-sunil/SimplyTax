@@ -737,7 +737,14 @@ app.post('/api/auth/resend-verification', auth, async (req, res) => {
 app.get('/api/auth/me', auth, async (req, res) => {
   const q = await pool.query('SELECT * FROM users WHERE id=$1', [req.user.sub]);
   if (!q.rows[0]) return res.status(404).json({ error: 'not_found' });
-  res.json({ user: pubUser(q.rows[0]) });
+  /* NEW, additive: single testing/rollout flag. Defaults to false, which
+     is exactly today's current, unchanged behavior (customer's own
+     certificate is optional, silently falls back to the default
+     Hersteller-ID credentials if none is on file). Set to the string
+     'true' in Render's env vars to require a customer's own certificate
+     before submission is allowed at all - see the matching check in
+     /api/eric/submit below for the actual enforcement. */
+  res.json({ user: pubUser(q.rows[0]), certificateRequired: process.env.REQUIRE_CUSTOMER_CERTIFICATE === 'true' });
 });
 
 /* ---------- change account email (requires current password re-authentication) ---------- */
@@ -1607,6 +1614,14 @@ app.post('/api/eric/submit', auth, async (req, res) => {
        own certificate. certificatePassword is optional - when absent,
        certOverride stays undefined and submit() behaves exactly as it
        always has (the default Hersteller-ID path, from env vars). */
+    /* NEW, additive: only blocks anything when REQUIRE_CUSTOMER_CERTIFICATE
+       is explicitly turned on. Default (unset/false) behavior below this
+       check is completely unchanged - falls through exactly as it always
+       has. */
+    if (process.env.REQUIRE_CUSTOMER_CERTIFICATE === 'true' && !certificatePassword) {
+      await releaseLock(previousStatus);
+      return res.status(400).json({ error: 'certificate_required' });
+    }
     let certOverride;
     let tempCertPath;
     if (certificatePassword) {
