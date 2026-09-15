@@ -1209,7 +1209,7 @@ en: {
  cert_expiring_soon:"Your digital signature expires in {days} days. You may want to renew it on elster.de before your next submission.",
  cert_remove_btn:"Remove", cert_remove_confirm:"Remove your digital signature? You'll need to add it again before submitting.",
  cert_file_label:"Certificate file (.pfx)", cert_pass_label:"Certificate password",
- cert_upload_btn:"Save my digital signature", cert_upload_hint:"Don't have one yet? It's free and only takes a few minutes to set up at <a href=\"https://www.elster.de/eportal/registrierung-auswahl\" target=\"_blank\" rel=\"noopener\">elster.de ↗</a>, Germany's official tax portal - usually a few days by post, or much faster with your German ID card.",
+ cert_upload_btn:"Save my digital signature", cert_upload_hint:"Don't have one yet? It's free and only takes a few minutes to set up at <a href=\"https://www.elster.de/\" target=\"_blank\" rel=\"noopener\">elster.de ↗</a>, Germany's official tax portal - usually a few days by post, or much faster with your German ID card.",
  cert_upload_success:"Your digital signature is saved.", cert_err_no_file:"Please choose your .pfx file.", cert_err_no_pass:"Please enter the certificate password.",
  cert_err_invalid:"That file and password don't seem to match, or the file isn't a valid certificate. Please check and try again.",
  cert_err_server:"Something went wrong on our end saving your digital signature - this isn't about your file or password. Please try again shortly.",
@@ -1381,6 +1381,7 @@ en: {
  wki_type:"Category", wki_desc:"Description (optional)", wki_amount:"Amount (per year)",
  add_wki:"Add expense item", wki_tot_a:"Total Person A", wki_tot_b:"Total Person B",
  export_elster:"Export tax authority dataset (JSON)",
+ export_elster_section:"Export tax authority dataset", export_elster_hint:"Temporarily moved here from the review screen. Exports the current tax return's raw data in the same format sent to the Finanzamt.",
  person:"Belongs to (person)", person_b_detect:"Assigned to Person B (spouse) - Identifikationsnummer did not match Person A.",
    privacy_foot:"Encrypted sign-in · GDPR-compliant data handling (UK-hosted) · Payments via certified provider"
 },
@@ -1708,7 +1709,7 @@ de: {
  cert_expiring_soon:"Ihre digitale Signatur läuft in {days} Tagen ab. Sie sollten sie vor der nächsten Übermittlung auf elster.de verlängern.",
  cert_remove_btn:"Entfernen", cert_remove_confirm:"Digitale Signatur entfernen? Sie müssen sie vor der nächsten Übermittlung erneut hinzufügen.",
  cert_file_label:"Zertifikatsdatei (.pfx)", cert_pass_label:"Zertifikatspasswort",
- cert_upload_btn:"Digitale Signatur speichern", cert_upload_hint:"Noch keine? Kostenlos und in wenigen Minuten eingerichtet auf <a href=\"https://www.elster.de/eportal/registrierung-auswahl\" target=\"_blank\" rel=\"noopener\">elster.de ↗</a>, dem offiziellen Steuerportal - meist wenige Tage per Post, oder deutlich schneller mit dem Personalausweis.",
+ cert_upload_btn:"Digitale Signatur speichern", cert_upload_hint:"Noch keine? Kostenlos und in wenigen Minuten eingerichtet auf <a href=\"https://www.elster.de/\" target=\"_blank\" rel=\"noopener\">elster.de ↗</a>, dem offiziellen Steuerportal - meist wenige Tage per Post, oder deutlich schneller mit dem Personalausweis.",
  cert_upload_success:"Ihre digitale Signatur ist gespeichert.", cert_err_no_file:"Bitte wählen Sie Ihre .pfx-Datei aus.", cert_err_no_pass:"Bitte geben Sie das Zertifikatspasswort ein.",
  cert_err_invalid:"Datei und Passwort passen nicht zusammen, oder die Datei ist kein gültiges Zertifikat. Bitte prüfen und erneut versuchen.",
  cert_err_server:"Bei uns ist beim Speichern Ihrer digitalen Signatur etwas schiefgelaufen - das liegt nicht an Ihrer Datei oder Ihrem Passwort. Bitte versuchen Sie es in Kürze erneut.",
@@ -1880,6 +1881,7 @@ de: {
  wki_type:"Kategorie", wki_desc:"Bezeichnung (optional)", wki_amount:"Betrag (pro Jahr)",
  add_wki:"Posten hinzufügen", wki_tot_a:"Summe Person A", wki_tot_b:"Summe Person B",
  export_elster:"Finanzamt-Datensatz exportieren (JSON)",
+ export_elster_section:"Finanzamt-Datensatz exportieren", export_elster_hint:"Vorübergehend von der Übersichtsseite hierher verschoben. Exportiert die Rohdaten der aktuellen Steuererklärung im gleichen Format, das an das Finanzamt gesendet wird.",
  person:"Gehört zu (Person)", person_b_detect:"Person B (Ehepartner) zugeordnet - Identifikationsnummer stimmte nicht mit Person A überein.",
    privacy_foot:"Verschlüsselte Anmeldung · DSGVO-konforme Datenhaltung (UK-Hosting) · Zahlung über zertifizierten Dienstleister"
 }};
@@ -2451,6 +2453,10 @@ function showSettings(){
  <div class="section-label" style="margin-top:20px">${t('cert_section')}</div>
  <p style="color:var(--ink-soft);font-size:12.5px;margin:0 0 10px">${t('cert_section_hint')}</p>
  <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="this.closest('.modal-bg').remove();showCertificateSettings()">${t('cert_manage_btn')}</button>
+ ${cur() ? `
+ <div class="section-label" style="margin-top:20px">${t('export_elster_section')}</div>
+ <p style="color:var(--ink-soft);font-size:12.5px;margin:0 0 10px">${t('export_elster_hint')}</p>
+ <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="exportElster()">⇪ ${t('export_elster')}</button>` : ''}
  <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
  <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
  <button class="btn btn-primary" onclick="saveSettings(this)">${t('save')}</button>
@@ -5543,7 +5549,6 @@ function stepSummary(c){
  ${sumGroup(t('household_g'),9,[[t('medical'),m(c.ex.medical)],[t('household'),m(c.ex.household)],[t('handwerker'),m(c.ex.handwerker)]])}
   <div style="margin-top:22px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;align-items:center">
  <button class="btn btn-ghost" onclick="exportPDF()">📄 ${t('pdf_btn')}</button>
- <button class="btn btn-ghost" onclick="exportElster()">⇪ ${t('export_elster')}</button>
  </div>
  ${(S.certificateRequired && S.certStatus && !S.certStatus.hasCertificate && !submitted) ? `
  <div class="infobox" style="border-color:var(--amber);background:var(--amber-soft);margin-top:16px;text-align:center">
