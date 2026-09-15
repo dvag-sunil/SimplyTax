@@ -1381,7 +1381,8 @@ en: {
  wki_type:"Category", wki_desc:"Description (optional)", wki_amount:"Amount (per year)",
  add_wki:"Add expense item", wki_tot_a:"Total Person A", wki_tot_b:"Total Person B",
  export_elster:"Export tax authority dataset (JSON)",
- export_elster_section:"Export tax authority dataset", export_elster_hint:"Temporarily moved here from the review screen. Exports the current tax return's raw data in the same format sent to the Finanzamt.",
+ export_elster_section:"Export tax authority dataset", export_elster_hint:"Exports a tax return's raw data in the same format sent to the Finanzamt.",
+ export_elster_which:"Which return", import_elster_section:"Import tax authority dataset", import_elster_hint:"Import a SimplyTax interchange JSON file to test it through Review & Submit.", import_json_btn:"Import JSON",
  person:"Belongs to (person)", person_b_detect:"Assigned to Person B (spouse) - Identifikationsnummer did not match Person A.",
    privacy_foot:"Encrypted sign-in · GDPR-compliant data handling (UK-hosted) · Payments via certified provider"
 },
@@ -1881,7 +1882,8 @@ de: {
  wki_type:"Kategorie", wki_desc:"Bezeichnung (optional)", wki_amount:"Betrag (pro Jahr)",
  add_wki:"Posten hinzufügen", wki_tot_a:"Summe Person A", wki_tot_b:"Summe Person B",
  export_elster:"Finanzamt-Datensatz exportieren (JSON)",
- export_elster_section:"Finanzamt-Datensatz exportieren", export_elster_hint:"Vorübergehend von der Übersichtsseite hierher verschoben. Exportiert die Rohdaten der aktuellen Steuererklärung im gleichen Format, das an das Finanzamt gesendet wird.",
+ export_elster_section:"Finanzamt-Datensatz exportieren", export_elster_hint:"Exportiert die Rohdaten einer Steuererklärung im gleichen Format, das an das Finanzamt gesendet wird.",
+ export_elster_which:"Welche Erklärung", import_elster_section:"Finanzamt-Datensatz importieren", import_elster_hint:"Importieren Sie eine SimplyTax-Austauschdatei (JSON), um sie über Übersicht & Übermitteln zu testen.", import_json_btn:"JSON importieren",
  person:"Gehört zu (Person)", person_b_detect:"Person B (Ehepartner) zugeordnet - Identifikationsnummer stimmte nicht mit Person A überein.",
    privacy_foot:"Verschlüsselte Anmeldung · DSGVO-konforme Datenhaltung (UK-Hosting) · Zahlung über zertifizierten Dienstleister"
 }};
@@ -2453,10 +2455,18 @@ function showSettings(){
  <div class="section-label" style="margin-top:20px">${t('cert_section')}</div>
  <p style="color:var(--ink-soft);font-size:12.5px;margin:0 0 10px">${t('cert_section_hint')}</p>
  <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="this.closest('.modal-bg').remove();showCertificateSettings()">${t('cert_manage_btn')}</button>
- ${cur() ? `
+ ${S.clients.length ? `
  <div class="section-label" style="margin-top:20px">${t('export_elster_section')}</div>
  <p style="color:var(--ink-soft);font-size:12.5px;margin:0 0 10px">${t('export_elster_hint')}</p>
- <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="exportElster()">⇪ ${t('export_elster')}</button>` : ''}
+ <div class="field"><label>${t('export_elster_which')}</label>
+ <select id="st-export-elster-client">
+ ${S.clients.slice().sort((a,b)=>b.taxYear-a.taxYear).map(c=>`<option value="${c.id}" ${c.id===S.currentId?'selected':''}>${c.taxYear} - ${esc((c.p.firstName||'')+' '+(c.p.lastName||''))||t('untitled_client')}</option>`).join('')}
+ </select></div>
+ <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="exportElsterSelected()">⇪ ${t('export_elster')}</button>` : ''}
+ <div class="section-label" style="margin-top:20px">${t('import_elster_section')}</div>
+ <p style="color:var(--ink-soft);font-size:12.5px;margin:0 0 10px">${t('import_elster_hint')}</p>
+ <input type="file" id="importJsonInputSettings" accept="application/json,.json" style="display:none" onchange="if(this.files[0]){ this.closest('.modal-bg').remove(); importElsterFile(this.files[0]); } this.value='';">
+ <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="document.getElementById('importJsonInputSettings').click()">⬆ ${t('import_json_btn')}</button>
  <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
  <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
  <button class="btn btn-primary" onclick="saveSettings(this)">${t('save')}</button>
@@ -3380,8 +3390,6 @@ function dashView(){
  </div>`:''}
  <div class="page-head"><div><h1>${t('dashboard')}</h1><p>${t('tagline')}</p></div>
  <div class="spacer" style="flex:1"></div>
- <input type="file" id="importJsonInput" accept="application/json,.json" style="display:none" onchange="if(this.files[0]) importElsterFile(this.files[0]); this.value='';">
-  <button class="btn btn-ghost" onclick="document.getElementById('importJsonInput').click()" title="Import a SimplyTax interchange JSON file to test it through Review &amp; Submit">⬆ Import JSON</button>
  <button class="btn btn-primary" onclick="showNewClient()">＋ ${t('new_client')}</button></div>
  <div class="stats">
  <div class="stat"><div class="k">${t('clients')}</div><div class="v num">${cs.length}</div></div>
@@ -6742,12 +6750,18 @@ function buildElsterDataset(c){
  bereitsGezahlt:Math.round(e.paid), erstattung:Math.round(e.refund), hinweis:'Unverbindliche Schätzung' }
  };
 }
-function exportElster(){
- const c=cur(); if(!c) return;
+function exportElsterDataForClient(c){
+ if(!c) return;
  const blob=new Blob([JSON.stringify(buildElsterDataset(c),null,2)],{type:'application/json'});
  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
  a.download=`elster_dataset_${c.taxYear}_${(c.p.lastName||'client').replace(/[^A-Za-z0-9ÄÖÜäöüß_-]/g,'')}.json`;
  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+}
+function exportElster(){ exportElsterDataForClient(cur()); }
+function exportElsterSelected(){
+ const sel = document.getElementById('st-export-elster-client');
+ const c = S.clients.find(x=>x.id===sel?.value);
+ exportElsterDataForClient(c);
 }
 
 /* IMPLEMENTED: the reverse of buildElsterDataset, requested directly
