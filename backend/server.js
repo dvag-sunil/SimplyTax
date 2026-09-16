@@ -36,8 +36,22 @@ const rateLimit = require('express-rate-limit');
 const ericService = require('./eric/eric-service');
 const { buildEStXML, buildSonstigeNachrichtXML, InterchangeDataError, classifySkippedSections } = require('./eric/xml-builder');
 
-const { DATABASE_URL, JWT_SECRET, ALLOWED_ORIGIN = 'https://dvag-sunil.github.io', PORT = 3000 } = process.env;
+const { DATABASE_URL, JWT_SECRET, ALLOWED_ORIGIN, PORT = 3000 } = process.env;
 if (!DATABASE_URL || !JWT_SECRET) { console.error('Missing DATABASE_URL or JWT_SECRET in .env'); process.exit(1); }
+/* CORRECTED: real, confirmed security-hygiene issue found via audit -
+   this used to default to 'https://dvag-sunil.github.io', a leftover
+   from an unrelated earlier project. If ALLOWED_ORIGIN was ever
+   missing in production, the server would silently accept
+   cross-origin requests from that unrelated domain instead of this
+   app's real one - not exploitable by itself, but exactly the kind
+   of stale config that turns into a real incident later, and it gave
+   zero indication anything was wrong. Treated with the same severity
+   as the DATABASE_URL/JWT_SECRET check directly above, which this
+   app already fails hard on - a missing CORS origin is just as much
+   a misconfiguration as a missing DB connection, and deserves the
+   same immediate, unmissable failure at startup rather than a
+   silently-wrong security posture nobody actually chose. */
+if (!ALLOWED_ORIGIN) { console.error('Missing ALLOWED_ORIGIN in .env - refusing to start with an undefined CORS policy'); process.exit(1); }
 
 /* CORRECTED: hardened CORS setup, added directly in response to a real
    reported outage where login failed with a CORS error in the browser.
@@ -55,21 +69,15 @@ if (!DATABASE_URL || !JWT_SECRET) { console.error('Missing DATABASE_URL or JWT_S
       the real, direct way to diagnose this class of issue instead of
       guessing from the browser error alone. */
 const allowedOrigins = ALLOWED_ORIGIN.split(',').map(o => o.trim()).filter(Boolean);
-/* CORRECTED: real, confirmed vulnerability found while investigating a
-   reported login failure with the service itself reporting healthy -
-   JavaScript's default-parameter syntax above (ALLOWED_ORIGIN = '...')
-   only ever applies when the variable is genuinely undefined, never
-   when it's an empty string. If ALLOWED_ORIGIN is set to an empty
-   value on the hosting platform - not unset, but literally blank, an
-   easy accidental dashboard state - the default never kicks in,
-   silently producing zero allowed origins here and rejecting every
-   single request. That matches a consistent, repeated CORS failure
-   with the service itself still reporting up exactly, since the
-   server genuinely started fine - only this one list ended up empty.
-   Explicit fallback added for this case, plus a startup log printing
-   the actual, effective list, so this is directly checkable in the
-   server's own logs instead of guessed at from the browser side. */
-if (allowedOrigins.length === 0) allowedOrigins.push('https://dvag-sunil.github.io');
+/* Real, confirmed edge case: a whitespace-only ALLOWED_ORIGIN value
+   (e.g. a single space) is neither undefined nor an empty string, so
+   it passes the check above, but still produces zero usable origins
+   here after trimming and filtering - the exact scenario that used to
+   silently fall back to an unrelated old project's domain
+   (dvag-sunil.github.io). Fixed the same way as above: fail loudly at
+   startup instead of silently falling open to a domain that has
+   nothing to do with this app. */
+if (allowedOrigins.length === 0) { console.error('ALLOWED_ORIGIN resolved to zero usable origins after parsing - refusing to start with an undefined CORS policy'); process.exit(1); }
 console.log('[cors] allowed origins:', allowedOrigins);
 const corsOptions = {
   origin: (origin, callback) => {
@@ -262,7 +270,18 @@ async function verifyPaypalWebhook(headers, rawBody) {
   return data.verification_status === 'SUCCESS';
 }
 const PRICE_CENTS = parseInt(process.env.PRICE_CENTS || '1799', 10);
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dvag-sunil.github.io/SimplyTax/';
+/* CORRECTED: real, confirmed security-hygiene issue found while fixing
+   the same pattern above for ALLOWED_ORIGIN - this fell back to the
+   same unrelated old project's domain (dvag-sunil.github.io), but
+   this one is actively more severe: it's used below for password-
+   reset links, email-verification links, and Stripe payment success/
+   cancel redirects. A missing env var here wouldn't just be a
+   theoretical CORS risk - real customers would receive real reset
+   and verification emails pointing at an unrelated site, and land on
+   the wrong domain after paying. Same fix as above: fail loudly at
+   startup rather than silently sending broken links to real users. */
+const FRONTEND_URL = process.env.FRONTEND_URL;
+if (!FRONTEND_URL) { console.error('Missing FRONTEND_URL in .env - refusing to start rather than send broken links to real users'); process.exit(1); }
 
 /* ---------- Supabase Storage for Belege (private bucket, service key server-side only) ---------- */
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
