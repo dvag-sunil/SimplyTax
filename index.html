@@ -3001,7 +3001,15 @@ function computeEstimate(c){
  const credit = Math.min(N(c.ex.household)*0.20, 4000) + Math.min(N(c.ex.handwerker)*0.20, 1200) + energ;
  const taxAfter = Math.max(0, tax - credit);
  // Soli: Freigrenze per year + Milderungszone 11.9% (§§ 3, 4 SolZG); Abgeltungsteuer keeps flat 5.5%
- const SOLI_FG = {2023:17543, 2024:18130, 2025:19950, 2026:19950};
+ /* CORRECTED: real, confirmed bug found via independent cross-check
+    against four current, mutually-corroborating sources (finanztip.de,
+    steuern.de, NWB Datenbank, onlinetoolkit.co) - the 2026 Soli
+    exemption threshold was raised again to 20,350€ (from 19,950€ in
+    2025), not left unchanged as this table previously had it. Any
+    2026 return with tax liability between 19,950€ and 20,350€ was
+    being wrongly assessed some Solidaritätszuschlag when it should
+    legally be zero. */
+ const SOLI_FG = {2023:17543, 2024:18130, 2025:19950, 2026:20350};
  const freig = (SOLI_FG[year]||19950) * (joint?2:1);
  const soli = taxAfter<=freig ? 0 : Math.min(taxAfter*0.055, (taxAfter-freig)*0.119);
  // church tax: 8% BY/BW, 9% elsewhere - levied PER PERSON (half of the joint tax each)
