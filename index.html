@@ -6759,7 +6759,7 @@ function buildElsterDataset(c){
  zeile43_kapitalertragsteuer:N(k.k43)+N(k.taxPaid), zeile44_soli:N(k.k44)+N(k.soliPaid), zeile45_kirchensteuer:N(k.k45) })),
  anlageV:(c.props||[]).map(p=>({ street:p.street||'', plz:p.plz||'', ort:p.city||'', land:p.country||'Deutschland',
  mieteinnahmen:N(p.rent), nebenkosten:N(p.nebenkosten),
- wkAfa:N(p.wkAfa), wkSonderabschr:N(p.wkSonderabschr), wkSchuldzins:N(p.wkSchuldzins), wkGeldbeschaff:N(p.wkGeldbeschaff),
+ wkAfa:N(p.wkAfa), afaCompletionYear:p.afaCompletionYear||'', wkSonderabschr:N(p.wkSonderabschr), wkSchuldzins:N(p.wkSchuldzins), wkGeldbeschaff:N(p.wkGeldbeschaff),
  wkErhaltung:N(p.wkErhaltung), wk5JAbzugsfaehig:N(p.wk5JAbzugsfaehig), wkVerwaltung:N(p.wkVerwaltung), wkUstPflichtig:N(p.wkUstPflichtig), wkSonst:N(p.wkSonst),
  wohneinheit:p.unit||'', ferienwohnung:p.ferienwohnung==='ja', kurzfristig:p.kurzfristig==='ja',
   angehoerige:p.angehoerige==='ja', owner:p.owner||'', dbaTreatmentConfirmed:!!p.dbaTreatmentConfirmed, ergebnis:N(p.rent)-propCosts(p) })),
@@ -6932,7 +6932,7 @@ function importElsterDataset(data){
   c.props = (data.anlageV || []).map(p => ({
     id: uid(), street: p.street||'', plz: p.plz||'', city: p.ort||'', country: p.land||'Deutschland',
     rent: p.mieteinnahmen||'', nebenkosten: p.nebenkosten||'',
-    wkAfa: p.wkAfa||'', wkSonderabschr: p.wkSonderabschr||'', wkSchuldzins: p.wkSchuldzins||'', wkGeldbeschaff: p.wkGeldbeschaff||'',
+    wkAfa: p.wkAfa||'', afaCompletionYear: p.afaCompletionYear||'', wkSonderabschr: p.wkSonderabschr||'', wkSchuldzins: p.wkSchuldzins||'', wkGeldbeschaff: p.wkGeldbeschaff||'',
     wkErhaltung: p.wkErhaltung||'', wk5JAbzugsfaehig: p.wk5JAbzugsfaehig||'', wkVerwaltung: p.wkVerwaltung||'', wkUstPflichtig: p.wkUstPflichtig||'', wkSonst: p.wkSonst||'',
     unit: p.wohneinheit||'', ferienwohnung: p.ferienwohnung?'ja':'nein', kurzfristig: p.kurzfristig?'ja':'nein',
     angehoerige: p.angehoerige?'ja':'nein', owner: p.owner||'',
