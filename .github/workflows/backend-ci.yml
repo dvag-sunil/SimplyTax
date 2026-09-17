@@ -86,7 +86,7 @@ jobs:
           DATABASE_URL: postgresql://ci:ci@localhost:5432/simplytax_ci
           JWT_SECRET: ci-test-secret-not-for-production
           PORT: 3000
-          ALLOWED_ORIGIN: https://dvag-sunil.github.io
+          ALLOWED_ORIGIN: https://www.taxfile24.com
         run: |
           node server.js &
           SERVER_PID=$!
