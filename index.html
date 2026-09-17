@@ -4984,7 +4984,7 @@ function stepProp(c){
  <div class="grid2">
  ${LF('props',p,'rent',t('prop_rent'),{euro:true,ph:'0,00 €'})}
  </div>
- <details class="more" ${isSectionOpen('prop-costs-'+p.id, (N(p.wkAfa)+N(p.wkSchuldzins)+N(p.wkErhaltung)+N(p.wkVerwaltung)+N(p.wkSonst))>0)?'open':''} ontoggle="toggleSectionState('prop-costs-${p.id}', this.open)"><summary>${t('prop_costs_summary')}</summary>
+ <details class="more" ${(N(p.wkAfa)>0 && !p.afaCompletionYear) || isSectionOpen('prop-costs-'+p.id, (N(p.wkAfa)+N(p.wkSchuldzins)+N(p.wkErhaltung)+N(p.wkVerwaltung)+N(p.wkSonst))>0)?'open':''} ontoggle="toggleSectionState('prop-costs-${p.id}', this.open)"><summary>${t('prop_costs_summary')}</summary>
  <p class="hint" style="margin:0 0 8px">${t('prop_costs_hint')}</p>
  <div class="grid2">
  ${LF('props',p,'wkAfa',t('prop_wk_afa'),{euro:true,ph:'0,00 €',hint:i===0?t('prop_wk_afa_hint'):''})}
