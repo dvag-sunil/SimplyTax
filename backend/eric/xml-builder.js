@@ -35,6 +35,7 @@
 ============================================================================= */
 
 const fm = require('./eric-fieldmap.js');
+const { afaRate } = require('./afa-rate.js');
 
 /* ---------- small helpers ---------- */
 function xesc(s) {
@@ -1410,7 +1411,18 @@ function buildWkBlock(p, taxYear) {
    let inner = '';
   let usedAfaDefault = false;
   if (N(p.wkAfa) > 0) {
-     usedAfaDefault = true;
+    /* Real fix: uses the property's actual completion year to
+       determine the correct standard rate (2%, 2.5%, or 3%) when
+       given, falling back to the previous hardcoded 2% only when no
+       year has been provided yet - existing client data with no year
+       keeps behaving exactly as before, nothing silently changes for
+       records that predate this field. usedAfaDefault now reflects
+       whether this was a genuine default or a real, user-supplied
+       answer, matching how other confirmed-vs-defaulted fields in
+       this app already distinguish the two. */
+    const computedRate = afaRate(p.afaCompletionYear);
+    const rate = computedRate !== null ? computedRate : 2;
+    usedAfaDefault = computedRate === null;
     /* CORRECTED (definitively this round): the real legacy (2021/2022)
        structure uses an "Einz" sub-element, not "Direkt" - a
        completely different real element that earlier research never
@@ -1422,7 +1434,7 @@ function buildWkBlock(p, taxYear) {
   const isLegacyYearAfa = (taxYear || 2025) < 2023;
     const afaPart = isLegacyYearAfa
         ? `<Einz>\n${tag(fm.V.wkAfaMethodLinear, 'X')}${euroTag(fm.V.wkAfaMethodDirekt, p.wkAfa)}${tag(fm.V.wkAfaDirektFlag, 'X')}${wholeEuroTag(fm.V.wkAfaWk, p.wkAfa)}</Einz>`
-      : (fm.isFieldSupportedForYear(fm.V.wkAfaDirekt, taxYear || 2025) ? `<Direkt>\n${tag(fm.V.wkAfaArt, '1')}${percentTag(fm.V.wkAfaProzent, 2)}${wholeEuroTag(fm.V.wkAfaDirekt, p.wkAfa)}</Direkt>` : '');
+      : (fm.isFieldSupportedForYear(fm.V.wkAfaDirekt, taxYear || 2025) ? `<Direkt>\n${tag(fm.V.wkAfaArt, '1')}${percentTag(fm.V.wkAfaProzent, rate)}${wholeEuroTag(fm.V.wkAfaDirekt, p.wkAfa)}</Direkt>` : '');
     inner += `<AfA_Geb>${afaPart}<Sum>\n${wholeEuroTag(fm.V.wkAfaSum, p.wkAfa)}</Sum></AfA_Geb>\n`;
   }
   /* Newly implemented - special depreciation (§7b EStG). This
@@ -2884,11 +2896,19 @@ function buildEStXML(data, opts = {}) {
     '[MATERIAL] anlageV Werbungskosten (rental deduction costs) - a total was entered but not broken into the real itemized categories (depreciation, loan interest, maintenance, management, other), so it could not be transmitted honestly. Enter the amount under the specific category it belongs to instead of one combined figure.',
     '[MATERIAL] Anlage V Werbungskosten (Werbungskosten bei Vermietung) - es wurde ein Gesamtbetrag angegeben, der aber nicht in die tatsächlich erforderlichen Einzelkategorien (Abschreibung, Schuldzinsen, Erhaltungsaufwand, Verwaltungskosten, Sonstiges) aufgeteilt wurde und deshalb nicht ehrlich übermittelt werden konnte. Bitte den Betrag der jeweils zutreffenden Kategorie zuordnen, statt einer einzigen Gesamtsumme.'
   ));
-  if ((data.anlageV || []).some(p => N(p.wkAfa) > 0))
+  if ((data.anlageV || []).some(p => N(p.wkAfa) > 0 && afaRate(p.afaCompletionYear) === null))
      skippedSections.push(MSG(
     '[SENT] anlageV building depreciation (AfA) - transmitted using the standard default (2% linear depreciation), since the exact method and construction date aren\'t collected yet. This is the correct rate for most buildings completed after 1924, but if a different method or rate genuinely applies to this property, the amount transmitted may not be exactly right - worth confirming with a Steuerberater if unsure.',
     '[SENT] Anlage V Gebäudeabschreibung (AfA) - wurde mit dem üblichen Standardwert übermittelt (2 % linear), da die genaue Methode und das Baujahr noch nicht erfasst werden. Dies ist der korrekte Satz für die meisten nach 1924 fertiggestellten Gebäude. Falls für diese Immobilie jedoch tatsächlich eine andere Methode oder ein anderer Satz gilt, ist der übermittelte Betrag möglicherweise nicht exakt richtig - im Zweifel lohnt sich die Rücksprache mit einem Steuerberater.'
   ));
+  (data.anlageV || []).forEach(p => {
+    const rate = afaRate(p.afaCompletionYear);
+    if (N(p.wkAfa) > 0 && rate !== null)
+      skippedSections.push(MSG(
+        `[SENT] anlageV building depreciation (AfA) - transmitted at ${String(rate).replace('.', ',')}% linear depreciation, based on the building's completion year (${p.afaCompletionYear}) you provided. This covers the standard linear case; if a different method (e.g. degressive, or a listed-building allowance) genuinely applies, worth confirming with a Steuerberater.`,
+        `[SENT] Anlage V Gebäudeabschreibung (AfA) - wurde mit ${String(rate).replace('.', ',')} % linear übermittelt, basierend auf dem von Ihnen angegebenen Baujahr (${p.afaCompletionYear}). Dies deckt den linearen Standardfall ab; falls tatsächlich eine andere Methode (z. B. degressiv oder eine Denkmal-AfA) zutrifft, lohnt sich die Rücksprache mit einem Steuerberater.`
+      ));
+  });
   if ((data.anlageKind || []).some(k => k.betreuungskosten > 0 && (!k.betreuungAnbieter || !k.betreuungVon || !k.betreuungBis)))
      skippedSections.push(MSG(
     '[MATERIAL] anlageKind childcare amount present without provider/period for at least one child - that entry\'s childcare block was skipped (should not happen if the app UI validation ran, worth checking why it was bypassed)',

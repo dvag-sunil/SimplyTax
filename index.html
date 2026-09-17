@@ -1283,7 +1283,10 @@ en: {
  add_support_person:"Add another supported person",
  prop_costs_summary:"Rental deduction costs (Werbungskosten)", prop_costs_total:"Total deductible costs entered",
  prop_costs_hint:"The tax office requires these broken down by category, not one combined total.",
- prop_wk_afa:"Building depreciation (AfA)", prop_wk_afa_hint:"The standard yearly write-down on the building's value - usually 2% of the building's (not the land's) purchase or construction cost.",
+ prop_wk_afa:"Building depreciation (AfA)", prop_wk_afa_hint:"The standard yearly write-down on the building's value - usually 2% of the building's (not the land's) purchase or construction cost. Tell us the completion year on the right and we'll use the correct rate automatically.",
+ prop_afa_year:"Building completion year", prop_afa_year_ph:"e.g. 2005",
+ prop_afa_year_hint:"Used to apply the correct depreciation rate automatically (2%, 2.5%, or 3% depending on age).",
+ prop_afa_year_result:"Applied rate: {rate}% per year, based on this year.",
  prop_wk_schuldzins:"Loan interest", prop_wk_schuldzins_hint:"Interest paid on a mortgage or loan used to buy or renovate this property - not the repayment of the loan itself, only the interest.",
  prop_wk_erhaltung:"Maintenance and repairs", prop_wk_erhaltung_hint:"Repairs and upkeep deductible in this same year - larger renovation costs may need to be spread over several years instead; ask your Steuerberater if unsure.",
  prop_wk_verwaltung:"Management costs", prop_wk_verwaltung_hint:"Fees paid to a property manager or management company for administering this rental, if you don't handle it yourself.",
@@ -1785,7 +1788,10 @@ de: {
  add_support_person:"Weitere unterstützte Person hinzufügen",
  prop_costs_summary:"Werbungskosten (Vermietung)", prop_costs_total:"Eingetragene abzugsfähige Kosten insgesamt",
  prop_costs_hint:"Das Finanzamt verlangt diese aufgeteilt nach Kategorie, nicht als eine Gesamtsumme.",
- prop_wk_afa:"Gebäudeabschreibung (AfA)", prop_wk_afa_hint:"Die jährliche Absetzung für Abnutzung - meist 2 % der Anschaffungs- oder Herstellungskosten des Gebäudes (ohne Grundstücksanteil).",
+ prop_wk_afa:"Gebäudeabschreibung (AfA)", prop_wk_afa_hint:"Die jährliche Absetzung für Abnutzung - meist 2 % der Anschaffungs- oder Herstellungskosten des Gebäudes (ohne Grundstücksanteil). Geben Sie rechts das Baujahr an, dann verwenden wir automatisch den richtigen Satz.",
+ prop_afa_year:"Baujahr / Fertigstellungsjahr", prop_afa_year_ph:"z. B. 2005",
+ prop_afa_year_hint:"Wird verwendet, um automatisch den richtigen Abschreibungssatz anzuwenden (2 %, 2,5 % oder 3 % je nach Alter).",
+ prop_afa_year_result:"Angewendeter Satz: {rate} % pro Jahr, basierend auf diesem Baujahr.",
  prop_wk_schuldzins:"Darlehenszinsen", prop_wk_schuldzins_hint:"Zinsen für ein Darlehen zum Kauf oder zur Renovierung dieser Immobilie - nicht die Tilgung selbst, nur die Zinsen.",
  prop_wk_erhaltung:"Erhaltungsaufwand", prop_wk_erhaltung_hint:"In diesem Jahr abzugsfähige Instandhaltungs- und Reparaturkosten - größere Renovierungen müssen unter Umständen über mehrere Jahre verteilt werden; im Zweifel den Steuerberater fragen.",
  prop_wk_verwaltung:"Verwaltungskosten", prop_wk_verwaltung_hint:"Gebühren an eine Hausverwaltung für die Verwaltung dieser Immobilie, falls Sie sich nicht selbst darum kümmern.",
@@ -2715,6 +2721,27 @@ const N = v => {
    now sums the five real itemized categories instead of one combined
    total, confirmed against the real ERiC schema. */
 function propCosts(p){ return N(p.wkAfa)+N(p.wkSonderabschr)+N(p.wkSchuldzins)+N(p.wkGeldbeschaff)+N(p.wkErhaltung)+N(p.wk5JAbzugsfaehig)+N(p.wkVerwaltung)+N(p.wkUstPflichtig)+N(p.wkSonst); }
+/* ============================================================
+   NEW, SEPARATE MODULE — mirrored verbatim from afa-rate.js.
+   This project has no external-local-script-loading pattern, so a
+   verbatim copy is how this shared, pure logic reaches the browser -
+   the same convention already used for the tax tariff table (TARIFF)
+   elsewhere in this file. Keep in sync with afa-rate.js if the rule
+   ever changes; the canonical, documented version with full sourcing
+   lives there.
+   ============================================================ */
+function afaRate(completionYear) {
+ const year = parseInt(completionYear, 10);
+ if (!Number.isFinite(year) || year < 1000) return null;
+ if (year < 1925) return 2.5;
+ if (year >= 2023) return 3;
+ return 2;
+}
+function afaCompletionYearHint(year){
+ const rate = afaRate(year);
+ if(rate===null) return t('prop_afa_year_hint');
+ return t('prop_afa_year_result').replace('{rate}', String(rate).replace('.', ','));
+}
 function formatDE(n){
  /* CORRECTED: real bug found via direct feedback - checked every call
     site of this function (five of them, all input-field commit
@@ -4961,6 +4988,9 @@ function stepProp(c){
  <p class="hint" style="margin:0 0 8px">${t('prop_costs_hint')}</p>
  <div class="grid2">
  ${LF('props',p,'wkAfa',t('prop_wk_afa'),{euro:true,ph:'0,00 €',hint:i===0?t('prop_wk_afa_hint'):''})}
+ ${LF('props',p,'afaCompletionYear',t('prop_afa_year'),{type:'text',inputmode:'numeric',maxlength:4,pattern:'[0-9]{4}',ph:t('prop_afa_year_ph'),hint:afaCompletionYearHint(p.afaCompletionYear)})}
+ </div>
+ <div class="grid2">
  ${LF('props',p,'wkSchuldzins',t('prop_wk_schuldzins'),{euro:true,ph:'0,00 €',hint:i===0?t('prop_wk_schuldzins_hint'):''})}
  </div>
  <div class="grid2">
@@ -5010,7 +5040,7 @@ function stepProp(c){
  </div></div>`;}).join('');
  return `<h2>${t('step_prop')}</h2><p class="lead">${t('s_prop_lead')}</p>
  ${rows}
- <button class="btn btn-ghost btn-sm" onclick="addItem('props',{country:'Deutschland',street:'',plz:'',city:'',rent:'',wkAfa:'',wkSonderabschr:'',wkSchuldzins:'',wkGeldbeschaff:'',wkErhaltung:'',wk5JAbzugsfaehig:'',wkVerwaltung:'',wkUstPflichtig:'',wkSonst:'',unit:'',nebenkosten:'',ferienwohnung:'nein',kurzfristig:'nein',angehoerige:'nein',owner:''})">＋ ${t('add_prop')}</button>
+ <button class="btn btn-ghost btn-sm" onclick="addItem('props',{country:'Deutschland',street:'',plz:'',city:'',rent:'',wkAfa:'',afaCompletionYear:'',wkSonderabschr:'',wkSchuldzins:'',wkGeldbeschaff:'',wkErhaltung:'',wk5JAbzugsfaehig:'',wkVerwaltung:'',wkUstPflichtig:'',wkSonst:'',unit:'',nebenkosten:'',ferienwohnung:'nein',kurzfristig:'nein',angehoerige:'nein',owner:''})">＋ ${t('add_prop')}</button>
  ${docSection('props')}
  ${navRow()}`;
 }
