@@ -87,6 +87,15 @@ jobs:
           JWT_SECRET: ci-test-secret-not-for-production
           PORT: 3000
           ALLOWED_ORIGIN: https://www.taxfile24.com
+          # CORRECTED: real CI failure found directly from a live run -
+          # server.js was deliberately changed to refuse to start without
+          # FRONTEND_URL (it's used for password-reset links, email
+          # verification links, and Stripe redirects, so a missing value
+          # there is a real production risk, not just a CORS edge case).
+          # That fix is correct and working exactly as intended - this
+          # workflow simply never provided the var here, unlike every
+          # other required one already set above. Added to match.
+          FRONTEND_URL: https://www.taxfile24.com/
         run: |
           node server.js &
           SERVER_PID=$!
