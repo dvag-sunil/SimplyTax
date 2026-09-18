@@ -33,11 +33,11 @@ for (const [section, obj] of Object.entries({
   }
 }
 
-check('total mapped fields = 334 (was 333 - +1 for dhh21/E0206303, resolved via direct verification against the real Jahresdokumentation_E10_2025.ods after the schema HTML alone wasn\'t enough to confirm it)', Object.values({
+check('total mapped fields = 346 (was 334 - +2 for ESt1A.profession/spouseProfession, a real gap found via a full field-audit and confirmed against the official Jahresdokumentation; +10 for Kind.efa* - the new Entlastungsbetrag für Alleinerziehende block, covering the co-residence period, Kindergeld period, other-adult disclosure with its own conditional sub-fields, and the joint-filer claiming-person selector, all confirmed the same way)', Object.values({
   ESt1A: fm.ESt1A, N: fm.N, VOR: fm.VOR, SA: fm.SA, Kind: fm.Kind, N_DHH: fm.N_DHH,
   KAP: fm.KAP, HA_35a: fm.HA_35a, Sonst: fm.Sonst, SO: fm.SO, ESt1A_U: fm.ESt1A_U, N_AUS: fm.N_AUS,
   AgB: fm.AgB, EM_35c: fm.EM_35c, ESt1A_Ersatz: fm.ESt1A_Ersatz, R: fm.R, V: fm.V,
-}).reduce((sum, o) => sum + Object.keys(o).length, 0) === 334);
+}).reduce((sum, o) => sum + Object.keys(o).length, 0) === 346);
 
 check('gross einz/sum correct', fm.N.gross.einz === 'E0200204' && fm.N.gross.sum === 'E0200201');
 check('taxClass corrected to Steuerklasse', fm.N.taxClass.kennzahlen[0] === 'E0200002');
