@@ -1018,6 +1018,9 @@ en: {
  kind_beh_summary:"Child's own disability allowance (if this child has one)",
  kind_efa_summary:"Single-parent relief (Entlastungsbetrag für Alleinerziehende)",
  kind_efa_hint:"The tax office requires a few specific details to grant this - not just that you qualify, but the exact periods involved.",
+ kind_efa_hint_married:"This only applies to joint filers in narrow special cases - specifically the year you married, separated, or a parent passed away. If none of those happened this year, leave this section blank.",
+ kind_efa_claiming_person:"Which of you is claiming this?", kind_efa_claiming_a:"Person A", kind_efa_claiming_b:"Person B",
+ kind_efa_claiming_hint:"Required if you're filling in this section as a joint filer - the tax office needs to know which of you the relief applies to.",
  kind_efa_coresidence_from:"Child registered at your address from", kind_efa_coresidence_to:"until",
  kind_efa_kg_from:"Kindergeld paid to you from", kind_efa_kg_to:"until",
  kind_efa_other_adult:"Was another adult also registered at your address during this time?",
@@ -1536,6 +1539,9 @@ de: {
  kind_beh_summary:"Eigene Behinderung des Kindes (falls vorhanden)",
  kind_efa_summary:"Entlastungsbetrag für Alleinerziehende",
  kind_efa_hint:"Das Finanzamt benötigt hierfür einige konkrete Angaben - nicht nur, dass Sie die Voraussetzungen erfüllen, sondern auch die genauen Zeiträume.",
+ kind_efa_hint_married:"Dies gilt für zusammenveranlagte Paare nur in engen Sonderfällen - konkret im Jahr der Eheschließung, der Trennung oder des Todes eines Elternteils. Falls nichts davon in diesem Jahr zutrifft, lassen Sie diesen Abschnitt leer.",
+ kind_efa_claiming_person:"Wer von Ihnen beantragt dies?", kind_efa_claiming_a:"Person A", kind_efa_claiming_b:"Person B",
+ kind_efa_claiming_hint:"Erforderlich, wenn Sie als zusammenveranlagtes Paar diesen Abschnitt ausfüllen - das Finanzamt muss wissen, für wen von Ihnen der Entlastungsbetrag gilt.",
  kind_efa_coresidence_from:"Kind bei Ihnen gemeldet vom", kind_efa_coresidence_to:"bis",
  kind_efa_kg_from:"Kindergeld an Sie ausgezahlt vom", kind_efa_kg_to:"bis",
  kind_efa_other_adult:"War in diesem Zeitraum eine weitere volljährige Person bei Ihnen gemeldet?",
@@ -5246,7 +5252,7 @@ function CF(kid,field,label,opts={}){
  <input data-tabkey="${tk}" type="${type}" value="${esc(kid[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''}
  onchange="updChild('${kid.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
-function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',familienkasse:'',otherParentName:'',kindergeld:'',childcare:'',ccProvider:'',ccPeriodFrom:'',ccPeriodTo:'',schoolFees:'',behMobility:false,behBlindHelpless:false,behValidIndefinite:false,behValidFrom:'',behValidTo:'',behSplitPercent:'',efaCoResidenceFrom:'',efaCoResidenceTo:'',efaKindergeldFrom:'',efaKindergeldTo:'',efaOtherAdultPresent:'nein',efaOtherAdultFrom:'',efaOtherAdultTo:'',efaHouseholdCommunity:'nein',efaHouseholdFrom:'',efaHouseholdTo:'',efaOtherAdultName:'',efaOtherAdultRelationship:'',efaOtherAdultOccupation:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
+function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',familienkasse:'',otherParentName:'',kindergeld:'',childcare:'',ccProvider:'',ccPeriodFrom:'',ccPeriodTo:'',schoolFees:'',behMobility:false,behBlindHelpless:false,behValidIndefinite:false,behValidFrom:'',behValidTo:'',behSplitPercent:'',efaCoResidenceFrom:'',efaCoResidenceTo:'',efaKindergeldFrom:'',efaKindergeldTo:'',efaOtherAdultPresent:'nein',efaOtherAdultFrom:'',efaOtherAdultTo:'',efaHouseholdCommunity:'nein',efaHouseholdFrom:'',efaHouseholdTo:'',efaOtherAdultName:'',efaOtherAdultRelationship:'',efaOtherAdultOccupation:'',efaClaimingPerson:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function delChild(id){ const c=cur(); c.fam.children=(c.fam.children||[]).filter(k=>k.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
 /* CORRECTED: real, separate gap noticed while fixing date handling
    generally - this never called validDate() at all, so a child's birth
@@ -5278,9 +5284,12 @@ function stepChildren(c){
  </div>
  ${c.p.marital==='single'||c.p.marital==='verwitwet'||c.p.marital==='getrennt_lebend'?`<div class="grid2">
  ${CF(k,'otherParentName',t('other_parent_name')+' *',{ph:t('other_parent_name_ph'),hint:t('other_parent_name_hint')})}
- </div>
+ </div>`:''}
+ ${(c.p.marital==='single'||c.p.marital==='verwitwet'||c.p.marital==='getrennt_lebend'||c.p.marital==='married')?`
  <details class="more" ${isSectionOpen('kind-efa-'+k.id, !!(k.efaCoResidenceFrom))?'open':''} ontoggle="toggleSectionState('kind-efa-${k.id}', this.open)"><summary>${t('kind_efa_summary')}</summary>
- <p class="hint" style="margin:0 0 8px">${t('kind_efa_hint')}</p>
+ <p class="hint" style="margin:0 0 8px">${c.p.marital==='married'?t('kind_efa_hint_married'):t('kind_efa_hint')}</p>
+ ${c.p.marital==='married'?`
+ ${CF(k,'efaClaimingPerson',t('kind_efa_claiming_person'),{select:[['','—'],['A',t('kind_efa_claiming_a')],['B',t('kind_efa_claiming_b')]],hint:t('kind_efa_claiming_hint')})}`:''}
  <div class="grid2">
  ${CF(k,'efaCoResidenceFrom',t('kind_efa_coresidence_from'),{type:'date'})}
  ${CF(k,'efaCoResidenceTo',t('kind_efa_coresidence_to'),{type:'date'})}
@@ -6809,7 +6818,8 @@ function buildElsterDataset(c){
  efaKindergeldFrom:k.efaKindergeldFrom||'', efaKindergeldTo:k.efaKindergeldTo||'',
  efaOtherAdultPresent:k.efaOtherAdultPresent||'nein', efaOtherAdultFrom:k.efaOtherAdultFrom||'', efaOtherAdultTo:k.efaOtherAdultTo||'',
  efaHouseholdCommunity:k.efaHouseholdCommunity||'nein', efaHouseholdFrom:k.efaHouseholdFrom||'', efaHouseholdTo:k.efaHouseholdTo||'',
- efaOtherAdultName:k.efaOtherAdultName||'', efaOtherAdultRelationship:k.efaOtherAdultRelationship||'', efaOtherAdultOccupation:k.efaOtherAdultOccupation||'' })),
+ efaOtherAdultName:k.efaOtherAdultName||'', efaOtherAdultRelationship:k.efaOtherAdultRelationship||'', efaOtherAdultOccupation:k.efaOtherAdultOccupation||'',
+ efaClaimingPerson:k.efaClaimingPerson||'' })),
  anlageUnterhalt: (c.unt||[]).filter(u=>N(u.support)>0).map(u=>({ betrag:N(u.support), laendergruppe:u.supportGroup,
  personName:u.untName||'', personIdnr:(u.untIdnr||'').replace(/\s/g,''),
  profession:u.untProfession||'', personBirthDate:u.untBirthDate||'', relationship:u.untRelationship||'',

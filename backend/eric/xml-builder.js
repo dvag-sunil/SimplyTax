@@ -2295,6 +2295,13 @@ function buildKind(data) {
        the real schema's own conditional structure exactly. */
     if (k.efaCoResidenceFrom && k.efaCoResidenceTo) {
       let efaXml = tag(fm.Kind.efaCoResidencePeriod, formatDateRangeDE(k.efaCoResidenceFrom, k.efaCoResidenceTo));
+      /* NEW: claiming-person selector, confirmed via three separate
+         schema rules (Regel_Kind_2024_100500062, 2023_100500060,
+         2023_100500061) - only valid for a genuine joint assessment
+         (isJoint), and only alongside real EfA data, which this whole
+         block is already gated on - so both required companion
+         conditions are naturally satisfied by this placement. */
+      if (isJoint && k.efaClaimingPerson) efaXml += tag(fm.Kind.efaClaimingPerson, k.efaClaimingPerson === 'B' ? '2' : '1');
       if (k.efaKindergeldFrom && k.efaKindergeldTo) efaXml += tag(fm.Kind.efaKindergeldPeriod, formatDateRangeDE(k.efaKindergeldFrom, k.efaKindergeldTo));
       const efaOtherAdult = k.efaOtherAdultPresent === 'ja';
       efaXml += tag(fm.Kind.efaOtherAdultPresent, efaOtherAdult ? '1' : '2');
