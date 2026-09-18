@@ -15,6 +15,16 @@ const ESt1A = {
   taxId: 'E0100081',
   taxIdSpouse: 'E0100082',
   birthDate: 'E0100401',
+  /* Real, confirmed gap found via a full field-by-field wiring audit -
+     the taxpayer's own profession was collected by the frontend but
+     never transmitted. Confirmed directly against the official
+     Jahresdokumentation: E0100403 (context Allg/A, Person A) and
+     E0101003 (context Allg/B, Person B) - both optional fields
+     (Pflichtfeld=No), max 25 characters, free text. Genuinely distinct
+     from the ESt1A_U.profession field below despite the same key name -
+     that one is for describing an Unterhalt recipient, not the filer. */
+  profession: 'E0100403',
+  spouseProfession: 'E0101003',
   spouseBirthDate: 'E0101001',
   spouseLastName: 'E0100901', // confirmed via the real official ELSTER example (est_e10_2025.xml) - was collected by the frontend but never wired into the XML
   spouseFirstName: 'E0100801',

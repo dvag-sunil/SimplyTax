@@ -6714,19 +6714,33 @@ function buildElsterDataset(c){
  }),
  werbungskosten:{
  personA:{ entfernungspauschale:{ arbeitstage:N(c.wk.commuteDays), einfacheEntfernungKm:N(c.wk.commuteKm), verkehrsmittel:c.wk.commuteMode||'', oeffentlicheKosten:N(c.wk.commutePublicCost), arbeitsstaette:c.wk.commuteWorkplace||'' },
- homeofficeTage:N(c.wk.homeOffice), arbeitsmittel:N(c.wk.equipment), fortbildung:N(c.wk.training),
+ homeofficeTage:N(c.wk.homeOffice), arbeitsmittel:N(c.wk.equipment), fortbildung:N(c.wk.training), arbeitszimmer:N(c.wk.arbeitszimmer),
  sonstige:N(c.wk.other), doppelteHaushaltsfuehrung:{ monatsmiete:N(c.wk.dhhRent), monate:N(c.wk.dhhMonths),
  familienheimfahrten:N(c.wk.dhhTrips), entfernungKm:N(c.wk.dhhKm), grund:c.wk.dhhReason||'', datum:c.wk.dhhDate||'', beschaeftigungsort:c.wk.dhhWorkplace||'', eigenerHausstand:c.wk.dhhOwnHousehold||'', eigenerHausstandOrt:c.wk.dhhOwnPlz||'', eigenerHausstandSeit:c.wk.dhhOwnSince||'', bestehtBis:c.wk.dhhContinuousUntil||'', reiseart:c.wk.dhhTravelMode||'' }, umzugskosten:N(c.wk.relocation) },
  personB: (c.p.marital==='married'||c.p.marital==='married_sep') ? { entfernungspauschale:{ arbeitstage:N(c.wkB.commuteDays), einfacheEntfernungKm:N(c.wkB.commuteKm), verkehrsmittel:c.wkB.commuteMode||'', oeffentlicheKosten:N(c.wkB.commutePublicCost), arbeitsstaette:c.wkB.commuteWorkplace||'' },
- homeofficeTage:N(c.wkB.homeOffice), arbeitsmittel:N(c.wkB.equipment), fortbildung:N(c.wkB.training),
+ homeofficeTage:N(c.wkB.homeOffice), arbeitsmittel:N(c.wkB.equipment), fortbildung:N(c.wkB.training), arbeitszimmer:N(c.wkB.arbeitszimmer),
  sonstige:N(c.wkB.other), doppelteHaushaltsfuehrung:{ monatsmiete:N(c.wkB.dhhRent), monate:N(c.wkB.dhhMonths),
  familienheimfahrten:N(c.wkB.dhhTrips), entfernungKm:N(c.wkB.dhhKm), grund:c.wkB.dhhReason||'', datum:c.wkB.dhhDate||'', beschaeftigungsort:c.wkB.dhhWorkplace||'', eigenerHausstand:c.wkB.dhhOwnHousehold||'', eigenerHausstandOrt:c.wkB.dhhOwnPlz||'', eigenerHausstandSeit:c.wkB.dhhOwnSince||'', bestehtBis:c.wkB.dhhContinuousUntil||'', reiseart:c.wkB.dhhTravelMode||'' }, umzugskosten:N(c.wkB.relocation) } : null,
  einzelposten:(c.wkItems||[]).map(x=>({ person:x.person==='B'?'B':'A', kategorie:x.type,
  bezeichnung:[wkiLabel(x.type),x.desc].filter(Boolean).join(' - '), betrag:N(x.amount) })) },
  anlageVorsorgeaufwand:{
- ausLohnsteuerbescheinigungen:{ rv:inc.rvA, gkv:inc.kvA, pv:inc.pvA, av:inc.avA, pkv28:inc.pkvA,
+ /* Two real, confirmed gaps fixed together here, since both touch these
+    same lines:
+    (1) Employer insurance subsidies (agKV/agPKV/agPV) were computed and
+    aggregated but never actually used anywhere - confirmed via a direct
+    code comment nearby that the real schema has no separate field for
+    an employer-portion of health/care insurance, only for pension. The
+    only correct way to reflect them is by reducing the employee-paid
+    amount before it's sent, which this now does.
+    (2) The standalone, manually-entered insurance fields (for
+    contributions not already captured via an employment record) were
+    collected and calculated into the user's own refund estimate, but
+    never included in what actually gets transmitted. Applied to Person
+    A, matching how other non-person-split fields (sa.donations,
+    ex.medical) are already handled elsewhere in this app. */
+ ausLohnsteuerbescheinigungen:{ rv:inc.rvA+N(c.ins.rv), gkv:Math.max(0,inc.kvA-inc.agKVA-inc.agPKVA)+N(c.ins.kv), pv:Math.max(0,inc.pvA-inc.agPVA)+N(c.ins.pv), av:inc.avA+N(c.ins.av), pkv28:inc.pkvA,
  agKV:inc.agKVA, agPKV:inc.agPKVA, agPV:inc.agPVA, agRV:inc.agRVA },
- ausLohnsteuerbescheinigungenB:{ rv:inc.rvB, gkv:inc.kvB, pv:inc.pvB, av:inc.avB, pkv28:inc.pkvB,
+ ausLohnsteuerbescheinigungenB:{ rv:inc.rvB, gkv:Math.max(0,inc.kvB-inc.agKVB-inc.agPKVB), pv:Math.max(0,inc.pvB-inc.agPVB), av:inc.avB, pkv28:inc.pkvB,
  agKV:inc.agKVB, agPKV:inc.agPKVB, agPV:inc.agPVB, agRV:inc.agRVB },
  privateVersicherungen:(c.privIns||[]).map(x=>({ person:x.person==='B'?'B':'A', typ:x.type, bezeichnung:insLabel(x.type),
  kategorie:INS_CAT[x.type]||'', beitrag:N(x.beitrag), erstattung:N(x.erstattung),

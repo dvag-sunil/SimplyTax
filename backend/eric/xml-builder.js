@@ -119,6 +119,14 @@ function buildESt1A(data) {
   xml += tag(fm.ESt1A.birthDate, formatDateDE(A.geburtsdatum));
   xml += tag(fm.ESt1A.lastName, A.name);
   xml += tag(fm.ESt1A.firstName, A.vorname);
+  /* CORRECTED: real, confirmed gap found via a full field-by-field
+     wiring audit - the taxpayer's own profession was collected but
+     never written. Confirmed directly against the official
+     Jahresdokumentation (E0100403, Allg/A, optional, max 25 chars).
+     tag() already writes nothing if this is empty, matching its
+     optional status; truncated defensively since the UI field itself
+     doesn't currently enforce the schema's length limit. */
+  xml += tag(fm.ESt1A.profession, (A.beruf || '').slice(0, 25));
   /* CORRECTED: confirmed via real ERiC validation ("enthält einen
      ungültigen Wert") and the real XSD enum that E0100402 wants 2-digit
      NUMERIC codes (11=none, 03=katholisch, 02=evangelisch), not the
