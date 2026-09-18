@@ -1016,6 +1016,19 @@ en: {
  year_warn_no_realsplit_country:"For this tax year, the ex-spouse's Tax ID is required regardless of where they live - there's no exception for a foreign residence yet (that exception starts in 2024).",
  school_hint:"30% deductible, max. €5,000.",
  kind_beh_summary:"Child's own disability allowance (if this child has one)",
+ kind_efa_summary:"Single-parent relief (Entlastungsbetrag für Alleinerziehende)",
+ kind_efa_hint:"The tax office requires a few specific details to grant this - not just that you qualify, but the exact periods involved.",
+ kind_efa_coresidence_from:"Child registered at your address from", kind_efa_coresidence_to:"until",
+ kind_efa_kg_from:"Kindergeld paid to you from", kind_efa_kg_to:"until",
+ kind_efa_other_adult:"Was another adult also registered at your address during this time?",
+ kind_efa_other_adult_hint:"This can affect eligibility unless specific exceptions apply - the tax office wants this disclosed either way.",
+ kind_efa_other_adult_from:"That was the case from", kind_efa_other_adult_to:"until",
+ kind_efa_household:"Did you share a household with that person (not just the same address)?",
+ kind_efa_household_hint:"A household community is a stronger condition than simply being registered at the same address.",
+ kind_efa_household_from:"That was the case from", kind_efa_household_to:"until",
+ kind_efa_adult_name:"That person's name", kind_efa_adult_name_ph:"First and last name",
+ kind_efa_adult_rel:"Their relationship to you", kind_efa_adult_rel_ph:"e.g. roommate, adult child, parent",
+ kind_efa_adult_job:"Their occupation", kind_efa_adult_job_ph:"e.g. student, employed, retired",
  kind_beh_hint:"If this child has their own recognized disability, their disability/helplessness lump sum can be transferred to you as the parent. Only fill this in if that applies.",
  kind_beh_mobility:"Significantly or exceptionally mobility-impaired (mark \"G\" or \"aG\")",
  kind_beh_blind:"Blind, deaf-blind, or classed as constantly helpless (mark \"Bl\", \"TBl\", or \"H\")",
@@ -1521,6 +1534,19 @@ de: {
  year_warn_no_realsplit_country:"Für dieses Steuerjahr ist die Steuer-ID des Ex-Ehegatten unabhängig vom Wohnsitz erforderlich - eine Ausnahme für Wohnsitz im Ausland gibt es noch nicht (diese Ausnahme gilt erst ab 2024).",
  school_hint:"30 % absetzbar, max. 5.000 €.",
  kind_beh_summary:"Eigene Behinderung des Kindes (falls vorhanden)",
+ kind_efa_summary:"Entlastungsbetrag für Alleinerziehende",
+ kind_efa_hint:"Das Finanzamt benötigt hierfür einige konkrete Angaben - nicht nur, dass Sie die Voraussetzungen erfüllen, sondern auch die genauen Zeiträume.",
+ kind_efa_coresidence_from:"Kind bei Ihnen gemeldet vom", kind_efa_coresidence_to:"bis",
+ kind_efa_kg_from:"Kindergeld an Sie ausgezahlt vom", kind_efa_kg_to:"bis",
+ kind_efa_other_adult:"War in diesem Zeitraum eine weitere volljährige Person bei Ihnen gemeldet?",
+ kind_efa_other_adult_hint:"Dies kann die Anspruchsberechtigung beeinflussen, sofern keine besonderen Ausnahmen gelten - das Finanzamt möchte dies in jedem Fall angegeben haben.",
+ kind_efa_other_adult_from:"Das war der Fall vom", kind_efa_other_adult_to:"bis",
+ kind_efa_household:"Bestand mit dieser Person eine Haushaltsgemeinschaft (mehr als nur dieselbe Meldeadresse)?",
+ kind_efa_household_hint:"Eine Haushaltsgemeinschaft ist eine stärkere Voraussetzung als nur die gemeinsame Meldeadresse.",
+ kind_efa_household_from:"Das war der Fall vom", kind_efa_household_to:"bis",
+ kind_efa_adult_name:"Name dieser Person", kind_efa_adult_name_ph:"Vor- und Nachname",
+ kind_efa_adult_rel:"Verhältnis zu dieser Person", kind_efa_adult_rel_ph:"z. B. Mitbewohner, erwachsenes Kind, Elternteil",
+ kind_efa_adult_job:"Beruf dieser Person", kind_efa_adult_job_ph:"z. B. Student, berufstätig, Rentner",
  kind_beh_hint:"Wenn dieses Kind eine eigene anerkannte Behinderung hat, kann der Behinderten-/Pflege-Pauschbetrag auf Sie als Elternteil übertragen werden. Nur ausfüllen, falls zutreffend.",
  kind_beh_mobility:"Erheblich oder außergewöhnlich gehbehindert (Merkzeichen „G” oder „aG”)",
  kind_beh_blind:"Blind, taubblind oder ständig hilflos (Merkzeichen „Bl”, „TBl” oder „H”)",
@@ -5220,7 +5246,7 @@ function CF(kid,field,label,opts={}){
  <input data-tabkey="${tk}" type="${type}" value="${esc(kid[field]||'')}" placeholder="${opts.ph||''}" ${opts.euro?'inputmode="decimal"':opts.inputmode?`inputmode="${opts.inputmode}"`:''} ${opts.maxlength?`maxlength="${opts.maxlength}"`:''} ${opts.pattern?`pattern="${opts.pattern}"`:''}
  onchange="updChild('${kid.id}','${field}',this.value,${opts.euro?1:0})">${hint}</div>`;
 }
-function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',familienkasse:'',otherParentName:'',kindergeld:'',childcare:'',ccProvider:'',ccPeriodFrom:'',ccPeriodTo:'',schoolFees:'',behMobility:false,behBlindHelpless:false,behValidIndefinite:false,behValidFrom:'',behValidTo:'',behSplitPercent:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
+function addChild(){ const c=cur(); (c.fam.children=c.fam.children||[]).push({id:uid(),name:'',birth:'',taxId:'',kinship:'leiblich',familienkasse:'',otherParentName:'',kindergeld:'',childcare:'',ccProvider:'',ccPeriodFrom:'',ccPeriodTo:'',schoolFees:'',behMobility:false,behBlindHelpless:false,behValidIndefinite:false,behValidFrom:'',behValidTo:'',behSplitPercent:'',efaCoResidenceFrom:'',efaCoResidenceTo:'',efaKindergeldFrom:'',efaKindergeldTo:'',efaOtherAdultPresent:'nein',efaOtherAdultFrom:'',efaOtherAdultTo:'',efaHouseholdCommunity:'nein',efaHouseholdFrom:'',efaHouseholdTo:'',efaOtherAdultName:'',efaOtherAdultRelationship:'',efaOtherAdultOccupation:''}); c.updatedAt=Date.now(); scheduleSave(); render(); }
 function delChild(id){ const c=cur(); c.fam.children=(c.fam.children||[]).filter(k=>k.id!==id); c.updatedAt=Date.now(); scheduleSave(); render(); }
 /* CORRECTED: real, separate gap noticed while fixing date handling
    generally - this never called validDate() at all, so a child's birth
@@ -5252,7 +5278,34 @@ function stepChildren(c){
  </div>
  ${c.p.marital==='single'||c.p.marital==='verwitwet'||c.p.marital==='getrennt_lebend'?`<div class="grid2">
  ${CF(k,'otherParentName',t('other_parent_name')+' *',{ph:t('other_parent_name_ph'),hint:t('other_parent_name_hint')})}
+ </div>
+ <details class="more" ${isSectionOpen('kind-efa-'+k.id, !!(k.efaCoResidenceFrom))?'open':''} ontoggle="toggleSectionState('kind-efa-${k.id}', this.open)"><summary>${t('kind_efa_summary')}</summary>
+ <p class="hint" style="margin:0 0 8px">${t('kind_efa_hint')}</p>
+ <div class="grid2">
+ ${CF(k,'efaCoResidenceFrom',t('kind_efa_coresidence_from'),{type:'date'})}
+ ${CF(k,'efaCoResidenceTo',t('kind_efa_coresidence_to'),{type:'date'})}
+ </div>
+ <div class="grid2">
+ ${CF(k,'efaKindergeldFrom',t('kind_efa_kg_from'),{type:'date'})}
+ ${CF(k,'efaKindergeldTo',t('kind_efa_kg_to'),{type:'date'})}
+ </div>
+ ${CF(k,'efaOtherAdultPresent',t('kind_efa_other_adult'),{select:[['nein',t('opt_no')],['ja',t('opt_yes')]],hint:t('kind_efa_other_adult_hint')})}
+ ${k.efaOtherAdultPresent==='ja'?`
+ <div class="grid2">
+ ${CF(k,'efaOtherAdultFrom',t('kind_efa_other_adult_from'),{type:'date'})}
+ ${CF(k,'efaOtherAdultTo',t('kind_efa_other_adult_to'),{type:'date'})}
+ </div>
+ ${CF(k,'efaHouseholdCommunity',t('kind_efa_household'),{select:[['nein',t('opt_no')],['ja',t('opt_yes')]],hint:t('kind_efa_household_hint')})}
+ ${k.efaHouseholdCommunity==='ja'?`<div class="grid2">
+ ${CF(k,'efaHouseholdFrom',t('kind_efa_household_from'),{type:'date'})}
+ ${CF(k,'efaHouseholdTo',t('kind_efa_household_to'),{type:'date'})}
  </div>`:''}
+ <div class="grid3">
+ ${CF(k,'efaOtherAdultName',t('kind_efa_adult_name'),{ph:t('kind_efa_adult_name_ph')})}
+ ${CF(k,'efaOtherAdultRelationship',t('kind_efa_adult_rel'),{ph:t('kind_efa_adult_rel_ph')})}
+ ${CF(k,'efaOtherAdultOccupation',t('kind_efa_adult_job'),{ph:t('kind_efa_adult_job_ph')})}
+ </div>`:''}
+ </details>`:''}
  ${k.kinship==='pflegekind'?`<div class="auth-err" style="background:var(--amber-soft);color:var(--amber);border:none">ℹ️ ${t('kin_pflege_hint')}</div>`:''}
  ${k.kinship==='stiefkind'?`<div class="auth-err" style="background:var(--amber-soft);color:var(--amber);border:none">ℹ️ ${t('kin_stief_hint')}</div>`:''}
  <div class="grid3">
@@ -6751,7 +6804,12 @@ function buildElsterDataset(c){
  betreuungAnbieter:k.ccProvider||'', betreuungVon:k.ccPeriodFrom||'', betreuungBis:k.ccPeriodTo||'',
  schulgeld:N(k.schoolFees),
  behMobility:!!k.behMobility, behBlindHelpless:!!k.behBlindHelpless, behValidIndefinite:!!k.behValidIndefinite,
- behValidFrom:k.behValidFrom||'', behValidTo:k.behValidTo||'', behSplitPercent:k.behSplitPercent||'' })),
+ behValidFrom:k.behValidFrom||'', behValidTo:k.behValidTo||'', behSplitPercent:k.behSplitPercent||'',
+ efaCoResidenceFrom:k.efaCoResidenceFrom||'', efaCoResidenceTo:k.efaCoResidenceTo||'',
+ efaKindergeldFrom:k.efaKindergeldFrom||'', efaKindergeldTo:k.efaKindergeldTo||'',
+ efaOtherAdultPresent:k.efaOtherAdultPresent||'nein', efaOtherAdultFrom:k.efaOtherAdultFrom||'', efaOtherAdultTo:k.efaOtherAdultTo||'',
+ efaHouseholdCommunity:k.efaHouseholdCommunity||'nein', efaHouseholdFrom:k.efaHouseholdFrom||'', efaHouseholdTo:k.efaHouseholdTo||'',
+ efaOtherAdultName:k.efaOtherAdultName||'', efaOtherAdultRelationship:k.efaOtherAdultRelationship||'', efaOtherAdultOccupation:k.efaOtherAdultOccupation||'' })),
  anlageUnterhalt: (c.unt||[]).filter(u=>N(u.support)>0).map(u=>({ betrag:N(u.support), laendergruppe:u.supportGroup,
  personName:u.untName||'', personIdnr:(u.untIdnr||'').replace(/\s/g,''),
  profession:u.untProfession||'', personBirthDate:u.untBirthDate||'', relationship:u.untRelationship||'',

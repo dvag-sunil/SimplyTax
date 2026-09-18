@@ -348,6 +348,29 @@ const Kind = {
   gemHhElt: 'E0504807',      // KBK/Ang_HH/Gem_HH_Elt - shared parental household period (DatumBereich)
   gemHhEltKind: 'E0504808', // KBK/Ang_HH/Gem_HH_Elt - "Das Kind gehörte zu unserem Haushalt im Zeitraum" - confirmed required TOGETHER with gemHhElt via real ERiC validation (Regel 514120, FelderNichtGemeinsamAngegeben-style pairing)
   kindergeld:  { kennzahlen: ['E0500702', 'E0503802'] },
+  /* NEW, SEPARATE FEATURE - Entlastungsbetrag für Alleinerziehende
+     (EfA), confirmed directly against the official Jahresdokumentation
+     (context "EfA", Anlage Kind lines 45-51). This is a real,
+     multi-field block, not a single checkbox - the schema requires the
+     co-residence period, the Kindergeld-payment period, and an
+     explicit disclosure (with its own period and details) of whether
+     any other adult was also registered at or shared the household,
+     since that circumstance can affect eligibility.
+     E0503802 already existed above, bundled into the unrelated
+     kindergeld.kennzahlen array and never actually used there (only
+     kennzahlen[0] was ever written) - given its own dedicated key here
+     since it needs to be written as a real date range for this
+     specific EfA context, not reused from that array. */
+  efaCoResidencePeriod: 'E0503801', // EfA - Das Kind war mit mir in der gemeinsamen Wohnung gemeldet im Zeitraum (DatumBereich)
+  efaKindergeldPeriod: 'E0503802',  // EfA - Für das Kind wurde mir Kindergeld ausgezahlt im Zeitraum (DatumBereich)
+  efaOtherAdultPresent: 'E0503701', // EfA - War in der gemeinsamen Wohnung eine andere volljährige Person gemeldet? (JaNein)
+  efaOtherAdultPeriod: 'E0503803',  // EfA - falls ja, in welchem Zeitraum (DatumBereich)
+  efaHouseholdCommunity: 'E0503821', // EfA - Bestand eine Haushaltsgemeinschaft mit dieser Person? (JaNein)
+  efaHouseholdPeriod: 'E0503804',   // EfA - falls ja, in welchem Zeitraum (DatumBereich)
+  efaOtherAdultName: 'E0503805',    // EfA - Name, Vorname der anderen Person
+  efaOtherAdultRelationship: 'E0503806', // EfA - Verhältnis zu dieser Person
+  efaOtherAdultOccupation: 'E0503807', // EfA - Beruf dieser Person
+  efaClaimingPerson: 'E0505002',    // EfA - für Ehegatten: wer beantragt den Entlastungsbetrag (enum 1/2)
   /* CORRECTED: real bug found via testing against a genuine client file
      (not synthetic test data) - E0504505 (Elt_k_ZV) is NOT the itemized
      entry that Sum needs to pair with at all. It's a genuinely

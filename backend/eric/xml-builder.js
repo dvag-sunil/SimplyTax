@@ -2284,6 +2284,31 @@ function buildKind(data) {
        text - the specific office responsible for Kindergeld, which the
        app does not track by code, only by name. */
     if (k.familienkasse) xml += tag(fm.Kind.familienkasse, k.familienkasse);
+    /* NEW, SEPARATE FEATURE - Entlastungsbetrag für Alleinerziehende
+       (EfA). Written when the co-residence period is genuinely
+       present, matching the established pattern throughout this file
+       (data-presence gates the block, rather than a separate
+       duplicate "claiming" flag) - these dates are only ever filled in
+       when the parent has actually indicated they're claiming this in
+       the UI. The other-adult and household-community sub-blocks are
+       themselves conditional on their own yes/no answers, mirroring
+       the real schema's own conditional structure exactly. */
+    if (k.efaCoResidenceFrom && k.efaCoResidenceTo) {
+      let efaXml = tag(fm.Kind.efaCoResidencePeriod, formatDateRangeDE(k.efaCoResidenceFrom, k.efaCoResidenceTo));
+      if (k.efaKindergeldFrom && k.efaKindergeldTo) efaXml += tag(fm.Kind.efaKindergeldPeriod, formatDateRangeDE(k.efaKindergeldFrom, k.efaKindergeldTo));
+      const efaOtherAdult = k.efaOtherAdultPresent === 'ja';
+      efaXml += tag(fm.Kind.efaOtherAdultPresent, efaOtherAdult ? '1' : '2');
+      if (efaOtherAdult) {
+        if (k.efaOtherAdultFrom && k.efaOtherAdultTo) efaXml += tag(fm.Kind.efaOtherAdultPeriod, formatDateRangeDE(k.efaOtherAdultFrom, k.efaOtherAdultTo));
+        const efaHousehold = k.efaHouseholdCommunity === 'ja';
+        efaXml += tag(fm.Kind.efaHouseholdCommunity, efaHousehold ? '1' : '2');
+        if (efaHousehold && k.efaHouseholdFrom && k.efaHouseholdTo) efaXml += tag(fm.Kind.efaHouseholdPeriod, formatDateRangeDE(k.efaHouseholdFrom, k.efaHouseholdTo));
+        if (k.efaOtherAdultName) efaXml += tag(fm.Kind.efaOtherAdultName, k.efaOtherAdultName);
+        if (k.efaOtherAdultRelationship) efaXml += tag(fm.Kind.efaOtherAdultRelationship, k.efaOtherAdultRelationship);
+        if (k.efaOtherAdultOccupation) efaXml += tag(fm.Kind.efaOtherAdultOccupation, k.efaOtherAdultOccupation);
+      }
+      xml += `<EfA>\n${efaXml}</EfA>\n`;
+    }
     xml += '</Allg>\n';
     /* NEW: residence duration (Wohnsitz) - confirmed required alongside
        first name (Regel 5039/8) via the multi-year regression test.
