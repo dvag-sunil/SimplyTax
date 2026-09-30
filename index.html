@@ -1068,7 +1068,8 @@ en: {
  unt_foreign_confirmed:"Do you have this home-country confirmation of need?",
  yes:"Yes", no:"No",
   new_year:"New tax year", new_year_for:"New tax year for", year_exists:"A return for this year already exists.",
- copy_note:"Personal data will be copied over - income and expenses start empty.",
+ copy_mode_all:"Copy everything filled in so far", copy_mode_all_hint:"Income, expenses, properties, children and more - the same way ELSTER's own year-to-year carry-forward works. You can still review and update every figure for the new year.",
+ copy_mode_personal:"Copy personal data only", copy_mode_personal_hint:"Name, address, tax ID, marital status - income and expenses start empty.",
  docs_h:"Documents (Belege)", docs_lead:"Attach receipts and proofs - kept with the return in case the Finanzamt requests verification.",
  add_doc:"Add document", doc_too_big:"File is too large (max. 5 MB after compression). Larger receipts cannot be forwarded to the Finanzamt electronically.", doc_bad_type:"Only PDF, Word (.doc/.docx) and image files are allowed.", no_docs:"No documents attached yet.", download:"Download",
   step_inq:"Finanzamt inquiries", s_inq_lead:"Questions from the Finanzamt (Rückfragen) usually reach you by post. Log them here and record your answer. In the production version, electronic notices are retrieved via the tax authority's official portal.",
@@ -1590,7 +1591,8 @@ de: {
  unt_foreign_confirmed:"Liegt Ihnen diese Unterhaltserklärung der Heimatbehörde vor?",
  yes:"Ja", no:"Nein",
   new_year:"Neues Steuerjahr", new_year_for:"Neues Steuerjahr für", year_exists:"Für dieses Jahr existiert bereits eine Erklärung.",
- copy_note:"Persönliche Daten werden übernommen - Einkünfte und Ausgaben starten leer.",
+ copy_mode_all:"Alles bisher Ausgefüllte übernehmen", copy_mode_all_hint:"Einkünfte, Ausgaben, Immobilien, Kinder und mehr - so wie es auch bei ELSTERs eigener Datenübernahme ins Folgejahr funktioniert. Sie können jeden Wert für das neue Jahr weiterhin prüfen und anpassen.",
+ copy_mode_personal:"Nur persönliche Daten übernehmen", copy_mode_personal_hint:"Name, Adresse, Steuer-ID, Familienstand - Einkünfte und Ausgaben starten leer.",
  docs_h:"Belege (Dokumente)", docs_lead:"Belege und Nachweise anhängen - sie bleiben bei der Erklärung gespeichert, falls das Finanzamt Nachweise anfordert.",
  add_doc:"Beleg hinzufügen", doc_too_big:"Datei ist zu groß (max. 5 MB nach Komprimierung). Größere Belege können nicht elektronisch an das Finanzamt weitergereicht werden.", doc_bad_type:"Nur PDF-, Word- (.doc/.docx) und Bilddateien sind erlaubt.", no_docs:"Noch keine Belege angehängt.", download:"Herunterladen",
   step_inq:"Rückfragen Finanzamt", s_inq_lead:"Rückfragen des Finanzamts erreichen Sie in der Regel per Post. Erfassen Sie sie hier und dokumentieren Sie Ihre Antwort. In der Produktionsversion werden elektronische Mitteilungen über das offizielle Finanzamt-Portal abgerufen.",
@@ -3612,19 +3614,66 @@ function showNewYear(id){
  const slot=document.getElementById('modal-slot');
  slot.innerHTML=`<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal">
  <h2>${t('new_year_for')} ${esc(c.p.firstName)} ${esc(c.p.lastName)}</h2>
- <p style="color:var(--ink-soft);font-size:13.5px;margin:8px 0 16px">${t('copy_note')}</p>
  <div class="field"><label>${t('tax_year')}</label><select id="ny-y">${yrs.map(y=>`<option>${y}</option>`).join('')}</select></div>
- <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+ <div class="field" style="margin-top:14px">
+ <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-weight:400;margin-bottom:10px">
+ <input type="radio" name="ny-copy-mode" value="all" checked style="margin-top:3px">
+ <span><b>${t('copy_mode_all')}</b><br><span class="hint" style="margin:2px 0 0">${t('copy_mode_all_hint')}</span></span>
+ </label>
+ <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-weight:400">
+ <input type="radio" name="ny-copy-mode" value="personal" style="margin-top:3px">
+ <span><b>${t('copy_mode_personal')}</b><br><span class="hint" style="margin:2px 0 0">${t('copy_mode_personal_hint')}</span></span>
+ </label>
+ </div>
+ <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
  <button class="btn btn-ghost" onclick="this.closest('.modal-bg').remove()">${t('cancel')}</button>
  <button class="btn btn-primary" onclick="createYearClone('${c.id}')">${t('create')}</button>
  </div></div></div>`;
+}
+/* Deep-copies an array of records (employment, properties, capital
+   gains, children, Unterhalt, etc.), giving each copied item a fresh
+   id - reusing the same id across two different tax-year records
+   risks UI state (like which "show more" sections are expanded)
+   bleeding between two genuinely separate filings that just happen to
+   share a person. */
+function cloneRecords(list){
+ return (Array.isArray(list)?list:[]).map(item => Object.assign(JSON.parse(JSON.stringify(item)), {id:uid()}));
 }
 function createYearClone(id){
  const src=S.clients.find(x=>x.id===id); if(!src) return;
  const y=parseInt(document.getElementById('ny-y').value);
  if(personYears(src).includes(y)){ showInfoModal(t('year_exists')); return; }
+ const copyAll = document.querySelector('input[name="ny-copy-mode"]:checked')?.value !== 'personal';
  const c=newClient(src.p.firstName,src.p.lastName,y,src.p.marital);
- c.p=JSON.parse(JSON.stringify(src.p)); // carry over personal data
+ c.p=JSON.parse(JSON.stringify(src.p)); // personal data - always carried over, both modes
+ if(copyAll){
+ /* NEW: real gap found, reported directly - previously only personal
+    data ever carried over into a new tax year, even though the
+    feature is specifically meant to save re-entering a return for
+    the same person. Everything genuinely tied to that person's
+    financial situation now copies across when chosen, the same way
+    ELSTER's own year-to-year carry-forward works - the person is
+    still expected to review and update amounts for the new year, this
+    just saves starting from a blank page. Deliberately NOT copied:
+    uploaded documents (docs) and Finanzamt correspondence (inq), both
+    genuinely specific to the year they came from, and payment/
+    submission status, which must always start fresh for a new filing. */
+ c.inc=JSON.parse(JSON.stringify(src.inc));
+ c.oth=JSON.parse(JSON.stringify(src.oth));
+ c.ins=JSON.parse(JSON.stringify(src.ins));
+ c.wk=JSON.parse(JSON.stringify(src.wk));
+ c.wkB=JSON.parse(JSON.stringify(src.wkB));
+ c.sa=JSON.parse(JSON.stringify(src.sa));
+ c.ex=JSON.parse(JSON.stringify(src.ex));
+ c.fam=Object.assign(JSON.parse(JSON.stringify(src.fam)), {children:cloneRecords(src.fam?.children)});
+ c.emps=cloneRecords(src.emps);
+ c.kap=cloneRecords(src.kap);
+ c.props=cloneRecords(src.props);
+ c.privIns=cloneRecords(src.privIns);
+ c.wkItems=cloneRecords(src.wkItems);
+ c.rente=cloneRecords(src.rente);
+ c.unt=cloneRecords(src.unt);
+ }
  S.clients.push(c); scheduleSave();
  const m=document.querySelector('.modal-bg'); if(m) m.remove();
  S.currentId=c.id; S.step=0; S.view='client'; S.scanState=null; S.aiFields={}; render();
