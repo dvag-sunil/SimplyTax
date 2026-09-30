@@ -2141,6 +2141,31 @@ check("Definitive root cause of the rc=610301200 crash fixed, found via the real
   return JSON.stringify(order) === JSON.stringify(['Allg', 'Einn', 'Erm_Zuord_Ek', 'Wk']);
 })());
 
+check("Real bug fixed, found via a live rc=610301200 rejection: E0100402 (religion) was written after E0100403 (profession), violating the Allg/A content model's strict sequence order even though every element in it is individually optional. Checks the actual element order in the real output, not just presence - religion, then profession, then street address, matching the confirmed real schema sequence.", (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2025;
+  d.hauptvordruck.personA.beruf = 'Ingenieur';
+  d.hauptvordruck.personA.religion = 'RK';
+  const x = buildEStXML(d).xml;
+  const order = [...x.matchAll(/<(E0100402|E0100403|E0101104)>/g)].map(m => m[1]);
+  return JSON.stringify(order) === JSON.stringify(['E0100402', 'E0100403', 'E0101104']);
+})());
+
+check("Real, second ordering bug found via direct re-verification (prompted by a follow-up question after the first one) - efaClaimingPerson (E0505002) was written second, right after the co-residence period, but the confirmed real schema sequence puts it last, after every other EfA field. Checks the actual element order, not just presence.", (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.meta.taxYear = 2025;
+  d.hauptvordruck.veranlagungsart = 'zusammenveranlagung';
+  d.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Erika', geburtsdatum: '1987-05-20' };
+  d.anlageKind = [{ vorname: 'Lena', geburtsdatum: '2016-03-10', kinship: 'leiblich', familienkasse: 'Test',
+    efaCoResidenceFrom: '2025-01-01', efaCoResidenceTo: '2025-12-31',
+    efaKindergeldFrom: '2025-01-01', efaKindergeldTo: '2025-12-31',
+    efaOtherAdultPresent: 'nein', efaClaimingPerson: 'B' }];
+  const x = buildEStXML(d).xml;
+  const efa = x.match(/<EfA>[\s\S]*?<\/EfA>/)[0];
+  const order = [...efa.matchAll(/<(E0503801|E0503802|E0503701|E0505002)>/g)].map(m => m[1]);
+  return JSON.stringify(order) === JSON.stringify(['E0503801', 'E0503802', 'E0503701', 'E0505002']);
+})());
+
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);
 if (skippedSections.length) console.log('Skipped sections (expected, not a failure):', skippedSections);
 process.exit(fail ? 1 : 0);

@@ -119,14 +119,6 @@ function buildESt1A(data) {
   xml += tag(fm.ESt1A.birthDate, formatDateDE(A.geburtsdatum));
   xml += tag(fm.ESt1A.lastName, A.name);
   xml += tag(fm.ESt1A.firstName, A.vorname);
-  /* CORRECTED: real, confirmed gap found via a full field-by-field
-     wiring audit - the taxpayer's own profession was collected but
-     never written. Confirmed directly against the official
-     Jahresdokumentation (E0100403, Allg/A, optional, max 25 chars).
-     tag() already writes nothing if this is empty, matching its
-     optional status; truncated defensively since the UI field itself
-     doesn't currently enforce the schema's length limit. */
-  xml += tag(fm.ESt1A.profession, (A.beruf || '').slice(0, 25));
   /* CORRECTED: confirmed via real ERiC validation ("enthält einen
      ungültigen Wert") and the real XSD enum that E0100402 wants 2-digit
      NUMERIC codes (11=none, 03=katholisch, 02=evangelisch), not the
@@ -138,6 +130,21 @@ function buildESt1A(data) {
      known, documented limitation, not a silent wrong guess. */
   const religionCode = { '--': '11', RK: '03', EV: '02' }[A.religion] || '11';
   xml += tag(fm.ESt1A.religion, religionCode);
+  /* CORRECTED: real, confirmed bug found from a live ERiC rejection
+     (610301200, "element E0100402 is not allowed") - this was
+     previously written right after firstName, ahead of religion, which
+     violates the schema's strict content-model sequence for this
+     block (...firstName, E0101004, religion E0100402, E0100422,
+     profession E0100403, street...). XSD sequences enforce relative
+     order among present elements even though every one of them is
+     individually optional - it's not enough for a field to exist
+     somewhere, it has to be in the right position relative to its
+     siblings. Moved to immediately after religion, its correct spot,
+     confirmed directly against the official Jahresdokumentation.
+     tag() already writes nothing if this is empty, matching its
+     optional status; truncated defensively since the UI field itself
+     doesn't currently enforce the schema's length limit. */
+  xml += tag(fm.ESt1A.profession, (A.beruf || '').slice(0, 25));
   xml += tag('E0101104', [A.anschrift?.strasse, A.anschrift?.hausnummer].filter(Boolean).join(' '));
   xml += tag(fm.ESt1A.plz, A.anschrift?.plz);
   xml += tag(fm.ESt1A.ort, A.anschrift?.ort);
@@ -207,7 +214,7 @@ function buildESt1A(data) {
      this case - B's own details (name, birthdate, religion) belong on
      that other return, not this one. */
   const isPar26a = h.veranlagungsart === 'einzelveranlagung_ehegatten_par26a';
-  const bContent = (B && !isPar26a) ? (tag(fm.ESt1A.spouseBirthDate, formatDateDE(B.geburtsdatum)) + tag(fm.ESt1A.spouseLastName, B.name) + tag(fm.ESt1A.spouseFirstName, B.vorname) + tag(fm.ESt1A.spouseReligion, bReligionCode)) : '';
+  const bContent = (B && !isPar26a) ? (tag(fm.ESt1A.spouseBirthDate, formatDateDE(B.geburtsdatum)) + tag(fm.ESt1A.spouseLastName, B.name) + tag(fm.ESt1A.spouseFirstName, B.vorname) + tag(fm.ESt1A.spouseReligion, bReligionCode) + tag(fm.ESt1A.spouseProfession, (B.beruf || '').slice(0, 25))) : '';
   if (bContent) {
     xml += `<B>\n${bContent}</B>`;
   }
@@ -2295,13 +2302,6 @@ function buildKind(data) {
        the real schema's own conditional structure exactly. */
     if (k.efaCoResidenceFrom && k.efaCoResidenceTo) {
       let efaXml = tag(fm.Kind.efaCoResidencePeriod, formatDateRangeDE(k.efaCoResidenceFrom, k.efaCoResidenceTo));
-      /* NEW: claiming-person selector, confirmed via three separate
-         schema rules (Regel_Kind_2024_100500062, 2023_100500060,
-         2023_100500061) - only valid for a genuine joint assessment
-         (isJoint), and only alongside real EfA data, which this whole
-         block is already gated on - so both required companion
-         conditions are naturally satisfied by this placement. */
-      if (isJoint && k.efaClaimingPerson) efaXml += tag(fm.Kind.efaClaimingPerson, k.efaClaimingPerson === 'B' ? '2' : '1');
       if (k.efaKindergeldFrom && k.efaKindergeldTo) efaXml += tag(fm.Kind.efaKindergeldPeriod, formatDateRangeDE(k.efaKindergeldFrom, k.efaKindergeldTo));
       const efaOtherAdult = k.efaOtherAdultPresent === 'ja';
       efaXml += tag(fm.Kind.efaOtherAdultPresent, efaOtherAdult ? '1' : '2');
@@ -2314,6 +2314,18 @@ function buildKind(data) {
         if (k.efaOtherAdultRelationship) efaXml += tag(fm.Kind.efaOtherAdultRelationship, k.efaOtherAdultRelationship);
         if (k.efaOtherAdultOccupation) efaXml += tag(fm.Kind.efaOtherAdultOccupation, k.efaOtherAdultOccupation);
       }
+      /* CORRECTED: real, second ordering bug found via direct
+         re-verification (prompted by a sharp follow-up question after
+         the E0100402/E0100403 fix) - claiming-person (E0505002) was
+         previously written second, right after co-residence, but the
+         confirmed real schema sequence puts it last, after every other
+         EfA field. Moved to its correct, final position. Still only
+         valid for a genuine joint assessment (isJoint) and only
+         alongside real EfA data, confirmed via three separate schema
+         rules (Regel_Kind_2024_100500062, 2023_100500060,
+         2023_100500061), both conditions naturally satisfied by this
+         block's own existing gating. */
+      if (isJoint && k.efaClaimingPerson) efaXml += tag(fm.Kind.efaClaimingPerson, k.efaClaimingPerson === 'B' ? '2' : '1');
       xml += `<EfA>\n${efaXml}</EfA>\n`;
     }
     xml += '</Allg>\n';

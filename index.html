@@ -1104,7 +1104,7 @@ en: {
  freigabe_title:"Release for transmission", freigabe_sub:"Please review the figures below carefully. Once you release this return, it is transmitted to the Finanzamt through the official electronic filing system.",
  freigabe_validate_failed:"ERiC could not confirm this return is ready to send yet.",
  freigabe_no_detail_from_eric:"ERiC did not provide further detail for this specific error - see below for what the app itself already knows is incomplete.",
- freigabe_eric_log_summary:"Show technical detail from ERiC's own log (for support/debugging)",
+ freigabe_eric_log_copy:"Copy details for support", freigabe_eric_log_copy_hint:"Only useful if you're contacting support about this - it's technical and won't mean much on its own.", freigabe_eric_log_copied:"Copied", freigabe_eric_log_copy_failed:"Couldn't copy automatically - please contact support directly and mention this error.",
  freigabe_incomplete_steps_title:"These steps are still missing required information",
  freigabe_incomplete_steps_sub:"This is very likely why the return above was not accepted - fill these in first, then try again.",
  freigabe_field_errors_title:"ERiC found specific problems", freigabe_go_to_section:"Go to this section", freigabe_go_to_field:"Go to this field",
@@ -1627,7 +1627,7 @@ de: {
  freigabe_title:"Zur Übermittlung freigeben", freigabe_sub:"Bitte prüfen Sie die folgenden Angaben sorgfältig. Mit der Freigabe wird diese Erklärung über die offizielle elektronische Schnittstelle an das Finanzamt übermittelt.",
  freigabe_validate_failed:"ERiC konnte noch nicht bestätigen, dass diese Erklärung versandbereit ist.",
  freigabe_no_detail_from_eric:"ERiC hat für diesen speziellen Fehler keine weiteren Details geliefert - siehe unten, was die App selbst bereits als unvollständig erkennt.",
- freigabe_eric_log_summary:"Technische Details aus dem ERiC-Log anzeigen (für Support/Fehlersuche)",
+ freigabe_eric_log_copy:"Details für den Support kopieren", freigabe_eric_log_copy_hint:"Nur hilfreich, wenn Sie deswegen den Support kontaktieren - die Angaben sind technisch und für sich allein wenig aussagekräftig.", freigabe_eric_log_copied:"Kopiert", freigabe_eric_log_copy_failed:"Konnte nicht automatisch kopiert werden - bitte wenden Sie sich direkt an den Support und erwähnen Sie diesen Fehler.",
  freigabe_incomplete_steps_title:"Diesen Schritten fehlen noch Pflichtangaben",
  freigabe_incomplete_steps_sub:"Das ist sehr wahrscheinlich der Grund, warum die obige Erklärung nicht angenommen wurde - bitte zuerst ausfüllen und dann erneut versuchen.",
  freigabe_field_errors_title:"ERiC hat konkrete Probleme gefunden", freigabe_go_to_section:"Zu diesem Abschnitt", freigabe_go_to_field:"Zu diesem Feld",
@@ -6309,6 +6309,16 @@ const WARNING_KEYWORD_TO_STEP = [
  [/commute distance|workplace address|entfernungspauschale/i, 3],
  [/anlagen\b/i, 1],
 ];
+async function copyEricLogForSupport(btn){
+ try{
+ await navigator.clipboard.writeText(S._lastEricLogTail || '');
+ const orig = btn.textContent;
+ btn.textContent = t('freigabe_eric_log_copied');
+ setTimeout(() => { btn.textContent = orig; }, 2000);
+ }catch(e){
+ showInfoModal(t('freigabe_eric_log_copy_failed'));
+ }
+}
 function guessStepFromWarningText(text){
  for(const [re, step] of WARNING_KEYWORD_TO_STEP){ if(re.test(text)) return step; }
  return null;
@@ -6316,6 +6326,7 @@ function guessStepFromWarningText(text){
 function showFreigabeModal(c, data, validateResult){
  const e=computeEstimate(c);
  const slot=document.getElementById('modal-slot'); if(!slot) return;
+ S._lastEricLogTail = validateResult?.ericLogTail || ''; // held only for the copy-for-support button below, never rendered directly
   const allWarnings = (validateResult && Array.isArray(validateResult.skippedSections)) ? validateResult.skippedSections : [];
  /* CORRECTED: real, confirmed root cause of a reported bug - "valid"
     previously only checked ERiC's own validation result, never
@@ -6387,8 +6398,10 @@ function showFreigabeModal(c, data, validateResult){
  ${!ericOk && !fieldErrors.length?`<div class="infobox" style="background:var(--red-soft);border-color:var(--red);margin-bottom:14px">
  ⚠ ${t('freigabe_validate_failed')} (${t('eric_code')}: ${validateResult?validateResult.rc:'?'})
  ${!incompleteSteps.length?`<div style="margin-top:6px;font-size:12.5px">${t('freigabe_no_detail_from_eric')}</div>`:''}
- ${validateResult?.ericLogTail?`<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12.5px;font-weight:600">${t('freigabe_eric_log_summary')}</summary>
- <pre style="white-space:pre-wrap;font-size:11px;background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:8px;margin-top:6px;max-height:240px;overflow:auto">${esc(validateResult.ericLogTail)}</pre></details>`:''}
+ ${validateResult?.ericLogTail?`<div style="margin-top:10px">
+ <button type="button" class="btn btn-ghost" style="font-size:12.5px;padding:6px 12px" onclick="copyEricLogForSupport(this)">${t('freigabe_eric_log_copy')}</button>
+ <span class="hint" style="display:block;margin-top:4px">${t('freigabe_eric_log_copy_hint')}</span>
+ </div>`:''}
  </div>`:''}
  ${incompleteSteps.length?`<div class="infobox" style="background:var(--red-soft);border-color:var(--red);margin-bottom:14px">
  <div style="font-weight:600;margin-bottom:6px">⚠ ${t('freigabe_incomplete_steps_title')} (${incompleteSteps.length})</div>
