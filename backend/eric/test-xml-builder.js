@@ -521,7 +521,7 @@ check('V newly implemented: owner-split feature - full attribution to Person B w
   d.anlageV = [{ objekt: 'Musterstr. 1, 12345 Musterstadt', mieteinnahmen: 9000, owner: 'B' }];
   const result = buildEStXML(d);
   return result.xml.includes('<E0701802>9000</E0701802>') && !result.xml.includes('E0701801')
-    && !result.skippedSections.some(s => s.includes('no owner was selected'));
+    && !result.skippedSections.some(s => s.includes('no owner was selected for this property'));
 })());
 check('V newly implemented: owner-split feature - even 50/50 split for jointly-owned property, with any odd cent going to the second half', (() => {
   const d = JSON.parse(JSON.stringify(sample));
@@ -2164,6 +2164,20 @@ check("Real, second ordering bug found via direct re-verification (prompted by a
   const efa = x.match(/<EfA>[\s\S]*?<\/EfA>/)[0];
   const order = [...efa.matchAll(/<(E0503801|E0503802|E0503701|E0505002)>/g)].map(m => m[1]);
   return JSON.stringify(order) === JSON.stringify(['E0503801', 'E0503802', 'E0503701', 'E0505002']);
+})());
+
+check('Sonderausgaben (donations): real gap found via direct review of an actual customer submission - warns when a spouse exists but no donation owner was selected, matching the same disclosure already correct for properties in this exact situation', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.hauptvordruck.personB = { idnr: '98765432109', name: 'Muster', vorname: 'Erika', geburtsdatum: '1987-05-20' };
+  d.sonderausgaben = { spenden: 500 }; // no spendenOwner
+  const result = buildEStXML(d);
+  return result.skippedSections.some(s => s.includes('no owner was selected for this donation'));
+})());
+check('Sonderausgaben (donations): the same warning correctly stays silent for a single filer, since there is no second person to be ambiguous about', (() => {
+  const d = JSON.parse(JSON.stringify(sample));
+  d.sonderausgaben = { spenden: 500 };
+  const result = buildEStXML(d);
+  return !result.skippedSections.some(s => s.includes('no owner was selected for this donation'));
 })());
 
 console.log(`\n===== xml-builder.js structural tests: ${pass} passed, ${fail} failed =====`);

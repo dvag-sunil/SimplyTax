@@ -1940,7 +1940,7 @@ function buildAUS(data) {
 /* =============================================================================
    Sonderausgaben - donations
 ============================================================================= */
-function buildSA(data) {
+function buildSA(data, skippedSections, MSG) {
   const s = data.sonderausgaben || {};
   const w = data.weitereAngaben || {};
   /* CORRECTED: the early-return guard previously only checked for
@@ -1998,6 +1998,19 @@ function buildSA(data) {
     } else {
       inner += `<Zuw><Sp_erh_Verm_Stift><Person>PersonA</Person>\n${wholeEuroTag(fm.SA.donationsDomestic, s.spenden)}${wholeEuroTag(fm.SA.donationsThisYear, s.spenden)}</Sp_erh_Verm_Stift></Zuw>\n`;
     }
+    /* CORRECTED: real, confirmed gap found via direct review of an
+       actual customer's submitted data - properties already correctly
+       warn when a spouse exists but no owner was selected for that
+       property (see !p.owner check further below), defaulting the
+       full amount to Person A. Donations used the exact same silent
+       default, but with no matching warning anywhere - this specific
+       ambiguity was invisible to the customer even though the
+       identical property situation is already properly disclosed. */
+    if (N(s.spenden) > 0 && data.hauptvordruck?.personB && !s.spendenOwner)
+      skippedSections.push(MSG(
+        `[SENT] Sonderausgaben (donations): a second person exists on this return, but no owner was selected for this donation - defaulted to attributing the full amount to Person A. If this donation was made jointly or by the spouse, select the correct owner for accurate attribution.`,
+        `[SENT] Sonderausgaben (Spenden): Auf dieser Erklärung gibt es eine zweite Person, aber für diese Spende wurde kein Eigentümer ausgewählt - der gesamte Betrag wurde standardmäßig Person A zugeordnet. Wurde diese Spende gemeinsam oder vom Ehepartner geleistet, bitte den korrekten Eigentümer für eine zutreffende Zuordnung auswählen.`
+      ));
   }
   if (w.realsplittingAnlageU) {
     /* Anlage U / Realsplitting - confirmed via the real Kennzahlen sheet,
@@ -2957,8 +2970,8 @@ function buildEStXML(data, opts = {}) {
     const rate = afaRate(p.afaCompletionYear);
     if (N(p.wkAfa) > 0 && rate !== null)
       skippedSections.push(MSG(
-        `[SENT] anlageV building depreciation (AfA) - transmitted at ${String(rate).replace('.', ',')}% linear depreciation, based on the building's completion year (${p.afaCompletionYear}) you provided. This covers the standard linear case; if a different method (e.g. degressive, or a listed-building allowance) genuinely applies, worth confirming with a Steuerberater.`,
-        `[SENT] Anlage V Gebäudeabschreibung (AfA) - wurde mit ${String(rate).replace('.', ',')} % linear übermittelt, basierend auf dem von Ihnen angegebenen Baujahr (${p.afaCompletionYear}). Dies deckt den linearen Standardfall ab; falls tatsächlich eine andere Methode (z. B. degressiv oder eine Denkmal-AfA) zutrifft, lohnt sich die Rücksprache mit einem Steuerberater.`
+        `[CONFIRMED] anlageV building depreciation (AfA) - transmitted at ${String(rate).replace('.', ',')}% linear depreciation, based on the building's completion year (${p.afaCompletionYear}) you provided. This covers the standard linear case; if a different method (e.g. degressive, or a listed-building allowance) genuinely applies, worth confirming with a Steuerberater.`,
+        `[CONFIRMED] Anlage V Gebäudeabschreibung (AfA) - wurde mit ${String(rate).replace('.', ',')} % linear übermittelt, basierend auf dem von Ihnen angegebenen Baujahr (${p.afaCompletionYear}). Dies deckt den linearen Standardfall ab; falls tatsächlich eine andere Methode (z. B. degressiv oder eine Denkmal-AfA) zutrifft, lohnt sich die Rücksprache mit einem Steuerberater.`
       ));
   });
   if ((data.anlageKind || []).some(k => k.betreuungskosten > 0 && (!k.betreuungAnbieter || !k.betreuungVon || !k.betreuungBis)))
@@ -3296,7 +3309,7 @@ function buildEStXML(data, opts = {}) {
      simply skipped, which is valid since every element in this model is
      optional (?) or repeatable (*), not required. */
   nutzdaten += buildESt1A(data);
-  nutzdaten += buildSA(data);
+  nutzdaten += buildSA(data, skippedSections, MSG);
   nutzdaten += buildAgB(data);
   nutzdaten += buildHA35a(data);
   nutzdaten += buildEM35c(data);
