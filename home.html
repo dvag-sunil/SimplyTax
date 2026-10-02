@@ -83,19 +83,14 @@
 
 <!-- ======= AM I SUPPORTED? ======= -->
 <section id="eignung" style="background:#fff;border-block:1px solid var(--line)">
- <div class="wrap" style="max-width:640px">
+ <div class="wrap" style="max-width:760px">
  <div class="sec-head">
  <h2 data-i18n="elig_h"></h2>
  <p data-i18n="elig_p"></p>
  </div>
- <div style="border:1px solid var(--line);border-radius:16px;padding:28px;background:var(--paper,#F6F8F7)">
- <label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:14px;cursor:pointer;font-size:15px"><input type="checkbox" id="elig-h-1" style="margin-top:3px"><span data-i18n="elig_q1"></span></label>
- <label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:14px;cursor:pointer;font-size:15px"><input type="checkbox" id="elig-h-2" style="margin-top:3px"><span data-i18n="elig_q2"></span></label>
- <label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:14px;cursor:pointer;font-size:15px"><input type="checkbox" id="elig-h-3" style="margin-top:3px"><span data-i18n="elig_q3"></span></label>
- <label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:14px;cursor:pointer;font-size:15px"><input type="checkbox" id="elig-h-4" style="margin-top:3px"><span data-i18n="elig_q4"></span></label>
- <label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:20px;cursor:pointer;font-size:15px"><input type="checkbox" id="elig-h-5" style="margin-top:3px"><span data-i18n="elig_q5"></span></label>
- <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="checkHomeEligibility()" data-i18n="elig_btn"></button>
- <div id="elig-home-result" style="margin-top:16px"></div>
+ <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px 24px;margin-bottom:22px" id="supported-grid"></div>
+ <div style="border:1px solid var(--line);border-radius:14px;padding:18px 20px;background:var(--paper,#F6F8F7);font-size:14px;line-height:1.6">
+ <span data-i18n="elig_gap"></span> <a href="program-scope.html" data-i18n="elig_cta_no"></a>
  </div>
  </div>
 </section>
@@ -240,7 +235,7 @@ const I18N = {
 en: {
  title:"SimplyTax - Your German tax return online. Simple, transparent, with a live refund calculator.",
  meta:"Prepare your German tax return online: try it for free, see your refund live, pay only on submission. Photograph your Lohnsteuerbescheinigung - SimplyTax reads it automatically.",
-  nav_features:"Features", nav_how:"How it works", nav_price:"Pricing", nav_cta:"Start now", nav_elig:"Am I supported?",
+  nav_features:"Features", nav_how:"How it works", nav_price:"Pricing", nav_cta:"Start now", nav_elig:"What's supported",
  h_eyebrow:"German tax return, made simple · €17.99 per return",
  h_title:"Your tax return.<br><em>Without the tax jargon.</em>",
   h_sub:"Photograph your Lohnsteuerbescheinigung - SimplyTax reads it automatically, guides you step by step, and shows you <b>live</b> how big your expected refund is. Taxpayers get back over <b>€1,000</b> on average - €17.99 to submit, free to try. Available in German and English.",
@@ -293,7 +288,7 @@ en: {
  c_note:"Average refund according to the Federal Statistical Office: over €1,000 per return - submitting almost always pays off at €17.99.",
   c_note2:"Public list prices of self-file options as of August 2026, checked at publication. Providers change prices; please verify current pricing on their own websites.",
  q_h:"Frequently asked questions",
-  q_beta:"SimplyTax is labeled Beta - what does that mean?", a_beta:"SimplyTax is still in active development. Some features and less common tax situations aren't supported yet - you can check the full list under \"Am I supported?\" above. That said, filing a return with the features currently available works today, and every return goes through the same official validation as any other ELSTER-connected software before it's ever submitted. We'll remove the Beta label once coverage is more complete.",
+  q_beta:"SimplyTax is labeled Beta - what does that mean?", a_beta:"SimplyTax is still in active development. Some features and less common tax situations aren't supported yet - you can check the full list under \"What's supported\" above. That said, filing a return with the features currently available works today, and every return goes through the same official validation as any other ELSTER-connected software before it's ever submitted. We'll remove the Beta label once coverage is more complete.",
  q0:"Do I need to file a tax return in Germany?",
  a0:"Not everyone does. You must file if: you received wage-replacement benefits (Kurzarbeitergeld, Elterngeld, ALG I) over €410, you had multiple employers, you earned additional income (rental, freelance, investments) over €410, or you are in Steuerklasse 3 while your spouse is in Steuerklasse 5. If none apply, filing is still worth doing voluntarily - most people get money back. Average refund in Germany: over €1,000.",
  qd:"What is the filing deadline?",
@@ -320,17 +315,10 @@ en: {
  b_h:"Find out in minutes what you are owed.",
  b_p:"Enter your data for free, see your refund live - decide afterwards.",
   b_cta:"Start now for free",
- elig_h:"Am I supported?", elig_p:"A few quick questions before you sign up - so you know where you stand before creating an account.",
- elig_q1:"Were you self-employed, freelance, or did you run a business?",
- elig_q2:"Did you work physically outside Germany for part of the year?",
- elig_q3:"Do you own rented property outside Germany?",
- elig_q4:"Does your spouse live outside Germany?",
- elig_q5:"Did you move into or out of Germany during the tax year?",
- elig_btn:"Check",
- elig_red:"🔴 This tax situation is currently outside SimplyTax's supported scope (self-employment / business income isn't handled yet). Please use ELSTER directly, another software product, or a tax advisor for this return.",
- elig_yellow:"🟡 SimplyTax can likely handle most of your return, but this situation needs extra care - some fields may use a standard assumption that isn't right for every case. You're welcome to try it and review carefully before submitting.",
- elig_green:"🟢 Great - this looks like a well-supported situation for SimplyTax.",
- elig_cta_yes:"Create your account", elig_cta_no:"See the full supported-case list",
+ elig_h:"What's supported", elig_p:"SimplyTax already covers a wide range of real tax situations - here's what's included today.",
+ elig_items:["Employees, including multiple employers in one year","Pensioners (standard case)","Capital income, including foreign brokers","Rental property in Germany","Married couples - joint or separate assessment","Widowed (Witwensplitting)","Children, childcare costs, school fees","Support payments to relatives, including abroad","Double household (doppelte Haushaltsführung)","Donations, extraordinary burdens, household services","Energy renovation tax credit (§ 35c)","Moving into or out of Germany mid-year"],
+ elig_gap:"Not yet supported: self-employment, freelance, or business income.",
+ elig_cta_no:"See the full supported-case list ↗",
  ft_app:"Open the app", ft_elster_guide:"ELSTER certificate guide",
  eu_title:"Official news from ELSTER",
  eu_sub:"SimplyTax transmits via the official ELSTER interface of the German tax administration. For announcements, deadlines, and changes straight from the source, visit the official pages:",
@@ -342,7 +330,7 @@ en: {
 de: {
  title:"SimplyTax - Steuererklärung online. Einfach, transparent, mit Live-Erstattungsrechner.",
  meta:"Steuererklärung online erstellen: kostenlos ausprobieren, Erstattung live berechnen, bezahlen erst bei Abgabe. Lohnsteuerbescheinigung fotografieren - SimplyTax liest sie automatisch aus.",
-  nav_features:"Funktionen", nav_how:"So geht's", nav_price:"Preis", nav_cta:"Jetzt starten", nav_elig:"Bin ich unterstützt?",
+  nav_features:"Funktionen", nav_how:"So geht's", nav_price:"Preis", nav_cta:"Jetzt starten", nav_elig:"Was wird unterstützt",
  h_eyebrow:"Steuererklärung online · 17,99 € pro Erklärung",
  h_title:"Deine Steuererklärung.<br><em>Ohne Amtsdeutsch.</em>",
  h_sub:"Fotografiere deine Lohnsteuerbescheinigung - SimplyTax liest sie automatisch aus, führt dich Schritt für Schritt durch alle Angaben und zeigt dir <b>live</b>, wie hoch deine Erstattung voraussichtlich ausfällt. Im Schnitt holen sich Steuerzahler über <b>1.000&nbsp;€</b> zurück - 17,99 € bei Abgabe, kostenlos ausprobieren. Auf Wunsch komplett auf Englisch.",
@@ -395,7 +383,7 @@ de: {
  c_note:"Durchschnittliche Erstattung laut Statistischem Bundesamt: über 1.000 € pro Erklärung - die Abgabe lohnt sich bei 17,99 € fast immer.",
   c_note2:"Öffentliche Listenpreise der Selbstabgabe-Optionen, Stand August 2026, bei Veröffentlichung geprüft. Anbieter ändern Preise; bitte aktuelle Preise auf deren eigenen Webseiten prüfen.",
  q_h:"Häufige Fragen",
-  q_beta:"SimplyTax trägt das Label Beta - was bedeutet das?", a_beta:"SimplyTax befindet sich noch in aktiver Entwicklung. Einige Funktionen und seltenere Steuerfälle werden noch nicht unterstützt - die vollständige Liste finden Sie oben unter \"Bin ich unterstützt?\". Mit den derzeit verfügbaren Funktionen funktioniert die Abgabe einer Erklärung jedoch bereits heute, und jede Erklärung durchläuft vor der Übermittlung dieselbe offizielle Prüfung wie bei jeder anderen ELSTER-angebundenen Software. Sobald der Funktionsumfang vollständiger ist, entfällt das Beta-Label.",
+  q_beta:"SimplyTax trägt das Label Beta - was bedeutet das?", a_beta:"SimplyTax befindet sich noch in aktiver Entwicklung. Einige Funktionen und seltenere Steuerfälle werden noch nicht unterstützt - die vollständige Liste finden Sie oben unter \"Was wird unterstützt\". Mit den derzeit verfügbaren Funktionen funktioniert die Abgabe einer Erklärung jedoch bereits heute, und jede Erklärung durchläuft vor der Übermittlung dieselbe offizielle Prüfung wie bei jeder anderen ELSTER-angebundenen Software. Sobald der Funktionsumfang vollständiger ist, entfällt das Beta-Label.",
  q0:"Muss ich in Deutschland eine Steuererklärung abgeben?",
  a0:"Nicht jeder. Pflicht besteht bei: Lohnersatzleistungen (Kurzarbeitergeld, Elterngeld, ALG I) über 410 €, mehreren Arbeitgebern, zusätzlichen Einkünften (Miete, Freelance, Kapitalerträge) über 410 €, oder Steuerklassenkombination III/V. Wer keine Pflicht hat, kann trotzdem freiwillig abgeben - die meisten bekommen Geld zurück. Durchschnittliche Erstattung in Deutschland: über 1.000 €.",
  qd:"Was ist die Abgabefrist?",
@@ -422,17 +410,10 @@ de: {
  b_h:"Finde in wenigen Minuten heraus, was dir zusteht.",
  b_p:"Kostenlos erfassen, Erstattung live sehen - entscheiden kannst du danach.",
   b_cta:"Jetzt kostenlos starten",
- elig_h:"Bin ich unterstützt?", elig_p:"Ein paar kurze Fragen, bevor Sie sich anmelden - damit Sie wissen, woran Sie sind, bevor Sie ein Konto erstellen.",
- elig_q1:"Waren Sie selbstständig, freiberuflich tätig oder haben Sie ein Gewerbe betrieben?",
- elig_q2:"Haben Sie für einen Teil des Jahres physisch außerhalb Deutschlands gearbeitet?",
- elig_q3:"Besitzen Sie vermietete Immobilien außerhalb Deutschlands?",
- elig_q4:"Lebt Ihr Ehepartner außerhalb Deutschlands?",
- elig_q5:"Sind Sie im Steuerjahr nach Deutschland zu- oder weggezogen?",
- elig_btn:"Prüfen",
- elig_red:"🔴 Dieser Steuerfall liegt derzeit außerhalb des von SimplyTax unterstützten Umfangs (Selbstständigkeit / gewerbliche Einkünfte werden noch nicht unterstützt). Bitte nutzen Sie direkt ELSTER, eine andere Software oder einen Steuerberater für diese Erklärung.",
- elig_yellow:"🟡 SimplyTax kann Ihre Erklärung wahrscheinlich größtenteils bearbeiten, dieser Fall erfordert jedoch besondere Sorgfalt - einige Felder verwenden möglicherweise eine Standardannahme, die nicht für jeden Fall zutrifft. Sie können es gerne ausprobieren und vor der Abgabe sorgfältig prüfen.",
- elig_green:"🟢 Gut - dieser Fall wird von SimplyTax gut unterstützt.",
- elig_cta_yes:"Konto erstellen", elig_cta_no:"Vollständigen Leistungsumfang ansehen",
+ elig_h:"Was wird unterstützt", elig_p:"SimplyTax deckt bereits eine breite Palette an echten Steuerfällen ab - das ist heute bereits enthalten.",
+ elig_items:["Angestelltenverhältnis, auch mehrere Arbeitgeber im selben Jahr","Rentner (Grundfall)","Kapitalerträge, auch bei ausländischen Brokern","Vermietung in Deutschland","Ehepaare - gemeinsame oder getrennte Veranlagung","Verwitwete (Witwensplitting)","Kinder, Betreuungskosten, Schulgeld","Unterhalt an Angehörige, auch im Ausland","Doppelte Haushaltsführung","Spenden, außergewöhnliche Belastungen, haushaltsnahe Leistungen","Energetische Sanierung (§ 35c)","Zuzug oder Wegzug während des Jahres"],
+ elig_gap:"Noch nicht unterstützt: Selbstständigkeit, freiberufliche oder gewerbliche Einkünfte.",
+ elig_cta_no:"Vollständigen Leistungsumfang ansehen ↗",
  ft_app:"Zur Anwendung", ft_elster_guide:"ELSTER-Zertifikat Anleitung",
  eu_title:"Offizielle Neuigkeiten von ELSTER",
  eu_sub:"SimplyTax übermittelt über die offizielle ELSTER-Schnittstelle der Finanzverwaltung. Ankündigungen, Fristen und Änderungen direkt von der Quelle findest du auf den offiziellen Seiten:",
@@ -445,33 +426,20 @@ de: {
 
 let LANG = 'en'; // default: English
 try{ LANG = localStorage.getItem('simplytax-home-lang') || 'en'; }catch(e){}
-/* IMPLEMENTED: the "Am I supported?" check, moved from behind the
-   login screen to the actual public home page - the whole point of
-   an eligibility check is to help someone decide whether to sign up
-   at all, so gating it behind registration defeated its own purpose.
-   Matches the exact same red/yellow/green routing already built and
-   tested in the in-app version: self-employment is a confirmed real
-   red (no supporting form exists anywhere in this codebase), foreign
-   work/property/spouse-abroad are real yellows already documented
-   elsewhere as needing extra review, and moved-during-year is purely
-   informational and never triggers a warning by itself. */
-function checkHomeEligibility(){
+/* CORRECTED: real, direct feedback - the previous interactive quiz led
+   with red/yellow disqualification-style outcomes before a visitor had
+   seen anything the product actually does well, which is a worse first
+   impression than a calm, factual statement. Replaced with a positive,
+   static list of what's genuinely supported today, grounded directly
+   in program-scope.html (the app's own authoritative, kept-in-sync
+   scope record) rather than reconstructed from memory - plus a single,
+   plain note about the one real gap, instead of an alarming colored
+   result box. */
+function renderSupportedGrid(){
  const d = I18N[LANG] || I18N.en;
- const redHit = document.getElementById('elig-h-1')?.checked;
- const yellowHit = ['elig-h-2','elig-h-3','elig-h-4'].some(id => document.getElementById(id)?.checked);
- const box = document.getElementById('elig-home-result');
- if(redHit){
- box.innerHTML = `<div style="background:#F9E9E5;border:1px solid #B4432F;border-radius:12px;padding:16px;font-size:14px;line-height:1.5">${d.elig_red}</div>
- <a href="program-scope.html" class="btn btn-ghost" style="width:100%;display:flex;align-items:center;justify-content:center;text-align:center;margin-top:12px">${d.elig_cta_no}</a>`;
- return;
- }
- if(yellowHit){
- box.innerHTML = `<div style="background:#FBF1DF;border:1px solid #D98A1F;border-radius:12px;padding:16px;font-size:14px;line-height:1.5">${d.elig_yellow}</div>
- <a href="index.html" class="btn btn-primary" style="width:100%;display:flex;align-items:center;justify-content:center;text-align:center;margin-top:12px">${d.elig_cta_yes}</a>`;
- return;
- }
- box.innerHTML = `<div style="background:#E3F1EC;border:1px solid #0E7C66;border-radius:12px;padding:16px;font-size:14px;line-height:1.5">${d.elig_green}</div>
- <a href="index.html" class="btn btn-primary" style="width:100%;display:flex;align-items:center;justify-content:center;text-align:center;margin-top:12px">${d.elig_cta_yes}</a>`;
+ const grid = document.getElementById('supported-grid');
+ if(!grid || !d.elig_items) return;
+ grid.innerHTML = d.elig_items.map(item => `<div style="display:flex;gap:8px;align-items:flex-start;font-size:14px;line-height:1.5"><span style="color:var(--teal);font-weight:700">✓</span><span>${item}</span></div>`).join('');
 }
 function applyLang(){
  const d = I18N[LANG] || I18N.en;
@@ -483,6 +451,7 @@ function applyLang(){
  document.title = d.title;
  const md=document.getElementById('metaDesc'); if(md) md.setAttribute('content', d.meta);
  const b=document.getElementById('langBtn'); if(b) b.textContent = LANG==='en' ? 'DE' : 'EN';
+ renderSupportedGrid();
 }
 function toggleLang(){
  LANG = LANG==='en' ? 'de' : 'en';
