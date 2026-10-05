@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="assets/site.css">
 <style>
 .legal-wrap{max-width:820px;margin:0 auto;padding:52px 22px 80px}
-.legal-wrap h1{font-size:32px;margin-bottom:6px}
+.legal-wrap h1{font-size:32px;font-size:clamp(25px,7.4vw,32px);margin-bottom:6px;overflow-wrap:break-word;-webkit-hyphens:auto;hyphens:auto}
 .legal-wrap .updated{font-size:13px;color:var(--ink-soft);margin-bottom:36px}
 .legal-wrap h2{font-size:19px;margin:34px 0 10px;color:var(--teal-dark)}
 .legal-wrap h3{font-size:15.5px;margin:22px 0 8px}
@@ -27,6 +27,28 @@
 .year-pill{border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:700}
 .year-pill.on{background:var(--teal-soft);border-color:var(--teal);color:var(--teal-dark)}
 .year-pill.off{background:var(--red-soft);border-color:var(--red);color:#9c3822}
+/* Real, confirmed gap found via audit: six genuine 3-column tables on
+   this page, carrying real long German legal/tax phrases in every
+   column (full sentences in the Hinweis column in several rows), with
+   no mobile handling anywhere on the page - the most severe overflow
+   risk found in this whole sweep. All six tables share the identical
+   Sachverhalt/Status/Hinweis column order, so this is keyed to column
+   position rather than adding data-label attributes to ~90 individual
+   cells by hand. Confirmed separately that every empty Hinweis cell is
+   strictly empty (no whitespace) before relying on :empty below. */
+@media(max-width:640px){
+ .scope-table tr:first-child{display:none}
+ .scope-table, .scope-table tbody, .scope-table tr{display:block;width:100%}
+ .scope-table{border-spacing:0}
+ .scope-table tr{border:1px solid var(--line);border-radius:10px;margin-bottom:10px;padding:2px 12px}
+ .scope-table td{display:block;padding:7px 0;border-bottom:none}
+ .scope-table td:not(:last-child){border-bottom:1px solid var(--paper)}
+ .scope-table td::before{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);margin-bottom:2px}
+ .scope-table td:nth-child(1)::before{content:"Sachverhalt"}
+ .scope-table td:nth-child(2)::before{content:"Status"}
+ .scope-table td:nth-child(3)::before{content:"Hinweis"}
+ .scope-table td:nth-child(3):empty{display:none}
+ }
 </style>
 </head>
 <body>

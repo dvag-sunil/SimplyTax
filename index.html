@@ -22,6 +22,33 @@
      by the GitHub Actions workflow and differs between branches. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' blob: https://*.onrender.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+/* Old-browser guard. Deliberately ES5 only, in its own <script> block: a SyntaxError in the app script below would
+   otherwise just leave a blank page. The app needs optional chaining (iOS Safari 13.4 / Chrome 80) and flexbox gap
+   (Safari 14.1 / Chrome 84). 'catch' only treats a genuine SyntaxError as "too old" (a CSP block throws EvalError). */
+(function(){
+  var tooOld=false;
+  try{ new Function('var a={};return a?.b'); }catch(e){ tooOld = (e instanceof SyntaxError); }
+  var de = /^de/i.test(navigator.language||'');
+  var T = de ? {t:'Ihr Browser ist zu alt',b:'SimplyTax benötigt einen aktuellen Browser. Bitte aktualisieren Sie Safari, Chrome oder Firefox (iOS 14.5 / Android Chrome 87 oder neuer) und öffnen Sie die Seite erneut.',s:'Ihr Browser ist etwas veraltet - einige Abstände können falsch dargestellt werden. Bitte aktualisieren Sie ihn.'}
+            : {t:'Your browser is too old',b:'SimplyTax needs a current browser. Please update Safari, Chrome or Firefox (iOS 14.5 / Android Chrome 87 or newer) and open this page again.',s:'Your browser is a little out of date - some spacing may look off. Please update it.'};
+  window.__oldBrowser = tooOld;
+  document.addEventListener('DOMContentLoaded', function(){
+    var box = document.getElementById('app');
+    if(tooOld && box){
+      box.innerHTML = '<div style="max-width:420px;margin:60px auto;padding:0 22px;font-family:sans-serif;color:#12283A;line-height:1.5"><h2 style="font-family:Georgia,serif;margin-bottom:10px">'+T.t+'</h2><p>'+T.b+'</p></div>';
+      return;
+    }
+    try{                       /* soft warning: flexbox gap missing (Safari < 14.1 / Chrome < 84) */
+      var f=document.createElement('div'); f.style.cssText='display:flex;flex-direction:column;row-gap:1px;position:absolute;visibility:hidden';
+      f.appendChild(document.createElement('div')); f.appendChild(document.createElement('div'));
+      document.body.appendChild(f); var ok = f.scrollHeight===1; document.body.removeChild(f);
+      if(!ok){ var n=document.createElement('div'); n.setAttribute('role','status'); n.style.cssText='background:#FBF1DF;color:#7A5410;border-bottom:1px solid #D98A1F;padding:10px 16px;font:14px/1.4 sans-serif;text-align:center'; n.textContent=T.s; document.body.insertBefore(n, document.body.firstChild); }
+    }catch(e){}
+  });
+})();
+</script>
+
 <title>SimplyTax - Tax Filing Workspace</title>
 <style>
  :root{
@@ -76,7 +103,7 @@
  .btn-sm{padding:6px 12px;font-size:13px;border-radius:8px}
 
  /* ---------- login ---------- */
- .login-wrap{min-height:calc(100vh - 53px);display:flex;align-items:center;justify-content:center;padding:24px}
+ .login-wrap{min-height:calc(100vh - 53px);min-height:calc(100dvh - 53px);display:flex;align-items:center;justify-content:center;padding:24px}
  .login-card{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);width:400px;max-width:100%;padding:38px 36px}
  .login-card h1{font-size:26px;margin:14px 0 6px}
  .login-card p.sub{color:var(--ink-soft);font-size:14px;margin-bottom:24px}
@@ -178,7 +205,7 @@
  .ws{display:grid;width:100%;grid-template-columns:210px 1fr 260px;gap:20px;align-items:start}
  .phase-group{margin-bottom:6px}
  .phase-group:last-child{margin-bottom:0}
- .phase-label{font-size:10.5px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em;padding:10px 12px 4px}
+ .phase-label{font-size:11px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em;padding:10px 12px 4px}
   @media(max-width:980px){
  .ws{grid-template-columns:1fr}
  /* CORRECTED: real, confirmed cause of a reported horizontal-overflow
@@ -212,7 +239,7 @@
   .step-item{display:flex;align-items:center;gap:10px;padding:10px 12px;min-height:44px;border-radius:10px;font-size:13.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;transition:.12s}
  .step-item:hover{background:var(--paper)}
  .step-item.on{background:var(--ink);color:#fff}
- #busy-overlay{position:fixed;inset:0;background:rgba(255,255,255,.55);z-index:99999;
+ #busy-overlay{position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(255,255,255,.55);z-index:99999;
  display:flex;align-items:center;justify-content:center;cursor:wait}
  #busy-overlay .spinner{width:40px;height:40px;border:4px solid var(--line);
  border-top-color:var(--teal);border-radius:50%;animation:busy-spin .7s linear infinite}
@@ -392,14 +419,90 @@
  .sum-row .l{color:var(--ink-soft)} .sum-row .r{font-weight:600;text-align:right}
 
  /* modal */
- .modal-bg{position:fixed;inset:0;background:rgba(18,40,58,.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
- .modal{background:var(--card);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.25);width:480px;max-width:100%;max-height:90vh;overflow:auto;padding:30px}
+ .modal-bg{position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(18,40,58,.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+ .modal{background:var(--card);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.25);width:480px;max-width:100%;max-height:100%;overflow:auto;-webkit-overflow-scrolling:touch;padding:30px}
  .modal h2{font-size:21px;margin-bottom:6px}
  .success-mark{width:58px;height:58px;border-radius:50%;background:var(--teal-soft);color:var(--teal);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px}
  .ticket{background:var(--paper);border:1px dashed var(--line);border-radius:10px;padding:12px 16px;font-family:ui-monospace,Consolas,monospace;font-size:14px;text-align:center;margin:14px 0;letter-spacing:.04em}
  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:12px;padding:12px 22px;font-size:14px;font-weight:600;box-shadow:var(--shadow);z-index:200;animation:fadeup .3s}
  @keyframes fadeup{from{opacity:0;transform:translate(-50%,12px)}to{opacity:1;transform:translate(-50%,0)}}
  .hidden{display:none!important}
+/* ===== MOBILE & TOUCH BASELINE - consolidated, intentionally LAST in the cascade =====
+   Why this exists: earlier mobile passes set 44px targets, then later rules in the SAME media blocks quietly
+   undid them (e.g. .lang-toggle button went 38px -> 26px, .topbar .link-btn re-padded, the BETA badge's inline
+   font-size beat every stylesheet rule), so those accessibility fixes never actually held. This block is the
+   single source of truth and wins by position. Standards (checked against current sources): WCAG 2.2 SC 2.5.8
+   (24x24 floor), Apple HIG 44pt, Material 48dp -> build to 44px; iOS Safari zooms the whole page when a focused
+   field is under 16px. Verified by an automated audit across 280-768px, portrait and landscape. */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+.panel,.modal,.sum-group,.infobox,.warn,.hint,.crumbs{overflow-wrap:break-word}
+h1,h2,h3{overflow-wrap:break-word;-webkit-hyphens:auto;hyphens:auto}
+.tap-link{display:inline-flex;align-items:center;min-height:44px;padding:0 6px}
+/* Summary rows (flex: label | value). A long value squeezed the label to ~40px, so short words split mid-word
+   ("Nam/e", "Or/t"). The label may wrap at spaces but never below its longest word; the value takes the squeeze. */
+.sum-row .l{min-width:min-content;max-width:50%}
+.sum-row .r{min-width:0;overflow-wrap:break-word;text-align:right}
+
+/* Tablet portrait and below: the dashboard table becomes stacked cards. At 768px the 6-column table is ~920px wide,
+   and because html/body are overflow-x:hidden its right-hand columns (including every row action) were silently
+   clipped and unreachable. */
+@media(max-width:980px){
+ .client-table thead{display:none}
+ .client-table,.client-table tbody,.client-table tr{display:block;width:100%}
+ .client-table{border-spacing:0}
+ .client-table tr{border-bottom:8px solid var(--paper);padding:14px 16px}
+ .client-table tr:last-child{border-bottom:none}
+ .client-table td{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:none;text-align:right}
+ .client-table td[data-label]::before{content:attr(data-label);font-size:12px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;text-align:left;flex:none}
+ .client-table td:first-child{padding:0 0 10px;justify-content:flex-start}
+ .client-table td:first-child .csub{margin-left:0!important;margin-top:2px}
+ .client-table td.actions-cell{padding-top:10px;border-top:1px solid var(--line);justify-content:flex-end;flex-wrap:wrap}
+}
+/* Single-column layout: a sticky meter can never follow the user through the form, and its hard-coded top offset was
+   coupled to the header height. Static is equivalent and can't drift. */
+@media(max-width:980px){ .meter{position:static} .phase-label{font-size:11px!important}
+ /* grid blowout: 1fr = minmax(auto,1fr), so one wide child could force the whole track (and the stepper, panel and
+    meter with it) wider than the screen. minmax(0,1fr) + min-width:0 makes the track unable to exceed the viewport. */
+ .ws{grid-template-columns:minmax(0,1fr)} .ws>*{min-width:0} }
+/* same blowout in the 3-column layout (iPad landscape / small laptops): the 1fr middle track grew with wide step content
+   and pushed the right-hand refund meter past the screen edge (1045px on a 1024px display, clipped by overflow-x:hidden) */
+.ws>*{min-width:0}
+@media(min-width:981px){ .ws{grid-template-columns:210px minmax(0,1fr) 260px} }
+
+@media(max-width:900px),(pointer:coarse){
+ input,select,textarea,.search input,.filter-sel{font-size:16px}
+ .auth-tabs button{min-height:44px;font-size:14px}
+ label:has(input[type=checkbox]){min-height:44px}
+ .toolbar{flex-wrap:wrap}
+ .search{flex:1 1 100%;min-height:44px}
+ .filter-sel{flex:1 1 120px;min-height:44px;padding:10px 12px}
+ .lang-toggle button{min-width:44px;min-height:44px;padding:0 14px;font-size:14px}
+ .link-btn,.btn-sm{min-height:44px;min-width:44px}
+ .topbar .link-btn{padding:10px 12px;font-size:14px}
+ .topbar .logout-btn{width:44px;min-width:44px;padding:0;font-size:18px;line-height:1;overflow:visible}
+ .logo,.user-name-btn{min-height:44px}
+ .logo{display:inline-flex;align-items:center}
+ .info-btn{min-width:44px;min-height:44px}
+ /* small inline (i) bubble: keep the 22px visual, give it a 44px hit area (padding + negative margin) */
+ .info-btn-sm{box-sizing:border-box;width:44px;height:44px;line-height:22px;padding:11px;margin:-11px -11px -11px -6px;background-clip:content-box}
+ .edit{display:inline-flex;align-items:center;min-height:44px;padding:0 8px}
+ details.more summary{padding:14px 0;font-size:12px}
+}
+
+/* Phones: two compact header rows instead of three, scrolling away with the page to give content the full height
+   (a sticky ~100px header plus content is cramped, especially rotated). */
+@media(max-width:640px){
+ .topbar{position:static;flex-wrap:wrap;gap:0 8px;padding:6px 12px}
+ .topbar .spacer{display:none}
+ .topbar .logo{order:1;font-size:16px;flex:0 1 auto;min-width:0}
+ .topbar .logo>span{font-size:11px!important;padding:1px 5px!important;margin-left:4px!important}
+ .lang-toggle{order:2;margin-left:auto}
+ .topbar .logout-btn{order:3}
+ .topbar .user-name-btn{order:4;flex:1 1 140px;min-width:0;display:block;line-height:44px;padding:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .topbar .link-btn:not(.logout-btn){order:5}
+ .phase-label{font-size:11px}
+}
+
 </style>
 </head>
 <body>
@@ -493,7 +596,7 @@ function showAusCalc(empId){
  <div id="aus-shortstay-fields"></div>
  <div class="hint" style="margin:10px 0">${t('aus_formula_hint')}</div>
  <div id="aus-result" class="infobox" style="background:var(--teal-soft);border-color:var(--teal);text-align:center;font-size:15px;font-weight:700"></div>
- <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer;margin-top:12px">
+ <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;min-height:44px;margin-top:12px">
  <input type="checkbox" id="aus-dual" ${a.dualResidence?'checked':''} onchange="renderAusDualFields('${empId}')">
  ${t('aus_dual_residence')}
  </label>
@@ -3262,7 +3365,16 @@ function render(){
     motion - render() also fires on ordinary field edits, and an
     animated recenter on every keystroke would be far worse than the
     bug it fixes. */
- if(S.view==='client'){ const activeStep=app.querySelector('.step-item.on'); if(activeStep) activeStep.scrollIntoView({inline:'center',block:'nearest'}); }
+ if(S.view==='client'){
+ /* CORRECTED: real, confirmed bug found via a mobile audit - scrollIntoView({inline:'center'}) scrolls EVERY scrollable
+    ancestor, including the page itself. Because html/body are overflow-x:hidden (so no scrollbar is shown), the page
+    ended up shifted sideways by 8-60px after landing on later steps (logo and header cut off on the left, with no
+    visible way to scroll back). Centering is now done on the stepper container only, and the page is never left
+    scrolled sideways. */
+ const box=app.querySelector('.steps'); const act=box&&box.querySelector('.step-item.on');
+ if(box&&act){ const target=act.getBoundingClientRect().left-box.getBoundingClientRect().left+box.scrollLeft-(box.clientWidth-act.offsetWidth)/2; box.scrollLeft=Math.max(0,target); }
+ if(document.body.scrollLeft) document.body.scrollLeft=0; if(document.documentElement.scrollLeft) document.documentElement.scrollLeft=0;
+ }
 }
 /* Tab key across fields: intercept Tab/Shift+Tab on any tracked field, commit its value
  (via blur, same as clicking away), and queue the next/previous field to be focused
@@ -3342,7 +3454,7 @@ document.addEventListener('keydown', function(e){
 
 function topbar(){
  return `<div class="topbar">
- <a href="home.html" class="logo" style="text-decoration:none;color:inherit" title="${t('back_to_home')}"><div class="logo-mark">S</div>${t('appName')}<span style="font-size:10px;font-weight:700;letter-spacing:.04em;color:#D98A1F;background:#FBF1DF;border:1px solid #D98A1F;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle">BETA</span></a>
+ <a href="home.html" class="logo" style="text-decoration:none;color:inherit" title="${t('back_to_home')}"><div class="logo-mark">S</div>${t('appName')}<span style="font-size:11px;font-weight:700;letter-spacing:.04em;color:#D98A1F;background:#FBF1DF;border:1px solid #D98A1F;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle">BETA</span></a>
  <div class="spacer"></div>
    ${S.loggedIn?`<span class="user-name-btn" style="font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer" onclick="showSettings()" title="${t('settings')}">👤 ${esc(S.user?.name||'')}</span><button class="link-btn" onclick="showSettings()">⚙ ${t('settings')}</button>`:''}
  <div class="lang-toggle">
@@ -3359,7 +3471,7 @@ function loginView(){
  if(S.authMode==='forgot' || S.authMode==='reset'){
  const isReset = S.authMode==='reset';
  return `<div class="login-wrap"><div class="login-card">
- <a href="home.html" class="logo" style="text-decoration:none;color:inherit;display:inline-flex" title="${t('back_to_home')}"><div class="logo-mark">S</div>${t('appName')}<span style="font-size:10px;font-weight:700;letter-spacing:.04em;color:#D98A1F;background:#FBF1DF;border:1px solid #D98A1F;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle">BETA</span></a>
+ <a href="home.html" class="logo" style="text-decoration:none;color:inherit;display:inline-flex" title="${t('back_to_home')}"><div class="logo-mark">S</div>${t('appName')}<span style="font-size:11px;font-weight:700;letter-spacing:.04em;color:#D98A1F;background:#FBF1DF;border:1px solid #D98A1F;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle">BETA</span></a>
  <h1>${isReset?t('reset_title'):t('forgot_title')}</h1>
  <p class="sub">${isReset?t('reset_sub'):t('forgot_sub')}</p>
  <div id="auth-err" class="auth-err hidden"></div>
@@ -3370,11 +3482,11 @@ function loginView(){
  :`
  <div class="field"><label>${t('email')}</label><input id="fg-email" type="email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')doForgot()"></div>
  <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doForgot(this)">${t('send_reset')}</button>`}
- <p style="text-align:center;margin-top:14px;font-size:13px"><a onclick="S.authMode='login';S.resetToken=null;render()" style="color:var(--ink-soft);cursor:pointer">${t('back_to_login')}</a></p>
+ <p style="text-align:center;margin-top:14px;font-size:13px"><a class="tap-link" onclick="S.authMode='login';S.resetToken=null;render()" style="color:var(--ink-soft);cursor:pointer">${t('back_to_login')}</a></p>
  </div></div>`;
  }
  return `<div class="login-wrap"><div class="login-card">
- <a href="home.html" class="logo" style="text-decoration:none;color:inherit;display:inline-flex" title="${t('back_to_home')}"><div class="logo-mark">S</div>${t('appName')}<span style="font-size:10px;font-weight:700;letter-spacing:.04em;color:#D98A1F;background:#FBF1DF;border:1px solid #D98A1F;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle">BETA</span></a>
+ <a href="home.html" class="logo" style="text-decoration:none;color:inherit;display:inline-flex" title="${t('back_to_home')}"><div class="logo-mark">S</div>${t('appName')}<span style="font-size:11px;font-weight:700;letter-spacing:.04em;color:#D98A1F;background:#FBF1DF;border:1px solid #D98A1F;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle">BETA</span></a>
  <div class="auth-tabs">
  <button class="${!reg?'on':''}" onclick="setAuthMode('login')">${t('tab_signin')}</button>
  <button class="${reg?'on':''}" onclick="setAuthMode('register')">${t('tab_register')}</button>
@@ -3394,8 +3506,8 @@ function loginView(){
  <div class="field"><label>${t('email')}</label><input id="lg-email" type="email" placeholder="you@example.com"></div>
  <div class="field"><label>${t('password')}</label><input id="lg-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
  <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doLogin(this)">${t('sign_in')}</button>
- <p style="text-align:center;margin-top:12px;font-size:13px"><a onclick="setAuthMode('forgot')" style="color:var(--teal);cursor:pointer">${t('forgot_link')}</a></p>`}
- <p style="text-align:center;margin-top:14px;font-size:13px"><a href="home.html" style="color:var(--ink-soft);text-decoration:none">← ${S.lang==='de'?'Über SimplyTax':'About SimplyTax'}</a></p>
+ <p style="text-align:center;margin-top:12px;font-size:13px"><a class="tap-link" onclick="setAuthMode('forgot')" style="color:var(--teal);cursor:pointer">${t('forgot_link')}</a></p>`}
+ <p style="text-align:center;margin-top:14px;font-size:13px"><a class="tap-link" href="home.html" style="color:var(--ink-soft);text-decoration:none">← ${S.lang==='de'?'Über SimplyTax':'About SimplyTax'}</a></p>
  </div></div>`;
 }
 
@@ -3478,7 +3590,7 @@ function dashView(){
  ${(PAYMENT.enabled && S.showReminders) ? reminderPanel(cs) : ''}
  <div class="infobox" style="background:var(--teal-soft);border-color:var(--teal);display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px">
  📅 <span>${t('deadline_banner')}</span>
- <a href="https://www.elster.de" target="_blank" rel="noopener" style="font-size:12.5px;margin-left:auto">${t('elster_link')} ↗</a>
+ <a class="tap-link" href="https://www.elster.de" target="_blank" rel="noopener" style="font-size:13px;margin-left:auto">${t('elster_link')} ↗</a>
  </div>
  <div class="toolbar">
  <div class="search">🔎<input placeholder="${t('search_ph')}" value="${esc(S.search)}" oninput="S.search=this.value;renderKeepFocus(this)"></div>
@@ -4199,7 +4311,7 @@ function overviewCard(){
  return `<div class="infobox" style="background:var(--teal-soft);border-color:var(--teal);margin-bottom:16px;padding:16px">
  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
  <b style="font-size:14px">${t('overview_title')}</b>
- <button class="link-btn" style="padding:2px 6px;font-size:12px" onclick="S.hideOverview=true;render()">✕</button>
+ <button class="link-btn" style="padding:2px 6px;font-size:18px" aria-label="Close" onclick="S.hideOverview=true;render()">✕</button>
  </div>
  <p style="font-size:12.5px;color:var(--ink-soft);margin:4px 0 10px">${t('overview_sub')}</p>
  <div style="display:flex;flex-wrap:wrap;gap:8px">
@@ -5558,7 +5670,7 @@ function stepHousehold(c){
  </div>
  <div style="margin:10px 0 6px;font-size:13px;font-weight:600">${t('energ_measures_label')}</div>
  ${EM35C_MEASURES.map(m=>`<div style="margin-bottom:8px">
- <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer">
+ <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;min-height:44px">
   <input type="checkbox" ${c.oth['em'+m.key+'Sel']?'checked':''} ${isLocked(c)?'disabled':''} onchange="upd('oth','em${m.key}Sel',this.checked?'1':''); if(!this.checked) upd('oth','em${m.key}',''); render();">
  ${t('energ_m_'+m.key)}
  </label>
@@ -5568,7 +5680,7 @@ function stepHousehold(c){
  ℹ ${t('energ_credit_note')}
  </div>`:''}
  <div style="margin:12px 0 6px">
- <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer">
+ <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;min-height:44px">
  <input type="checkbox" ${c.oth.emHasPriorYears?'checked':''} ${isLocked(c)?'disabled':''} onchange="upd('oth','emHasPriorYears',this.checked?'1':''); render();">
  ${t('energ_has_prior_years')}
  </label>
