@@ -18,7 +18,9 @@ global.fetch = async (url, opts) => {
 };
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-const scriptMatch = html.match(/<script>([\s\S]*?)<\/script>/);
+/* The page has several inline <script> blocks (a small ES5 old-browser guard comes first); the app is the largest. */
+const _blocks = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].sort((a, b) => b[1].length - a[1].length);
+const scriptMatch = _blocks[0];
 if (!scriptMatch) { console.error('Could not extract script from index.html'); process.exit(1); }
 const src = scriptMatch[1];
 
@@ -130,7 +132,10 @@ checkAsync('N-AUS export uses the exact same formula as the calculator UI', asyn
   const c = makeClient({ emps: [{ id: 'emp1', employer: 'Muster GmbH', gross: '60000' }],
     aus: { emp1: { country: 'Schweiz', totalWage: '60000', workDaysTotal: '220', workDaysForeign: '90' } } });
   const data = T.buildElsterDataset(c);
-  return data.anlageNAUS.length === 1 && Math.abs(data.anlageNAUS[0].steuerfreierBetrag - 24545.45) < 0.01;
+  /* Current contract: the browser no longer sends a rough exempt-amount estimate (steuerfreierBetrag is 0); it passes the
+     raw inputs and xml-builder.js computes the exact exemption from the day counts (computeAusTaxFree). */
+  const a = data.anlageNAUS[0];
+  return data.anlageNAUS.length === 1 && a.steuerfreierBetrag === 0 && a.gesamtlohn === 60000 && a.arbeitstageGesamt === 220 && a.arbeitstageAusland === 90;
 });
 
 console.log('\n=== Robustness - malformed / extreme input must never crash buildElsterDataset ===');

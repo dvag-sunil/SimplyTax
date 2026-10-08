@@ -45,6 +45,10 @@ process.env.DATABASE_URL = 'postgres://test:test@localhost/test'; // never actua
 process.env.JWT_SECRET = 'test-secret-not-for-production';
 process.env.ALLOWED_ORIGIN = 'https://dvag-sunil.github.io';
 process.env.PORT = '0';
+/* The server now refuses to start without FRONTEND_URL, and the certificate module needs CERT_ENCRYPTION_KEY. Test-only
+   defaults (never real secrets) so `node test/test-api.js` works locally with no setup; CI/real env values still win. */
+process.env.FRONTEND_URL = process.env.FRONTEND_URL || 'https://dvag-sunil.github.io/';
+process.env.CERT_ENCRYPTION_KEY = process.env.CERT_ENCRYPTION_KEY || '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff';
 if (!process.env.ERIC_HERSTELLER_ID) process.env.ERIC_HERSTELLER_ID = 'TEST-ONLY-ID'; // xml-builder.js now genuinely refuses to run without a real configured value - test-only, never a production fallback
 
 delete require.cache[require.resolve('../server.js')];

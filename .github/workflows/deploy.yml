@@ -1,16 +1,10 @@
 name: Deploy to GitHub Pages
 
-# CORRECTED: this used to trigger on both main and production, but
-# GitHub Pages only has one destination per repository - both branches
-# were silently deploying to the exact same place, whichever pushed
-# most recently overwriting the other. That's directly incompatible
-# with "only production code should ever reach the live domain" - now
-# restricted to production only. main no longer auto-deploys publicly;
-# workflow_dispatch is still available for a manual run if ever needed.
+# Only production deploys to the live domain; main never auto-deploys publicly (workflow_dispatch exists for a manual run).
 on:
   push:
     branches: [production]
-  workflow_dispatch: # allows a manual re-run from GitHub's own Actions tab, if ever needed
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -31,23 +25,55 @@ jobs:
       - name: Check out the branch that triggered this build
         uses: actions/checkout@v4
 
+      # SECURITY: this step used to upload `path: .` - the ENTIRE repository - so backend/server.js, schema, field maps,
+      # test data and docs/ were all served publicly from the website. Only the frontend files below are published.
+      # If the site needs another static file (favicon, robots.txt, images/...), add it to PUBLIC_FILES / PUBLIC_DIRS.
+      - name: Assemble the public site (frontend files only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          PUBLIC_FILES="index.html home.html agb.html datenschutz.html impressum.html program-scope.html elster-zertifikat-guide.html steuerwissen.html robots.txt sitemap.xml favicon.ico favicon.svg CNAME .nojekyll"
+          PUBLIC_DIRS="assets"
+          rm -rf _site && mkdir _site
+          for f in $PUBLIC_FILES; do [ -f "$f" ] && cp "$f" _site/ || true; done
+          for d in $PUBLIC_DIRS; do [ -d "$d" ] && cp -r "$d" _site/ || true; done
+          touch _site/.nojekyll
+          echo "Files being published:"; (cd _site && find . -type f | sort)
+
       - name: Substitute the correct backend URL
-        # The one real Render URL this whole project's live deploy
-        # uses - written down here once. If the Render service's URL
-        # ever changes, update it here, not in index.html itself.
+        shell: bash
         run: |
           REAL_URL="https://simplytax-api.onrender.com"
           echo "Deploying production with backend URL: $REAL_URL"
-          sed -i "s|__BACKEND_URL__|$REAL_URL|g" index.html
-          if grep -q "__BACKEND_URL__" index.html; then
+          # replaces BACKEND.baseUrl AND the connect-src entry of the Content-Security-Policy (one placeholder, pinned origin)
+          sed -i "s|__BACKEND_URL__|$REAL_URL|g" _site/index.html
+          if grep -q "__BACKEND_URL__" _site/index.html; then
             echo "::error::Placeholder __BACKEND_URL__ still present after substitution - deploy stopped."
             exit 1
           fi
 
+      # Safety net for the allowlist above: fail the deploy if any published page links to a local file that was not published.
+      - name: Verify every local resource referenced by the published pages exists
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import re, os, sys
+          missing = []
+          for page in [f for f in os.listdir('_site') if f.endswith('.html')]:
+              html = open(os.path.join('_site', page), encoding='utf-8').read()
+              for m in re.finditer(r'(?:src|href)="([^"#?]+)', html):
+                  u = m.group(1)
+                  if re.match(r'^(https?:|mailto:|tel:|data:|javascript:|//)', u) or u.startswith('${') or '$' in u: continue
+                  if not os.path.exists(os.path.join('_site', u)): missing.append(f'{page} -> {u}')
+          if missing:
+              print('::error::Published pages reference files that are not in the public site:'); [print('  ', x) for x in missing]; sys.exit(1)
+          print('All local references resolve.')
+          PY
+
       - name: Prepare the Pages upload
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
 
       - name: Deploy
         id: deployment

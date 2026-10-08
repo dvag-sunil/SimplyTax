@@ -51,9 +51,12 @@ jobs:
         with:
           node-version: '24'
 
+      # npm ci installs EXACTLY what package-lock.json pins (reproducible, and fails if lock and package.json disagree)
       - name: Install backend dependencies
         working-directory: backend
-        run: npm install
+        shell: bash
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else echo "::warning::no package-lock.json committed - falling back to npm install (not reproducible)"; npm install; fi
 
       - name: Syntax check server.js
         working-directory: backend
@@ -70,6 +73,44 @@ jobs:
         env:
           ERIC_HERSTELLER_ID: TEST
         run: node test-fieldmap.js
+
+      # --- Added after a security audit: the API and security suites were never run in CI, so nothing would have caught
+      # a payment-gate bypass or a data-wiping save. They run the REAL server.js against an in-memory Postgres (pg-mem)
+      # with a mocked ERiC. Each runs in its own process so the server's brute-force rate limiter starts fresh.
+      - name: Backend API regression suite
+        working-directory: backend
+        env:
+          FRONTEND_URL: https://www.taxfile24.com/
+          CERT_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+        run: node test/test-api.js
+
+      - name: Security attack suite (payment forgery, IDOR, CSRF, JWT, timing, rate limit ...)
+        working-directory: backend
+        env:
+          FRONTEND_URL: https://www.taxfile24.com/
+          CERT_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+        # S15 (JWT also returned in the body) is a KNOWN, documented trade-off until the API moves to a same-site subdomain:
+        # the suite is expected to report exactly that one item. Anything else failing fails the build.
+        run: |
+          node test/test-security.js | tee /tmp/sec.txt || true
+          if grep -E '^VULNERABLE' /tmp/sec.txt | grep -v ' S15 '; then echo "::error::A security regression was detected"; exit 1; fi
+
+      - name: Security suite - state and integrity (server-owned fields, immutability, deletion)
+        working-directory: backend
+        env:
+          FRONTEND_URL: https://www.taxfile24.com/
+          CERT_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+        run: node test/test-security-state.js
+
+      - name: Frontend logic suite (the real index.html script, DOM stubbed)
+        working-directory: test
+        run: node test-ui.js
+
+      - name: Dependency audit - fail on critical, report the rest
+        working-directory: backend
+        run: |
+          npm audit --omit=dev --audit-level=critical
+          npm audit --omit=dev || true
 
       # The real point of this job - a genuine smoke test, not just a
       # syntax check. This is the step that would have caught the actual

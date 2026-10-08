@@ -1,4 +1,13 @@
 {
+  "name": "simplytax-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SimplyTax REST API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/test-api.js && node test/test-security-state.js && node test/test-security.js"
+  },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
@@ -10,8 +19,10 @@
     "koffi": "^3.1.2",
     "node-forge": "^1.4.0",
     "pg": "^8.22.0",
+    "stripe": "^22.4.0"
+  },
+  "devDependencies": {
     "pg-mem": "^3.0.14",
-    "stripe": "^22.4.0",
     "supertest": "^7.2.2"
   },
   "optionalDependencies": {

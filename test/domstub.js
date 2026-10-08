@@ -13,3 +13,11 @@ global.fetch = async () => ({ ok:true, json: async () => ({}) });
 global.URLSearchParams = URLSearchParams;
 global.crypto = require('crypto').webcrypto;
 global.self = global;
+
+/* the app observes DOM changes (e.g. to re-apply input masks); a no-op is enough for logic tests */
+global.MutationObserver = global.MutationObserver || class { constructor(){} observe(){} disconnect(){} takeRecords(){ return []; } };
+
+/* window-level APIs the app registers at load (visibility refresh, resize, etc.) - inert no-ops are enough for logic tests */
+if (typeof global.window === 'undefined') global.window = global;
+for (const fn of ['addEventListener','removeEventListener','dispatchEvent']) if (typeof global.window[fn] !== 'function') global.window[fn] = () => {};
+if (typeof global.document !== 'undefined') for (const fn of ['addEventListener','removeEventListener']) if (typeof global.document[fn] !== 'function') global.document[fn] = () => {};

@@ -14,7 +14,7 @@ const fs = require('fs');
    into a real binary file fresh at every startup instead. */
 if (process.env.ERIC_CERT_B64) {
   const certPath = path.join('/tmp', 'certificate.pfx');
-  fs.writeFileSync(certPath, Buffer.from(process.env.ERIC_CERT_B64, 'base64'));
+  fs.writeFileSync(certPath, Buffer.from(process.env.ERIC_CERT_B64, 'base64'), { mode: 0o600 }); // owner-only: this is a private key
   process.env.ERIC_CERT_PATH = certPath;
   const stats = fs.statSync(certPath);
   console.log('[debug] decoded certificate file size:', stats.size, 'bytes');
@@ -38,6 +38,7 @@ const { buildEStXML, buildSonstigeNachrichtXML, InterchangeDataError, classifySk
 
 const { DATABASE_URL, JWT_SECRET, ALLOWED_ORIGIN, PORT = 3000 } = process.env;
 if (!DATABASE_URL || !JWT_SECRET) { console.error('Missing DATABASE_URL or JWT_SECRET in .env'); process.exit(1); }
+if (JWT_SECRET.length < 32) console.warn('[security] JWT_SECRET is shorter than 32 characters - use a long random value (e.g. openssl rand -base64 48)');
 /* CORRECTED: real, confirmed security-hygiene issue found via audit -
    this used to default to 'https://dvag-sunil.github.io', a leftover
    from an unrelated earlier project. If ALLOWED_ORIGIN was ever
@@ -176,7 +177,7 @@ async function sendEmail(to, subject, html){
 }
 async function sendReminderEmail(to, name, taxYear){
   return sendEmail(to, `Your ${taxYear} tax return is paid but not yet submitted`,
-    `<p>Hi ${name},</p><p>Your ${taxYear} tax return with SimplyTax was paid but has not yet been submitted to the Finanzamt. Please log in to review and submit, or reply if you need help.</p><p>— SimplyTax</p>`);
+    `<p>Hi ${escHtml(name)},</p><p>Your ${taxYear} tax return with SimplyTax was paid but has not yet been submitted to the Finanzamt. Please log in to review and submit, or reply if you need help.</p><p>— SimplyTax</p>`);
 }
 /* IMPLEMENTED: a generic security-notification email, reusing the exact
    same shared sendEmail() helper already established above - same
@@ -449,8 +450,73 @@ app.post('/api/extract-doc', auth, async (req, res) => {
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 30 }));   // brute-force protection
 app.use('/api', rateLimit({ windowMs: 60 * 1000, max: 120 }));
 
-const sign = (u) => jwt.sign({ sub: u.id, role: u.role }, JWT_SECRET, { expiresIn: '2h' });
-const pubUser = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role, settings: u.settings, twoFA: u.two_fa });
+const sign = (u) => jwt.sign({ sub: u.id, role: u.role }, JWT_SECRET, { algorithm: 'HS256', expiresIn: '2h' });
+/* ---------- security helpers (audit) ---------- */
+/* Every value interpolated into an HTML email must be escaped: names and emails are attacker-controlled (anyone can
+   register with a VICTIM's address and an HTML "name"), and the server would then send the victim a genuine
+   SimplyTax email carrying the attacker's markup. */
+const escHtml = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+const isStr = (v, max) => typeof v === 'string' && v.length > 0 && v.length <= max;
+const EMAIL_RE = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']{2,}$/;
+const PASSWORD_MAX = 128;                    // also bounds the bcrypt work an unauthenticated caller can force
+/* Keys of users.settings that the SERVER owns (verification, reset and lockout state). The browser must never be able
+   to write them, and must never receive the token hashes. */
+const PROTECTED_SETTINGS = ['emailVerified', 'emailVerify', 'pwreset', 'loginLockout'];
+function publicSettings(st) {
+  const out = {};
+  for (const [k, v] of Object.entries(st || {})) if (!PROTECTED_SETTINGS.includes(k)) out[k] = v;
+  if (st && st.emailVerified !== undefined) out.emailVerified = st.emailVerified === true;
+  if (st && st.emailVerify) out.emailVerify = true;      // a boolean "verification pending" flag only - never the hash
+  return out;
+}
+/* Constant-work login: compare against a throwaway hash when the account doesn't exist, so response time doesn't
+   reveal which emails are registered. */
+const DUMMY_HASH = bcrypt.hashSync('timing-equaliser-not-a-real-password', 12);
+
+/* ---------- server-owned fields of a client record (audit: S1, S2, S5, S19) ----------
+   A client record is one JSON blob that the BROWSER saves wholesale. Some of its fields are facts only the SERVER may
+   establish: whether it was paid (written by Stripe/PayPal handlers and refunds), whether it was submitted, the transfer
+   ticket, reminder state. Trusting the browser's copy let anyone file for free (pay.status="paid"), forge a submission,
+   or erase a payment by saving from a stale tab. On every save these fields are now taken from the STORED record, never
+   from the request. The browser keeps only its own discount-selection UI state inside pay{}. */
+const CLIENT_PAY_KEYS = ['discountCode', 'discountFinal', 'discountOff'];
+const SERVER_OWNED_FIELDS = ['transferTicket', 'submittedAt', 'unresolvedForeignIncome', 'reminded_at'];
+function canonicalJson(v) {                      // key order must not matter: JSONB reorders keys, browsers don't
+  if (Array.isArray(v)) return '[' + v.map(canonicalJson).join(',') + ']';
+  if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + canonicalJson(v[k])).join(',') + '}';
+  return JSON.stringify(v === undefined ? null : v);
+}
+/* The part of a return that must not change after submission. Excluded: things legitimately touched afterwards
+   (inquiry log, uploaded documents, timestamps) and the server-owned fields themselves. */
+function contentObj(c) {
+  const { updatedAt, inq, docs, freigabe, pay, status, transferTicket, submittedAt, unresolvedForeignIncome, reminded_at, ...content } = c || {};
+  return content;
+}
+function contentOnly(c) { return canonicalJson(contentObj(c)); }
+/* Immutability test: every value already on file must still be there, unchanged. Fields the app's own migrations add
+   later (new defaults on older returns) are allowed - they don't alter what was filed; the exact filed payload and its
+   SHA-256 live in submission_approvals. Arrays must keep their length (adding a child/employer after filing is a change). */
+function sameOrExtended(stored, incoming) {
+  if (Array.isArray(stored)) return Array.isArray(incoming) && stored.length === incoming.length && stored.every((v, i) => sameOrExtended(v, incoming[i]));
+  if (stored && typeof stored === 'object') return !!incoming && typeof incoming === 'object' && !Array.isArray(incoming) && Object.keys(stored).every(k => k in incoming && sameOrExtended(stored[k], incoming[k]));
+  return stored === incoming;
+}
+function applyServerOwnedFields(incoming, prev, ledgerPay) {
+  const out = { ...incoming };
+  for (const f of SERVER_OWNED_FIELDS) { if (prev && prev[f] !== undefined) out[f] = prev[f]; else delete out[f]; }
+  const cp = incoming.pay && typeof incoming.pay === 'object' ? incoming.pay : {};
+  const pp = (prev && prev.pay && typeof prev.pay === 'object' && prev.pay.status) ? prev.pay : (ledgerPay || {});
+  const merged = {};
+  for (const k of CLIENT_PAY_KEYS) if (k in cp) merged[k] = cp[k];
+  for (const [k, v] of Object.entries(pp)) if (!CLIENT_PAY_KEYS.includes(k)) merged[k] = v;
+  if (Object.keys(merged).length) out.pay = merged; else delete out.pay;
+  const ps = prev && prev.status;
+  if (ps === 'submitting' || ps === 'submitted') out.status = ps;                       // only the server moves a return into/out of these
+  else if (out.status === 'submitting' || out.status === 'submitted') out.status = 'draft';
+  return out;
+}
+
+const pubUser = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role, settings: publicSettings(u.settings), twoFA: u.two_fa });
 
 /* CORRECTED: real security-architecture gap the audit rates as
    critical - the session token previously lived only in localStorage,
@@ -483,7 +549,7 @@ function auth(req, res, next) {
   const bearerToken = h.startsWith('Bearer ') ? h.slice(7) : null;
   const token = getCookie(req, AUTH_COOKIE) || bearerToken;
   if (!token) return res.status(401).json({ error: 'auth_required' });
-  try { req.user = jwt.verify(token, JWT_SECRET); next(); }
+  try { req.user = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }); next(); }
   catch { return res.status(401).json({ error: 'invalid_token' }); }
 }
 /* NEW, SEPARATE FEATURE (own file, own table, own routes) — customer-
@@ -524,9 +590,7 @@ app.post('/api/auth/logout', (req, res) => {
   res.clearCookie(AUTH_COOKIE, { httpOnly: true, secure: true, sameSite: 'none', path: '/' });
   res.json({ ok: true });
 });
-/* role guard — prepared for the roles stage: use requireRole('admin') on future admin routes */
-const requireRole = (...roles) => (req, res, next) =>
-  roles.includes(req.user.role) ? next() : res.status(403).json({ error: 'forbidden' });
+
 
  /* CORRECTED: real gap the audit flags directly (§11) - failures here
    were completely silent before, not even logged to the server's own
@@ -584,7 +648,8 @@ app.get('/api/version', (_req, res) => {
 /* ---------- auth ---------- */
  app.post('/api/auth/register', async (req, res) => {
   const { name, email, password } = req.body || {};
-  if (!name || !email || !password || password.length < 8) return res.status(400).json({ error: 'invalid_input' });
+  if (!isStr(name, 120) || !isStr(email, 254) || !EMAIL_RE.test(email.trim()) || !isStr(password, PASSWORD_MAX) || password.length < 8)
+    return res.status(400).json({ error: 'invalid_input' });
   try {
     const hash = await bcrypt.hash(password, 12);
     const q = await pool.query(
@@ -608,7 +673,7 @@ app.get('/api/version', (_req, res) => {
           [JSON.stringify(emailVerify), u.id]);
         const link = FRONTEND_URL + '?verifyEmail=' + token + '&email=' + encodeURIComponent(u.email);
          await sendEmail(u.email, 'Confirm your SimplyTax email address',
-          `<p>Hi ${u.name},</p><p>Please confirm your email address to unlock submitting tax returns:</p><p><a href="${link}">${link}</a></p><p>This link is valid for 24 hours. You can still prepare and calculate your return before confirming - this is only needed before submission.</p><p>— SimplyTax</p>`);
+          `<p>Hi ${escHtml(u.name)},</p><p>Please confirm your email address to unlock submitting tax returns:</p><p><a href="${link}">${link}</a></p><p>This link is valid for 24 hours. You can still prepare and calculate your return before confirming - this is only needed before submission.</p><p>— SimplyTax</p>`);
        } catch (e) { console.error('[register] verification email failed:', e.message); }
     }
     const token = sign(u);
@@ -622,9 +687,11 @@ app.get('/api/version', (_req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body || {};
-  const normalizedEmail = String(email || '').toLowerCase().trim();
+  const normalizedEmail = String(email || '').toLowerCase().trim().slice(0, 254);
   const q = await pool.query('SELECT * FROM users WHERE email=$1', [normalizedEmail]);
   const u = q.rows[0];
+  /* always burn one bcrypt comparison - real hash or dummy - before ANY early return (S9) */
+  const passwordOk = await bcrypt.compare(String(password || '').slice(0, PASSWORD_MAX), u ? u.password_hash : DUMMY_HASH);
 
   /* IMPLEMENTED: real per-account brute-force protection, addressing a
      genuine gap in the existing IP-based rate limit - many different
@@ -648,7 +715,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
   }
 
-  if (!u || !(await bcrypt.compare(String(password || ''), u.password_hash))) {
+  if (!u || !passwordOk) {
     if (u) {
       const prevAttempts = (u.settings?.loginLockout?.failedAttempts || 0) + 1;
       const newLockout = prevAttempts >= MAX_FAILED_ATTEMPTS
@@ -661,7 +728,7 @@ app.post('/api/auth/login', async (req, res) => {
       if (prevAttempts >= MAX_FAILED_ATTEMPTS) {
         audit(u.id, 'account_locked_brute_force', {});
         sendSecurityEmail(u.email, 'Multiple failed sign-in attempts on your SimplyTax account',
-          `<p>Hi ${u.name || ''},</p><p>There have been several failed sign-in attempts on your SimplyTax account. As a precaution, sign-in has been temporarily disabled for 15 minutes.</p><p>If this wasn't you, your password is still safe - no one has signed in - but consider changing it once you're back in.</p><p>— SimplyTax</p>`
+          `<p>Hi ${escHtml(u.name || '')},</p><p>There have been several failed sign-in attempts on your SimplyTax account. As a precaution, sign-in has been temporarily disabled for 15 minutes.</p><p>If this wasn't you, your password is still safe - no one has signed in - but consider changing it once you're back in.</p><p>— SimplyTax</p>`
         ).catch(()=>{});
       }
     }
@@ -699,13 +766,13 @@ app.post('/api/auth/forgot', async (req, res) => {
       [JSON.stringify(pwreset), rows[0].id]);
     const link = FRONTEND_URL + '?reset=' + token + '&email=' + encodeURIComponent(String(email).toLowerCase());
      await sendEmail(email, 'Reset your SimplyTax password',
-      `<p>Hi ${rows[0].name},</p><p>Use the link below to set a new password (valid for 1 hour, one use only):</p><p><a href="${link}">${link}</a></p><p>If you did not request this, simply ignore this email — your password stays unchanged.</p><p>— SimplyTax</p>`);
+      `<p>Hi ${escHtml(rows[0].name)},</p><p>Use the link below to set a new password (valid for 1 hour, one use only):</p><p><a href="${link}">${link}</a></p><p>If you did not request this, simply ignore this email — your password stays unchanged.</p><p>— SimplyTax</p>`);
     audit(rows[0].id, 'pw_reset_requested', {});
   }catch(e){ console.error('forgot failed:', e.message); }
 });
 app.post('/api/auth/reset', async (req, res) => {
   const { email, token, password } = req.body || {};
-  if(!email || !token || !password || String(password).length < 8) return res.status(400).json({ error: 'invalid_input' });
+  if(!email || !token || !password || String(password).length < 8 || String(password).length > PASSWORD_MAX) return res.status(400).json({ error: 'invalid_input' });
   const { rows } = await pool.query('SELECT id, name, settings FROM users WHERE email=$1', [String(email).toLowerCase()]);
   const pr = rows[0]?.settings?.pwreset;
   if(!pr || pr.th !== sha256(String(token)) || pr.exp < Date.now()) return res.status(400).json({ error: 'invalid_or_expired' });
@@ -718,7 +785,7 @@ app.post('/api/auth/reset', async (req, res) => {
      no way to notice if their account had been compromised via a
      leaked reset token and reset by someone else. Best-effort. */
   sendSecurityEmail(String(email).toLowerCase(), 'Your SimplyTax password was changed',
-    `<p>Hi ${rows[0].name || ''},</p><p>Your SimplyTax password was just changed.</p><p>If this was you, no action is needed. If you did not make this change, please contact us immediately.</p><p>— SimplyTax</p>`
+    `<p>Hi ${escHtml(rows[0].name || '')},</p><p>Your SimplyTax password was just changed.</p><p>If this was you, no action is needed. If you did not make this change, please contact us immediately.</p><p>— SimplyTax</p>`
   ).catch(()=>{});
   res.json({ ok: true });
 });
@@ -749,7 +816,7 @@ app.post('/api/auth/resend-verification', auth, async (req, res) => {
     [JSON.stringify(emailVerify), rows[0].id]);
   const link = FRONTEND_URL + '?verifyEmail=' + token + '&email=' + encodeURIComponent(rows[0].email);
    await sendEmail(rows[0].email, 'Confirm your SimplyTax email address',
-    `<p>Hi ${rows[0].name},</p><p>Please confirm your email address to unlock submitting tax returns:</p><p><a href="${link}">${link}</a></p><p>This link is valid for 24 hours.</p><p>— SimplyTax</p>`);
+    `<p>Hi ${escHtml(rows[0].name)},</p><p>Please confirm your email address to unlock submitting tax returns:</p><p><a href="${link}">${link}</a></p><p>This link is valid for 24 hours.</p><p>— SimplyTax</p>`);
   res.json({ ok: true });
 });
 
@@ -782,6 +849,10 @@ app.put('/api/auth/email', auth, async (req, res) => {
     if(e.code==='23505') return res.status(409).json({ error: 'email_taken' });   // unique violation
     throw e;
   }
+  /* the NEW address has not been verified: clear the flag explicitly. (Setting it to false rather than deleting it also
+     stops the account being treated as 'predates the verification feature', which would grandfather it past the gate.) */
+  await pool.query(`UPDATE users SET settings = jsonb_set(coalesce(settings,'{}'::jsonb),'{emailVerified}','false') WHERE id=$1`, [req.user.sub])
+    .catch(e => console.error('[email change] could not reset emailVerified:', e.message));
    audit(req.user.sub, 'email_changed', { to: email });
   /* IMPLEMENTED: real security-awareness gap - notify the OLD address,
      not the new one. If this change was ever made by someone other
@@ -789,7 +860,7 @@ app.put('/api/auth/email', auth, async (req, res) => {
      control; the new one likely belongs to whoever made the change.
      Best-effort - does not block the change itself on send failure. */
   sendSecurityEmail(oldEmail, 'Your SimplyTax sign-in email was changed',
-    `<p>Hi ${rows[0].name || ''},</p><p>The email address on your SimplyTax account was just changed to <b>${email}</b>.</p><p>If this was you, no action is needed. If you did not make this change, please contact us immediately.</p><p>— SimplyTax</p>`
+    `<p>Hi ${escHtml(rows[0].name || '')},</p><p>The email address on your SimplyTax account was just changed to <b>${escHtml(email)}</b>.</p><p>If this was you, no action is needed. If you did not make this change, please contact us immediately.</p><p>— SimplyTax</p>`
   ).catch(()=>{});
   res.json({ ok: true, email });
 });
@@ -832,7 +903,7 @@ app.delete('/api/auth/account', auth, async (req, res) => {
      user row is deleted below, since there's no email address left to
      notify at afterward. Best-effort, does not block the deletion. */
   sendSecurityEmail(rows[0].email, 'Your SimplyTax account is being deleted',
-    `<p>Hi ${rows[0].name || ''},</p><p>Your SimplyTax account and all draft tax returns are being permanently deleted, as requested.</p><p>If you did not request this, please contact us immediately - this cannot be undone once complete.</p><p>— SimplyTax</p>`
+    `<p>Hi ${escHtml(rows[0].name || '')},</p><p>Your SimplyTax account and all draft tax returns are being permanently deleted, as requested.</p><p>If you did not request this, please contact us immediately - this cannot be undone once complete.</p><p>— SimplyTax</p>`
   ).catch(()=>{});
 
   if (storageOn()) {
@@ -946,7 +1017,7 @@ app.post('/api/auth/export', auth, async (req, res) => {
      data is a sensitive event worth the account owner knowing about,
      not something that happens silently. Best-effort. */
   sendSecurityEmail(userRows[0].email, 'Your SimplyTax data was exported',
-    `<p>Hi ${userRows[0].name || ''},</p><p>A full export of your SimplyTax data (account details, tax returns, and submission records) was just downloaded.</p><p>If this was you, no action is needed. If you did not request this, please change your password immediately and contact us.</p><p>— SimplyTax</p>`
+    `<p>Hi ${escHtml(userRows[0].name || '')},</p><p>A full export of your SimplyTax data (account details, tax returns, and submission records) was just downloaded.</p><p>If this was you, no action is needed. If you did not request this, please change your password immediately and contact us.</p><p>— SimplyTax</p>`
   ).catch(()=>{});
 
   res.json({
@@ -958,7 +1029,18 @@ app.post('/api/auth/export', auth, async (req, res) => {
 });
 
 app.put('/api/auth/settings', auth, async (req, res) => {
-  await pool.query('UPDATE users SET settings=$1 WHERE id=$2', [req.body?.settings || {}, req.user.sub]);
+  const incoming = req.body && req.body.settings;
+  if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) return res.status(400).json({ error: 'invalid_input' });
+  const { rows } = await pool.query('SELECT settings FROM users WHERE id=$1', [req.user.sub]);
+  if (!rows.length) return res.status(404).json({ error: 'not_found' });
+  const current = rows[0].settings || {};
+  /* mass-assignment guard: the browser may change presentation settings only. Verification / reset / lockout state is
+     server-owned and is carried over from the stored value, whatever the request says. */
+  const next = {};
+  for (const [k, v] of Object.entries(incoming)) if (!PROTECTED_SETTINGS.includes(k)) next[k] = v;
+  for (const k of PROTECTED_SETTINGS) if (current[k] !== undefined) next[k] = current[k];
+  if (JSON.stringify(next).length > 20000) return res.status(413).json({ error: 'settings_too_large' });
+  await pool.query('UPDATE users SET settings=$1 WHERE id=$2', [next, req.user.sub]);
   res.json({ ok: true });
 });
 
@@ -975,67 +1057,40 @@ app.put('/api/clients/bulk', auth, async (req, res) => {
   const db = await pool.connect();
   try {
     await db.query('BEGIN');
-    const ids = clients.map(c => c.id).filter(Boolean);
-    if (ids.length) await db.query('DELETE FROM clients WHERE user_id=$1 AND NOT (id = ANY($2))', [req.user.sub, ids]);
-    else await db.query('DELETE FROM clients WHERE user_id=$1', [req.user.sub]);
-
-    /* IMPLEMENTED: real gap the audit flags directly - fetch existing
-       stored state first, before anything is overwritten below, so
-       each client's previous status is known. Without this, there's
-       no way to tell whether a record is newly becoming "submitted"
-       (capture its snapshot) or was already submitted (check for
-       drift) versus every other ordinary save. */
+    const ids = clients.filter(c => c && typeof c === 'object').map(c => c.id).filter(id => typeof id === 'string' && id.length > 0 && id.length <= 80);
+    /* Saving is additive: it creates and updates returns but NEVER deletes one. Previously every return missing from the
+       list was deleted, so a stale tab, a failed load followed by an autosave, or {clients:[]} could wipe a customer's
+       data, including paid and submitted returns (audit S4/S5). A deliberate delete is DELETE /api/clients/:id. */
     const existingRows = ids.length
       ? (await db.query('SELECT id, data, submitted_snapshot_sha256 FROM clients WHERE user_id=$1 AND id = ANY($2)', [req.user.sub, ids])).rows
       : [];
     const existingById = new Map(existingRows.map(r => [r.id, r]));
-    /* Fields deliberately excluded from the content hash - these are
-       genuinely legitimate to keep editing after submission (an
-       inquiry log entry, an uploaded document, a timestamp, the
-       transfer ticket itself), so including them would make ordinary,
-       expected post-submission activity look like drift. */
-    const contentOnly = (c) => {
-      const { updatedAt, inq, docs, transferTicket, status, submittedAt, freigabe, pay, ...content } = c;
-      return JSON.stringify(content);
-    };
     const driftDetected = [];
     const blockedIds = [];
-
     for (const c of clients) {
-      if (!c.id) continue;
+      if (!c || typeof c !== 'object' || typeof c.id !== 'string' || !c.id || c.id.length > 80) continue;
       const existing = existingById.get(c.id);
-      let snapshotHash = existing?.submitted_snapshot_sha256 || null;
-
-      if (existing) {
-        const wasSubmitted = existing.data?.status === 'submitted';
-        const isSubmitted = c.status === 'submitted';
-        if (!wasSubmitted && isSubmitted) {
-          // Transition moment - capture the approved content as the baseline.
-          snapshotHash = sha256(contentOnly(c));
-        } else if (wasSubmitted && existing.submitted_snapshot_sha256) {
-          const currentHash = sha256(contentOnly(c));
-          if (currentHash !== existing.submitted_snapshot_sha256) {
-            /* IMPLEMENTED: upgraded from detection-only to a real
-               block, completing the audit's own recommendation (§10) -
-               "once a taxpayer approves a return, the approved version
-               should become immutable." Uses the exact same field
-               boundary already carefully worked out for detection -
-               nothing new to guess at here, just closing the actual
-               gap between detecting drift and stopping it. Blocks only
-               this specific record - other clients in the same batch
-               save normally, so one blocked edit doesn't lose
-               unrelated, legitimate work. */
-            driftDetected.push(c.id);
-            blockedIds.push(c.id);
-            continue;
-          }
-        }
+      const prev = existing ? existing.data : null;
+      const prevStatus = prev && prev.status;
+      let snapshotHash = existing ? (existing.submitted_snapshot_sha256 || null) : null;
+      if (prevStatus === 'submitting') continue;                     // submission in flight: the server owns the record until it finishes
+      if (prevStatus === 'submitted') {
+        /* Immutability (audit S19). The baseline is captured by the submit route; for returns submitted before that
+           existed, it is derived once from the STORED content - never from the incoming request. */
+        if (!sameOrExtended(contentObj(prev), contentObj(c))) { driftDetected.push(c.id); blockedIds.push(c.id); continue; }
+        if (!snapshotHash) snapshotHash = sha256(contentOnly(prev));        // returns submitted before this existed: baseline from STORED content
       }
-
+      /* Heal a payment the browser already knows about but the record lost (paid before the first save reached the
+         server): taken from the server's own payments ledger, never from the browser's claim. */
+      let ledgerPay = null;
+      if (!(prev && prev.pay && prev.pay.status) && c.pay && c.pay.status === 'paid') {
+        const lp = await db.query(`SELECT amount_cents, session_id, created_at FROM payments WHERE user_id=$1 AND client_id=$2 AND status='paid' ORDER BY id DESC LIMIT 1`, [req.user.sub, c.id]);
+        if (lp.rows[0]) ledgerPay = { status: 'paid', paidAt: new Date(lp.rows[0].created_at).getTime(), amount: Number(lp.rows[0].amount_cents) / 100, txId: String(lp.rows[0].session_id).slice(0, 24) };
+      }
       await db.query(
         `INSERT INTO clients(id, user_id, data, updated_at, submitted_snapshot_sha256) VALUES ($1,$2,$3,now(),$4)
          ON CONFLICT (id) DO UPDATE SET data=$3, updated_at=now(), submitted_snapshot_sha256=$4 WHERE clients.user_id=$2`,
-        [c.id, req.user.sub, c, snapshotHash]);
+        [c.id, req.user.sub, applyServerOwnedFields(c, prev, ledgerPay), snapshotHash]);
     }
      await db.query('COMMIT');
     audit(req.user.sub, 'clients_sync', { count: clients.length });
@@ -1052,8 +1107,8 @@ app.put('/api/clients/bulk', auth, async (req, res) => {
 });
 
 app.delete('/api/clients/:id', auth, async (req, res) => {
-  await pool.query('DELETE FROM clients WHERE id=$1 AND user_id=$2', [req.params.id, req.user.sub]);
-  res.json({ ok: true });
+  const del = await pool.query(`DELETE FROM clients WHERE id=$1 AND user_id=$2 AND COALESCE(data->>'status','') <> 'submitting'`, [req.params.id, req.user.sub]);
+  res.json({ ok: true, deleted: del.rowCount || 0 });
 });
 
 /* create a Checkout session for one return */
@@ -1687,16 +1742,27 @@ app.post('/api/eric/submit', auth, async (req, res) => {
          transferTicket, so this is a real, durable fact about the
          submission the person can still see later - not just a
          message shown once in the submit response and then lost. */
-      await pool.query(
-        `UPDATE clients SET data = jsonb_set(
-           jsonb_set(
-             jsonb_set(data, '{status}', '"submitted"'),
-             '{transferTicket}', $3::jsonb
-           ),
-           '{unresolvedForeignIncome}', $4::jsonb
-         ) WHERE id=$1 AND user_id=$2`,
-        [clientId, req.user.sub, JSON.stringify(result.transferTicket || null), JSON.stringify(unresolvedForeignIncome || [])]
-      );
+      /* The filing HAS happened at this point. Persisting the outcome is retried once, and a failure here must never
+         fall into the catch below (which would reset the return to draft and invite a duplicate filing). The
+         submission_approvals row above already records the outcome, so support can reconcile from it. The content
+         baseline for the immutability check is captured here, server-side (audit S19). */
+      let persisted = false;
+      for (let attempt = 1; attempt <= 2 && !persisted; attempt++) {
+        try {
+          const cur = await pool.query('SELECT data FROM clients WHERE id=$1 AND user_id=$2', [clientId, req.user.sub]);
+          const baseline = cur.rows[0] ? sha256(contentOnly(cur.rows[0].data)) : null;
+          await pool.query(
+            `UPDATE clients SET data = jsonb_set(jsonb_set(jsonb_set(jsonb_set(data, '{status}', '"submitted"'),
+                 '{transferTicket}', $3::jsonb), '{unresolvedForeignIncome}', $4::jsonb), '{submittedAt}', $5::jsonb),
+               submitted_snapshot_sha256 = $6, updated_at = now()
+             WHERE id=$1 AND user_id=$2`,
+            [clientId, req.user.sub, JSON.stringify(result.transferTicket || null), JSON.stringify(unresolvedForeignIncome || []), JSON.stringify(Date.now()), baseline]
+          );
+          persisted = true;
+        } catch (persistErr) {
+          console.error(`[CRITICAL][eric/submit] return ${clientId} WAS SENT to ELSTER but recording it failed (attempt ${attempt}):`, persistErr.message);
+        }
+      }
     } else {
       /* CORRECTED: real gap - previously nothing released the
          "submitting" lock when ERiC itself rejected the return (as
@@ -1870,11 +1936,12 @@ app.post('/api/eric/inquiry-message', auth, async (req, res) => {
   }
 });
 
+const DOC_ID_OK = (id) => typeof id === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(id);   // blocks '.' / '..' path segments
 app.post('/api/docs', auth, async (req, res) => {
   if (!storageOn()) return res.status(501).json({ error: 'storage_disabled' });
   const { id, dataUrl } = req.body || {};
   const m = /^data:([^;]+);base64,(.+)$/.exec(dataUrl || '');
-  if (!id || !m) return res.status(400).json({ error: 'invalid_input' });
+  if (!DOC_ID_OK(id) || !m) return res.status(400).json({ error: 'invalid_input' });
    const mime = m[1].toLowerCase();
   if (!DOC_MIME_OK(mime)) return res.status(415).json({ error: 'bad_type' });
   const buf = Buffer.from(m[2], 'base64');
@@ -1895,6 +1962,7 @@ app.post('/api/docs', auth, async (req, res) => {
 
 app.get('/api/docs/:id', auth, async (req, res) => {
   if (!storageOn()) return res.status(501).json({ error: 'storage_disabled' });
+  if (!DOC_ID_OK(req.params.id)) return res.status(400).json({ error: 'invalid_input' });
   const path = `${req.user.sub}/${encodeURIComponent(req.params.id)}`;
   const r = await fetch(`${SUPABASE_URL}/storage/v1/object/sign/${BELEGE_BUCKET}/${path}`, {
     method: 'POST', headers: { ...sbHeaders(), 'Content-Type': 'application/json' },
@@ -1906,6 +1974,7 @@ app.get('/api/docs/:id', auth, async (req, res) => {
 
 app.delete('/api/docs/:id', auth, async (req, res) => {
   if (!storageOn()) return res.status(501).json({ error: 'storage_disabled' });
+  if (!DOC_ID_OK(req.params.id)) return res.status(400).json({ error: 'invalid_input' });
   const path = `${req.user.sub}/${encodeURIComponent(req.params.id)}`;
   await fetch(`${SUPABASE_URL}/storage/v1/object/${BELEGE_BUCKET}/${path}`, { method: 'DELETE', headers: sbHeaders() });
   res.json({ ok: true });
@@ -1918,11 +1987,13 @@ app.delete('/api/docs/:id', auth, async (req, res) => {
    general safety net for any other error that reaches this point without
    its own handler - ensures the app always responds with SOMETHING valid
    rather than hanging or dropping the connection. */
+app.use((req, res) => res.status(404).json({ error: 'not_found' }));      // JSON everywhere, never Express's HTML error page
 app.use((err, req, res, next) => {
   if (err && err.type === 'entity.parse.failed') {
     console.warn(`[body-parser] malformed JSON from ${req.ip} on ${req.path}`);
     return res.status(400).json({ error: 'invalid_json' });
   }
+  if (err && err.message === 'Not allowed by CORS') return res.status(403).json({ error: 'origin_not_allowed' });   // already logged by the CORS check
   console.error('[unhandled]', err && err.message, err && err.stack);
   res.status(500).json({ error: 'server_error' });
 });
