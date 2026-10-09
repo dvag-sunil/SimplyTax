@@ -116,6 +116,17 @@ jobs:
           CERT_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
         run: node test/test-eric-routes.js
 
+      - name: Submit-lock recovery suite (a deploy/crash mid-submission must never leave a return stuck, and never cause a double filing)
+        working-directory: backend
+        env:
+          FRONTEND_URL: https://www.taxfile24.com/
+          CERT_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+        run: node test/test-submit-recovery.js
+
+      - name: Process lifecycle suite (crash handling, graceful shutdown on deploy)
+        working-directory: backend
+        run: node test/test-lifecycle.js
+
       - name: Security suite - state and integrity (server-owned fields, immutability, deletion)
         working-directory: backend
         env:

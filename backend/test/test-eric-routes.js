@@ -54,8 +54,8 @@ const FORGED = { personA: { vorname: 'Forged', nachname: 'Victim', idnr: '999999
 
   /* ---- init error disclosure ---- */
   ericMock._ready = false; ericMock._initError = 'cannot load /opt/render/project/src/backend/eric-linux/lib/libericapi.so';
-  process.env.ERIC_SUBMISSION_MODE = 'production'; const p1 = await request(app).get('/api/eric/finanzaemter').set('Authorization', 'Bearer ' + A.t);
-  process.env.ERIC_SUBMISSION_MODE = 'test'; const p2 = await request(app).get('/api/eric/finanzaemter').set('Authorization', 'Bearer ' + A.t);
+  process.env.ERIC_SUBMISSION_MODE = 'production'; const p1 = await post(app, A, '/api/eric/validate-fields', { iban: 'DE89370400440532013000' });
+  process.env.ERIC_SUBMISSION_MODE = 'test'; const p2 = await post(app, A, '/api/eric/validate-fields', { iban: 'DE89370400440532013000' });
   ericMock._ready = true;
   rec('R11', 'In production the ERiC init error (server paths) is NOT shown to users; in test mode it still is, for debugging', p1.status === 501 && !JSON.stringify(p1.body).includes('/opt/') && JSON.stringify(p2.body).includes('/opt/'), `prod=${JSON.stringify(p1.body)} test=${JSON.stringify(p2.body).slice(0, 80)}`);
 
@@ -64,7 +64,7 @@ const FORGED = { personA: { vorname: 'Forged', nachname: 'Victim', idnr: '999999
   rec('R12', 'Full validation is limited per user per minute (429 after the limit)', st.indexOf(429) === 6, st.join(','));   // calls 1-6 pass the limiter, the 7th is refused
   const r13 = await post(app, B, '/api/eric/validate', { clientId: 'zzz', interchangeData: { meta: { taxYear: 2025 }, hauptvordruck: { personA: { vorname: 'X', idnr: '12345678901' } } } });
   rec('R13', "One user's limit does not block another user", r13.status !== 429, 'status ' + r13.status);
-  rec('R14', 'All four ERiC routes require login (401)', (await Promise.all([request(app).get('/api/eric/finanzaemter'), request(app).post('/api/eric/validate-fields').send({}), request(app).post('/api/eric/validate').send({}), request(app).post('/api/eric/inquiry-message').send({})])).every(r => r.status === 401));
+  rec('R14', 'All four ERiC routes (submit, validate-fields, validate, inquiry-message) require login (401)', (await Promise.all([request(app).post('/api/eric/submit').send({}), request(app).post('/api/eric/validate-fields').send({}), request(app).post('/api/eric/validate').send({}), request(app).post('/api/eric/inquiry-message').send({})])).every(r => r.status === 401));
 
   const badr = results.filter(r => !r.ok);
   console.log(`\n===== ERiC route suite: ${results.length - badr.length} secure, ${badr.length} VULNERABLE =====`); if (badr.length) console.log('Vulnerable:', badr.map(b => b.id).join(', '));

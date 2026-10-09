@@ -65,6 +65,11 @@ jobs:
                   u = m.group(1)
                   if re.match(r'^(https?:|mailto:|tel:|data:|javascript:|//)', u) or u.startswith('${') or '$' in u: continue
                   if not os.path.exists(os.path.join('_site', u)): missing.append(f'{page} -> {u}')
+          # the Finanzamt picker loads this file with fetch() (not a src/href), so the check above cannot see it; without it the
+          # app silently falls back to typing the office in by hand
+          all_html = ''.join(open(os.path.join('_site', f), encoding='utf-8').read() for f in os.listdir('_site') if f.endswith('.html'))
+          if 'finanzamt-directory.json' in all_html and not os.path.exists('_site/assets/finanzamt-directory.json'):
+              print('::warning::assets/finanzamt-directory.json is not in the public site - the Finanzamt search will fall back to manual entry. Generate it with tools/export-finanzaemter.js and commit it to assets/.')
           if missing:
               print('::error::Published pages reference files that are not in the public site:'); [print('  ', x) for x in missing]; sys.exit(1)
           print('All local references resolve.')

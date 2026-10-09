@@ -112,12 +112,32 @@ const corsOptions = {
    response (preflight included) ever comes back at all. These
    handlers make sure the actual cause is always visible in the logs
    rather than a silent exit. */
+/* After an uncaught exception the process is in an UNKNOWN state (half-finished work, leaked locks, hung requests).
+   Carrying on - which this handler used to do - risks wrong results; the safe response is: record the cause, stop taking
+   new requests, let in-flight ones finish for a few seconds, and exit non-zero so Render starts a clean process.
+   The same graceful path runs on SIGTERM, which is how Render stops the old instance on every deploy: before, the process
+   was killed mid-request, and a customer's submission caught in that moment stayed locked as "submitting" forever. */
+let httpServer = null, shuttingDown = false;
+function shutdown(reason, exitCode, graceMs) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.error(`[shutdown] ${reason} - no new connections; waiting up to ${graceMs} ms for requests in flight`);
+  const force = setTimeout(() => { console.error('[shutdown] grace period over, forcing exit'); process.exit(exitCode || 1); }, graceMs);
+  if (!httpServer) { clearTimeout(force); setTimeout(() => process.exit(exitCode), 100); return; }   // not listening (e.g. under test)
+  httpServer.close(() => { clearTimeout(force); process.exit(exitCode); });
+}
 process.on('uncaughtException', (err) => {
   console.error('[fatal] uncaught exception:', err);
+  shutdown('uncaught exception', 1, 5000);
 });
+/* Unhandled rejections stay log-only on purpose: route handlers can't cause them (Express 5 catches those) and the
+   fire-and-forget writers (audit, migrations) catch their own errors, so what's left is rare noise - restarting the server
+   (up to a minute of downtime on a free instance) for each one would do more harm than good. They are logged loudly. */
 process.on('unhandledRejection', (reason) => {
-  console.error('[fatal] unhandled rejection:', reason);
+  console.error('[fatal] unhandled rejection (process kept running):', reason);
 });
+process.on('SIGTERM', () => shutdown('SIGTERM (deploy / restart)', 0, 25000));
+process.on('SIGINT', () => shutdown('SIGINT', 0, 5000));
 
 const pool = new Pool({ connectionString: DATABASE_URL });
 const app = express();
@@ -578,7 +598,7 @@ const DUMMY_HASH = bcrypt.hashSync('timing-equaliser-not-a-real-password', 12);
    or erase a payment by saving from a stale tab. On every save these fields are now taken from the STORED record, never
    from the request. The browser keeps only its own discount-selection UI state inside pay{}. */
 const CLIENT_PAY_KEYS = ['discountCode', 'discountFinal', 'discountOff'];
-const SERVER_OWNED_FIELDS = ['transferTicket', 'submittedAt', 'unresolvedForeignIncome', 'reminded_at'];
+const SERVER_OWNED_FIELDS = ['transferTicket', 'submittedAt', 'unresolvedForeignIncome', 'reminded_at', 'submittingSince'];
 function canonicalJson(v) {                      // key order must not matter: JSONB reorders keys, browsers don't
   if (Array.isArray(v)) return '[' + v.map(canonicalJson).join(',') + ']';
   if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + canonicalJson(v[k])).join(',') + '}';
@@ -587,7 +607,7 @@ function canonicalJson(v) {                      // key order must not matter: J
 /* The part of a return that must not change after submission. Excluded: things legitimately touched afterwards
    (inquiry log, uploaded documents, timestamps) and the server-owned fields themselves. */
 function contentObj(c) {
-  const { updatedAt, inq, docs, freigabe, pay, status, transferTicket, submittedAt, unresolvedForeignIncome, reminded_at, ...content } = c || {};
+  const { updatedAt, inq, docs, freigabe, pay, status, transferTicket, submittedAt, unresolvedForeignIncome, reminded_at, submittingSince, ...content } = c || {};
   return content;
 }
 function contentOnly(c) { return canonicalJson(contentObj(c)); }
@@ -1205,7 +1225,7 @@ app.put('/api/clients/bulk', auth, async (req, res) => {
 });
 
 app.delete('/api/clients/:id', auth, async (req, res) => {
-  const del = await pool.query(`DELETE FROM clients WHERE id=$1 AND user_id=$2 AND COALESCE(data->>'status','') <> 'submitting'`, [req.params.id, req.user.sub]);
+  const del = await pool.query(`DELETE FROM clients WHERE id=$1 AND user_id=$2 AND (COALESCE(data->>'status','') <> 'submitting' OR COALESCE((data->>'submittingSince')::bigint, 0) < $3)`, [req.params.id, req.user.sub, Date.now() - SUBMIT_LOCK_TTL_MS]);
   res.json({ ok: true, deleted: del.rowCount || 0 });
 });
 
@@ -1524,19 +1544,8 @@ const ericLimiter = rateLimit({
   keyGenerator: (req) => 'eric:' + (req.user && req.user.sub ? req.user.sub : 'anon'),
   message: { error: 'rate_limited' }, standardHeaders: true, legacyHeaders: false,
 });
-app.get('/api/eric/finanzaemter', auth, async (req, res) => {
-  if (!ericService.isReady()) {
-    return res.status(501).json({ error: 'eric_unavailable', detail: ericInitDetail() });
-  }
-  try {
-    const result = await ericService.getFinanzaemter();
-    res.json(result);
-  } catch (e) {
-    console.error('[eric/finanzaemter]', e.message);
-    res.status(500).json({ error: 'server_error' });
-  }
-});
-
+/* (GET /api/eric/finanzaemter was removed: the Finanzamt picker reads the static assets/finanzamt-directory.json in the browser
+   and nothing called this route.) */
 app.post('/api/eric/validate-fields', auth, async (req, res) => {
   if (!ericService.isReady()) {
     return res.status(501).json({ error: 'eric_unavailable', detail: ericInitDetail() });
@@ -1671,11 +1680,51 @@ app.post('/api/eric/validate', auth, ericLimiter, async (req, res) => {
    confirmation with a timestamp - is a separate, not-yet-built frontend
    piece; this route enforces that the flag is present, it does not itself
    constitute compliant Freigabe UX). */
+/* ---- stale "submitting" lock recovery (audit) ----
+   A return is marked "submitting" while ERiC works (a few seconds, 30 s at most). If the server stopped in that window
+   (a deploy, a crash, running out of memory) the mark stayed forever and the customer could never submit again.
+   Simply unlocking after a timeout would be UNSAFE: if the server died while the transmission was already running, the
+   customer could file twice. The submission_approvals row is written BEFORE ERiC is called and updated AFTER, so it says
+   what really happened:
+     - submitted = true            -> it WAS sent: record that (status, ticket) and do NOT send again
+     - a result code but not sent  -> ERiC rejected it: provably not sent, safe to unlock and retry
+     - no attempt record at all    -> died before anything was sent: safe to unlock and retry
+     - an attempt but NO result    -> unknown (it may or may not have reached the tax office): the customer must confirm
+   A lock younger than SUBMIT_LOCK_TTL_MINUTES (default 10, i.e. 20x the ERiC timeout) is treated as genuinely in progress. */
+const SUBMIT_LOCK_TTL_MS = Math.max(0.05, parseFloat(process.env.SUBMIT_LOCK_TTL_MINUTES || '10')) * 60 * 1000;
+async function reconcileStaleSubmission(userId, clientId, stored, acknowledgeUnknown) {
+  if (stored.status !== 'submitting') return { action: 'none' };
+  const since = Number(stored.submittingSince) || 0;                    // locks from before this feature have no timestamp: stale
+  if (Date.now() - since < SUBMIT_LOCK_TTL_MS) return { action: 'in_progress' };
+  const staleBefore = Date.now() - SUBMIT_LOCK_TTL_MS;
+  const { rows } = await pool.query(
+    `SELECT id, eric_rc, submitted, transfer_ticket FROM submission_approvals WHERE client_id=$1 AND user_id=$2 ORDER BY id DESC LIMIT 1`,
+    [clientId, userId]);
+  const attempt = rows[0];
+  const staleWhere = `id=$1 AND user_id=$2 AND data->>'status'='submitting' AND COALESCE((data->>'submittingSince')::bigint, 0) < $3`;
+  if (attempt && attempt.submitted) {
+    const upd = await pool.query(
+      `UPDATE clients SET data = jsonb_set(jsonb_set(jsonb_set(jsonb_set(jsonb_set(data, '{submittingSince}', 'null'), '{status}', '"submitted"'),
+           '{transferTicket}', $4::jsonb), '{submittedAt}', $5::jsonb), '{unresolvedForeignIncome}', COALESCE(data->'unresolvedForeignIncome', '[]'::jsonb)),
+         submitted_snapshot_sha256 = $6, updated_at = now()
+       WHERE ${staleWhere}`,
+      [clientId, userId, staleBefore, JSON.stringify(attempt.transfer_ticket || null), JSON.stringify(Date.now()), sha256(contentOnly(stored))]);
+    if (upd.rowCount) audit(userId, 'submit_lock_recovered', { clientId, outcome: 'was_sent', approvalId: attempt.id });
+    return { action: 'finalized', transferTicket: attempt.transfer_ticket || null };
+  }
+  const provablyNotSent = !attempt || attempt.eric_rc !== null;
+  if (!provablyNotSent && !acknowledgeUnknown) return { action: 'unknown' };
+  const rel = await pool.query(
+    `UPDATE clients SET data = jsonb_set(jsonb_set(data, '{status}', '"draft"'), '{submittingSince}', 'null'), updated_at = now() WHERE ${staleWhere}`,
+    [clientId, userId, staleBefore]);
+  if (rel.rowCount) audit(userId, 'submit_lock_recovered', { clientId, outcome: provablyNotSent ? 'not_sent' : 'unknown_acknowledged', approvalId: attempt ? attempt.id : null });
+  return { action: 'released' };
+}
 app.post('/api/eric/submit', auth, async (req, res) => {
   if (!ericService.isReady()) {
     return res.status(501).json({ error: 'eric_unavailable', detail: ericInitDetail() });
   }
-   const { clientId, interchangeData, freigabeConfirmed, lang, certificatePassword } = req.body || {};
+   const { clientId, interchangeData, freigabeConfirmed, lang, certificatePassword, acknowledgeUnknownOutcome } = req.body || {};
    if (!clientId || !interchangeData) return res.status(400).json({ error: 'invalid_input' });
   if (!freigabeConfirmed) return res.status(400).json({ error: 'freigabe_required' });
 
@@ -1729,13 +1778,18 @@ app.post('/api/eric/submit', auth, async (req, res) => {
      database actually changed), not just re-reading the value
      afterward. Every exit path below releases the lock so a genuine
      failure never permanently locks the client out of retrying. */
-   const claim = await pool.query(
-    `UPDATE clients SET data = jsonb_set(data, '{status}', '"submitting"')
+   const recovery = await reconcileStaleSubmission(req.user.sub, clientId, stored, acknowledgeUnknownOutcome === true);
+  if (recovery.action === 'in_progress') return res.status(409).json({ error: 'already_submitted_or_in_progress' });
+  if (recovery.action === 'unknown') return res.status(409).json({ error: 'submission_outcome_unknown' });
+  if (recovery.action === 'finalized') return res.json({ ok: true, recovered: true, rc: 0, resultXml: '', serverXml: '', transferTicket: recovery.transferTicket });
+  if (recovery.action === 'released') stored.status = 'draft';
+  const claim = await pool.query(
+    `UPDATE clients SET data = jsonb_set(jsonb_set(data, '{status}', '"submitting"'), '{submittingSince}', $3::jsonb)
      WHERE id=$1 AND user_id=$2
        AND (data->>'status' IS DISTINCT FROM 'submitted')
        AND (data->>'status' IS DISTINCT FROM 'submitting')
      RETURNING id`,
-    [clientId, req.user.sub]
+    [clientId, req.user.sub, JSON.stringify(Date.now())]
   );
   if (claim.rowCount === 0) {
     return res.status(409).json({ error: 'already_submitted_or_in_progress' });
@@ -1743,7 +1797,7 @@ app.post('/api/eric/submit', auth, async (req, res) => {
   const previousStatus = stored.status || 'draft';
   const releaseLock = async (newStatus) => {
     await pool.query(
-      `UPDATE clients SET data = jsonb_set(data, '{status}', $3::jsonb) WHERE id=$1 AND user_id=$2`,
+      `UPDATE clients SET data = jsonb_set(jsonb_set(data, '{status}', $3::jsonb), '{submittingSince}', 'null') WHERE id=$1 AND user_id=$2`,
       [clientId, req.user.sub, JSON.stringify(newStatus)]
     ).catch(e => console.error('[eric/submit] could not release submission lock:', e.message));
   };
@@ -1894,7 +1948,7 @@ app.post('/api/eric/submit', auth, async (req, res) => {
           const cur = await pool.query('SELECT data FROM clients WHERE id=$1 AND user_id=$2', [clientId, req.user.sub]);
           const baseline = cur.rows[0] ? sha256(contentOnly(cur.rows[0].data)) : null;
           await pool.query(
-            `UPDATE clients SET data = jsonb_set(jsonb_set(jsonb_set(jsonb_set(data, '{status}', '"submitted"'),
+            `UPDATE clients SET data = jsonb_set(jsonb_set(jsonb_set(jsonb_set(jsonb_set(data, '{submittingSince}', 'null'), '{status}', '"submitted"'),
                  '{transferTicket}', $3::jsonb), '{unresolvedForeignIncome}', $4::jsonb), '{submittedAt}', $5::jsonb),
                submitted_snapshot_sha256 = $6, updated_at = now()
              WHERE id=$1 AND user_id=$2`,
@@ -2043,6 +2097,7 @@ app.post('/api/eric/inquiry-message', auth, ericLimiter, async (req, res) => {
       datenlieferant: stored.datenlieferant,
     };
     let attachmentOpt;
+    // eslint-disable-next-line no-control-regex -- stripping control characters from the filename is the point
     if (attachment) attachmentOpt = { base64: attachment.base64, filename: attachment.filename.replace(/[\\/\u0000-\u001f"<>|:*?]/g, '_') };
     const { xml } = buildSonstigeNachrichtXML(data, {
       herstellerID: process.env.ERIC_HERSTELLER_ID,
@@ -2204,6 +2259,6 @@ if (require.main === module) {
   pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS submitted_snapshot_sha256 TEXT`)
     .catch(e => console.error('[startup] could not ensure submitted_snapshot_sha256 column:', e.message));
 
-  app.listen(PORT, () => console.log(`SimplyTax API listening on :${PORT}`));
+  httpServer = app.listen(PORT, () => console.log(`SimplyTax API listening on :${PORT}`));
 }
 module.exports = app;

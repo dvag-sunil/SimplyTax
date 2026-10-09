@@ -1036,7 +1036,6 @@ en: {
  gross:"Gross salary (line 3)", wage_tax:"Wage tax withheld (line 4)", soli:"Solidarity surcharge (line 5)", church_paid:"Church tax withheld (lines 6/7)",
  s3_lead:"Social insurance contributions - usually taken from lines 22-27 of the Lohnsteuerbescheinigung. Almost every taxpayer needs this section (Anlage Vorsorgeaufwand).",
  rv:"Pension insurance, employee share (line 23)", kv:"Health insurance, employee share (line 25)", pv:"Long-term care insurance (line 26)", av:"Unemployment insurance (line 27)",
- other_ins:"Other insurance (liability, accident...)",
  s4_lead:"Deductible income-related costs (Anlage N): structured items (commuting, home office, double household) plus itemized expenses below. The €1,230 lump sum per employed person is applied automatically if entries are lower. Enter each cost only once.",
  commute_days:"Commuting days per year", commute_km:"One-way distance (km)", home_office:"Home-office days",
  commute_mode:"How is the commute usually made?",
@@ -1212,6 +1211,7 @@ en: {
  search_hint:"Type at least 2 characters to search.", search_no_results:"No match found for this yet.",
  search_category_note:"Selecting this adds a new entry with this category already chosen.",
  freigabe_unknown_error:"An error was reported without further detail.",
+ submit_unknown_confirm:"An earlier attempt to send this return was interrupted, and we cannot tell whether it reached the tax office. If you send it again, the tax office may receive it twice. If you can, check your ELSTER account first. Send it again now?",
    freigabe_material_gaps_title:"This can't be submitted yet", freigabe_material_gaps_sub:"These items need to be resolved before this return can be sent. They're not a formatting issue ERiC caught. They're real, open questions this app can't answer on its own.",
   freigabe_unresolved_title:"Not included in this submission", freigabe_unresolved_sub:"The rest of this return will still be sent. These specific items will not be, since they still need confirmation - go back and confirm them if you're ready, or leave them out for now and handle them separately.",
  unresolved_banner_title:"Foreign rental income not yet sent", unresolved_banner_sub:"This return may already be submitted, but the income below was deliberately left out because the tax treaty treatment for this country hasn't been confirmed. Once confirmed, this can be filed as a correction.", unresolved_banner_go:"Go confirm this",
@@ -1559,7 +1559,6 @@ de: {
  gross:"Bruttoarbeitslohn (Zeile 3)", wage_tax:"Einbehaltene Lohnsteuer (Zeile 4)", soli:"Solidaritätszuschlag (Zeile 5)", church_paid:"Einbehaltene Kirchensteuer (Zeile 6/7)",
  s3_lead:"Sozialversicherungsbeiträge - in der Regel aus den Zeilen 22-27 der Lohnsteuerbescheinigung. Fast jede steuerpflichtige Person braucht diesen Abschnitt (Anlage Vorsorgeaufwand).",
  rv:"Rentenversicherung, Arbeitnehmeranteil (Zeile 23)", kv:"Krankenversicherung, Arbeitnehmeranteil (Zeile 25)", pv:"Pflegeversicherung (Zeile 26)", av:"Arbeitslosenversicherung (Zeile 27)",
- other_ins:"Weitere Versicherungen (Haftpflicht, Unfall...)",
  s4_lead:"Abziehbare Werbungskosten (Anlage N): strukturierte Angaben (Pendlerpauschale, Homeoffice, doppelte Haushaltsführung) plus Einzelposten weiter unten. Der Arbeitnehmer-Pauschbetrag von 1.230 € je erwerbstätiger Person wird automatisch angesetzt. Jede Ausgabe nur einmal erfassen.",
  commute_days:"Arbeitstage mit Fahrt zur Arbeit", commute_km:"Einfache Entfernung (km)", home_office:"Homeoffice-Tage",
  commute_mode:"Wie wird der Arbeitsweg üblicherweise zurückgelegt?",
@@ -1735,6 +1734,7 @@ de: {
  search_hint:"Mindestens 2 Zeichen zum Suchen eingeben.", search_no_results:"Dafür wurde noch nichts Passendes gefunden.",
  search_category_note:"Bei Auswahl wird ein neuer Eintrag mit dieser Kategorie angelegt.",
  freigabe_unknown_error:"Ein Fehler wurde ohne weitere Details gemeldet.",
+ submit_unknown_confirm:"Ein früherer Versuch, diese Steuererklärung zu übermitteln, wurde unterbrochen, und wir können nicht feststellen, ob sie beim Finanzamt angekommen ist. Wenn Sie erneut senden, erhält das Finanzamt sie möglicherweise doppelt. Prüfen Sie nach Möglichkeit zuerst Ihr ELSTER-Konto. Jetzt erneut senden?",
    freigabe_material_gaps_title:"Das kann noch nicht übermittelt werden", freigabe_material_gaps_sub:"Diese Punkte müssen geklärt werden, bevor diese Erklärung gesendet werden kann. Es handelt sich nicht um ein Formatproblem, das ERiC erkannt hat, sondern um echte, offene Fragen, die diese App nicht selbst beantworten kann.",
   freigabe_unresolved_title:"Nicht in dieser Übermittlung enthalten", freigabe_unresolved_sub:"Der Rest dieser Erklärung wird trotzdem gesendet. Diese Punkte jedoch nicht, da sie noch bestätigt werden müssen - gehen Sie zurück und bestätigen Sie sie, wenn Sie bereit sind, oder lassen Sie sie vorerst aus und klären Sie sie separat.",
  unresolved_banner_title:"Ausländische Mieteinnahmen noch nicht gesendet", unresolved_banner_sub:"Diese Erklärung wurde möglicherweise bereits übermittelt, die untenstehenden Einkünfte wurden jedoch bewusst ausgelassen, da die steuerliche Behandlung laut Abkommen mit diesem Land noch nicht bestätigt wurde. Nach Bestätigung kann dies als Korrektur nachgereicht werden.", unresolved_banner_go:"Jetzt bestätigen",
@@ -2252,7 +2252,7 @@ function newClient(f,l,year,marital){
  emps:[], kap:[], props:[], privIns:[], wkItems:[], rente:[],
  oth:{ ersatz:'', gdbA:'', gdbB:'', fahrtA:'', fahrtB:'', pflegeA:'', pflegeB:'', pflegePersonA:'', pflegePersonAId:'', pflegePersonAResident:'', pflegePersonAH:false, pflegePersonB:'', pflegePersonBId:'', pflegePersonBResident:'', pflegePersonBH:false,
  realsplitting:'', realsplitIdnr:'', realsplitName:'', lossCarry:'', soGain:'', soUnterhalt:'', energCost:'', energStage:'' },
- ins:{ rv:'',kv:'',pv:'',av:'',other:'' },
+ ins:{ rv:'',kv:'',pv:'',av:'' },
  wk:{ commuteDays:'',commuteKm:'',commuteMode:'',commutePublicCost:'',commuteWorkplace:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',
  dhhRent:'',dhhMonths:'',dhhTrips:'',dhhKm:'',relocation:'',dhhReason:'',dhhDate:'',dhhWorkplace:'',dhhOwnHousehold:'',dhhOwnPlz:'',dhhOwnSince:'',dhhContinuousUntil:'',dhhTravelMode:'' },
  wkB:{ commuteDays:'',commuteKm:'',commuteMode:'',commutePublicCost:'',commuteWorkplace:'',homeOffice:'',equipment:'',training:'',other:'',arbeitszimmer:'',
@@ -3043,7 +3043,7 @@ function computeEstimate(c){
  + Math.max(0, N(e.pkv28)-N(e.agPKV)), 0);
  const basisA = svBasisPerson('A') + (joint?0:svBasisPerson('B')) + N(c.ins.kv)+N(c.ins.pv) + pins.A.basis;
  const basisB = joint ? (svBasisPerson('B') + pins.B.basis) : 0;
- const sonstA = inc.avA + (joint?0:inc.avB) + N(c.ins.av) + N(c.ins.other) + pins.A.vorsorge;
+ const sonstA = inc.avA + (joint?0:inc.avB) + N(c.ins.av) + pins.A.vorsorge;
  const sonstB = joint ? (inc.avB + pins.B.vorsorge) : 0;
  const nr3A = Math.max(basisA, Math.min(basisA + sonstA, employedA ? 1900 : 2800));
  const nr3B = Math.max(basisB, Math.min(basisB + sonstB, employedB ? 1900 : 2800));
@@ -3881,7 +3881,7 @@ function stepDone(c,i){
  return ok?'done':'incomplete';
  }
  case 6: {
- if(!(N(c.sa.donations)+N(c.ins.other)+N(c.oth.realsplitting)>0)) return 'empty';
+ if(!(N(c.sa.donations)+N(c.oth.realsplitting)>0)) return 'empty';
  /* CORRECTED: real gap found via direct feedback - this case previously
  had no way to return 'incomplete' at all, so the Realsplitting
  ex-spouse Tax ID/name (required by ELSTER once an amount is entered,
@@ -5831,7 +5831,7 @@ function stepSummary(c){
  ${sumGroup(t('step_unt'),5,(c.unt||[]).flatMap((u,i)=>[
  [`${t('support_amount')} ${i+1}${u.untName?' ('+esc(u.untName)+')':''}`,m(u.support)],
  [t('support_where'),N(u.support)>0?{1:t('grp1'),2:t('grp2'),3:t('grp3'),4:t('grp4')}[u.supportGroup]:'']]))}
- ${sumGroup(t('special_exp'),6,[[t('donations'),m(c.sa.donations)],[t('other_ins'),m(c.ins.other)]])}
+ ${sumGroup(t('special_exp'),6,[[t('donations'),m(c.sa.donations)]])}
  ${sumGroup(t('step_priv'),7,(c.privIns||[]).map(x=>[
  esc(insLabel(x.type)||t('ins_type')),
  esc(`${eur(N(x.beitrag))} − ${eur(N(x.erstattung))} = ${eur(Math.max(0,N(x.beitrag)-N(x.erstattung)))}${INS_CAT[x.type]==='none'?' ('+t('cat_none')+')':''}`)]))}
@@ -6647,11 +6647,11 @@ async function submitWithCertPassword(clientId){
  throw e; // any other failure already has its own handling inside performSubmission
  }
 }
-async function performSubmission(c, data, certificatePassword){
+async function performSubmission(c, data, certificatePassword, acknowledgeUnknown){
  setBusy(true);
  try{
  c.freigabe = { at: Date.now(), dataHash: await sha256Hex(JSON.stringify(data)) };
-  const sr = await api('/api/eric/submit','POST',{ clientId:c.id, interchangeData:data, freigabeConfirmed:true, lang:S.lang, ...(certificatePassword?{certificatePassword}:{}) });
+  const sr = await api('/api/eric/submit','POST',{ clientId:c.id, interchangeData:data, freigabeConfirmed:true, lang:S.lang, ...(certificatePassword?{certificatePassword}:{}), ...(acknowledgeUnknown?{acknowledgeUnknownOutcome:true}:{}) });
  setBusy(false);
  const m=document.querySelector('.modal-bg'); if(m) m.remove();
  const slot=document.getElementById('modal-slot');
@@ -6683,6 +6683,13 @@ async function performSubmission(c, data, certificatePassword){
  setBusy(false);
  if(e && (e.message==='wrong_certificate_password' || e.message==='no_certificate_on_file')){
  throw e; // handled inline by submitWithCertPassword's own modal, not shown as a generic alert here
+ }
+ if(e && e.message==='submission_outcome_unknown'){
+ /* a previous attempt was interrupted (e.g. a server restart) and we cannot tell whether it reached the tax office:
+    sending again could file twice, so the customer has to confirm explicitly */
+ const m=document.querySelector('.modal-bg'); if(m) m.remove();
+ if(window.confirm(t('submit_unknown_confirm'))) return performSubmission(c, data, certificatePassword, true);
+ return;
  }
  if(e && e.message==='certificate_required'){
  const m=document.querySelector('.modal-bg'); if(m) m.remove();
@@ -7000,7 +7007,7 @@ function buildElsterDataset(c){
  agKV:inc.agKVB, agPKV:inc.agPKVB, agPV:inc.agPVB, agRV:inc.agRVB },
  privateVersicherungen:(c.privIns||[]).map(x=>({ person:x.person==='B'?'B':'A', typ:x.type, bezeichnung:insLabel(x.type),
  kategorie:INS_CAT[x.type]||'', beitrag:N(x.beitrag), erstattung:N(x.erstattung),
- netto:Math.max(0,N(x.beitrag)-N(x.erstattung)) })), sonstigeVersicherungen:N(c.ins.other) },
+ netto:Math.max(0,N(x.beitrag)-N(x.erstattung)) })) },
  anlageKind:(c.fam.children||[]).map(k=>({ vorname:k.name, surnameIfDifferent:k.surnameIfDifferent||'', geburtsdatum:k.birth, idnr:(k.taxId||'').replace(/\s/g,''),
  kinship:k.kinship||'leiblich', familienkasse:k.familienkasse||'', otherParentName:k.otherParentName||'',
  kindergeld:N(k.kindergeld), betreuungskosten:N(k.childcare),
@@ -7171,7 +7178,6 @@ function importElsterDataset(data){
 
   const vor = data.anlageVorsorgeaufwand || {};
   c.privIns = (vor.privateVersicherungen || []).map(x => ({ id: uid(), person: x.person==='B'?'B':'A', type: x.typ||'', beitrag: x.beitrag||'', erstattung: x.erstattung||'' }));
-  c.ins.other = vor.sonstigeVersicherungen || '';
 
   c.fam.children = (data.anlageKind || []).map(k => ({
     id: uid(), name: k.vorname||'', surnameIfDifferent: k.surnameIfDifferent||'', birth: k.geburtsdatum||'', taxId: k.idnr||'',
@@ -7410,7 +7416,7 @@ function buildPDF(c){
  if(N(u.support)>0) row(t('support_where'), {1:t('grp1'),2:t('grp2'),3:t('grp3'),4:t('grp4')}[u.supportGroup]);
  });
  y+=3; section(t('special_exp'));
- row(t('donations'),m(c.sa.donations)); row(t('other_ins'),m(c.ins.other));
+ row(t('donations'),m(c.sa.donations));
  if((c.privIns||[]).length){ y+=3; section(t('step_priv'));
  (c.privIns||[]).forEach(x=>{ if(!x.type && N(x.beitrag)===0) return;
  row(insLabel(x.type)||t('ins_type'),

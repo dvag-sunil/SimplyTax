@@ -17,13 +17,11 @@ const ericMock = {
   _validateResult: { rc: 0, resultXml: '<ok/>' },
   _submitResult: { rc: 0, sent: true, resultXml: '<ok/>', serverXml: '<Transferticket>TEST-123</Transferticket>' },
   _validateFieldsResult: {},
-  _finanzaemterResult: { rc: 0, landEntries: [], perLand: {} },
   isReady: () => ericMock._ready,
   getInitError: () => ericMock._initError,
   validate: async () => ericMock._validateResult,
   submit: async () => ericMock._submitResult,
   validateFields: async () => ericMock._validateFieldsResult,
-  getFinanzaemter: async () => ericMock._finanzaemterResult,
 };
 
 /* ---------- module interception ---------- */

@@ -54,7 +54,7 @@ const MIN = { meta: { taxYear: 2025 }, hauptvordruck: { personA: { vorname: 'Max
     const afterOmit = (await A(request(app).get('/api/clients'), u.token)).body.clients.map(c => c.id).sort().join(',');
     await A(request(app).delete('/api/clients/d2'), u.token);
     const afterDel = (await A(request(app).get('/api/clients'), u.token)).body.clients.map(c => c.id).join(',');
-    await testPool.query(`UPDATE clients SET data=jsonb_set(data,'{status}','"submitting"'::jsonb) WHERE id='d1'`);
+    await testPool.query(`UPDATE clients SET data=jsonb_set(jsonb_set(data,'{status}','"submitting"'::jsonb),'{submittingSince}',$1::jsonb) WHERE id='d1'`, [JSON.stringify(Date.now())]);   // a FRESH lock (a genuinely running submission)
     await A(request(app).delete('/api/clients/d1'), u.token);
     const afterInflight = (await A(request(app).get('/api/clients'), u.token)).body.clients.map(c => c.id).join(',');
     rec('S20', 'Omitting a return from a save keeps it; DELETE removes exactly that return; an in-flight submission cannot be deleted',
