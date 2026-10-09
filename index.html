@@ -97,6 +97,8 @@
  .btn-amber{background:var(--ink);color:#fff}
  .btn-amber:hover{background:#1d3a52}
  .btn[disabled]{opacity:.5;cursor:not-allowed}
+ .is-locked{opacity:.5;cursor:not-allowed}
+ #dz.is-locked{opacity:1;border-style:solid;background:var(--paper);color:var(--ink-soft)}
  .btn-sm{padding:6px 12px;font-size:13px;border-radius:8px}
 
  /* ---------- login ---------- */
@@ -551,7 +553,8 @@ const isPaid = c => !PAYMENT.enabled || (c && c.pay && c.pay.status==='paid');
    nothing breaks for current users during this transition. */
 const ERIC = { enabled:true }; // real backend confirmed working - was hardcoded false, meaning every submit silently ran a fake local simulation and never reached the real backend at all, regardless of certificate/server configuration
 function showAusCalc(empId){
- const c=cur(); const slot=document.getElementById('modal-slot'); if(!c||!slot) return;
+ const c=cur(); if(isLocked(c)) return;   /* opening the calculator creates data (c.aus), so it stays closed on a submitted return */
+ const slot=document.getElementById('modal-slot'); if(!c||!slot) return;
  const emp = (c.emps||[]).find(e=>e.id===empId); if(!emp) return;
  c.aus = c.aus || {};
  c.aus[empId] = c.aus[empId] || {country:'', legalBasis:'dba', totalWage:emp.gross||'', workDaysTotal:'220', workDaysForeign:'',
@@ -693,7 +696,8 @@ function updateAusResult(empId){
  };
 }
 function applyAusCalc(empId){
- const c=cur(); const emp=(c.emps||[]).find(e=>e.id===empId); if(!emp) return;
+ const c=cur(); if(isLocked(c)) return;
+ const emp=(c.emps||[]).find(e=>e.id===empId); if(!emp) return;
  updateAusResult(empId);
  const a=c.aus[empId];
  a.enabled = true; // applying always (re-)includes it - matches the person's clear intent
@@ -1215,7 +1219,7 @@ en: {
    freigabe_material_gaps_title:"This can't be submitted yet", freigabe_material_gaps_sub:"These items need to be resolved before this return can be sent. They're not a formatting issue ERiC caught. They're real, open questions this app can't answer on its own.",
   freigabe_unresolved_title:"Not included in this submission", freigabe_unresolved_sub:"The rest of this return will still be sent. These specific items will not be, since they still need confirmation - go back and confirm them if you're ready, or leave them out for now and handle them separately.",
  unresolved_banner_title:"Foreign rental income not yet sent", unresolved_banner_sub:"This return may already be submitted, but the income below was deliberately left out because the tax treaty treatment for this country hasn't been confirmed. Once confirmed, this can be filed as a correction.", unresolved_banner_go:"Go confirm this",
- locked_banner_title:"This return has been submitted", locked_banner_sub:"Its data can no longer be edited, since it now matches what was actually sent to the Finanzamt. If something needs correcting, that's a separate process from editing here.",
+ locked_banner_title:"This return has been submitted", locked_banner_sub:"Its data can no longer be edited, since it now matches what was actually sent to the Finanzamt. If something needs correcting, that's a separate process from editing here.", upload_locked:"Uploads are switched off because this return has been submitted.", locked_ctl_title:"This return has been submitted and can no longer be changed.",
   freigabe_warnings_title:"Please review before sending",
   freigabe_warnings_sub:"ERiC accepted this return, but the following items were sent using a safe default or were left out because the app cannot honestly determine them yet. Please double-check they are correct for your situation before proceeding.",
  freigabe_sent_title:"Sent using a safe default - please verify",
@@ -1739,7 +1743,7 @@ de: {
    freigabe_material_gaps_title:"Das kann noch nicht übermittelt werden", freigabe_material_gaps_sub:"Diese Punkte müssen geklärt werden, bevor diese Erklärung gesendet werden kann. Es handelt sich nicht um ein Formatproblem, das ERiC erkannt hat, sondern um echte, offene Fragen, die diese App nicht selbst beantworten kann.",
   freigabe_unresolved_title:"Nicht in dieser Übermittlung enthalten", freigabe_unresolved_sub:"Der Rest dieser Erklärung wird trotzdem gesendet. Diese Punkte jedoch nicht, da sie noch bestätigt werden müssen - gehen Sie zurück und bestätigen Sie sie, wenn Sie bereit sind, oder lassen Sie sie vorerst aus und klären Sie sie separat.",
  unresolved_banner_title:"Ausländische Mieteinnahmen noch nicht gesendet", unresolved_banner_sub:"Diese Erklärung wurde möglicherweise bereits übermittelt, die untenstehenden Einkünfte wurden jedoch bewusst ausgelassen, da die steuerliche Behandlung laut Abkommen mit diesem Land noch nicht bestätigt wurde. Nach Bestätigung kann dies als Korrektur nachgereicht werden.", unresolved_banner_go:"Jetzt bestätigen",
- locked_banner_title:"Diese Erklärung wurde übermittelt", locked_banner_sub:"Ihre Daten können nicht mehr bearbeitet werden, da sie jetzt dem tatsächlich an das Finanzamt übermittelten Stand entsprechen. Falls etwas korrigiert werden muss, ist das ein separater Vorgang, keine Bearbeitung hier.",
+ locked_banner_title:"Diese Erklärung wurde übermittelt", locked_banner_sub:"Ihre Daten können nicht mehr bearbeitet werden, da sie jetzt dem tatsächlich an das Finanzamt übermittelten Stand entsprechen. Falls etwas korrigiert werden muss, ist das ein separater Vorgang, keine Bearbeitung hier.", upload_locked:"Der Upload ist ausgeschaltet, weil diese Erklärung bereits übermittelt wurde.", locked_ctl_title:"Diese Erklärung wurde übermittelt und kann nicht mehr geändert werden.",
   freigabe_warnings_title:"Bitte vor dem Versand prüfen",
   freigabe_warnings_sub:"ERiC hat diese Erklärung angenommen, die folgenden Punkte wurden jedoch mit einem sicheren Standardwert übermittelt oder ausgelassen, da die App sie derzeit nicht zuverlässig ermitteln kann. Bitte prüfen Sie vor dem Fortfahren, ob dies für Ihre Situation zutrifft.",
  freigabe_sent_title:"Mit sicherem Standardwert übermittelt - bitte prüfen",
@@ -3279,6 +3283,28 @@ function computeEstimatePerPerson(c, person){
 
 /* ---------------- render root ---------------- */
 const app = document.getElementById('app');
+/* A submitted return is read-only. The field helpers (F, LF, CF) already switch the inputs off and the write functions refuse to
+   change anything, but the buttons that ADD, REMOVE or UPLOAD data and the worked-abroad calculator still LOOKED usable, and the
+   upload zone really worked: nothing in the upload code checked the lock, so a customer could add income statements to a return
+   that was already filed. This one central pass, run after every render, switches those controls off visibly and for real (the click
+   handler is removed, so the keyboard cannot trigger it either). It recognises a control by what it DOES (it calls one of the
+   data-changing functions), not by where it is, so an Add button added to another step later is covered automatically. */
+const LOCKED_CONTROLS = /\b(?:addItem|delItem|addChild|delChild|showAusCalc)\s*\(|getElementById\('fileInput'\)/;
+function applyLockedUi(){
+  const locked = S.view==='client' && isLocked(cur());
+  /* the file input is ONE element that survives between screens (it is not rebuilt by render), so its state is set on EVERY
+     render in both directions: otherwise opening a submitted return would leave uploads switched off on the next draft */
+  const fi=document.getElementById('fileInput'); if(fi) fi.disabled = locked;
+  if(!locked) return;
+  app.querySelectorAll('[onclick]').forEach(el=>{
+    if(el.closest('.modal-bg')) return;
+    const oc=el.getAttribute('onclick')||''; if(!LOCKED_CONTROLS.test(oc)) return;
+    el.removeAttribute('onclick'); el.classList.add('is-locked'); el.setAttribute('aria-disabled','true'); el.title=t('locked_ctl_title');
+    if(el.tagName==='BUTTON') el.disabled=true; else el.setAttribute('tabindex','-1');
+  });
+  const dz=document.getElementById('dz');
+  if(dz){ dz.classList.add('is-locked'); dz.setAttribute('aria-disabled','true'); dz.innerHTML='<div class="icon">🔒</div><b>'+esc(t('upload_locked'))+'</b>'; }
+}
 function render(){
  let html = topbar();
  if(!S.loggedIn) html += loginView();
@@ -3292,6 +3318,7 @@ function render(){
  else showInfoModal(msg);
  }
  bindGlobal();
+ applyLockedUi();
  /* Tab-navigation fix: every field commit triggers a full re-render (this app has no
  virtual-DOM diffing), which destroys the DOM node the browser was about to focus
  natively on Tab. Restore focus to whichever field was queued by the Tab handler. */
@@ -7538,6 +7565,7 @@ function showAiConsentModal(file){
  </div></div>`;
 }
 async function handleFile(file){
+ if(isLocked(cur())) return;   /* a submitted return takes no uploads: this covers both the click and the drag-and-drop path */
  /* Option B consent gate: real, persisted, one-time confirmation before
     any document ever reaches the AI provider - checked here since both
     the dropzone click and the drag-and-drop listener both funnel

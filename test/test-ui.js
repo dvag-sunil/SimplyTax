@@ -29,6 +29,7 @@ const exposeVars = [
   'rentePct', 'buildElsterDataset', 'computeEstimate', 'N', 'formatDE', 'isPaid', 'PAYMENT', 'ERIC',
   'checkTaxIdChecksum', 'checkIbanChecksum', 'checkSteuernummerChecksum', 'S', 'renderFaDropdown',
   'amountToPflegegrad', 'KINSHIP_ENUM',
+  'handleFile', 'showAusCalc', 'applyAusCalc', 'isLocked', 'LOCKED_CONTROLS',
 ];
 vm.runInContext(src + `; globalThis.__t = {${exposeVars.map(v => `${v}: typeof ${v} !== 'undefined' ? ${v} : undefined`).join(', ')}};`, ctx);
 const T = global.__t;
@@ -208,6 +209,29 @@ async function testValidationTriggers() {
     await T.checkTaxIdChecksum('abc');
     return global.__fetchCalls.length === 0;
   });
+
+
+  /* ---------- a SUBMITTED return is read-only: the upload, the calculator and every add/remove/upload control ---------- */
+  const mkRet = (id, status) => ({ id, status, taxYear: 2025, p: {}, emps: [{ id: 'e1', employer: 'ACME', gross: '1000', wageTax: '100' }], kap: [], fam: { children: [] } });
+  const locked = mkRet('L1', 'submitted'), draft = mkRet('D1', 'draft');
+  T.S.clients = [locked, draft]; T.S.view = 'client';
+  check('isLocked: true only for a submitted return (not draft, not submitting)', T.isLocked(locked) === true && T.isLocked(draft) === false && T.isLocked(mkRet('S1', 'submitting')) === false && T.isLocked(null) === false);
+  const LC = T.LOCKED_CONTROLS || /(?!)/;          // a pattern that never matches, so a missing definition FAILS the checks instead of crashing
+  const must = ["addItem('emps',{person:'A',employer:''})", "delItem('emps','e1')", "addChild()", "delChild('k1')", "showAusCalc('e1')", "document.getElementById('fileInput').click()"];
+  const mustNot = ["goDash()", "S.step++;render()", "toggleAppSearch()", "revokeAiConsent()", "setLang('de')", "event.stopPropagation();toggleAppSearch()"];
+  check('the locked-controls pattern catches every add / remove / calculator / upload handler', must.every(h => LC.test(h)), must.filter(h => !LC.test(h)).join(' | '));
+  check('...and does not touch navigation, language, search or consent buttons', mustNot.every(h => !LC.test(h)) && !!T.LOCKED_CONTROLS, mustNot.filter(h => LC.test(h)).join(' | '));
+  T.S.currentId = 'L1'; global.__fetchCalls = []; const before = JSON.stringify(locked);
+  let hf; try { hf = T.handleFile({ name: 'Lohnsteuerbescheinigung.pdf', type: 'application/pdf', size: 12345 }); } catch (e) { /* the old code ran on into the consent dialog, which needs a real DOM */ }
+  check('handleFile on a SUBMITTED return does nothing: no new statements, no network call (covers click AND drag-and-drop)', JSON.stringify(locked) === before && global.__fetchCalls.length === 0);
+  try { await hf; } catch (e) { /* see above */ }
+  try { T.showAusCalc('e1'); } catch (e) { /* the old code opened the modal, which needs a real DOM */ }
+  check('the worked-abroad calculator does not open on a submitted return (it would create data)', locked.aus === undefined && JSON.stringify(locked) === before);
+  let threw = false; try { T.applyAusCalc('e1'); } catch (e) { threw = true; }   // on the old code this throws (nothing to apply): that is a failure too
+  check('...and cannot save into it either', !threw && JSON.stringify(locked) === before);
+  check('structural: handleFile\'s FIRST statement is the lock check (the stubbed run above stops at the consent dialog, so this is what really guards the upload)', /async function handleFile\(file\)\{\s*if\(isLocked\(cur\(\)\)\) return;/.test(src));
+  T.S.currentId = 'D1'; try { T.showAusCalc('e1'); } catch (e) { /* the modal needs a real DOM; only the data creation matters here */ }
+  check('a DRAFT return is not blocked: the calculator still starts for it', !!(draft.aus && draft.aus.e1));
 
   console.log(`\n===== UI test suite: ${pass} passed, ${fail} failed =====`);
   if (failures.length) console.log('Failures:', failures);

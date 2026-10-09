@@ -17,7 +17,7 @@ const MANIFEST = [
   "path": "index.html",
   "from": "index.html",
   "check": "hash",
-  "sha": "e0244002054c5a7d6d89c2d1aea2f139cabd86ca0b8d70c674505cd464c75249"
+  "sha": "83aca32cec631ae45de591202554de49a6369ae5fbb8e35ed7ad6292e801754c"
  },
  {
   "path": "home.html",
@@ -83,7 +83,7 @@ const MANIFEST = [
   "path": "test/test-ui.js",
   "from": "test-ui.js",
   "check": "hash",
-  "sha": "b0c7e90d952bbb5c352557838bd94dbc6748b90440c8df38b92a3a9d62e92ee7"
+  "sha": "79e240253ae09853869b0d4464b8f0f9298a230fcea4776d03d9e2b90301b0f5"
  },
  {
   "path": "test/domstub.js",
@@ -191,7 +191,7 @@ const MANIFEST = [
   "path": "backend/test/harness.js",
   "from": "harness.js",
   "check": "hash",
-  "sha": "b6e315f17dcfac64beea2c63d7612024ef581cdf2224cf53dd203875f2dd281b"
+  "sha": "5695e574248ce3c783325be388d09fc03363ebd2817a43c33e2ff816ddd30980"
  },
  {
   "path": "backend/test/testdb.js",
@@ -257,7 +257,7 @@ const MANIFEST = [
   "path": "backend/test/test-hardening.js",
   "from": "test-hardening.js",
   "check": "hash",
-  "sha": "2a2d031f1cbf1dccfdc6228f30da33a1718ad37a93a970bdad06768197f32f69"
+  "sha": "21bb1b31144b6fb5dd008dfd84b4fab3941245f30cac4184a8e53aa3e0228f32"
  },
  {
   "path": "backend/test/test-account-deletion.js",
