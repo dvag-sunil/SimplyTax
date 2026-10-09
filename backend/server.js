@@ -334,18 +334,33 @@ async function sbEnsureBucket(){
   } catch (e) { console.error('bucket create failed:', e.message); }
 }
 sbEnsureBucket();
+/* Records a payment and unlocks the return. Returns true if the return is now paid by this payment, false if refused.
+   - A payment reference already in the ledger is a duplicate delivery OR a replay of an old reference. If the ledger shows it
+     was refunded, it must NOT switch the return back to paid (customers could otherwise be refunded and keep filing, by
+     re-calling /payments/verify or /paypal/capture with their old reference, or via a late duplicate webhook).
+   - A genuinely new payment (new reference) always unlocks, even after an earlier refund.
+   - Duplicates of an already-recorded paid payment are a no-op (paidAt is no longer overwritten). */
 async function markPaid(userId, clientId, sessionId, amountCents){
   await pool.query(
     `INSERT INTO payments(user_id, client_id, session_id, amount_cents, status)
      VALUES ($1,$2,$3,$4,'paid') ON CONFLICT (session_id) DO NOTHING`,
     [userId, clientId, sessionId, amountCents]);
+  /* Always read the ledger back instead of trusting the INSERT's row count (engines differ on how they report a conflicting
+     insert). A new payment reads 'paid' and proceeds; an already-recorded reference that was refunded is refused. */
+  const { rows } = await pool.query('SELECT status FROM payments WHERE session_id=$1', [sessionId]);
+  if (rows[0] && rows[0].status !== 'paid') {
+    console.error(`[payments] refused to re-activate ${sessionId}: ledger status is "${rows[0].status}"`);
+    return false;
+  }
   await pool.query(
     `UPDATE clients SET data = jsonb_set(data, '{pay}',
        jsonb_build_object('status','paid','paidAt', (extract(epoch from now())*1000)::bigint,
                           'amount', $3::numeric/100, 'txId', $4::text), true),
        updated_at = now()
-     WHERE id=$1 AND user_id=$2`,
+     WHERE id=$1 AND user_id=$2
+       AND NOT (COALESCE(data->'pay'->>'status','') = 'paid' AND COALESCE(data->'pay'->>'txId','') = $4::text)`,
     [clientId, userId, amountCents, sessionId.slice(0,24)]);
+  return true;
 }
 /* IMPLEMENTED: closes the real, confirmed gap from the payment system
    review - previously, a refund issued through the Stripe dashboard,
@@ -408,7 +423,11 @@ app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), asy
   res.json({ received: true });
 });
 
-app.use(express.json({ limit: '10mb' }));
+/* The PayPal webhook needs its RAW body (the signature is verified over the exact bytes) and is registered further down with
+   express.raw(). A global express.json() would consume the body first, so that route used to ALWAYS answer
+   400 verification_failed - PayPal refunds and the backup capture never worked. Skip the JSON parser for that one path. */
+const jsonBody = express.json({ limit: '10mb' });
+app.use((req, res, next) => (req.path === '/api/payments/paypal/webhook' ? next() : jsonBody(req, res, next)));
 
 /* ---------- AI document extraction (Lohnsteuerbescheinigung -> structured fields) ----------
    The API key lives ONLY here, server-side. The frontend never talks to api.anthropic.com
@@ -1188,11 +1207,29 @@ app.post('/api/payments/verify', auth, async (req, res) => {
   if (!sessionId) return res.status(400).json({ error: 'invalid_input' });
   const sess = await stripe.checkout.sessions.retrieve(sessionId);
   const paid = sess.payment_status === 'paid' && sess.metadata?.userId === req.user.sub;
-  if (paid) await markPaid(req.user.sub, sess.metadata.clientId, sess.id, sess.amount_total || PRICE_CENTS);
-  res.json({ paid, clientId: sess.metadata?.clientId || null });
+  const ok = paid ? await markPaid(req.user.sub, sess.metadata.clientId, sess.id, sess.amount_total || PRICE_CENTS) : false;
+  res.json({ paid: paid && ok, clientId: sess.metadata?.clientId || null });
 });
 
 /* ---------- PayPal, a second real payment option alongside Stripe ---------- */
+/* Validates a captured PayPal payment BEFORE anything is unlocked, then records it. PayPal's own guidance is to verify
+   amount and currency server-side. Without this, any capture - e.g. an order created with a tiny amount or in a weak
+   currency under this merchant account - unlocked a return, and a PENDING capture (not yet received) counted as paid. */
+async function settlePaypalCapture(custom, capture, orderId){
+  if (!custom || !custom.userId || !custom.clientId || !capture) return { paid: false };
+  if (capture.status && capture.status !== 'COMPLETED') return { paid: false, pending: true };   // money not received yet; PAYMENT.CAPTURE.COMPLETED settles it later
+  const currency = capture.amount && capture.amount.currency_code;
+  const amountCents = Math.round(parseFloat(capture.amount && capture.amount.value) * 100);
+  const expected = discountedCents(custom.discountCode).cents;
+  if (currency !== 'EUR' || !Number.isFinite(amountCents) || amountCents < expected) {
+    console.error(`[paypal] REJECTED capture ${capture.id || orderId}: got ${capture.amount && capture.amount.value} ${currency}, expected at least ${(expected / 100).toFixed(2)} EUR`);
+    audit(custom.userId, 'paypal_amount_mismatch', { clientId: custom.clientId, orderId, currency, amountCents, expected });
+    return { paid: false, rejected: true };
+  }
+  const ok = await markPaid(custom.userId, custom.clientId, 'pp_' + orderId, amountCents);
+  return { paid: ok };
+}
+
 app.post('/api/payments/paypal/create-order', auth, async (req, res) => {
   if (!PAYPAL_ENABLED) return res.status(501).json({ error: 'paypal_disabled' });
   const { clientId, discountCode } = req.body || {};
@@ -1295,9 +1332,9 @@ app.post('/api/payments/paypal/capture', auth, async (req, res) => {
   catch (e) { custom = {}; }
   if (!custom.userId || !custom.clientId || custom.userId !== req.user.sub) return res.json({ paid: false });
   const capture = realOrder.purchase_units?.[0]?.payments?.captures?.[0];
-  const amountCents = capture ? Math.round(parseFloat(capture.amount.value) * 100) : PRICE_CENTS;
-  await markPaid(custom.userId, custom.clientId, 'pp_' + orderId, amountCents);
-  res.json({ paid: true, clientId: custom.clientId });
+  const result = await settlePaypalCapture(custom, capture, orderId);
+  if (result.paid) return res.json({ paid: true, clientId: custom.clientId });
+  res.json({ paid: false, pending: !!result.pending });
 });
 
 app.post('/api/payments/paypal/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
@@ -1327,13 +1364,17 @@ app.post('/api/payments/paypal/webhook', express.raw({ type: 'application/json' 
         let custom;
         try { custom = JSON.parse(order.purchase_units?.[0]?.payments?.captures?.[0]?.custom_id || event.resource.purchase_units?.[0]?.custom_id || '{}'); }
         catch (e) { custom = {}; }
-        if (custom.userId && custom.clientId) {
-          const capture = order.purchase_units?.[0]?.payments?.captures?.[0];
-          const amountCents = capture ? Math.round(parseFloat(capture.amount.value) * 100) : PRICE_CENTS;
-          await markPaid(custom.userId, custom.clientId, 'pp_' + orderId, amountCents);
-          audit(custom.userId, 'paypal_webhook_capture', { clientId: custom.clientId, orderId });
-        }
+        const capture = order.purchase_units?.[0]?.payments?.captures?.[0];
+        const result = await settlePaypalCapture(custom, capture, orderId);
+        if (result.paid) audit(custom.userId, 'paypal_webhook_capture', { clientId: custom.clientId, orderId });
       }
+    } else if (event.event_type === 'PAYMENT.CAPTURE.COMPLETED') {
+      /* A capture that was PENDING when the customer returned (so it was not unlocked) completes later. */
+      const cap = event.resource || {};
+      let custom; try { custom = JSON.parse(cap.custom_id || '{}'); } catch (e) { custom = {}; }
+      const orderId = cap.supplementary_data?.related_ids?.order_id || cap.id;
+      const result = await settlePaypalCapture(custom, cap, orderId);
+      if (result.paid) audit(custom.userId, 'paypal_capture_completed', { clientId: custom.clientId, orderId });
     } else if (event.event_type === 'PAYMENT.CAPTURE.REFUNDED' || event.event_type === 'PAYMENT.CAPTURE.REVERSED') {
       /* Same real refund-tracking gap already closed for Stripe above,
          closed here too for PayPal - a refund on this side should not
@@ -1358,6 +1399,9 @@ app.post('/api/payments/paypal/webhook', express.raw({ type: 'application/json' 
            WHERE id=$1 AND user_id=$2`,
           [custom.clientId, custom.userId, refundedCents, ('pp_' + capture.id).slice(0,24), JSON.stringify(alreadySubmitted)]
         );
+        /* keep the payments ledger consistent with the client record (Stripe's path already does): the ledger is what stops an
+           old PayPal order id from being replayed to re-activate a refunded return */
+        await pool.query(`UPDATE payments SET status='refunded' WHERE user_id=$1 AND client_id=$2 AND status='paid' AND session_id LIKE 'pp_%'`, [custom.userId, custom.clientId]);
         audit(custom.userId, 'payment_refunded', { clientId: custom.clientId, orderId: capture.id, provider: 'paypal', alreadySubmitted });
         if (alreadySubmitted) {
           console.error(`[REFUND POLICY VIOLATION] clientId=${custom.clientId} userId=${custom.userId} was refunded via PayPal ${refundedCents/100} EUR after its return was already successfully submitted. Needs manual review.`);

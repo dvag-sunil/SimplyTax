@@ -37,6 +37,24 @@ function createTestPool() {
       return obj;
     },
   });
+  /* 4-argument form jsonb_set(target, path, value, create_missing) - used by the payment code. Same semantics for the
+     create_missing=true case that the server uses. */
+  db.public.registerFunction({
+    name: 'jsonb_set',
+    args: ['jsonb', db.public.getType('text').asArray(), 'jsonb', 'bool'],
+    returns: 'jsonb',
+    implementation: (target, path, newValue, createMissing) => {
+      const obj = JSON.parse(JSON.stringify(target ?? {}));
+      let cur = obj;
+      for (let i = 0; i < path.length - 1; i++) {
+        if (typeof cur[path[i]] !== 'object' || cur[path[i]] === null) { if (!createMissing) return obj; cur[path[i]] = {}; }
+        cur = cur[path[i]];
+      }
+      if (!createMissing && !(path[path.length - 1] in cur)) return obj;
+      cur[path[path.length - 1]] = newValue;
+      return obj;
+    },
+  });
   db.public.registerFunction({
     name: 'jsonb_build_object',
     args: [],

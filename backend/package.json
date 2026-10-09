@@ -6,7 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/test-api.js && node test/test-security-state.js && node test/test-security.js"
+    "test": "node test/test-api.js && node test/test-payments.js && node test/test-security-state.js && node test/test-security.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

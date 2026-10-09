@@ -95,6 +95,13 @@ jobs:
           node test/test-security.js | tee /tmp/sec.txt || true
           if grep -E '^VULNERABLE' /tmp/sec.txt | grep -v ' S15 '; then echo "::error::A security regression was detected"; exit 1; fi
 
+      - name: Payment security suite (Stripe + PayPal webhooks, refund replay, amount/currency checks)
+        working-directory: backend
+        env:
+          FRONTEND_URL: https://www.taxfile24.com/
+          CERT_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+        run: node test/test-payments.js
+
       - name: Security suite - state and integrity (server-owned fields, immutability, deletion)
         working-directory: backend
         env:
