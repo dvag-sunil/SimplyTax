@@ -434,7 +434,78 @@ app.use((req, res, next) => (req.path === '/api/payments/paypal/webhook' ? next(
    directly — doing so from a static GitHub Pages site would require exposing the secret key
    in public JS, which is why the earlier direct-fetch version silently failed once deployed. */
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
-const EXTRACT_MODEL = process.env.EXTRACT_MODEL || 'claude-haiku-4-5-20251001';   // cheapest current tier, plenty for structured OCR-style extraction
+const EXTRACT_MODEL = process.env.EXTRACT_MODEL || 'claude-haiku-4-5-20251001';
+/* ---- /api/extract-doc hardening (audit) ----
+   This route spends the operator's Anthropic credit. It used to take the WHOLE prompt from the browser, accept any "file",
+   and sat above the rate limiters, so it had no throttle at all: any free account was a general-purpose Claude proxy on your
+   bill. Now: the prompt is owned by the server (the browser's `prompt` field is ignored), only real PDFs/images up to the
+   document size cap are accepted, each user is limited per minute AND per day. A test (test-extract.js) fails if this prompt
+   ever drifts from the one in index.html. */
+const EXTRACT_PROMPT = `You are reading a German "Ausdruck der elektronischen Lohnsteuerbescheinigung" (annual wage tax certificate). Your task is to extract specific field values and return ONLY a valid JSON object - no markdown, no explanation, nothing else.
+
+CRITICAL - EUR/Ct COLUMN LAYOUT (the most common parsing error):
+The form has TWO narrow columns on the right: "EUR" and "Ct" (cents), separated by a vertical line.
+The EUR column contains the euros (e.g. 48.750) and the Ct column contains the cents (e.g. 03).
+You MUST read these as a SINGLE decimal number: EUR,Ct - so 48.750 | 03 = 48750.03 NOT 4875003.
+Return all monetary values as a number with a dot as decimal separator, e.g. 48750.03, 8136.00, 4533.75.
+NEVER concatenate the EUR and Ct digits without a decimal point.
+If the Ct column shows "00", still include it: 48750.00 not 48750.
+
+CRITICAL - FIELD IDENTITY RULES: - taxClass: a SINGLE digit 1-6 from the "Steuerklasse/Faktor" box. This is NEVER a decimal, NEVER more than one digit. If you see "4" in that box, taxClass = "4". - kfb (Kinderfreibeträge): a separate field, usually printed as "0,0" or "2,0" or similar. It is physically BELOW or BESIDE the Steuerklasse box. It is NEVER the same value as taxClass. If the Steuerklasse is 4, kfb might be "0,0" - do NOT copy the "4" into kfb. - idnr: the EMPLOYEE's personal 11-digit Identifikationsnummer (printed near the employee's name/address). NEVER the employer's Steuernummer (which has slashes like "181/815/08155") or Betriebsnummer. Leave empty "" if uncertain. - agRV (Zeile 22a) vs anRV (Zeile 23a): these are DIFFERENT fields on adjacent rows. Zeile 22a says "Arbeitgeber-Anteil/-Zuschuss ... a) zur gesetzlichen Rentenversicherung". Zeile 23a says "Arbeitnehmer-Anteil ... a) zur gesetzlichen Rentenversicherung". Read the LINE NUMBER carefully - do not swap them. IMPORTANT: Zeile 22a and Zeile 23a usually contain the IDENTICAL amount (employer and employee pay equal halves by German law). This is NOT a reading error and NOT a duplicate - you MUST extract BOTH values even when they are exactly the same. Never leave one of them empty because the other already has the same number. - Similarly: agKV (Zeile 24a) ≠ anKV (Zeile 25). agPV (Zeile 24c) ≠ anPV (Zeile 26).
+
+FIELD MAPPING - match each JSON key to the exact Zeile number printed on the form:
+employer = employer name from "Anschrift des Arbeitgebers" block (text, not a number)
+period = Zeile 1 Bescheinigungszeitraum (text, e.g. "01.04.-31.12.")
+taxClass = Steuerklasse/Faktor box (single digit 1-6 only)
+kfb = Zahl der Kinderfreibeträge (decimal like 0.0 or 2.0, separate from taxClass)
+idnr = employee's 11-digit Identifikationsnummer only (no slashes)
+birthDate = Geburtsdatum in YYYY-MM-DD format
+gross = Zeile 3 Bruttoarbeitslohn einschl. Sachbezüge
+wageTax = Zeile 4 Einbehaltene Lohnsteuer
+soli = Zeile 5 Einbehaltener Solidaritätszuschlag
+churchPaid = Zeile 6 Einbehaltene Kirchensteuer des Arbeitnehmers
+churchSpouse = Zeile 7 Einbehaltene Kirchensteuer des Ehegatten
+vb8 = Zeile 8 In 3. enthaltene Versorgungsbezüge
+vb9 = Zeile 9 Versorgungsbezüge für mehrere Kalenderjahre
+ml10 = Zeile 10 Arbeitslohn für mehrere Kalenderjahre / Abfindungen
+lst11 = Zeile 11 (unbesetzt on most recent forms - leave "")
+soli12 = Zeile 12 (unbesetzt on most recent forms - leave "")
+kist13 = Zeile 13 (unbesetzt on most recent forms - leave "")
+kistSp14 = Zeile 14 (unbesetzt on most recent forms - leave "")
+ersatz15 = Zeile 15 Leistungen die dem Progressionsvorbehalt unterliegen (Kurzarbeitergeld etc.)
+kug15a = Zeile 15a (Saison-)Kurzarbeitergeld in 15. enthalten
+dba16 = Zeile 16 Steuerfreier Arbeitslohn nach DBA/Auslandstätigkeitserlass (a+b combined)
+fahrt17 = Zeile 17 Steuerfreie AG-Leistungen auf Entfernungspauschale anzurechnen
+pausch18 = Zeile 18 Pauschal mit 15% besteuerte AG-Leistungen Fahrten
+entsch19 = Zeile 19 (unbesetzt on most recent forms - leave "")
+verpf20 = Zeile 20 Steuerfreie Verpflegungszuschüsse bei Auswärtstätigkeit
+dhh21 = Zeile 21 Steuerfreie AG-Leistungen bei doppelter Haushaltsführung
+agRV = Zeile 22a Arbeitgeber-Anteil/-Zuschuss zur gesetzlichen Rentenversicherung
+agRVb = Zeile 22b Arbeitgeber-Anteil/-Zuschuss an berufsständische Versorgungseinrichtung
+anRV = Zeile 23a Arbeitnehmer-Anteil zur gesetzlichen Rentenversicherung
+anRVb = Zeile 23b Arbeitnehmer-Anteil an berufsständische Versorgungseinrichtung
+agKV = Zeile 24a Arbeitgeber-Zuschuss zur gesetzlichen Krankenversicherung
+agPKV = Zeile 24b Arbeitgeber-Zuschuss zur privaten Kranken-/Pflegeversicherung
+agPV = Zeile 24c Arbeitgeber-Zuschuss zur gesetzlichen Pflegeversicherung
+anKV = Zeile 25 Arbeitnehmer-Beiträge zur gesetzlichen Krankenversicherung
+anPV = Zeile 26 Arbeitnehmer-Beiträge zur gesetzlichen Pflegeversicherung
+anAV = Zeile 27 Arbeitnehmer-Beiträge zur Arbeitslosenversicherung
+pkv28 = Zeile 28 Private Kranken-/Pflege-Pflichtversicherung oder Mindestvorsorgepauschale
+bmg29 = Zeile 29 Bemessungsgrundlage für den Versorgungsfreibetrag
+vbJahr30 = Zeile 30 Jahr des Versorgungsbeginns (4-digit year)
+vbMon31 = Zeile 31 Erster/letzter Monat der Versorgungsbezüge
+sterbe32 = Zeile 32 Sterbegeld / Abfindung Versorgungsbezüge
+fb34 = Zeile 34 Versorgungsfreibetrag
+
+Return this exact JSON structure (use "" for any field not found or empty on the form):
+{"employer":"","period":"","taxClass":"","kfb":"","idnr":"","birthDate":"","gross":"","wageTax":"","soli":"","churchPaid":"","churchSpouse":"","vb8":"","vb9":"","ml10":"","lst11":"","soli12":"","kist13":"","kistSp14":"","ersatz15":"","kug15a":"","dba16":"","fahrt17":"","pausch18":"","entsch19":"","verpf20":"","dhh21":"","agRV":"","agRVb":"","anRV":"","anRVb":"","agKV":"","agPKV":"","agPV":"","anKV":"","anPV":"","anAV":"","pkv28":"","bmg29":"","vbJahr30":"","vbMon31":"","sterbe32":"","fb34":""}`;
+const EXTRACT_MIME_OK = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/gif']);   // what the Anthropic API accepts
+const EXTRACT_DAILY_LIMIT = Math.max(1, parseInt(process.env.EXTRACT_DAILY_LIMIT || '40', 10));
+const extractLimiter = rateLimit({
+  windowMs: 60 * 1000, max: Math.max(1, parseInt(process.env.EXTRACT_PER_MINUTE || '6', 10)),
+  keyGenerator: (req) => 'extract:' + (req.user && req.user.sub ? req.user.sub : 'anon'),   // per account, after auth
+  message: { error: 'rate_limited' }, standardHeaders: true, legacyHeaders: false,
+});   // cheapest current tier, plenty for structured OCR-style extraction
 /* Operator-only control, not a user-facing setting - explicitly requested to live here rather
    than as a UI toggle. Independent of ANTHROPIC_API_KEY, so this can be switched off in
    production without touching credentials (e.g. to temporarily disable auto-fill while keeping
@@ -442,13 +513,21 @@ const EXTRACT_MODEL = process.env.EXTRACT_MODEL || 'claude-haiku-4-5-20251001'; 
    SKIP_PAYMENT_CHECK elsewhere in this file. Defaults to enabled unless explicitly set to
    'false', so existing deployments that never touch this variable see no behavior change. */
 const AI_AUTOFILL_ENABLED = process.env.AI_AUTOFILL_ENABLED !== 'false';
-app.post('/api/extract-doc', auth, async (req, res) => {
+app.post('/api/extract-doc', auth, extractLimiter, async (req, res) => {
   if(!AI_AUTOFILL_ENABLED) return res.status(501).json({ error: 'extraction_disabled', note: 'AI_AUTOFILL_ENABLED is set to false' });
   if(!ANTHROPIC_API_KEY) return res.status(501).json({ error: 'extraction_disabled', note: 'set ANTHROPIC_API_KEY to activate' });
-  const { dataUrl, prompt } = req.body || {};
-  const m = /^data:([^;]+);base64,(.+)$/.exec(dataUrl || '');
-  if(!m || !prompt) return res.status(400).json({ error: 'invalid_input' });
-  const mime = m[1].toLowerCase(), b64 = m[2];
+  const { dataUrl } = req.body || {};                          // any `prompt` sent by the browser is deliberately ignored
+  if (typeof dataUrl !== 'string' || dataUrl.length > Math.ceil(DOC_MAX_BYTES * 4 / 3) + 200) return res.status(413).json({ error: 'file_too_large' });
+  const head = /^data:([^;,]{1,60});base64,/.exec(dataUrl.slice(0, 120));      // parse only the header: no regex over megabytes
+  if (!head) return res.status(400).json({ error: 'invalid_input' });
+  const mime = head[1].toLowerCase(), b64 = dataUrl.slice(head[0].length);
+  if (!EXTRACT_MIME_OK.has(mime)) return res.status(415).json({ error: 'unsupported_type' });
+  const fileBuf = Buffer.from(b64, 'base64');
+  if (!fileBuf.length || fileBuf.length > DOC_MAX_BYTES) return res.status(413).json({ error: 'file_too_large' });
+  if (!verifyMagicBytes(fileBuf, mime)) return res.status(415).json({ error: 'type_mismatch' });    // the bytes must really be what they claim
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const { rows: used } = await pool.query(`SELECT count(*)::int AS n FROM audit_log WHERE user_id=$1 AND action='doc_extracted' AND created_at > $2`, [req.user.sub, since]);
+  if ((used[0] && used[0].n) >= EXTRACT_DAILY_LIMIT) return res.status(429).json({ error: 'extract_quota_exceeded', limit: EXTRACT_DAILY_LIMIT });
   const block = mime==='application/pdf'
     ? { type:'document', source:{ type:'base64', media_type:'application/pdf', data:b64 } }
     : { type:'image', source:{ type:'base64', media_type:mime, data:b64 } };
@@ -457,7 +536,7 @@ app.post('/api/extract-doc', auth, async (req, res) => {
       method:'POST',
       headers:{ 'Content-Type':'application/json', 'x-api-key':ANTHROPIC_API_KEY, 'anthropic-version':'2023-06-01' },
       body: JSON.stringify({ model:EXTRACT_MODEL, max_tokens:1000,
-        messages:[{ role:'user', content:[block, {type:'text', text:prompt}] }] })
+        messages:[{ role:'user', content:[block, {type:'text', text:EXTRACT_PROMPT}] }] })
     });
     if(!r.ok){ const t=await r.text(); console.error('extract-doc:', r.status, t); return res.status(502).json({ error:'ai_provider_error' }); }
     const data = await r.json();
@@ -1435,9 +1514,19 @@ app.post('/api/payments/paypal/webhook', express.raw({ type: 'application/json' 
    script (see tools/export-finanzaemter.js) that generates a static
    JSON file bundled with the frontend. Re-run the export whenever the
    directory needs refreshing (ELSTER updates this rarely). */
+/* ---- ERiC route hardening (audit) ---- */
+/* ERiC's init error can contain server file paths: show it only outside production. */
+const ericInitDetail = () => (process.env.ERIC_SUBMISSION_MODE === 'production' ? undefined : ericService.getInitError());
+/* Full validation and message sending are CPU-heavy native calls: limit them per account (a user could otherwise starve
+   everyone else on a small instance). validate-fields is NOT limited this tightly: the UI calls it while typing an IBAN. */
+const ericLimiter = rateLimit({
+  windowMs: 60 * 1000, max: Math.max(1, parseInt(process.env.ERIC_VALIDATE_PER_MINUTE || '20', 10)),
+  keyGenerator: (req) => 'eric:' + (req.user && req.user.sub ? req.user.sub : 'anon'),
+  message: { error: 'rate_limited' }, standardHeaders: true, legacyHeaders: false,
+});
 app.get('/api/eric/finanzaemter', auth, async (req, res) => {
   if (!ericService.isReady()) {
-    return res.status(501).json({ error: 'eric_unavailable', detail: ericService.getInitError() });
+    return res.status(501).json({ error: 'eric_unavailable', detail: ericInitDetail() });
   }
   try {
     const result = await ericService.getFinanzaemter();
@@ -1450,9 +1539,18 @@ app.get('/api/eric/finanzaemter', auth, async (req, res) => {
 
 app.post('/api/eric/validate-fields', auth, async (req, res) => {
   if (!ericService.isReady()) {
-    return res.status(501).json({ error: 'eric_unavailable', detail: ericService.getInitError() });
+    return res.status(501).json({ error: 'eric_unavailable', detail: ericInitDetail() });
   }
-  const { taxId, iban, bic, steuernummer, bufaNr, bundesland } = req.body || {};
+  /* These values are handed to the native ERiC library: only plain short strings (numbers are tolerated and converted). */
+  const FIELD_MAX = { taxId: 20, iban: 40, bic: 15, steuernummer: 30, bufaNr: 8, bundesland: 6 };
+  const clean = {};
+  for (const [k, max] of Object.entries(FIELD_MAX)) {
+    let v = (req.body || {})[k];
+    if (typeof v === 'number' && Number.isFinite(v)) v = String(v);
+    if (v != null && (typeof v !== 'string' || v.length > max)) return res.status(400).json({ error: 'invalid_input' });
+    clean[k] = v;
+  }
+  const { taxId, iban, bic, steuernummer, bufaNr, bundesland } = clean;
   if (taxId == null && iban == null && bic == null && steuernummer == null) return res.status(400).json({ error: 'invalid_input' });
   try {
     const result = await ericService.validateFields({ taxId, iban, bic, steuernummer, bufaNr, bundesland });
@@ -1495,9 +1593,9 @@ async function convertSteuernummerForSubmission(interchangeData) {
   }
 }
 
-app.post('/api/eric/validate', auth, async (req, res) => {
+app.post('/api/eric/validate', auth, ericLimiter, async (req, res) => {
   if (!ericService.isReady()) {
-    return res.status(501).json({ error: 'eric_unavailable', detail: ericService.getInitError() });
+    return res.status(501).json({ error: 'eric_unavailable', detail: ericInitDetail() });
   }
    const { clientId, interchangeData, lang } = req.body || {};
   if (!clientId || !interchangeData) return res.status(400).json({ error: 'invalid_input' });
@@ -1575,7 +1673,7 @@ app.post('/api/eric/validate', auth, async (req, res) => {
    constitute compliant Freigabe UX). */
 app.post('/api/eric/submit', auth, async (req, res) => {
   if (!ericService.isReady()) {
-    return res.status(501).json({ error: 'eric_unavailable', detail: ericService.getInitError() });
+    return res.status(501).json({ error: 'eric_unavailable', detail: ericInitDetail() });
   }
    const { clientId, interchangeData, freigabeConfirmed, lang, certificatePassword } = req.body || {};
    if (!clientId || !interchangeData) return res.status(400).json({ error: 'invalid_input' });
@@ -1872,13 +1970,22 @@ function extractPlausibilityErrors(resultXml) {
   }).filter(e => e.text);
 }
 
-app.post('/api/eric/inquiry-message', auth, async (req, res) => {
+app.post('/api/eric/inquiry-message', auth, ericLimiter, async (req, res) => {
   if (!ericService.isReady()) {
-    return res.status(501).json({ error: 'eric_unavailable', detail: ericService.getInitError() });
+    return res.status(501).json({ error: 'eric_unavailable', detail: ericInitDetail() });
   }
-  const { clientId, inquiryId, hauptvordruck, subject, text, attachment } = req.body || {};
-  if (!clientId || !inquiryId || !hauptvordruck || !text || !String(text).trim()) {
+  /* The taxpayer identity (Steuernummer, Finanzamt, person) is taken from the return this app actually FILED (frozen at
+     submission) - never from the request body. Otherwise any logged-in user could send a message to the tax office in
+     the name of an arbitrary taxpayer. A `hauptvordruck` sent by the browser is ignored. */
+  const { clientId, inquiryId, subject, text, attachment } = req.body || {};
+  if (typeof clientId !== 'string' || typeof inquiryId !== 'string' || typeof text !== 'string' || !text.trim() || (subject != null && typeof subject !== 'string')) {
     return res.status(400).json({ error: 'invalid_input' });
+  }
+  /* This route sends with NO customer certificate. While the operator requires customer certificates for real filings
+     (REQUIRE_CUSTOMER_CERTIFICATE), it must not be a way around that requirement: fail closed in production until
+     certificate handling is implemented here as it is in /api/eric/submit. */
+  if (process.env.ERIC_SUBMISSION_MODE === 'production' && process.env.REQUIRE_CUSTOMER_CERTIFICATE === 'true') {
+    return res.status(501).json({ error: 'inquiry_requires_customer_certificate' });
   }
 
   const { rows } = await pool.query('SELECT data FROM clients WHERE id=$1 AND user_id=$2', [clientId, req.user.sub]);
@@ -1894,12 +2001,20 @@ app.post('/api/eric/inquiry-message', auth, async (req, res) => {
      more formats), and the real limit is 10485760 bytes (10 MiB) before
      Base64 encoding, not the app's own, more conservative 5 MB general
      upload limit. */
+  const { rows: filed } = await pool.query(
+    `SELECT approved_payload_snapshot FROM submission_approvals WHERE client_id=$1 AND user_id=$2 AND submitted=true ORDER BY id DESC LIMIT 1`,
+    [clientId, req.user.sub]);
+  const hauptvordruck = filed.length && filed[0].approved_payload_snapshot ? filed[0].approved_payload_snapshot.hauptvordruck : null;
+  if (!hauptvordruck) return res.status(403).json({ error: 'return_not_submitted' });
   if (attachment) {
-    if (!attachment.base64 || !attachment.filename) {
+    if (typeof attachment.base64 !== 'string' || typeof attachment.filename !== 'string' || !attachment.base64 || !attachment.filename) {
       return res.status(400).json({ error: 'invalid_attachment' });
     }
-    if (!/\.pdf$/i.test(attachment.filename)) {
+    if (attachment.filename.length > 120 || !/\.pdf$/i.test(attachment.filename)) {
       return res.status(400).json({ error: 'attachment_must_be_pdf' });
+    }
+    if (Buffer.from(attachment.base64.slice(0, 16), 'base64').subarray(0, 5).toString('latin1') !== '%PDF-') {
+      return res.status(400).json({ error: 'attachment_must_be_pdf' });          // the bytes must really be a PDF, not just be named like one
     }
     const approxBytes = Math.floor(attachment.base64.length * 0.75);
     if (approxBytes > 10 * 1024 * 1024) {
@@ -1928,7 +2043,7 @@ app.post('/api/eric/inquiry-message', auth, async (req, res) => {
       datenlieferant: stored.datenlieferant,
     };
     let attachmentOpt;
-    if (attachment) attachmentOpt = { base64: attachment.base64, filename: attachment.filename };
+    if (attachment) attachmentOpt = { base64: attachment.base64, filename: attachment.filename.replace(/[\\/\u0000-\u001f"<>|:*?]/g, '_') };
     const { xml } = buildSonstigeNachrichtXML(data, {
       herstellerID: process.env.ERIC_HERSTELLER_ID,
       attachment: attachmentOpt,

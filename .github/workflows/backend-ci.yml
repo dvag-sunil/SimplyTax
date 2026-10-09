@@ -102,12 +102,30 @@ jobs:
           CERT_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
         run: node test/test-payments.js
 
+      - name: AI extraction suite (prompt owned by the server, file checks, per-minute and daily limits, prompt-drift guard)
+        working-directory: backend
+        env:
+          FRONTEND_URL: https://www.taxfile24.com/
+          CERT_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+        run: node test/test-extract.js
+
+      - name: ERiC routes suite (identity-bound tax-office messages, strict inputs, limits, no path disclosure)
+        working-directory: backend
+        env:
+          FRONTEND_URL: https://www.taxfile24.com/
+          CERT_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+        run: node test/test-eric-routes.js
+
       - name: Security suite - state and integrity (server-owned fields, immutability, deletion)
         working-directory: backend
         env:
           FRONTEND_URL: https://www.taxfile24.com/
           CERT_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
         run: node test/test-security-state.js
+
+      - name: Frontend <-> backend API cross-check (every frontend call must hit a real route with the right method)
+        working-directory: test
+        run: python3 apicheck.py ../index.html ../backend/server.js ../backend/eric/certificate-store.js
 
       - name: Frontend logic suite (the real index.html script, DOM stubbed)
         working-directory: test
