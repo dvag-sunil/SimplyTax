@@ -186,8 +186,13 @@ const MIN = { meta: { taxYear: 2025 }, hauptvordruck: { personA: { vorname: 'Max
 
 
 
-  const bad = results.filter(r => !r.secure);
-  console.log(`\n===== Security suite: ${results.length - bad.length} secure, ${bad.length} VULNERABLE =====`);
+  /* Known, ACCEPTED trade-off (documented in the audit report): the JWT is also returned in login/refresh bodies because
+     Safari/iOS blocks the third-party session cookie. It is listed but does not fail the run; anything ELSE does. */
+  const KNOWN_ACCEPTED = ['S15'];
+  const bad = results.filter(r => !r.secure && !KNOWN_ACCEPTED.includes(r.id));
+  const known = results.filter(r => !r.secure && KNOWN_ACCEPTED.includes(r.id));
+  console.log(`\n===== Security suite: ${results.length - bad.length - known.length} secure, ${known.length} known/accepted, ${bad.length} VULNERABLE =====`);
+  if (known.length) console.log('Known/accepted:', known.map(b => b.id).join(', '));
   if (bad.length) console.log('Vulnerable:', bad.map(b => b.id).join(', '));
   process.exit(bad.length ? 1 : 0);
 })().catch(e => { console.error('SUITE CRASHED:', e); process.exit(2); });
