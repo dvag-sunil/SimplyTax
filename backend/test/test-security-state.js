@@ -31,8 +31,8 @@ const MIN = { meta: { taxYear: 2025 }, hauptvordruck: { personA: { vorname: 'Max
     await A(request(app).put('/api/clients/bulk'), u.token).send({ clients: [{ id: 'imm', taxYear: 2025, p: { firstName: 'Original', iban: 'DE89' }, fam: { children: [{ id: 'k1', name: 'Kid' }] }, emps: [{ id: 'e1', gross: '1' }] }] });
     await testPool.query(`UPDATE clients SET data=jsonb_set(data,'{pay}','{"status":"paid"}'::jsonb) WHERE id='imm'`);
     await A(request(app).post('/api/eric/submit'), u.token).send({ clientId: 'imm', freigabeConfirmed: true, interchangeData: MIN });
-    const snap = (await testPool.query(`SELECT submitted_snapshot_sha256 s, data->>'status' st, data->>'submittedAt' at FROM clients WHERE id='imm'`)).rows[0];
-    rec('S19a', 'Submit records a content baseline hash and a server-side submittedAt timestamp', !!snap.s && snap.st === 'submitted' && !!snap.at, `baseline=${snap.s ? 'set' : 'MISSING'} status=${snap.st} submittedAt=${snap.at ? 'set' : 'MISSING'}`);
+    const snap = (await testPool.query(`SELECT submitted_snapshot_sha256 s, data->>'status' st, data->>'submittedAt' AS sat FROM clients WHERE id='imm'`)).rows[0];
+    rec('S19a', 'Submit records a content baseline hash and a server-side submittedAt timestamp', !!snap.s && snap.st === 'submitted' && !!snap.sat, `baseline=${snap.s ? 'set' : 'MISSING'} status=${snap.st} submittedAt=${snap.sat ? 'set' : 'MISSING'}`);
     const base = { id: 'imm', taxYear: 2025, p: { firstName: 'Original', iban: 'DE89' }, fam: { children: [{ id: 'k1', name: 'Kid' }] }, emps: [{ id: 'e1', gross: '1' }] };
     const mig = await A(request(app).put('/api/clients/bulk'), u.token).send({ clients: [{ ...base, unt: [], p: { ...base.p, deathYear: '' } }] });
     rec('S19b', 'Fields added by the app\'s own migrations on an old submitted return are NOT blocked', (mig.body.blockedIds || []).length === 0, 'ok:blockedIds=' + JSON.stringify(mig.body.blockedIds));

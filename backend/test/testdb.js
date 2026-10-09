@@ -15,6 +15,7 @@
 const { newDb } = require('pg-mem');
 
 function createTestPool() {
+  if (process.env.TEST_DB === 'pglite') return require('./pglite-pool.js').createPglitePool();   // real PostgreSQL instead of the pg-mem imitation
   const db = newDb({ autoCreateForeignKeyIndices: true });
   db.public.registerFunction({ name: 'gen_random_uuid', returns: 'uuid', impure: true, implementation: () => require('crypto').randomUUID() });
 
@@ -71,11 +72,12 @@ function createTestPool() {
     CREATE TABLE users (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       email text UNIQUE NOT NULL,
-      name text,
+      name text NOT NULL,
       password_hash text NOT NULL,
-      role text DEFAULT 'user',
-      settings jsonb DEFAULT '{}'::jsonb,
-      created_at timestamptz DEFAULT now()
+      role text NOT NULL DEFAULT 'consultant',
+      settings jsonb NOT NULL DEFAULT '{}'::jsonb,
+      two_fa boolean NOT NULL DEFAULT false,
+      created_at timestamptz NOT NULL DEFAULT now()
     );
     CREATE TABLE clients (
       id text PRIMARY KEY,
@@ -99,12 +101,24 @@ function createTestPool() {
     );
     CREATE TABLE payments (
       id serial PRIMARY KEY,
-      user_id uuid NOT NULL,
-      client_id text NOT NULL,
+      user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+      client_id text,
       session_id text UNIQUE NOT NULL,
       amount_cents integer NOT NULL,
-      status text NOT NULL,
+      currency text NOT NULL DEFAULT 'eur',
+      status text NOT NULL DEFAULT 'paid',
       created_at timestamptz DEFAULT now()
+    );
+    CREATE TABLE user_certificates (
+      id serial PRIMARY KEY,
+      user_id text NOT NULL UNIQUE,
+      pfx_encrypted text NOT NULL,
+      pfx_iv text NOT NULL,
+      pfx_auth_tag text NOT NULL,
+      original_filename text,
+      subject_cn text,
+      valid_until timestamptz,
+      uploaded_at timestamptz NOT NULL DEFAULT now()
     );
     CREATE TABLE audit_log (
       id serial PRIMARY KEY,
@@ -133,7 +147,10 @@ function createTestPool() {
     });
     return typeof q === 'string' ? t : { ...q, text: t };
   };
-  const wrap = (obj) => { const orig = obj.query.bind(obj); obj.query = (q, ...rest) => orig(shim(q, rest[0]), ...rest); return obj; };
+  /* pg-mem has no SAVEPOINT support (valid, used by account deletion's fallback). Treat the statements as no-ops: the normal
+     path (hard delete succeeds) is what the tests exercise; the anonymise fallback needs a real database. */
+  const isSavepoint = (q) => /^\s*(SAVEPOINT|ROLLBACK\s+TO\s+SAVEPOINT|RELEASE\s+SAVEPOINT)\b/i.test(typeof q === 'string' ? q : (q && q.text) || '');
+  const wrap = (obj) => { const orig = obj.query.bind(obj); obj.query = (q, ...rest) => isSavepoint(q) ? Promise.resolve({ rows: [], rowCount: 0 }) : orig(shim(q, rest[0]), ...rest); return obj; };
   wrap(pool);
   const origConnect = pool.connect.bind(pool);
   pool.connect = async (...a) => { const c = await origConnect(...a); return wrap(c); };

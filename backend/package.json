@@ -6,7 +6,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/test-api.js && node test/test-payments.js && node test/test-extract.js && node test/test-eric-routes.js && node test/test-submit-recovery.js && node test/test-security-state.js && node test/test-lifecycle.js && node test/test-security.js"
+    "test": "node test/run-all.js",
+    "test:realdb": "node test/run-all.js --real-db"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -22,6 +23,7 @@
     "stripe": "^22.4.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "pg-mem": "^3.0.14",
     "supertest": "^7.2.2"
   },

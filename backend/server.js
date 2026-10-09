@@ -565,10 +565,10 @@ app.post('/api/extract-doc', auth, extractLimiter, async (req, res) => {
   }catch(e){ console.error('extract-doc failed:', e.message); res.status(502).json({ error:'ai_provider_error' }); }
 });
 
-app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 30 }));   // brute-force protection
+app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: Math.max(1, parseInt(process.env.AUTH_RATE_MAX || '30', 10)) }));   // brute-force protection (default 30 per 15 min per IP; configurable)
 app.use('/api', rateLimit({ windowMs: 60 * 1000, max: 120 }));
 
-const sign = (u) => jwt.sign({ sub: u.id, role: u.role }, JWT_SECRET, { algorithm: 'HS256', expiresIn: '2h' });
+const sign = (u) => jwt.sign({ sub: u.id, role: u.role, tv: Number(u.settings && u.settings.tokenVersion) || 0 }, JWT_SECRET, { algorithm: 'HS256', expiresIn: '2h' });
 /* ---------- security helpers (audit) ---------- */
 /* Every value interpolated into an HTML email must be escaped: names and emails are attacker-controlled (anyone can
    register with a VICTIM's address and an HTML "name"), and the server would then send the victim a genuine
@@ -579,7 +579,7 @@ const EMAIL_RE = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']{2,}$/;
 const PASSWORD_MAX = 128;                    // also bounds the bcrypt work an unauthenticated caller can force
 /* Keys of users.settings that the SERVER owns (verification, reset and lockout state). The browser must never be able
    to write them, and must never receive the token hashes. */
-const PROTECTED_SETTINGS = ['emailVerified', 'emailVerify', 'pwreset', 'loginLockout'];
+const PROTECTED_SETTINGS = ['emailVerified', 'emailVerify', 'pwreset', 'loginLockout', 'tokenVersion'];
 function publicSettings(st) {
   const out = {};
   for (const [k, v] of Object.entries(st || {})) if (!PROTECTED_SETTINGS.includes(k)) out[k] = v;
@@ -662,13 +662,50 @@ const cookieOpts = { httpOnly: true, secure: true, sameSite: 'none', maxAge: 2 *
    running the old localStorage-token version, or a backend deployed
    slightly ahead of the frontend during rollout, doesn't lock anyone
    out mid-transition. */
-function auth(req, res, next) {
+/* ---- session revocation (audit) ----
+   A signed token used to stay valid for its full 2 hours no matter what happened: logging out only deleted the browser's
+   copy, so a token copied by an attacker (or stolen by script) kept working, and resetting a hijacked password did not
+   end the thief's session. Each user now has a session version (users.settings.tokenVersion, server-owned) and every token
+   carries the version it was issued under. Revoking = storing a new version, which invalidates all earlier tokens at once.
+   Tokens from before this feature carry no version and count as version 0, so deploying it logs nobody out. The version is
+   cached for 10 s per user to spare the database (revocation takes effect immediately on this instance, within 10 s on
+   another one). If the database cannot be asked, requests are refused (503), never let through. */
+const TV_TTL_MS = 10 * 1000;
+const tvCache = new Map();                                   // userId -> { tv, exp }
+async function currentTokenVersion(userId) {
+  const hit = tvCache.get(userId);
+  if (hit && hit.exp > Date.now()) return hit.tv;
+  const { rows } = await pool.query(`SELECT settings->>'tokenVersion' AS tv FROM users WHERE id=$1`, [userId]);
+  if (!rows.length) { tvCache.delete(userId); return null; }                // the account no longer exists
+  const tv = parseInt(rows[0].tv, 10) || 0;
+  if (tvCache.size > 2000) for (const [k, v] of tvCache) if (v.exp <= Date.now()) tvCache.delete(k);   // keep the cache bounded
+  tvCache.set(userId, { tv, exp: Date.now() + TV_TTL_MS });
+  return tv;
+}
+async function revokeSessions(userId) {
+  const tv = Date.now();                                      // a timestamp is a version that can never repeat or need a read-modify-write
+  await pool.query(`UPDATE users SET settings = jsonb_set(coalesce(settings, '{}'::jsonb), '{tokenVersion}', $2::jsonb) WHERE id=$1`, [userId, JSON.stringify(tv)]);
+  tvCache.set(userId, { tv, exp: Date.now() + TV_TTL_MS });
+}
+const tokenFromRequest = (req) => {
   const h = req.headers.authorization || '';
-  const bearerToken = h.startsWith('Bearer ') ? h.slice(7) : null;
-  const token = getCookie(req, AUTH_COOKIE) || bearerToken;
+  return getCookie(req, AUTH_COOKIE) || (h.startsWith('Bearer ') ? h.slice(7) : null);
+};
+async function auth(req, res, next) {
+  const token = tokenFromRequest(req);
   if (!token) return res.status(401).json({ error: 'auth_required' });
-  try { req.user = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }); next(); }
+  let payload;
+  try { payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }); }
   catch { return res.status(401).json({ error: 'invalid_token' }); }
+  let tv;
+  try { tv = await currentTokenVersion(payload.sub); }
+  catch (e) { console.error('[auth] could not check the session:', e.message); return res.status(503).json({ error: 'auth_unavailable' }); }
+  if (tv === null) return res.status(401).json({ error: 'invalid_token' });
+  /* answered as 'invalid_token' ON PURPOSE: the frontend (every version in circulation) already turns that code into its
+     "your session ended, please log in again" message; a new code would show customers a confusing generic failure. */
+  if ((Number(payload.tv) || 0) !== tv) return res.status(401).json({ error: 'invalid_token', reason: 'session_revoked' });
+  req.user = payload;
+  next();
 }
 /* NEW, SEPARATE FEATURE (own file, own table, own routes) — customer-
    provided ELSTER certificate storage. Does not touch or import from
@@ -704,8 +741,14 @@ app.post('/api/auth/refresh', auth, async (req, res) => {
    happened. No auth required to call this - a request to clear a
    cookie the browser may or may not even still have is harmless
    either way. */
-app.post('/api/auth/logout', (req, res) => {
+app.post('/api/auth/logout', async (req, res) => {
   res.clearCookie(AUTH_COOKIE, { httpOnly: true, secure: true, sameSite: 'none', path: '/' });
+  /* Clearing the browser's cookie is not enough - a copy of the token would stay valid for up to 2 hours. Logging out also
+     revokes the account's sessions (on every device). A missing/expired token has nothing to revoke. */
+  try {
+    const token = tokenFromRequest(req);
+    if (token) { const p = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }); await revokeSessions(p.sub); audit(p.sub, 'logout_revoked_sessions', {}); }
+  } catch (e) { if (e && e.name !== 'JsonWebTokenError' && e.name !== 'TokenExpiredError') console.error('[logout] could not revoke sessions:', e.message); }
   res.json({ ok: true });
 });
 
@@ -897,6 +940,7 @@ app.post('/api/auth/reset', async (req, res) => {
   const hash = await bcrypt.hash(String(password), 12);
   await pool.query(`UPDATE users SET password_hash=$1, settings = settings - 'pwreset' WHERE id=$2`, [hash, rows[0].id]);
    audit(rows[0].id, 'pw_reset_done', {});
+  await revokeSessions(rows[0].id);        // whoever held the old password (or a token issued with it) is logged out
   /* IMPLEMENTED: real security-awareness gap - the flow above sends the
      initial reset link, but never confirmed afterward that the
      password actually changed. Without this, the real owner would have
@@ -1070,6 +1114,20 @@ app.delete('/api/auth/account', auth, async (req, res) => {
   try {
     await db.query('BEGIN');
     await db.query('DELETE FROM clients WHERE user_id=$1', [req.user.sub]);
+    /* The customer's stored ELSTER certificate (encrypted) has no reason to outlive the account. user_certificates.user_id is
+       plain text with no foreign key, so NOTHING cascades from the users table: before this, a deleted customer's encrypted
+       certificate stayed in the database forever. It is removed here, inside the same transaction. Its own savepoint, so a
+       missing table (the table is created at startup) never blocks the deletion - but any OTHER failure aborts the whole
+       deletion (nothing is changed and the customer can simply try again) rather than silently leaving key material behind.
+       (submission_approvals is deliberately NOT removed here: whether those filing records must be kept for a retention
+       period is a legal decision, see the status document.) */
+    await db.query('SAVEPOINT before_cert_delete');
+    try { await db.query('DELETE FROM user_certificates WHERE user_id=$1', [String(req.user.sub)]); }
+    catch (e) {
+      await db.query('ROLLBACK TO SAVEPOINT before_cert_delete');
+      if (!(e && (e.code === '42P01' || /does not exist/i.test(e.message || '')))) throw e;
+      console.error('[account deletion] user_certificates table does not exist, nothing to remove:', e.message);
+    }
     /* CORRECTED: caught before shipping, not after - a failed query
        inside a Postgres transaction aborts the whole transaction, so
        a plain try/catch here wouldn't have worked at all - the
@@ -1087,11 +1145,12 @@ app.delete('/api/auth/account', auth, async (req, res) => {
       console.error('[account deletion] hard delete failed, anonymizing instead:', e.message);
       await db.query('ROLLBACK TO SAVEPOINT before_user_delete');
       await db.query(
-        `UPDATE users SET email=$2, password_hash=$3, name=NULL WHERE id=$1`,
-        [req.user.sub, `deleted-${req.user.sub}@deleted.invalid`, await bcrypt.hash(cryptoNode.randomUUID(), 10)]
+        `UPDATE users SET email=$2, password_hash=$3, name='', settings = jsonb_set(coalesce(settings, '{}'::jsonb), '{tokenVersion}', $4::jsonb) WHERE id=$1`,
+        [req.user.sub, `deleted-${req.user.sub}@deleted.invalid`, await bcrypt.hash(cryptoNode.randomUUID(), 10), JSON.stringify(Date.now())]   // the row stays, so its sessions must be revoked explicitly
       );
     }
     await db.query('COMMIT');
+    tvCache.delete(req.user.sub);                 // the account is gone (or anonymised and revoked): stop honouring any cached session at once
   } catch (e) {
     await db.query('ROLLBACK');
     console.error('[account deletion] transaction failed, nothing was changed:', e.message);
