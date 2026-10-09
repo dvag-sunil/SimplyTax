@@ -50,7 +50,7 @@ function spawnWorker() {
       'worker-process isolation is for: the main API is unaffected. Restarting worker in 2s.');
     ready = false;
     // fail every request that was waiting on the now-dead worker
-    for (const [id, p] of pending) {
+    for (const p of pending.values()) {
       clearTimeout(p.timeout);
       p.reject(new Error('ERiC worker crashed before responding'));
     }

@@ -10,7 +10,7 @@ const { spawn } = require('child_process'); const path = require('path');
 const REAL = process.argv.includes('--real-db');
 const only = (process.argv.find(a => a.startsWith('--only=')) || '').slice(7).split(',').filter(Boolean);
 const SUITES = ['test-api', 'test-payments', 'test-extract', 'test-eric-routes', 'test-submit-recovery', 'test-sessions', 'test-session-abuse',
-  'test-account-deletion', 'test-security-state', 'test-lifecycle', 'test-security', 'test-schema'];
+  'test-account-deletion', 'test-hardening', 'test-security-state', 'test-lifecycle', 'test-security', 'test-schema'];
 const run = (name) => new Promise((resolve) => {
   const t0 = Date.now(); let out = '';
   const p = spawn(process.execPath, [path.join(__dirname, name + '.js')], { cwd: path.join(__dirname, '..'), env: { PATH: process.env.PATH, HOME: process.env.HOME || '/tmp', ...(REAL ? { TEST_DB: 'pglite' } : {}) } });

@@ -37,9 +37,9 @@ const literal = (src, marker) => { const i = src.indexOf(marker); if (i < 0) ret
   rec('E8', 'Daily quota: after the limit, further extractions are refused (429) without calling the AI', r8.status === 429 && r8.body.error === 'extract_quota_exceeded' && anthropicCalls === calls, `status ${r8.status} ${JSON.stringify(r8.body)}`);
   const r9 = await post(app, D, { dataUrl: pdf() });
   rec('E9', "One user's quota/limit does not affect another user", r9.status === 200, 'status ' + r9.status);
-  const srv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8'), fe = fs.readFileSync(path.join(__dirname, '..', '..', 'index.html'), 'utf8');
-  const sp = literal(srv, 'const EXTRACT_PROMPT = '), fp2 = literal(fe, 'const prompt = ');
-  rec('E10', 'DRIFT GUARD: the server-side extraction prompt is identical to the one in index.html', !!sp && !!fp2 && sp === fp2, !sp || !fp2 ? 'could not locate a prompt literal' : `server ${sp.length} chars vs frontend ${fp2.length} chars - update BOTH together`);
+  const fe = fs.readFileSync(path.join(__dirname, '..', '..', 'index.html'), 'utf8');
+  const sends = /\/api\/extract-doc[\s\S]{0,400}?JSON\.stringify\(\{([^}]*)\}\)/.exec(fe);
+  rec('E10', 'The frontend carries NO copy of the extraction prompt and sends only the document (nothing for the server to ignore, nothing to drift)', !!sends && sends[1].trim() === 'dataUrl' && !/const prompt = `/.test(fe) && !fe.includes('You are reading a German'), sends ? 'body fields: ' + sends[1].trim() : 'could not find the request');
   const bad = results.filter(r => !r.ok);
   console.log(`\n===== Extraction suite: ${results.length - bad.length} secure, ${bad.length} VULNERABLE =====`); if (bad.length) console.log('Vulnerable:', bad.map(b => b.id).join(', '));
   process.exit(bad.length ? 1 : 0);

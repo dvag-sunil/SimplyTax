@@ -138,6 +138,8 @@ function createTestPool() {
     let t = typeof q === 'string' ? q : (q && q.text);
     const ps = params || (q && q.values) || [];
     if (!t) return q;
+    /* created by the fake database itself; pg-mem cannot parse their table-level UNIQUE / DEFAULT now() syntax and logged a scary FATAL on every run */
+    if (/^\s*CREATE TABLE IF NOT EXISTS (user_certificates|submission_approvals)\b/i.test(t)) return typeof q === 'string' ? 'SELECT 1' : { ...q, text: 'SELECT 1' };
     if (/IS DISTINCT FROM/i.test(t)) t = t.replace(/([\w.]+(?:->>?'[^']+')*)\s+IS DISTINCT FROM\s+('[^']*')/gi, "($1 IS NULL OR $1 <> $2)");
     /* pg-mem returns no rows for `col = ANY($n)` with an array parameter (valid, standard in real Postgres).
        Expand it to the equivalent IN (...) list so tests exercise the real query logic. */

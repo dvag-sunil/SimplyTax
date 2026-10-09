@@ -24,6 +24,7 @@
   /* clickjacking: frame-ancestors can't be delivered via <meta>, so refuse to run inside someone else's frame */
   try{ if(window.top!==window.self){ document.documentElement.style.display='none'; window.top.location=window.self.location; } }catch(e){ document.documentElement.style.display='none'; }
   var tooOld=false;
+  /* eslint-disable-next-line no-new-func -- deliberate: a feature test that must be evaluated at runtime */
   try{ new Function('var a={};return a?.b'); }catch(e){ tooOld = (e instanceof SyntaxError); }
   var de = /^de/i.test(navigator.language||'');
   var T = de ? {t:'Ihr Browser ist zu alt',b:'SimplyTax benötigt einen aktuellen Browser. Bitte aktualisieren Sie Safari, Chrome oder Firefox (iOS 14.5 / Android Chrome 87 oder neuer) und öffnen Sie die Seite erneut.',s:'Ihr Browser ist etwas veraltet - einige Abstände können falsch dargestellt werden. Bitte aktualisieren Sie ihn.'}
@@ -833,7 +834,7 @@ async function payWithPaypal(btn){
 }
 /* on return from Stripe (success_url contains ?session_id=...) */
 async function handleStripeReturn(){
- let qs=null; try{ qs=new URLSearchParams(location.search); }catch(e){ return; }
+ let qs; try{ qs=new URLSearchParams(location.search); }catch(e){ return; }
  const sid=qs && qs.get('session_id'); if(!sid) return;
  try{
  if(PAYMENT.provider==='stripe_backend' && BACKEND.enabled){
@@ -865,7 +866,6 @@ async function handleStripeReturn(){
       to the right one. */
  S.currentId=c.id; S.step=10; S.view='client'; S.scanState=null; S.aiFields={};
   if(c._pendingSubmitData) S._pendingStartupModal='__post_payment_submit__';
- } else {
  }
  } else if(PAYMENT.provider==='stripe_link'){
  const pend=await kvGet('klarsteuer-pending-pay');
@@ -886,7 +886,7 @@ async function handleStripeReturn(){
    custom parameter to add on our own side, unlike Stripe's
    {CHECKOUT_SESSION_ID} substitution which PayPal doesn't support. */
 async function handlePaypalReturn(){
- let qs=null; try{ qs=new URLSearchParams(location.search); }catch(e){ return; }
+ let qs; try{ qs=new URLSearchParams(location.search); }catch(e){ return; }
  const orderId=qs && qs.get('token'); if(!orderId) return;
  try{
    const r=await api('/api/payments/paypal/capture','POST',{orderId});
@@ -903,7 +903,6 @@ async function handlePaypalReturn(){
   c.pay={status:'paid',paidAt:Date.now(),amount:PAYMENT.pricePerReturn,txId:('pp_'+orderId).slice(0,24)}; scheduleSave();
  S.currentId=c.id; S.step=10; S.view='client'; S.scanState=null; S.aiFields={};
  if(c._pendingSubmitData) S._pendingStartupModal='__post_payment_submit__';
- } else {
  }
  }catch(e){  }
  try{ history.replaceState({},'',location.pathname); }catch(e){}
@@ -989,7 +988,7 @@ en: {
   login_title:"Welcome back", login_sub:"Sign in to prepare your own tax return.",
  email:"Email", password:"Password", sign_in:"Sign in",
  logout:"Log out", dashboard:"Dashboard",
-  clients:"My tax returns", drafts:"Drafts", in_review:"In review", submitted:"Submitted", est_refunds:"Est. total refunds",
+  clients:"My tax returns", drafts:"Drafts", submitted:"Submitted", est_refunds:"Est. total refunds",
   search_ph:"Search by name...", all_statuses:"All statuses", all_years:"All years",
    new_client:"Start a tax return", client:"Name", tax_year:"Tax year", status:"Status", est_refund:"Est. refund", updated:"Updated",
    
@@ -1005,7 +1004,7 @@ en: {
  load_failed_auth:"Your data could not be loaded - your sign-in session appears to have expired or isn't being recognized. Please sign out and sign in again.",
  load_failed_generic:"Your data could not be loaded due to a connection problem. This does not mean your data is missing - please check your connection and try refreshing.",
  back_dash:"Dashboard",
- step1:"Personal data", step2:"Employment income", step3:"Insurance (Vorsorge)", step4:"Werbungskosten (work-related expenses)", step5:"Special expenses", step6:"Household & other", step7:"Review & submit",
+ step1:"Personal data", step2:"Employment income", step4:"Werbungskosten (work-related expenses)", step5:"Special expenses", step6:"Household & other", step7:"Review & submit",
  s1_lead:"Basic data for the main form (Hauptvordruck ESt 1 A).",
  birth_date:"Date of birth", tax_id:"Tax ID (IdNr, 11 digits)", tax_id_hint:"The personal Steuer-Identifikationsnummer.",
  taxid_invalid_checksum:"This doesn't look like a valid Steuer-ID - please double-check the digits.",
@@ -1021,20 +1020,20 @@ en: {
  religion:"Church tax (religion)", rel_none:"None (no church tax)", rel_ev:"Protestant (EV)", rel_rk:"Catholic (RK)", rel_other:"Other",
  profession:"Profession", finanzamt:"Tax office (Finanzamt)", steuernummer:"Tax number (Steuernummer)",
  steuernummer_required_hint:"Required for submission - confirmed there is no valid way to transmit a return to ELSTER without it.",
- neuaufnahme_confirm_label:"I confirm this person genuinely does not have a Steuernummer yet (first-time filer).",
- neuaufnahme_confirm_hint:"If a Steuernummer does exist, please enter it above instead - using this option when one exists can cause processing delays and follow-up questions from the Finanzamt.",
+ 
+ 
  stnr_invalid_checksum:"This doesn't look like a valid tax number for the selected Finanzamt - please double-check.",
  stnr_valid_checksum:"Valid tax number",
  iban:"IBAN (for the refund)", spouse:"Spouse (Person B)",
  iban_invalid_checksum:"This doesn't look like a valid IBAN - please double-check.",
  iban_valid_checksum:"Valid IBAN",
- s2_lead:"Upload the Lohnsteuerbescheinigung - the app reads the values automatically. Please review every field before continuing.",
+ 
  upload_title:"Upload Lohnsteuerbescheinigung", upload_sub:"Drop a photo or PDF here, or click to choose a file",
  scanning:"Reading the document...", scan_ok:"Values captured automatically. Please check each field carefully - automatically filled fields are marked.",
  scan_err:"The document could not be read automatically. You can enter the values manually below.",
- employer:"Employer", period_from:"Employment start", period_to:"Employment end", tax_class:"Tax class (Steuerklasse)",
+ employer:"Employer", tax_class:"Tax class (Steuerklasse)",
  gross:"Gross salary (line 3)", wage_tax:"Wage tax withheld (line 4)", soli:"Solidarity surcharge (line 5)", church_paid:"Church tax withheld (lines 6/7)",
- s3_lead:"Social insurance contributions - usually taken from lines 22-27 of the Lohnsteuerbescheinigung. Almost every taxpayer needs this section (Anlage Vorsorgeaufwand).",
+ 
  rv:"Pension insurance, employee share (line 23)", kv:"Health insurance, employee share (line 25)", pv:"Long-term care insurance (line 26)", av:"Unemployment insurance (line 27)",
  s4_lead:"Deductible income-related costs (Anlage N): structured items (commuting, home office, double household) plus itemized expenses below. The €1,230 lump sum per employed person is applied automatically if entries are lower. Enter each cost only once.",
  commute_days:"Commuting days per year", commute_km:"One-way distance (km)", home_office:"Home-office days",
@@ -1050,7 +1049,7 @@ en: {
  arbeitszimmer:"Arbeitszimmer costs", arbeitszimmer_hint:"A room used exclusively as a home office - a separate deduction from the general home-office day allowance above. Rules depend on whether it's your only workspace (unlimited) or not (capped at €1,260/year) - a Steuerberater can confirm which applies.",
  equipment:"Work equipment (laptop, desk...)", training:"Training / professional development", other_wk:"Other work expenses",
  s5_lead:"Special expenses (Sonderausgaben). The minimum flat amount of €36 is applied automatically.",
- donations:"Donations (with receipt)", other_sa:"Other special expenses",
+ donations:"Donations (with receipt)", 
  sa_owner:"Who should claim this?", sa_owner_hint:"German tax law lets couples freely allocate shared donations between themselves.",
  s6_lead:"Extraordinary burdens and household services (§ 35a EStG - 20% of labor costs are credited directly against the tax).",
  medical:"Medical costs (extraordinary burden)", household:"Household services (labor costs)", handwerker:"Craftsmen services (labor costs)",
@@ -1058,10 +1057,10 @@ en: {
  submit_elster:"Submit to the tax authority", submit_elster_unpaid:"Review & pay to submit", resubmit:"Submitted on", edit:"Edit",
  personal:"Personal data", income:"Employment income", insurance:"Insurance", work_exp:"Werbungskosten (work-related expenses)", special_exp:"Special expenses", household_g:"Household & other",
  meter_title:"Estimated refund", meter_nach:"Estimated back payment",
- veranlagung_compare_title:"Joint or separate - which is better?", veranlagung_compare_hint:"A comparison based on everything entered so far. Shared household items (donations, property, children's costs, insurance) are split evenly between the two individual estimates below, since German tax law lets couples allocate these themselves - treat the separate figure as a close approximation, not an exact calculation.",
- veranlagung_better:"Better", veranlagung_refund:"refund", veranlagung_owed:"owed",
- veranlagung_diff_note:"Difference: {amount}",
- veranlagung_tie_note:"Both options come out the same here - usually because taxable income is low enough that no income tax is owed either way, so there's nothing for the tariff choice to change.",
+ 
+ 
+ 
+ 
  veranlagung_scope_note:"Note: the \"Estimated Refund\" in the sidebar shows this one return only. The separate-assessment figure above adds both spouses' own, independent returns together.",
  m_zve:"Taxable income (est.)", m_tax:"Income tax (est., after credits)", m_soli:"Solidarity surch.", m_kist:"Church tax", m_paid:"Already paid", m_credit:"§ 35a credit", m_credit_note:"includes § 35a credit",
  meter_foot:"Non-binding estimate (unverbindliche Schätzung). The final assessment (Bescheid) by the Finanzamt may differ.",
@@ -1078,7 +1077,7 @@ en: {
  select:"Please select...", year:"Year",
   no_results:"No tax returns match your search.",
  manual_hint:"No document? Enter the values manually - all fields stay editable.",
- step_fam:"Children & family support",
+ 
  step_kind:"Children", step_unt:"Family support",
  phase_start:"Getting started", phase_income:"Income", phase_deductions:"Deductions",
  phase_family:"Family", phase_property:"Property & household", phase_finish:"Finish",
@@ -1098,8 +1097,8 @@ en: {
  dhh_travelmode_yes:"Yes, for all trips", dhh_travelmode_no:"No", dhh_travelmode_partial:"Yes, for some trips",
  dhh_travelmode_select:"Please select",
  relocation:"Work-related relocation costs",
- s_fam_lead:"Costs for children (Anlage Kind) and support payments to needy relatives - e.g., parents abroad (Anlage Unterhalt, § 33a EStG).",
- children_h:"Children", kids_count:"Number of children", childcare:"Childcare costs (per year, with invoices)", school_fees:"School fees (private school)",
+ 
+ children_h:"Children", childcare:"Childcare costs (per year, with invoices)", school_fees:"School fees (private school)",
  kids_hint:"2025: 80% deductible, max. €4,800 per child · 2023-2024: two thirds, max. €4,000 per child.",
  cc_required_hint:"Because you entered a childcare cost, the tax office requires the provider's name/address and the service period to be reported too - these three fields below are now required.",
  cc_provider:"Provider name & address", cc_provider_ph:"e.g. Kita Sonnenschein, Musterstr. 1, 60000 Frankfurt",
@@ -1185,11 +1184,12 @@ en: {
   pdf_btn:"Download PDF summary", pdf_title:"Income tax return - summary",
  pdf_locked_hint:"Unlocks once payment is complete.",
  pdf_est:"Estimated result", pdf_generated:"Generated on", pdf_docs:"Attached documents (Belege)",
- pdf_page:"Page", pdf_fail:"The PDF library could not be loaded. Please check the internet connection and try again.",
+ pdf_page:"Page", 
  tab_signin:"Sign in", tab_register:"Create account",
   register_title:"Create your account", register_sub:"For preparing your own tax return - your account gets its own private workspace.",
   practice_name:"Your name", confirm_pass:"Confirm password", register_btn:"Create account",
  err_exists:"An account with this email already exists.", err_creds:"Email or password is incorrect.",
+ err_pw_long:"This password is too long. Please use at most 72 characters (special characters can count as more than one).",
  err_match:"The passwords do not match.", err_short:"The password needs at least 8 characters.", err_fields:"Please fill in all fields.",
  bundesland:"Federal state (Bundesland)", fa_name:"Tax office name", fa_number:"Tax office number (BUFA, 4 digits)",
  fa_hint:"The 4-digit federal tax office number identifies the receiving Finanzamt.",
@@ -1198,7 +1198,7 @@ en: {
  fa_search_ph:"Type to search your Finanzamt...", fa_no_match:"No match found - try a different search term",
  err_fa:"Please enter the 4-digit Finanzamt number (BUFA) in Personal data before submitting.",
  err_taxid:"Please enter the 11-digit tax ID (IdNr) in Personal data before submitting.",
- submitting_to:"Receiving tax office",
+ 
  freigabe_title:"Release for transmission", freigabe_sub:"Please review the figures below carefully. Once you release this return, it is transmitted to the Finanzamt through the official electronic filing system.",
  freigabe_validate_failed:"ERiC could not confirm this return is ready to send yet.",
  freigabe_no_detail_from_eric:"ERiC did not provide further detail for this specific error - see below for what the app itself already knows is incomplete.",
@@ -1239,7 +1239,7 @@ en: {
  kg_short:"Kindergeld", cc_short:"Childcare", sf_short:"School fees", remove:"Remove",
  statement:"Income statement", add_emp:"Add income statement", gross_short:"Gross",
  s2_lead2:"One entry per employer (also for job changes, second jobs or minijobs with wage tax). Upload each Lohnsteuerbescheinigung - every upload creates a NEW income statement and never overwrites existing entries. Please review every field.",
- upload_new_hint:"Each upload adds a new statement below. Insurance contributions (lines 22-27) are added onto the Insurance step automatically.",
+ upload_new_hint:"Each upload adds a new statement below. Social security contributions (lines 22-27) are entered on that statement and added up automatically as insurance expenses.",
  ai_consent_title:"Before we read this document",
  ai_consent_body:"This document can be read automatically to fill in the fields below - no manual typing needed. The content is processed securely and only for this purpose, never used to train any AI model, and not retained afterward. Automatic extraction may occasionally be inaccurate, so please review each field carefully before submitting the tax return. Entering the details manually works just as well - simply choose that option below. This preference is remembered, so the message won't appear again unless it's changed later.",
  ai_consent_link:"Read the full details",
@@ -1248,7 +1248,7 @@ en: {
  ai_consent_review_link:"Review AI document reading permission",
   step_kap:"Capital gains", s_kap_lead:"Capital income (Anlage KAP) - gains, dividends and interest from stocks, funds and ETFs at banks, brokers and platforms. The saver's allowance (Sparer-Pauschbetrag) of €1,000 per person (€2,000 for joint assessment) is applied automatically in the estimate.",
  foreign_employment:"Foreign employment", country:"Country", total_wage:"Total wage", work_days_abroad:"Work days abroad", legal_basis:"Legal basis",
- platform:"Bank / platform", kap_gains:"Capital income (gains, dividends, interest)", kap_tax:"Capital gains tax withheld (KapESt)", kap_soli:"Solidarity surcharge withheld",
+ platform:"Bank / platform", 
  add_kap:"Add platform", kap_hint:"Taxed at a flat 25% + Soli. The Finanzamt runs a Günstigerprüfung (your personal rate, if lower) on request.",
  kap_dom:"Capital income subject to German withholding (lines 7-15)",
  kap_for:"Capital income NOT subject to German withholding (lines 18-26)",
@@ -1274,7 +1274,7 @@ en: {
  pflege_person:"Name, address, birth date, and relationship of the person you care for", pflege_person_ph:"e.g. Maria Muster, Hauptstr. 1, 12345 Musterstadt, born 03.05.1950, mother",
  pflege_person_id:"Their Tax ID (IdNr, 11 digits)", pflege_person_resident:"Do they live in Germany?",
  pflege_h:"Mark \"H\" (helplessness) has been officially determined for them",
- kid_transfer:"Disability allowance transferred from child(ren)",
+ 
  disab_hint:"Lump sums count WITHOUT the reasonable-burden threshold. A child's allowance can be transferred to the parents.",
  sec_so:"Private sales & other income (Anlage SO)",
  so_gain:"Gains from private sales held under 1 year (crypto, gold...)",
@@ -1350,11 +1350,11 @@ en: {
  step_counter_lbl:"Step",
  deadline_banner:"Filing deadline - Tax year 2025: self-filers 31 July 2026 · with Steuerberater/Lohnsteuerhilfeverein 1 March 2027 · voluntary filers have 4 years (until 31 Dec 2029).",
  elster_link:"Official Tax Portal",
- expat_section:"Residency", full_year_resident:"Did you live in Germany the entire tax year?",
+ 
  personal_info_h:"Personal info", address_h:"Address", status_h:"Status", tax_info_h:"Tax info",
- fy_yes:"Yes - full year in Germany", fy_no:"No - only part of the year (moved in or out)",
- arrival_date:"Arrival / registration date in Germany", departure_date:"Departure date from Germany (if applicable)",
-  partial_year_hint:"Expats / people who moved mid-year: enter your actual dates. If you're working with a tax advisor, flag this for them - only income during your German residency period is fully taxable here.",
+ 
+ 
+  
  sk1_hint:"single", sk2_hint:"single parent", sk3_hint:"higher-earning spouse",
  sk4_hint:"married equal", sk5_hint:"lower-earning spouse", sk6_hint:"second job",
  trust_enc:"Encrypted", trust_eu:"EU data", trust_gdpr:"GDPR",
@@ -1396,7 +1396,7 @@ en: {
  days_since_payment:"days since payment", refund_window_over:"past the 14-day refund window",
  m_kap:"Capital gains tax (est.)",
  step_prop:"Rental property", s_prop_lead:"Rental income (Anlage V) - one entry per property. Costs (loan interest, maintenance, depreciation, service charges...) count as expenses; a loss reduces the taxable income.",
-  prop_address:"Property (address)", prop_street:"Street, house number", prop_plz:"Postcode", prop_plz_foreign_ph:"As used locally", prop_city:"City", prop_rent:"Rental income (per year)", prop_costs:"Costs / expenses (per year)", add_prop:"Add property", prop_net:"Net result",
+  prop_address:"Property (address)", prop_street:"Street, house number", prop_plz:"Postcode", prop_plz_foreign_ph:"As used locally", prop_city:"City", prop_rent:"Rental income (per year)", add_prop:"Add property", prop_net:"Net result",
  add_support_person:"Add another supported person",
  prop_costs_summary:"Rental deduction costs (Werbungskosten)", prop_costs_total:"Total deductible costs entered",
  prop_costs_hint:"The tax office requires these broken down by category, not one combined total.",
@@ -1406,7 +1406,7 @@ en: {
  prop_afa_year_result:"Applied rate: {rate}% per year, based on this year.",
  prop_wk_schuldzins:"Loan interest", prop_wk_schuldzins_hint:"Interest paid on a mortgage or loan used to buy or renovate this property - not the repayment of the loan itself, only the interest.",
  prop_wk_erhaltung:"Maintenance and repairs", prop_wk_erhaltung_hint:"Repairs and upkeep deductible in this same year - larger renovation costs may need to be spread over several years instead; ask your Steuerberater if unsure.",
- prop_wk_verwaltung:"Management costs", prop_wk_verwaltung_hint:"Fees paid to a property manager or management company for administering this rental, if you don't handle it yourself.",
+ prop_wk_verwaltung:"Management costs", 
  prop_wk_sonst:"Other costs", prop_wk_sonst_hint:"Anything else related to this property that doesn't fit the categories above - e.g. insurance, property management fees, advertising for tenants.",
  prop_rarer_summary:"Rarer deduction categories (special depreciation, financing costs, and more)",
  prop_wk_sonderabschr:"Special depreciation (§7b EStG)", prop_wk_sonderabschr_hint:"Only applies to specific new-build or renovation situations - most properties won't have this.",
@@ -1426,17 +1426,17 @@ en: {
  prop_owner_hint:"Determines how the rental surplus or deficit is split between you and your spouse for this property.",
  energ_owner:"Who owns this property?", energ_owner_hint:"You're filing separately (§26a). If this property and its renovation were jointly paid for, select this so only your own half of the costs is included on your own return - your spouse enters their own half on theirs.",
  prop_foreign_hint:"For a property abroad, only the country, rental income and costs are needed here - it is reported as tax-free income with Progressionsvorbehalt. Please confirm the tax treaty with that country before filing.",
- sec_sv:"Social insurance (lines 22-28)", sec_more:"More fields (lines 8-21, 29-34)",
- sec_more_8_21:"More wage tax fields (lines 8-21)",
+ 
+ 
  sec_more_16_21:"Foreign income & less common allowances (lines 16-21)",
  sec_22_28:"Social insurance contributions (lines 22a-28)",
  sec_more_rare:"Rarely needed fields (lines 11-14, 29-34)",
  bescheinigung_hint:"Enter these directly from your Lohnsteuerbescheinigung - each field below matches its line number on the certificate.",
  z11_14_hint:"Lines 11-14 are unused on current certificates - only relevant for older tax years that still used them.",
- badge_incomplete_hint:"Foreign income details are incomplete inside this section - open it to review.",
- badge_action_needed:"action needed",
- sec_more_22_28:"Social insurance contributions (lines 22a-28)",
- sec_more_29_34:"Further fields (lines 29-34)",
+ 
+ 
+ 
+ 
  kfb:"Child allowances (Kinderfreibeträge)",
  z7:"Church tax spouse (line 7)", z8:"Pension payments in line 3 (Versorgungsbezüge, line 8)",
  z9:"Reduced-taxed pension payments, multi-year (line 9)", z10:"Multi-year wages / severance (line 10)",
@@ -1447,7 +1447,7 @@ en: {
  aus_calc_link:"Worked abroad this year? Calculate this amount",
  aus_calc_title:"Foreign employment - tax-free amount calculator",
  aus_calc_sub:"If you worked partly abroad, part of your wage may be tax-exempt in Germany under a double taxation agreement (DBA). This calculates that amount using the official work-day apportionment method and fills in line 16 for you. For complex cases (multiple countries, foreign employer, treaty-basis questions), a tax advisor can help with the full Anlage N-AUS.",
- aus_country:"Country you worked in", aus_country_ph:"e.g. Switzerland",
+ aus_country:"Country you worked in", 
  aus_total_wage:"Total wage for the year (domestic + foreign)", aus_days_total:"Actual working days in the year",
  aus_days_foreign:"Of those, days worked abroad", aus_formula_hint:"Formula: total wage x foreign days / total working days",
  aus_result_label:"Tax-free amount:", aus_apply:"Use this amount",
@@ -1498,13 +1498,13 @@ en: {
  tot_deduct:"Thereof tax-relevant (before caps)",
  priv_note:"Deduction caps (€1,900 other provision, €2,100 Riester) are applied automatically in the refund estimate.",
  step_wki:"Werbungskosten (itemized)",
- s_wki_lead:"Itemized job-related expenses per person - pick a category, describe the item, and enter the annual amount. These add onto the structured Work expenses (commuting, home office...). Enter each cost only once.",
+ 
  wki_type:"Category", wki_desc:"Description (optional)", wki_amount:"Amount (per year)",
  add_wki:"Add expense item", wki_tot_a:"Total Person A", wki_tot_b:"Total Person B",
  export_elster:"Export tax authority dataset (JSON)",
  export_elster_section:"Export tax authority dataset", export_elster_hint:"Exports a tax return's raw data in the same format sent to the Finanzamt.",
  export_elster_which:"Which return", import_elster_section:"Import tax authority dataset", import_elster_hint:"Import a SimplyTax interchange JSON file to test it through Review & Submit.", import_json_btn:"Import JSON",
- person:"Belongs to (person)", person_b_detect:"Assigned to Person B (spouse) - Identifikationsnummer did not match Person A.",
+ person:"Belongs to (person)", 
    privacy_foot:"Encrypted sign-in · GDPR-compliant data handling (UK-hosted) · Payments via certified provider"
 },
 de: {
@@ -1512,7 +1512,7 @@ de: {
   login_title:"Willkommen zurück", login_sub:"Melden Sie sich an, um Ihre eigene Steuererklärung zu erstellen.",
  email:"E-Mail", password:"Passwort", sign_in:"Anmelden",
  logout:"Abmelden", dashboard:"Übersicht",
-  clients:"Meine Steuererklärungen", drafts:"Entwürfe", in_review:"In Prüfung", submitted:"Übermittelt", est_refunds:"Gesch. Erstattungen ges.",
+  clients:"Meine Steuererklärungen", drafts:"Entwürfe", submitted:"Übermittelt", est_refunds:"Gesch. Erstattungen ges.",
   search_ph:"Nach Name suchen...", all_statuses:"Alle Status", all_years:"Alle Jahre",
    new_client:"Neue Steuererklärung", client:"Name", tax_year:"Steuerjahr", status:"Status", est_refund:"Gesch. Erstattung", updated:"Aktualisiert",
    
@@ -1528,7 +1528,7 @@ de: {
  load_failed_auth:"Ihre Daten konnten nicht geladen werden - Ihre Anmeldung scheint abgelaufen zu sein oder wird nicht erkannt. Bitte melden Sie sich ab und wieder an.",
  load_failed_generic:"Ihre Daten konnten aufgrund eines Verbindungsproblems nicht geladen werden. Das bedeutet nicht, dass Ihre Daten fehlen - bitte prüfen Sie Ihre Verbindung und laden Sie die Seite neu.",
  back_dash:"Übersicht",
- step1:"Persönliche Daten", step2:"Arbeitslohn", step3:"Vorsorgeaufwand", step4:"Werbungskosten", step5:"Sonderausgaben", step6:"Haushalt & Sonstiges", step7:"Prüfen & Absenden",
+ step1:"Persönliche Daten", step2:"Arbeitslohn", step4:"Werbungskosten", step5:"Sonderausgaben", step6:"Haushalt & Sonstiges", step7:"Prüfen & Absenden",
  s1_lead:"Grunddaten für den Hauptvordruck ESt 1 A.",
  birth_date:"Geburtsdatum", tax_id:"Steuer-ID (IdNr, 11 Ziffern)", tax_id_hint:"Die persönliche Steuer-Identifikationsnummer.",
  taxid_invalid_checksum:"Das sieht nicht nach einer gültigen Steuer-ID aus - bitte die Ziffern noch einmal prüfen.",
@@ -1544,20 +1544,20 @@ de: {
  religion:"Kirchensteuer (Religion)", rel_none:"Keine (keine Kirchensteuer)", rel_ev:"Evangelisch (EV)", rel_rk:"Katholisch (RK)", rel_other:"Andere",
  profession:"Beruf", finanzamt:"Finanzamt", steuernummer:"Steuernummer",
  steuernummer_required_hint:"Für die Übermittlung erforderlich - ohne Steuernummer gibt es keine gültige Möglichkeit, eine Erklärung an ELSTER zu übermitteln.",
- neuaufnahme_confirm_label:"Ich bestätige, dass für diese Person tatsächlich noch keine Steuernummer vorliegt (erstmalige Abgabe).",
- neuaufnahme_confirm_hint:"Falls doch eine Steuernummer vorliegt, bitte oben eintragen - die Nutzung dieser Option trotz vorhandener Steuernummer kann zu Verzögerungen und Rückfragen des Finanzamts führen.",
+ 
+ 
  stnr_invalid_checksum:"Das sieht nicht nach einer gültigen Steuernummer für das gewählte Finanzamt aus - bitte prüfen.",
  stnr_valid_checksum:"Gültige Steuernummer",
  iban:"IBAN (für die Erstattung)", spouse:"Ehepartner/in (Person B)",
  iban_invalid_checksum:"Das sieht nicht nach einer gültigen IBAN aus - bitte noch einmal prüfen.",
  iban_valid_checksum:"Gültige IBAN",
- s2_lead:"Lohnsteuerbescheinigung hochladen - die App liest die Werte automatisch aus. Bitte prüfen Sie jedes Feld, bevor Sie fortfahren.",
+ 
  upload_title:"Lohnsteuerbescheinigung hochladen", upload_sub:"Foto oder PDF hier ablegen oder klicken, um eine Datei zu wählen",
  scanning:"Dokument wird ausgelesen...", scan_ok:"Werte automatisch übernommen. Bitte prüfen Sie jedes Feld sorgfältig - automatisch ausgefüllte Felder sind markiert.",
  scan_err:"Das Dokument konnte nicht automatisch gelesen werden. Sie können die Werte unten manuell eintragen.",
- employer:"Arbeitgeber", period_from:"Beschäftigungsbeginn", period_to:"Beschäftigungsende", tax_class:"Steuerklasse",
+ employer:"Arbeitgeber", tax_class:"Steuerklasse",
  gross:"Bruttoarbeitslohn (Zeile 3)", wage_tax:"Einbehaltene Lohnsteuer (Zeile 4)", soli:"Solidaritätszuschlag (Zeile 5)", church_paid:"Einbehaltene Kirchensteuer (Zeile 6/7)",
- s3_lead:"Sozialversicherungsbeiträge - in der Regel aus den Zeilen 22-27 der Lohnsteuerbescheinigung. Fast jede steuerpflichtige Person braucht diesen Abschnitt (Anlage Vorsorgeaufwand).",
+ 
  rv:"Rentenversicherung, Arbeitnehmeranteil (Zeile 23)", kv:"Krankenversicherung, Arbeitnehmeranteil (Zeile 25)", pv:"Pflegeversicherung (Zeile 26)", av:"Arbeitslosenversicherung (Zeile 27)",
  s4_lead:"Abziehbare Werbungskosten (Anlage N): strukturierte Angaben (Pendlerpauschale, Homeoffice, doppelte Haushaltsführung) plus Einzelposten weiter unten. Der Arbeitnehmer-Pauschbetrag von 1.230 € je erwerbstätiger Person wird automatisch angesetzt. Jede Ausgabe nur einmal erfassen.",
  commute_days:"Arbeitstage mit Fahrt zur Arbeit", commute_km:"Einfache Entfernung (km)", home_office:"Homeoffice-Tage",
@@ -1573,7 +1573,7 @@ de: {
  arbeitszimmer:"Kosten Arbeitszimmer", arbeitszimmer_hint:"Ein ausschließlich beruflich genutzter Raum - ein eigener Abzug, getrennt von der Homeoffice-Pauschale oben. Die Regeln hängen davon ab, ob es der einzige Arbeitsplatz ist (unbegrenzt) oder nicht (gedeckelt auf 1.260 €/Jahr) - im Zweifel hilft ein Steuerberater bei der Einordnung.",
  equipment:"Arbeitsmittel (Laptop, Schreibtisch...)", training:"Fortbildung", other_wk:"Sonstige Werbungskosten",
  s5_lead:"Sonderausgaben. Der Pauschbetrag von 36 € wird automatisch berücksichtigt.",
- donations:"Spenden (mit Beleg)", other_sa:"Weitere Sonderausgaben",
+ donations:"Spenden (mit Beleg)", 
  sa_owner:"Wer soll dies geltend machen?", sa_owner_hint:"Das deutsche Steuerrecht erlaubt Paaren, gemeinsame Spenden frei untereinander aufzuteilen.",
  s6_lead:"Außergewöhnliche Belastungen und haushaltsnahe Leistungen (§ 35a EStG - 20 % der Arbeitskosten werden direkt von der Steuer abgezogen).",
  medical:"Krankheitskosten (außergew. Belastung)", household:"Haushaltsnahe Dienstleistungen (Arbeitskosten)", handwerker:"Handwerkerleistungen (Arbeitskosten)",
@@ -1581,10 +1581,10 @@ de: {
  submit_elster:"An das Finanzamt übermitteln", submit_elster_unpaid:"Prüfen & bezahlen zum Übermitteln", resubmit:"Übermittelt am", edit:"Bearbeiten",
  personal:"Persönliche Daten", income:"Arbeitslohn", insurance:"Vorsorge", work_exp:"Werbungskosten", special_exp:"Sonderausgaben", household_g:"Haushalt & Sonstiges",
  meter_title:"Voraussichtliche Erstattung", meter_nach:"Voraussichtliche Nachzahlung",
- veranlagung_compare_title:"Zusammen oder einzeln - was ist günstiger?", veranlagung_compare_hint:"Ein Vergleich auf Basis der bisher eingegebenen Daten. Gemeinsame Haushaltsposten (Spenden, Immobilie, Kinderkosten, Versicherungen) werden in den beiden Einzelschätzungen unten hälftig aufgeteilt, da das Gesetz Paaren hier eine eigene Aufteilung erlaubt - die Einzelveranlagungs-Zahl ist daher eine gute Näherung, keine exakte Berechnung.",
- veranlagung_better:"Günstiger", veranlagung_refund:"Erstattung", veranlagung_owed:"Nachzahlung",
- veranlagung_diff_note:"Unterschied: {amount}",
- veranlagung_tie_note:"Beide Varianten ergeben hier den gleichen Betrag - meist, weil das zu versteuernde Einkommen so niedrig ist, dass ohnehin keine Einkommensteuer anfällt und der Tarif keinen Unterschied macht.",
+ 
+ 
+ 
+ 
  veranlagung_scope_note:"Hinweis: Die „Geschätzte Erstattung” in der Seitenleiste zeigt nur diese eine Erklärung. Die Zahl zur Einzelveranlagung oben addiert die eigenständigen Erklärungen beider Ehepartner.",
  m_zve:"Zu verst. Einkommen (ca.)", m_tax:"Einkommensteuer (ca., nach Ermäßigungen)", m_soli:"Solidaritätszuschlag", m_kist:"Kirchensteuer", m_paid:"Bereits gezahlt", m_credit:"§ 35a-Ermäßigung", m_credit_note:"davon § 35a-Ermäßigung enthalten",
  meter_foot:"Unverbindliche Schätzung. Der endgültige Bescheid des Finanzamts kann abweichen.",
@@ -1601,7 +1601,7 @@ de: {
  select:"Bitte wählen...", year:"Jahr",
   no_results:"Keine Steuererklärung gefunden.",
  manual_hint:"Kein Dokument? Werte einfach manuell eintragen - alle Felder bleiben editierbar.",
- step_fam:"Kinder & Unterhalt",
+ 
  step_kind:"Kinder", step_unt:"Unterhalt",
  phase_start:"Erste Schritte", phase_income:"Einkünfte", phase_deductions:"Absetzungen",
  phase_family:"Familie", phase_property:"Immobilie & Haushalt", phase_finish:"Abschluss",
@@ -1621,8 +1621,8 @@ de: {
  dhh_travelmode_yes:"Ja, für alle Fahrten", dhh_travelmode_no:"Nein", dhh_travelmode_partial:"Ja, für einige Fahrten",
  dhh_travelmode_select:"Bitte auswählen",
  relocation:"Beruflich bedingte Umzugskosten",
- s_fam_lead:"Kosten für Kinder (Anlage Kind) und Unterhaltszahlungen an bedürftige Angehörige - z. B. Eltern im Ausland (Anlage Unterhalt, § 33a EStG).",
- children_h:"Kinder", kids_count:"Anzahl Kinder", childcare:"Kinderbetreuungskosten (pro Jahr, mit Rechnung)", school_fees:"Schulgeld (Privatschule)",
+ 
+ children_h:"Kinder", childcare:"Kinderbetreuungskosten (pro Jahr, mit Rechnung)", school_fees:"Schulgeld (Privatschule)",
  kids_hint:"2025: 80 % absetzbar, max. 4.800 € je Kind · 2023-2024: zwei Drittel, max. 4.000 € je Kind.",
  cc_required_hint:"Da Kinderbetreuungskosten eingetragen wurden, verlangt das Finanzamt auch Name/Anschrift des Anbieters und den Leistungszeitraum - diese drei Felder sind jetzt Pflichtfelder.",
  cc_provider:"Name & Anschrift des Anbieters", cc_provider_ph:"z. B. Kita Sonnenschein, Musterstr. 1, 60000 Frankfurt",
@@ -1708,11 +1708,12 @@ de: {
   pdf_btn:"PDF-Zusammenfassung herunterladen", pdf_title:"Einkommensteuererklärung - Zusammenfassung",
  pdf_locked_hint:"Wird freigeschaltet, sobald die Zahlung abgeschlossen ist.",
  pdf_est:"Voraussichtliches Ergebnis", pdf_generated:"Erstellt am", pdf_docs:"Angehängte Belege",
- pdf_page:"Seite", pdf_fail:"Die PDF-Bibliothek konnte nicht geladen werden. Bitte Internetverbindung prüfen und erneut versuchen.",
+ pdf_page:"Seite", 
  tab_signin:"Anmelden", tab_register:"Konto erstellen",
   register_title:"Konto erstellen", register_sub:"Für Ihre eigene Steuererklärung - Ihr Konto erhält einen eigenen, privaten Arbeitsbereich.",
   practice_name:"Ihr Name", confirm_pass:"Passwort bestätigen", register_btn:"Konto erstellen",
  err_exists:"Ein Konto mit dieser E-Mail existiert bereits.", err_creds:"E-Mail oder Passwort ist falsch.",
+ err_pw_long:"Dieses Passwort ist zu lang. Bitte höchstens 72 Zeichen verwenden (Sonderzeichen können mehrfach zählen).",
  err_match:"Die Passwörter stimmen nicht überein.", err_short:"Das Passwort braucht mindestens 8 Zeichen.", err_fields:"Bitte alle Felder ausfüllen.",
  bundesland:"Bundesland", fa_name:"Name des Finanzamts", fa_number:"Finanzamtsnummer (BUFA, 4-stellig)",
  fa_hint:"Die 4-stellige Bundesfinanzamtsnummer identifiziert das empfangende Finanzamt.",
@@ -1721,7 +1722,7 @@ de: {
  fa_search_ph:"Finanzamt suchen...", fa_no_match:"Kein Treffer - anderen Suchbegriff versuchen",
  err_fa:"Bitte vor der Übermittlung die 4-stellige Finanzamtsnummer (BUFA) in den persönlichen Daten eintragen.",
  err_taxid:"Bitte vor der Übermittlung die 11-stellige Steuer-ID (IdNr) in den persönlichen Daten eintragen.",
- submitting_to:"Empfangendes Finanzamt",
+ 
  freigabe_title:"Zur Übermittlung freigeben", freigabe_sub:"Bitte prüfen Sie die folgenden Angaben sorgfältig. Mit der Freigabe wird diese Erklärung über die offizielle elektronische Schnittstelle an das Finanzamt übermittelt.",
  freigabe_validate_failed:"ERiC konnte noch nicht bestätigen, dass diese Erklärung versandbereit ist.",
  freigabe_no_detail_from_eric:"ERiC hat für diesen speziellen Fehler keine weiteren Details geliefert - siehe unten, was die App selbst bereits als unvollständig erkennt.",
@@ -1771,7 +1772,7 @@ de: {
  ai_consent_review_link:"Berechtigung zur KI-Dokumentenerkennung überprüfen",
   step_kap:"Kapitalerträge", s_kap_lead:"Kapitalerträge (Anlage KAP) - Gewinne, Dividenden und Zinsen aus Aktien, Fonds und ETFs bei Banken, Brokern und Plattformen. Der Sparer-Pauschbetrag von 1.000 € pro Person (2.000 € bei Zusammenveranlagung) wird in der Schätzung automatisch berücksichtigt.",
  foreign_employment:"Auslandstätigkeit", country:"Land", total_wage:"Gesamtlohn", work_days_abroad:"Arbeitstage im Ausland", legal_basis:"Rechtsgrundlage",
- platform:"Bank / Plattform", kap_gains:"Kapitalerträge (Gewinne, Dividenden, Zinsen)", kap_tax:"Einbehaltene Kapitalertragsteuer (KapESt)", kap_soli:"Einbehaltener Solidaritätszuschlag",
+ platform:"Bank / Plattform", 
  add_kap:"Plattform hinzufügen", kap_hint:"Pauschal 25 % Steuer + Soli. Die Günstigerprüfung (persönlicher Steuersatz, falls niedriger) übernimmt das Finanzamt auf Antrag.",
  kap_dom:"Kapitalerträge, die dem inländischen Steuerabzug unterlegen haben (Zeilen 7-15)",
  kap_for:"Kapitalerträge, die NICHT dem inländischen Steuerabzug unterlegen haben (Zeilen 18-26)",
@@ -1797,7 +1798,7 @@ de: {
  pflege_person:"Name, Anschrift, Geburtsdatum und Verwandtschaftsverhältnis der gepflegten Person", pflege_person_ph:"z. B. Maria Muster, Hauptstr. 1, 12345 Musterstadt, geb. 03.05.1950, Mutter",
  pflege_person_id:"Deren Steuer-ID (IdNr, 11 Ziffern)", pflege_person_resident:"Wohnt diese Person in Deutschland?",
  pflege_h:"Merkzeichen „H” (Hilflosigkeit) wurde für diese Person amtlich festgestellt",
- kid_transfer:"Vom Kind übertragener Behinderten-Pauschbetrag",
+ 
  disab_hint:"Pauschbeträge zählen OHNE zumutbare Belastung. Der Pauschbetrag eines Kindes kann auf die Eltern übertragen werden.",
  sec_so:"Private Veräußerungsgeschäfte & sonstige Einkünfte (Anlage SO)",
  so_gain:"Gewinne aus privaten Veräußerungen unter 1 Jahr Haltedauer (Krypto, Gold...)",
@@ -1873,11 +1874,11 @@ de: {
  step_counter_lbl:"Schritt",
  deadline_banner:"Abgabefrist - Steuerjahr 2025: Selbsteinreicher 31. Juli 2026 · mit Steuerberater/Lohnsteuerhilfeverein 1. März 2027 · freiwillige Abgabe bis 31. Dez. 2029 möglich.",
  elster_link:"Offizielles Finanzamt-Portal",
- expat_section:"Aufenthalt", full_year_resident:"Haben Sie das gesamte Steuerjahr in Deutschland gelebt?",
+ 
  personal_info_h:"Persönliche Angaben", address_h:"Adresse", status_h:"Status", tax_info_h:"Steuerdaten",
- fy_yes:"Ja - das gesamte Jahr in Deutschland", fy_no:"Nein - nur einen Teil des Jahres (Zu- oder Wegzug)",
- arrival_date:"Zuzugsdatum / Anmeldedatum in Deutschland", departure_date:"Wegzugsdatum aus Deutschland (falls zutreffend)",
-  partial_year_hint:"Expats / Personen mit Zu- oder Wegzug: tatsächliche Daten eintragen. Falls Sie mit einem Steuerberater arbeiten, weisen Sie ihn darauf hin - nur Einkommen während des Aufenthalts in Deutschland ist hier voll steuerpflichtig.",
+ 
+ 
+  
  sk1_hint:"ledig", sk2_hint:"alleinerziehend", sk3_hint:"besser verdienend",
  sk4_hint:"gleich verdienend", sk5_hint:"weniger verdienend", sk6_hint:"Nebenjob",
  trust_enc:"Verschlüsselt", trust_eu:"EU-Daten", trust_gdpr:"DSGVO",
@@ -1919,7 +1920,7 @@ de: {
  days_since_payment:"Tage seit Zahlung", refund_window_over:"außerhalb der 14-Tage-Rückerstattungsfrist",
  m_kap:"Kapitalertragsteuer (ca.)",
  step_prop:"Vermietung", s_prop_lead:"Einkünfte aus Vermietung (Anlage V) - ein Eintrag je Immobilie. Kosten (Darlehenszinsen, Instandhaltung, AfA, Nebenkosten...) zählen als Werbungskosten; ein Verlust mindert das zu versteuernde Einkommen.",
-  prop_address:"Immobilie (Adresse)", prop_street:"Straße, Hausnummer", prop_plz:"Postleitzahl", prop_plz_foreign_ph:"Wie vor Ort üblich", prop_city:"Ort", prop_rent:"Mieteinnahmen (pro Jahr)", prop_costs:"Kosten / Aufwendungen (pro Jahr)", add_prop:"Immobilie hinzufügen", prop_net:"Ergebnis",
+  prop_address:"Immobilie (Adresse)", prop_street:"Straße, Hausnummer", prop_plz:"Postleitzahl", prop_plz_foreign_ph:"Wie vor Ort üblich", prop_city:"Ort", prop_rent:"Mieteinnahmen (pro Jahr)", add_prop:"Immobilie hinzufügen", prop_net:"Ergebnis",
  add_support_person:"Weitere unterstützte Person hinzufügen",
  prop_costs_summary:"Werbungskosten (Vermietung)", prop_costs_total:"Eingetragene abzugsfähige Kosten insgesamt",
  prop_costs_hint:"Das Finanzamt verlangt diese aufgeteilt nach Kategorie, nicht als eine Gesamtsumme.",
@@ -1929,7 +1930,7 @@ de: {
  prop_afa_year_result:"Angewendeter Satz: {rate} % pro Jahr, basierend auf diesem Baujahr.",
  prop_wk_schuldzins:"Darlehenszinsen", prop_wk_schuldzins_hint:"Zinsen für ein Darlehen zum Kauf oder zur Renovierung dieser Immobilie - nicht die Tilgung selbst, nur die Zinsen.",
  prop_wk_erhaltung:"Erhaltungsaufwand", prop_wk_erhaltung_hint:"In diesem Jahr abzugsfähige Instandhaltungs- und Reparaturkosten - größere Renovierungen müssen unter Umständen über mehrere Jahre verteilt werden; im Zweifel den Steuerberater fragen.",
- prop_wk_verwaltung:"Verwaltungskosten", prop_wk_verwaltung_hint:"Gebühren an eine Hausverwaltung für die Verwaltung dieser Immobilie, falls Sie sich nicht selbst darum kümmern.",
+ prop_wk_verwaltung:"Verwaltungskosten", 
  prop_wk_sonst:"Sonstige Kosten", prop_wk_sonst_hint:"Alles andere im Zusammenhang mit dieser Immobilie, das nicht in die obigen Kategorien passt - z. B. Versicherung, Hausverwaltungsgebühren, Mietersuche-Anzeigen.",
  prop_rarer_summary:"Seltenere Abzugskategorien (Sonderabschreibung, Geldbeschaffungskosten und mehr)",
  prop_wk_sonderabschr:"Sonderabschreibung (§7b EStG)", prop_wk_sonderabschr_hint:"Gilt nur für bestimmte Neubau- oder Sanierungsfälle - bei den meisten Immobilien nicht zutreffend.",
@@ -1949,17 +1950,17 @@ de: {
  prop_owner_hint:"Bestimmt, wie der Überschuss oder Verlust dieser Immobilie zwischen Ihnen und Ihrem Ehepartner aufgeteilt wird.",
  energ_owner:"Wem gehört diese Immobilie?", energ_owner_hint:"Sie wählen die Einzelveranlagung (§26a). Wurden diese Immobilie und die Sanierung gemeinsam finanziert, wählen Sie dies, damit nur Ihr eigener Kostenanteil in Ihre eigene Erklärung übernommen wird - Ihr Ehepartner trägt seinen Anteil in seiner eigenen Erklärung ein.",
  prop_foreign_hint:"Bei einer Auslandsimmobilie werden hier nur Staat, Mieteinnahmen und Kosten benötigt - die Erklärung erfolgt als steuerfreie Einkünfte mit Progressionsvorbehalt. Bitte prüfen Sie vorab das Doppelbesteuerungsabkommen mit dem betreffenden Staat.",
- sec_sv:"Sozialversicherung (Zeilen 22-28)", sec_more:"Weitere Felder (Zeilen 8-21, 29-34)",
- sec_more_8_21:"Weitere Lohnsteuerfelder (Zeilen 8-21)",
+ 
+ 
  sec_more_16_21:"Auslandseinkünfte & seltenere Freibeträge (Zeilen 16-21)",
  sec_22_28:"Sozialversicherungsbeiträge (Zeilen 22a-28)",
  sec_more_rare:"Selten benötigte Felder (Zeilen 11-14, 29-34)",
  bescheinigung_hint:"Direkt von Ihrer Lohnsteuerbescheinigung übertragen - jedes Feld unten entspricht der gleichen Zeilennummer auf der Bescheinigung.",
  z11_14_hint:"Zeilen 11-14 sind auf aktuellen Bescheinigungen unbesetzt - nur relevant für ältere Steuerjahre, in denen sie noch verwendet wurden.",
- badge_incomplete_hint:"Angaben zum Auslandseinkommen sind in diesem Abschnitt unvollständig - bitte öffnen und prüfen.",
- badge_action_needed:"Handlung erforderlich",
- sec_more_22_28:"Sozialversicherungsbeiträge (Zeilen 22a-28)",
- sec_more_29_34:"Weitere Felder (Zeilen 29-34)",
+ 
+ 
+ 
+ 
  kfb:"Zahl der Kinderfreibeträge",
  z7:"Kirchensteuer Ehegatte (Zeile 7)", z8:"In Zeile 3 enthaltene Versorgungsbezüge (Zeile 8)",
  z9:"Ermäßigt besteuerte Versorgungsbezüge, mehrere Jahre (Zeile 9)", z10:"Arbeitslohn mehrere Jahre / Entschädigungen (Zeile 10)",
@@ -1970,7 +1971,7 @@ de: {
  aus_calc_link:"Dieses Jahr im Ausland gearbeitet? Betrag berechnen",
  aus_calc_title:"Auslandstätigkeit - Rechner für den steuerfreien Betrag",
  aus_calc_sub:"Wer teilweise im Ausland gearbeitet hat, dessen Lohn kann teilweise nach einem Doppelbesteuerungsabkommen (DBA) in Deutschland steuerfrei sein. Dieser Rechner ermittelt den Betrag nach der offiziellen Arbeitstage-Aufteilungsmethode und trägt ihn in Zeile 16 ein. Bei komplexeren Fällen (mehrere Länder, ausländischer Arbeitgeber, Fragen zur Abkommensgrundlage) hilft ein Steuerberater mit der vollständigen Anlage N-AUS.",
- aus_country:"Land, in dem gearbeitet wurde", aus_country_ph:"z. B. Schweiz",
+ aus_country:"Land, in dem gearbeitet wurde", 
  aus_total_wage:"Gesamtlohn im Jahr (Inland + Ausland)", aus_days_total:"Tatsächliche Arbeitstage im Jahr",
  aus_days_foreign:"Davon Arbeitstage im Ausland", aus_formula_hint:"Formel: Gesamtlohn x Auslandstage / Gesamtarbeitstage",
  aus_result_label:"Steuerfreier Betrag:", aus_apply:"Betrag übernehmen",
@@ -2021,13 +2022,13 @@ de: {
  tot_deduct:"Davon steuerlich relevant (vor Höchstbeträgen)",
  priv_note:"Höchstbeträge (1.900 € sonstige Vorsorge, 2.100 € Riester) werden in der Erstattungsschätzung automatisch angewendet.",
  step_wki:"Werbungskosten (Einzelposten)",
- s_wki_lead:"Berufliche Ausgaben als Einzelposten je Person - Kategorie wählen, Posten beschreiben, Jahresbetrag eintragen. Diese ergänzen die strukturierten Werbungskosten (Pendlerpauschale, Homeoffice...). Jede Ausgabe bitte nur einmal erfassen.",
+ 
  wki_type:"Kategorie", wki_desc:"Bezeichnung (optional)", wki_amount:"Betrag (pro Jahr)",
  add_wki:"Posten hinzufügen", wki_tot_a:"Summe Person A", wki_tot_b:"Summe Person B",
  export_elster:"Finanzamt-Datensatz exportieren (JSON)",
  export_elster_section:"Finanzamt-Datensatz exportieren", export_elster_hint:"Exportiert die Rohdaten einer Steuererklärung im gleichen Format, das an das Finanzamt gesendet wird.",
  export_elster_which:"Welche Erklärung", import_elster_section:"Finanzamt-Datensatz importieren", import_elster_hint:"Importieren Sie eine SimplyTax-Austauschdatei (JSON), um sie über Übersicht & Übermitteln zu testen.", import_json_btn:"JSON importieren",
- person:"Gehört zu (Person)", person_b_detect:"Person B (Ehepartner) zugeordnet - Identifikationsnummer stimmte nicht mit Person A überein.",
+ person:"Gehört zu (Person)", 
    privacy_foot:"Verschlüsselte Anmeldung · DSGVO-konforme Datenhaltung (UK-Hosting) · Zahlung über zertifizierten Dienstleister"
 }};
 
@@ -2453,12 +2454,13 @@ async function doForgot(btn){
 async function doReset(btn){
  const p1=document.getElementById('rs-pass')?.value||'', p2=document.getElementById('rs-pass2')?.value||'';
  if(p1.length<8){ authErr(t('err_short')); return; }
+ if(new TextEncoder().encode(p1).length>72){ authErr(t('err_pw_long')); return; }
  if(p1!==p2){ authErr(t('err_match')); return; }
  setBusy(true); setBtnBusy(btn,true);
  try{ await api('/api/auth/reset','POST',{email:S.resetEmail, token:S.resetToken, password:p1});
  S.resetToken=null; S.resetEmail=null; S.authMode='login'; render();
  setTimeout(()=>authOk(t('reset_ok')),0);
- }catch(e){ authErr(t('reset_bad')); }
+ }catch(e){ authErr(e.message==='password_too_long'?t('err_pw_long'):t('reset_bad')); }
  finally { setBusy(false); setBtnBusy(btn,false); }
 }
 function setAuthMode(m){ S.authMode=m; render(); }
@@ -2507,6 +2509,7 @@ async function doRegister(btn){
  const p1=document.getElementById('rg-pass')?.value||'', p2=document.getElementById('rg-pass2')?.value||'';
  if(!name||!email||!p1||!p2){ authErr(t('err_fields')); return; }
  if(p1.length<8){ authErr(t('err_short')); return; }
+ if(new TextEncoder().encode(p1).length>72){ authErr(t('err_pw_long')); return; }
  if(p1!==p2){ authErr(t('err_match')); return; }
  setBusy(true); setBtnBusy(btn,true);
  try{
@@ -2515,7 +2518,7 @@ async function doRegister(btn){
   S.user=r.user;
   authToken = r.token;
  S.clients=[]; S.loggedIn=true; S.view='dash'; startTokenRefreshTimer(); render();
- }catch(e){ authErr(e.message==='email_exists'?t('err_exists'):t('err_fields')); }
+ }catch(e){ authErr(e.message==='email_exists'?t('err_exists'):(e.message==='password_too_long'?t('err_pw_long'):t('err_fields'))); }
  return;
  }
  if(S.accounts.some(a=>a.email===email)){ authErr(t('err_exists')); return; }
@@ -3272,47 +3275,6 @@ function computeEstimatePerPerson(c, person){
  clone.ins = clone.ins||{}; ['rv','kv','pv','av','other'].forEach(k=>{ clone.ins[k]=half(c.ins?.[k]); });
  clone.kap = (c.kap||[]).map(k=>{ const k2={...k}; ['gains','k7','k18','k19','k12','k13'].forEach(f=>{k2[f]=half(k[f]);}); return k2; });
  return computeEstimate(clone);
-}
-function veranlagungCompareCard(c){
- /* CORRECTED: real, separate bug found alongside the same user report -
-    this never actually forced a joint-filing scenario, it just called
-    computeEstimate with whatever the real marital status already was.
-    For a married_sep client, that meant computing the real separate
-    figure, mislabeled as joint. Now genuinely clones with marital
-    forced to 'married' to represent the hypothetical this label
-    claims - the actual filing status this couple didn't choose. */
- const jointClone = JSON.parse(JSON.stringify(c));
- jointClone.p.marital = 'married';
- const jointR = computeEstimate(jointClone).refund;
- const simA = computeEstimatePerPerson(c,'A');
- const simB = computeEstimatePerPerson(c,'B');
- const sepR = simA.refund + simB.refund;
- /* CORRECTED: real trust issue found via direct user feedback - a
-    genuine tie was being shown with joint marked "better" anyway,
-    which looks like a real error to anyone checking the numbers.
-    Now a tie is its own explicit, honestly-labeled state, and the
-    "better" label only appears when the two genuinely differ. */
- const isTie = Math.abs(jointR - sepR) < 0.5;
- const jointBetter = !isTie && jointR > sepR;
- const sepBetter = !isTie && sepR > jointR;
- const diff = Math.abs(jointR - sepR);
- const fmt = r => `<div class="num" style="font-size:20px;margin-top:2px">${eur(Math.abs(r))}</div><div class="hint" style="margin-top:1px">${r>=0?t('veranlagung_refund'):t('veranlagung_owed')}</div>`;
- return `<div class="infobox" style="margin-bottom:16px">
- <b>${t('veranlagung_compare_title')}</b>
- <p class="hint" style="margin:4px 0 12px">${t('veranlagung_compare_hint')}</p>
- <div class="grid2">
- <div style="padding:10px 12px;border-radius:10px;background:${jointBetter?'var(--teal-soft)':'var(--paper-soft)'};border:1px solid ${jointBetter?'var(--teal)':'var(--border)'}">
- <div style="font-size:12.5px;font-weight:600">${t('married')}${jointBetter?' ✓ '+t('veranlagung_better'):''}</div>
- ${fmt(jointR)}
- </div>
- <div style="padding:10px 12px;border-radius:10px;background:${sepBetter?'var(--teal-soft)':'var(--paper-soft)'};border:1px solid ${sepBetter?'var(--teal)':'var(--border)'}">
- <div style="font-size:12.5px;font-weight:600">${t('married_sep')}${sepBetter?' ✓ '+t('veranlagung_better'):''}</div>
- ${fmt(sepR)}
- </div>
- </div>
- ${isTie ? `<p class="hint" style="margin-top:10px">${t('veranlagung_tie_note')}</p>` : diff>0?`<p class="hint" style="margin-top:10px">${t('veranlagung_diff_note').replace('{amount}',eur(diff))}</p>`:''}
- ${c.p.marital==='married_sep'?`<p class="hint" style="margin-top:6px">${t('veranlagung_scope_note')}</p>`:''}
- </div>`;
 }
 
 /* ---------------- render root ---------------- */
@@ -5257,20 +5219,6 @@ function stepProp(c){
  ${navRow()}`;
 }
 
-/* --- step 3: insurance --- */
-function stepInsurance(c){
- return `<h2>${t('step3')}</h2><p class="lead">${t('s3_lead')}</p>
- <div class="grid2">
- ${F('ins','rv',t('rv'),{euro:true,ph:'0,00 €'})}
- ${F('ins','kv',t('kv'),{euro:true,ph:'0,00 €'})}
- ${F('ins','pv',t('pv'),{euro:true,ph:'0,00 €'})}
- ${F('ins','av',t('av'),{euro:true,ph:'0,00 €'})}
- </div>
- <div class="grid2">
- ${F('oth','realsplitting',t('realsplit'),{euro:true,ph:'0,00 €',hint:t('realsplit_hint')})}
- ${F('oth','lossCarry',t('loss_carry'),{euro:true,ph:'0,00 €',hint:t('loss_hint')})}
- </div>${navRow()}`;
-}
 
 /* --- step 3: Werbungskosten (structured + itemized, merged) --- */
 function stepWork(c){
@@ -6884,9 +6832,8 @@ async function sendInqNow(id){
  const btn=document.getElementById('inqSendBtn-'+id);
  if(btn) setBtnBusy(btn,true);
  try{
- const data = buildElsterDataset(c);
  const r = await api('/api/eric/inquiry-message','POST',{
- clientId:c.id, inquiryId:id, hauptvordruck:data.hauptvordruck,
+ clientId:c.id, inquiryId:id,
  subject:q.q ? q.q.slice(0,99) : undefined, text:q.a,
  attachment: attachment ? { base64:attachment.base64, filename:attachment.name } : undefined,
  });
@@ -7533,7 +7480,7 @@ function sanitizeExtraction(j){
  const parsed = v => { const m=String(v??'').trim().match(/^(\d+)(?:\.(\d{1,2}))?$/); return m?parseFloat(m[0]):NaN; };
  let g = parsed(j.gross), w = parsed(j.wageTax);
  // wage tax can never exceed gross - if it does and it's integer-only, it's concatenated
- if(Number.isFinite(g) && Number.isFinite(w) && w>g && intOnly(j.wageTax) && w/100<=g){ j.wageTax=(w/100).toFixed(2); w=w/100; }
+ if(Number.isFinite(g) && Number.isFinite(w) && w>g && intOnly(j.wageTax) && w/100<=g){ j.wageTax=(w/100).toFixed(2); }
  // gross plausibility vs pension contribution: anRV is ~9.3% of gross (ceiling-capped);
  // gross > anRV*30 implies an RV rate under 0.33% - impossible unless gross is concatenated
  const rv = parsed(j.anRV);
@@ -7605,71 +7552,14 @@ async function handleFile(file){
  const b64 = await new Promise((res,rej)=>{ const r=new FileReader();
  r.onload=()=>res(r.result.split(',')[1]); r.onerror=()=>rej(new Error('read')); r.readAsDataURL(file); });
  const isPdf = file.type==='application/pdf';
- const prompt = `You are reading a German "Ausdruck der elektronischen Lohnsteuerbescheinigung" (annual wage tax certificate). Your task is to extract specific field values and return ONLY a valid JSON object - no markdown, no explanation, nothing else.
-
-CRITICAL - EUR/Ct COLUMN LAYOUT (the most common parsing error):
-The form has TWO narrow columns on the right: "EUR" and "Ct" (cents), separated by a vertical line.
-The EUR column contains the euros (e.g. 48.750) and the Ct column contains the cents (e.g. 03).
-You MUST read these as a SINGLE decimal number: EUR,Ct - so 48.750 | 03 = 48750.03 NOT 4875003.
-Return all monetary values as a number with a dot as decimal separator, e.g. 48750.03, 8136.00, 4533.75.
-NEVER concatenate the EUR and Ct digits without a decimal point.
-If the Ct column shows "00", still include it: 48750.00 not 48750.
-
-CRITICAL - FIELD IDENTITY RULES: - taxClass: a SINGLE digit 1-6 from the "Steuerklasse/Faktor" box. This is NEVER a decimal, NEVER more than one digit. If you see "4" in that box, taxClass = "4". - kfb (Kinderfreibeträge): a separate field, usually printed as "0,0" or "2,0" or similar. It is physically BELOW or BESIDE the Steuerklasse box. It is NEVER the same value as taxClass. If the Steuerklasse is 4, kfb might be "0,0" - do NOT copy the "4" into kfb. - idnr: the EMPLOYEE's personal 11-digit Identifikationsnummer (printed near the employee's name/address). NEVER the employer's Steuernummer (which has slashes like "181/815/08155") or Betriebsnummer. Leave empty "" if uncertain. - agRV (Zeile 22a) vs anRV (Zeile 23a): these are DIFFERENT fields on adjacent rows. Zeile 22a says "Arbeitgeber-Anteil/-Zuschuss ... a) zur gesetzlichen Rentenversicherung". Zeile 23a says "Arbeitnehmer-Anteil ... a) zur gesetzlichen Rentenversicherung". Read the LINE NUMBER carefully - do not swap them. IMPORTANT: Zeile 22a and Zeile 23a usually contain the IDENTICAL amount (employer and employee pay equal halves by German law). This is NOT a reading error and NOT a duplicate - you MUST extract BOTH values even when they are exactly the same. Never leave one of them empty because the other already has the same number. - Similarly: agKV (Zeile 24a) ≠ anKV (Zeile 25). agPV (Zeile 24c) ≠ anPV (Zeile 26).
-
-FIELD MAPPING - match each JSON key to the exact Zeile number printed on the form:
-employer = employer name from "Anschrift des Arbeitgebers" block (text, not a number)
-period = Zeile 1 Bescheinigungszeitraum (text, e.g. "01.04.-31.12.")
-taxClass = Steuerklasse/Faktor box (single digit 1-6 only)
-kfb = Zahl der Kinderfreibeträge (decimal like 0.0 or 2.0, separate from taxClass)
-idnr = employee's 11-digit Identifikationsnummer only (no slashes)
-birthDate = Geburtsdatum in YYYY-MM-DD format
-gross = Zeile 3 Bruttoarbeitslohn einschl. Sachbezüge
-wageTax = Zeile 4 Einbehaltene Lohnsteuer
-soli = Zeile 5 Einbehaltener Solidaritätszuschlag
-churchPaid = Zeile 6 Einbehaltene Kirchensteuer des Arbeitnehmers
-churchSpouse = Zeile 7 Einbehaltene Kirchensteuer des Ehegatten
-vb8 = Zeile 8 In 3. enthaltene Versorgungsbezüge
-vb9 = Zeile 9 Versorgungsbezüge für mehrere Kalenderjahre
-ml10 = Zeile 10 Arbeitslohn für mehrere Kalenderjahre / Abfindungen
-lst11 = Zeile 11 (unbesetzt on most recent forms - leave "")
-soli12 = Zeile 12 (unbesetzt on most recent forms - leave "")
-kist13 = Zeile 13 (unbesetzt on most recent forms - leave "")
-kistSp14 = Zeile 14 (unbesetzt on most recent forms - leave "")
-ersatz15 = Zeile 15 Leistungen die dem Progressionsvorbehalt unterliegen (Kurzarbeitergeld etc.)
-kug15a = Zeile 15a (Saison-)Kurzarbeitergeld in 15. enthalten
-dba16 = Zeile 16 Steuerfreier Arbeitslohn nach DBA/Auslandstätigkeitserlass (a+b combined)
-fahrt17 = Zeile 17 Steuerfreie AG-Leistungen auf Entfernungspauschale anzurechnen
-pausch18 = Zeile 18 Pauschal mit 15% besteuerte AG-Leistungen Fahrten
-entsch19 = Zeile 19 (unbesetzt on most recent forms - leave "")
-verpf20 = Zeile 20 Steuerfreie Verpflegungszuschüsse bei Auswärtstätigkeit
-dhh21 = Zeile 21 Steuerfreie AG-Leistungen bei doppelter Haushaltsführung
-agRV = Zeile 22a Arbeitgeber-Anteil/-Zuschuss zur gesetzlichen Rentenversicherung
-agRVb = Zeile 22b Arbeitgeber-Anteil/-Zuschuss an berufsständische Versorgungseinrichtung
-anRV = Zeile 23a Arbeitnehmer-Anteil zur gesetzlichen Rentenversicherung
-anRVb = Zeile 23b Arbeitnehmer-Anteil an berufsständische Versorgungseinrichtung
-agKV = Zeile 24a Arbeitgeber-Zuschuss zur gesetzlichen Krankenversicherung
-agPKV = Zeile 24b Arbeitgeber-Zuschuss zur privaten Kranken-/Pflegeversicherung
-agPV = Zeile 24c Arbeitgeber-Zuschuss zur gesetzlichen Pflegeversicherung
-anKV = Zeile 25 Arbeitnehmer-Beiträge zur gesetzlichen Krankenversicherung
-anPV = Zeile 26 Arbeitnehmer-Beiträge zur gesetzlichen Pflegeversicherung
-anAV = Zeile 27 Arbeitnehmer-Beiträge zur Arbeitslosenversicherung
-pkv28 = Zeile 28 Private Kranken-/Pflege-Pflichtversicherung oder Mindestvorsorgepauschale
-bmg29 = Zeile 29 Bemessungsgrundlage für den Versorgungsfreibetrag
-vbJahr30 = Zeile 30 Jahr des Versorgungsbeginns (4-digit year)
-vbMon31 = Zeile 31 Erster/letzter Monat der Versorgungsbezüge
-sterbe32 = Zeile 32 Sterbegeld / Abfindung Versorgungsbezüge
-fb34 = Zeile 34 Versorgungsfreibetrag
-
-Return this exact JSON structure (use "" for any field not found or empty on the form):
-{"employer":"","period":"","taxClass":"","kfb":"","idnr":"","birthDate":"","gross":"","wageTax":"","soli":"","churchPaid":"","churchSpouse":"","vb8":"","vb9":"","ml10":"","lst11":"","soli12":"","kist13":"","kistSp14":"","ersatz15":"","kug15a":"","dba16":"","fahrt17":"","pausch18":"","entsch19":"","verpf20":"","dhh21":"","agRV":"","agRVb":"","anRV":"","anRVb":"","agKV":"","agPKV":"","agPV":"","anKV":"","anPV":"","anAV":"","pkv28":"","bmg29":"","vbJahr30":"","vbMon31":"","sterbe32":"","fb34":""}`;
+ /* The extraction prompt is owned by the server (server.js EXTRACT_PROMPT); the browser sends only the document. */
  if(!BACKEND.enabled) throw new Error('backend_disabled');
  const dataUrl = isPdf ? `data:application/pdf;base64,${b64}` : `data:${file.type||'image/jpeg'};base64,${b64}`;
   const resp = await fetch(BACKEND.baseUrl+'/api/extract-doc', {
  method:'POST',
  credentials: 'include',
  headers:{ 'Content-Type':'application/json', ...(authToken?{'Authorization':'Bearer '+authToken}:{}) },
- body: JSON.stringify({ dataUrl, prompt })
+ body: JSON.stringify({ dataUrl })
  });
  if(!resp.ok){
    /* CORRECTED: a deliberately-disabled feature (operator turned off

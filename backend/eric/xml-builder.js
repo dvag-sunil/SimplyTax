@@ -1538,10 +1538,8 @@ function buildWkBlock(p, taxYear) {
    confirmed separately) inside one single, shared V element. */
 function buildVLegacy(data, entries) {
   let inner = '';
-  let idx = 0;
   entries.forEach((p) => {
     if (!p.objekt && !p.street && !(N(p.mieteinnahmen) > 0)) return;
-    idx++;
     const addr = (p.street || p.plz || p.ort)
       ? { street: p.street || '', plz: p.plz || '', ort: p.ort || '' }
       : splitPropertyAddress(p.objekt);

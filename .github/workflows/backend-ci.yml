@@ -127,12 +127,48 @@ jobs:
         working-directory: backend
         run: node test/test-lifecycle.js
 
+      - name: Session revocation suite (logout, password reset and account deletion must end existing sessions)
+        working-directory: backend
+        env:
+          FRONTEND_URL: https://www.taxfile24.com/
+          CERT_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+        run: node test/test-sessions.js
+
+      - name: Session abuse suite (one user's logout or reset must never affect another, forged or failed requests must not end sessions)
+        working-directory: backend
+        env:
+          FRONTEND_URL: https://www.taxfile24.com/
+          CERT_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+        run: node test/test-session-abuse.js
+
+      - name: Hardening suite (sign-in throttling, password length, cron secret, storage quota, deletion of all stored files)
+        working-directory: backend
+        env:
+          FRONTEND_URL: https://www.taxfile24.com/
+          CERT_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+        run: node test/test-hardening.js
+
+      - name: Account deletion suite (stored certificate removed, ledger kept, failure paths, anonymise fallback)
+        working-directory: backend
+        env:
+          FRONTEND_URL: https://www.taxfile24.com/
+          CERT_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+        run: node test/test-account-deletion.js
+
+      - name: Database schema suite (schema.sql on REAL PostgreSQL - idempotent, no drift from the code's own DDL, every SQL statement valid)
+        working-directory: backend
+        run: node test/test-schema.js
+
       - name: Security suite - state and integrity (server-owned fields, immutability, deletion)
         working-directory: backend
         env:
           FRONTEND_URL: https://www.taxfile24.com/
           CERT_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
         run: node test/test-security-state.js
+
+      - name: ALL backend suites again on REAL PostgreSQL (the default run uses a fast imitation of PostgreSQL)
+        working-directory: backend
+        run: npm run test:realdb
 
       - name: Frontend <-> backend API cross-check (every frontend call must hit a real route with the right method)
         working-directory: test

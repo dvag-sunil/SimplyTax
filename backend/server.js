@@ -215,7 +215,7 @@ async function sendSecurityEmail(to, subject, html){
    with header x-cron-secret matching REMINDER_CRON_SECRET. Finds clients paid >= REMINDER_DAYS
    ago and still not submitted, emails them once (marks reminded_at to avoid repeat sends). */
 app.post('/api/reminders/run', async (req, res) => {
-  if(!REMINDER_CRON_SECRET || req.headers['x-cron-secret'] !== REMINDER_CRON_SECRET)
+  if(!secretOk(req.headers['x-cron-secret'], REMINDER_CRON_SECRET))
     return res.status(401).json({ error: 'unauthorized' });
   if(!BREVO_API_KEY) return res.status(501).json({ error: 'email_disabled', note: 'set BREVO_API_KEY to activate' });
   const cutoff = Date.now() - REMINDER_DAYS*86400000;
@@ -249,8 +249,14 @@ const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STR
 const PAYPAL_ENABLED = !!(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET);
 const PAYPAL_API_BASE = process.env.PAYPAL_API_BASE || 'https://api-m.sandbox.paypal.com';
 let paypalTokenCache = { token: null, expiresAt: 0 };
-async function getPaypalAccessToken() {
-  if (paypalTokenCache.token && Date.now() < paypalTokenCache.expiresAt) return paypalTokenCache.token;
+/* Several requests arriving together while the token is expired used to each fetch their own; they now share one fetch. */
+let paypalTokenInflight = null;
+function getPaypalAccessToken() {
+  if (paypalTokenCache.token && Date.now() < paypalTokenCache.expiresAt) return Promise.resolve(paypalTokenCache.token);
+  if (!paypalTokenInflight) paypalTokenInflight = fetchPaypalAccessToken().finally(() => { paypalTokenInflight = null; });
+  return paypalTokenInflight;
+}
+async function fetchPaypalAccessToken() {
   const creds = Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`).toString('base64');
   const r = await fetch(`${PAYPAL_API_BASE}/v1/oauth2/token`, {
     method: 'POST',
@@ -309,6 +315,10 @@ const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 const BELEGE_BUCKET = 'belege';
  const DOC_MAX_BYTES = 5 * 1024 * 1024;
+/* Per-user storage quota (audit): without one, a single account could fill the storage with uploads. Defaults suit a private
+   tax return (300 files / 200 MB); override with DOC_USER_MAX_FILES and DOC_USER_MAX_MB. */
+const DOC_USER_MAX_FILES = Math.max(1, parseInt(process.env.DOC_USER_MAX_FILES || '300', 10));
+const DOC_USER_MAX_BYTES = Math.max(0.001, parseFloat(process.env.DOC_USER_MAX_MB || '200')) * 1024 * 1024;
 const DOC_MIME_OK = m => /^image\//.test(m) || m === 'application/pdf'
   || m === 'application/msword'
   || m === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -343,6 +353,22 @@ function verifyMagicBytes(buf, claimedMime){
   return true; // no signature defined for this claimed type - falls through to the existing DOC_MIME_OK allowlist check unchanged
 }
 const sbHeaders = () => ({ Authorization: 'Bearer ' + SUPABASE_SERVICE_KEY, apikey: SUPABASE_SERVICE_KEY });
+/* Lists ALL of a user's stored files. Supabase returns only 100 entries per call unless told otherwise: the account-deletion
+   cleanup used to ask once and so left every file past the first 100 behind in storage. Pages of 1000, up to 20000 files. */
+async function listUserFiles(userId) {
+  const out = [];
+  for (let offset = 0; offset < 20000; offset += 1000) {
+    const r = await fetch(`${SUPABASE_URL}/storage/v1/object/list/${BELEGE_BUCKET}`, {
+      method: 'POST', headers: { ...sbHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prefix: `${userId}/`, limit: 1000, offset, sortBy: { column: 'name', order: 'asc' } }) });
+    if (!r.ok) throw new Error('storage list failed with status ' + r.status);
+    const page = await r.json();
+    if (!Array.isArray(page)) break;
+    out.push(...page.filter(f => f && f.name));
+    if (page.length < 1000) break;
+  }
+  return out;
+}
 const storageOn = () => !!(SUPABASE_URL && SUPABASE_SERVICE_KEY);
 async function sbEnsureBucket(){
   if (!storageOn()) return;
@@ -459,8 +485,7 @@ const EXTRACT_MODEL = process.env.EXTRACT_MODEL || 'claude-haiku-4-5-20251001';
    This route spends the operator's Anthropic credit. It used to take the WHOLE prompt from the browser, accept any "file",
    and sat above the rate limiters, so it had no throttle at all: any free account was a general-purpose Claude proxy on your
    bill. Now: the prompt is owned by the server (the browser's `prompt` field is ignored), only real PDFs/images up to the
-   document size cap are accepted, each user is limited per minute AND per day. A test (test-extract.js) fails if this prompt
-   ever drifts from the one in index.html. */
+   document size cap are accepted, each user is limited per minute AND per day. The prompt exists ONLY here: the browser no longer carries a copy of it and sends just the document (a test checks that). */
 const EXTRACT_PROMPT = `You are reading a German "Ausdruck der elektronischen Lohnsteuerbescheinigung" (annual wage tax certificate). Your task is to extract specific field values and return ONLY a valid JSON object - no markdown, no explanation, nothing else.
 
 CRITICAL - EUR/Ct COLUMN LAYOUT (the most common parsing error):
@@ -591,6 +616,49 @@ function publicSettings(st) {
    reveal which emails are registered. */
 const DUMMY_HASH = bcrypt.hashSync('timing-equaliser-not-a-real-password', 12);
 
+/* ---------- small security helpers (audit) ---------- */
+/* Constant-time secret comparison (hashing first gives equal-length buffers, so no length leak and no exception). */
+const secretOk = (given, expected) => {
+  if (!expected || typeof given !== 'string') return false;
+  const h = (v) => cryptoNode.createHash('sha256').update(String(v)).digest();
+  return cryptoNode.timingSafeEqual(h(given), h(expected));
+};
+/* bcrypt only looks at the first 72 BYTES of a password: a longer one was silently cut, so two different long passwords
+   could be treated as the same. New passwords over 72 bytes are now refused with a clear message (existing passwords keep working). */
+const PASSWORD_MAX_BYTES = 72;
+const tooLongForBcrypt = (pw) => Buffer.byteLength(String(pw), 'utf8') > PASSWORD_MAX_BYTES;
+/* ---- sign-in throttling state (users.settings.loginLockout, server-owned) ---- */
+const LOGIN_FAILS_PER_SOURCE = 5, LOGIN_ACCOUNT_CEILING = 30, LOGIN_LOCK_MS = 15 * 60 * 1000;
+const LOGIN_TRUST_MAX = 5, LOGIN_TRUST_MS = 30 * 24 * 60 * 60 * 1000, LOGIN_SOURCES_KEPT = 20;
+const loginSource = (req) => cryptoNode.createHash('sha256').update(`login-source|${JWT_SECRET}|${req.ip || ''}`).digest('hex').slice(0, 16);   // a hash, never the IP address itself
+function readLoginState(settings, now) {
+  const raw = (settings && settings.loginLockout) || {};
+  const ms = (v) => Number(v) || 0;                           // a bitwise OR with zero would truncate to 32 bits and destroy millisecond timestamps
+  const st = { sources: {}, fails: { n: 0, since: now }, until: 0, trusted: [] };
+  for (const [k, v] of Object.entries(raw.sources || {})) if (v && (ms(v.until) > now || now - ms(v.at) < LOGIN_LOCK_MS)) st.sources[k] = { n: ms(v.n), until: ms(v.until), at: ms(v.at) };
+  if (raw.fails && now - ms(raw.fails.since) < LOGIN_LOCK_MS) st.fails = { n: ms(raw.fails.n), since: ms(raw.fails.since) };
+  st.until = Math.max(ms(raw.until), ms(raw.lockedUntil));      // lockedUntil: the earlier, account-wide format
+  st.trusted = Array.isArray(raw.trusted) ? raw.trusted.filter(t => t && t.k && now - ms(t.at) < LOGIN_TRUST_MS).map(t => ({ k: t.k, at: ms(t.at) })).slice(0, LOGIN_TRUST_MAX) : [];
+  return st;
+}
+const loginBlocked = (st, src, now) => !!((st.sources[src] && st.sources[src].until > now) || (st.until > now && !st.trusted.some(t => t.k === src)));
+function loginFailed(st, src, now) {
+  const e = st.sources[src] || { n: 0, until: 0, at: 0 }; e.n++; e.at = now; let sourceLocked = false, accountLocked = false;
+  if (e.n >= LOGIN_FAILS_PER_SOURCE) { e.until = now + LOGIN_LOCK_MS; e.n = 0; sourceLocked = true; }
+  st.sources[src] = e;
+  st.fails.n++;
+  if (st.fails.n >= LOGIN_ACCOUNT_CEILING) { st.until = now + LOGIN_LOCK_MS; st.fails = { n: 0, since: now }; accountLocked = true; }
+  const keys = Object.keys(st.sources);
+  if (keys.length > LOGIN_SOURCES_KEPT) keys.sort((a, b) => st.sources[a].at - st.sources[b].at).slice(0, keys.length - LOGIN_SOURCES_KEPT).forEach(x => delete st.sources[x]);
+  return { sourceLocked, accountLocked };
+}
+function loginSucceeded(st, src, now) {
+  delete st.sources[src];
+  st.trusted = [{ k: src, at: now }, ...st.trusted.filter(t => t.k !== src)].slice(0, LOGIN_TRUST_MAX);
+}
+const saveLoginState = (userId, st) => pool.query(`UPDATE users SET settings = jsonb_set(settings, '{loginLockout}', $1::jsonb) WHERE id=$2`, [JSON.stringify(st), userId]);
+
+
 /* ---------- server-owned fields of a client record (audit: S1, S2, S5, S19) ----------
    A client record is one JSON blob that the BROWSER saves wholesale. Some of its fields are facts only the SERVER may
    establish: whether it was paid (written by Stripe/PayPal handlers and refunds), whether it was submitted, the transfer
@@ -606,8 +674,10 @@ function canonicalJson(v) {                      // key order must not matter: J
 }
 /* The part of a return that must not change after submission. Excluded: things legitimately touched afterwards
    (inquiry log, uploaded documents, timestamps) and the server-owned fields themselves. */
+const NON_CONTENT_FIELDS = ['updatedAt', 'inq', 'docs', 'freigabe', 'pay', 'status', ...SERVER_OWNED_FIELDS];
 function contentObj(c) {
-  const { updatedAt, inq, docs, freigabe, pay, status, transferTicket, submittedAt, unresolvedForeignIncome, reminded_at, submittingSince, ...content } = c || {};
+  const content = { ...(c || {}) };
+  for (const k of NON_CONTENT_FIELDS) delete content[k];
   return content;
 }
 function contentOnly(c) { return canonicalJson(contentObj(c)); }
@@ -704,6 +774,7 @@ async function auth(req, res, next) {
   /* answered as 'invalid_token' ON PURPOSE: the frontend (every version in circulation) already turns that code into its
      "your session ended, please log in again" message; a new code would show customers a confusing generic failure. */
   if ((Number(payload.tv) || 0) !== tv) return res.status(401).json({ error: 'invalid_token', reason: 'session_revoked' });
+  // eslint-disable-next-line require-atomic-updates -- `req` belongs to this single request; nothing else can touch it while we await
   req.user = payload;
   next();
 }
@@ -811,6 +882,7 @@ app.get('/api/version', (_req, res) => {
   const { name, email, password } = req.body || {};
   if (!isStr(name, 120) || !isStr(email, 254) || !EMAIL_RE.test(email.trim()) || !isStr(password, PASSWORD_MAX) || password.length < 8)
     return res.status(400).json({ error: 'invalid_input' });
+  if (tooLongForBcrypt(password)) return res.status(400).json({ error: 'password_too_long' });
   try {
     const hash = await bcrypt.hash(password, 12);
     const q = await pool.query(
@@ -853,56 +925,33 @@ app.post('/api/auth/login', async (req, res) => {
   const u = q.rows[0];
   /* always burn one bcrypt comparison - real hash or dummy - before ANY early return (S9) */
   const passwordOk = await bcrypt.compare(String(password || '').slice(0, PASSWORD_MAX), u ? u.password_hash : DUMMY_HASH);
-
-  /* IMPLEMENTED: real per-account brute-force protection, addressing a
-     genuine gap in the existing IP-based rate limit - many different
-     IPs, each staying under that limit, could still combine to try
-     unlimited passwords against one specific account. Tracked in
-     users.settings, the same no-schema-change pattern already used
-     for password-reset tokens above. Deliberately returns the
-     identical generic error below whether the account doesn't exist,
-     the password is wrong, or the account is genuinely locked -
-     consistent with the same no-account-enumeration principle this
-     file already documents for password reset. An attacker learns
-     nothing from the response either way; the real owner is notified
-     by email instead, which only they can see. */
-  const MAX_FAILED_ATTEMPTS = 5;
-  const LOCKOUT_MS = 15 * 60 * 1000;
-
-  if (u) {
-    const lockout = u.settings?.loginLockout;
-    if (lockout?.lockedUntil && lockout.lockedUntil > Date.now()) {
-      return res.status(401).json({ error: 'bad_credentials' });
-    }
-  }
-
+  /* Sign-in throttling (audit). The old rule - 5 wrong passwords from ANYONE lock the account for 15 minutes - let an attacker
+     keep the real owner locked out for as long as they liked (and the owner's CORRECT password was refused too). Failures are
+     now counted per account AND per source (a hash of the caller's IP address, never the address itself):
+       - 5 failures from one source block THAT source for this account for 15 minutes: an attacker locks out only themselves,
+         the owner signing in from elsewhere is unaffected;
+       - 30 failures from all sources together put the account "under attack" for 15 minutes: only sources that signed in
+         successfully before (the last 5 within 30 days) are accepted meanwhile, which stops a many-address attack without
+         locking out the owner's usual devices. "Forgot password" always works, and completing a reset clears all of this.
+     The answer is identical ("bad credentials") whether the account exists, the password is wrong or the source is blocked. */
+  const now = Date.now(), src = loginSource(req);
+  const st = u ? readLoginState(u.settings, now) : null;
+  if (u && loginBlocked(st, src, now)) return res.status(401).json({ error: 'bad_credentials' });
   if (!u || !passwordOk) {
     if (u) {
-      const prevAttempts = (u.settings?.loginLockout?.failedAttempts || 0) + 1;
-      const newLockout = prevAttempts >= MAX_FAILED_ATTEMPTS
-        ? { failedAttempts: 0, lockedUntil: Date.now() + LOCKOUT_MS }
-        : { failedAttempts: prevAttempts, lockedUntil: null };
-      await pool.query(
-        `UPDATE users SET settings = jsonb_set(settings, '{loginLockout}', $1::jsonb) WHERE id=$2`,
-        [JSON.stringify(newLockout), u.id]
-      ).catch(e => console.error('[login] could not record failed attempt:', e.message));
-      if (prevAttempts >= MAX_FAILED_ATTEMPTS) {
-        audit(u.id, 'account_locked_brute_force', {});
-        sendSecurityEmail(u.email, 'Multiple failed sign-in attempts on your SimplyTax account',
-          `<p>Hi ${escHtml(u.name || '')},</p><p>There have been several failed sign-in attempts on your SimplyTax account. As a precaution, sign-in has been temporarily disabled for 15 minutes.</p><p>If this wasn't you, your password is still safe - no one has signed in - but consider changing it once you're back in.</p><p>— SimplyTax</p>`
-        ).catch(()=>{});
+      const r = loginFailed(st, src, now);
+      await saveLoginState(u.id, st).catch(e => console.error('[login] could not record failed attempt:', e.message));
+      if (r.sourceLocked || r.accountLocked) {
+        audit(u.id, r.accountLocked ? 'account_under_attack' : 'login_source_blocked', {});
+        sendSecurityEmail(u.email, 'Several failed sign-in attempts on your SimplyTax account',
+          `<p>Hi ${escHtml(u.name || '')},</p><p>There have been several failed sign-in attempts on your SimplyTax account. As a precaution, sign-in from ${r.accountLocked ? 'new devices and networks' : 'that device or network'} has been paused for 15 minutes. ${r.accountLocked ? 'Devices you have used before can still sign in.' : 'Signing in from your usual devices is not affected.'}</p><p>If this was not you, no one has signed in. You can set a new password at any time with "Forgot password".</p><p>SimplyTax</p>`
+        ).catch(() => {});
       }
     }
     return res.status(401).json({ error: 'bad_credentials' });
   }
-
-  if (u.settings?.loginLockout?.failedAttempts) {
-    await pool.query(
-      `UPDATE users SET settings = jsonb_set(settings, '{loginLockout}', $1::jsonb) WHERE id=$2`,
-      [JSON.stringify({ failedAttempts: 0, lockedUntil: null }), u.id]
-    ).catch(()=>{});
-  }
-
+  loginSucceeded(st, src, now);
+  await saveLoginState(u.id, st).catch(() => {});
    audit(u.id, 'login');
   const token = sign(u);
   res.cookie(AUTH_COOKIE, token, cookieOpts);
@@ -934,11 +983,12 @@ app.post('/api/auth/forgot', async (req, res) => {
 app.post('/api/auth/reset', async (req, res) => {
   const { email, token, password } = req.body || {};
   if(!email || !token || !password || String(password).length < 8 || String(password).length > PASSWORD_MAX) return res.status(400).json({ error: 'invalid_input' });
+  if (tooLongForBcrypt(password)) return res.status(400).json({ error: 'password_too_long' });
   const { rows } = await pool.query('SELECT id, name, settings FROM users WHERE email=$1', [String(email).toLowerCase()]);
   const pr = rows[0]?.settings?.pwreset;
   if(!pr || pr.th !== sha256(String(token)) || pr.exp < Date.now()) return res.status(400).json({ error: 'invalid_or_expired' });
   const hash = await bcrypt.hash(String(password), 12);
-  await pool.query(`UPDATE users SET password_hash=$1, settings = settings - 'pwreset' WHERE id=$2`, [hash, rows[0].id]);
+  await pool.query(`UPDATE users SET password_hash=$1, settings = settings - 'pwreset' - 'loginLockout' WHERE id=$2`, [hash, rows[0].id]);
    audit(rows[0].id, 'pw_reset_done', {});
   await revokeSessions(rows[0].id);        // whoever held the old password (or a token issued with it) is logged out
   /* IMPLEMENTED: real security-awareness gap - the flow above sends the
@@ -1070,21 +1120,13 @@ app.delete('/api/auth/account', auth, async (req, res) => {
 
   if (storageOn()) {
     try {
-      const listRes = await fetch(`${SUPABASE_URL}/storage/v1/object/list/${BELEGE_BUCKET}`, {
-        method: 'POST',
-        headers: { ...sbHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prefix: `${req.user.sub}/` }),
-      });
-      if (listRes.ok) {
-        const files = await listRes.json();
-        const paths = (files || []).map(f => `${req.user.sub}/${f.name}`);
-        if (paths.length) {
-          await fetch(`${SUPABASE_URL}/storage/v1/object/${BELEGE_BUCKET}`, {
-            method: 'DELETE',
-            headers: { ...sbHeaders(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prefixes: paths }),
-          });
-        }
+      const files = await listUserFiles(req.user.sub);           // ALL files, not just the first 100 (see listUserFiles)
+      const paths = files.map(f => `${req.user.sub}/${f.name}`);
+      for (let i = 0; i < paths.length; i += 500) {
+        const dr = await fetch(`${SUPABASE_URL}/storage/v1/object/${BELEGE_BUCKET}`, {
+          method: 'DELETE', headers: { ...sbHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prefixes: paths.slice(i, i + 500) }) });
+        if (!dr.ok) console.error('[account deletion] storage delete answered', dr.status, '- some uploaded documents may remain:', await dr.text().catch(() => ''));   // its result used to be ignored completely
       }
     } catch (e) {
       console.error('[account deletion] could not clear uploaded documents:', e.message);
@@ -2225,6 +2267,13 @@ app.post('/api/docs', auth, async (req, res) => {
      before anything is uploaded to storage, so a mismatched file is
      rejected before ever being written anywhere. */
   if (!verifyMagicBytes(buf, mime)) return res.status(415).json({ error: 'content_mismatch' });
+  /* per-user quota: replacing an existing document (same id) does not count twice. If the listing itself fails the upload is
+     allowed (a storage hiccup must not block a customer) and the failure is logged. */
+  try {
+    const mine = (await listUserFiles(req.user.sub)).filter(f => f.name !== encodeURIComponent(id));
+    const used = mine.reduce((sum, f) => sum + ((f.metadata && Number(f.metadata.size)) || 0), 0);
+    if (mine.length >= DOC_USER_MAX_FILES || used + buf.length > DOC_USER_MAX_BYTES) return res.status(413).json({ error: 'storage_quota_exceeded' });
+  } catch (e) { console.error('[docs] quota check skipped:', e.message); }
   const path = `${req.user.sub}/${encodeURIComponent(id)}`;
   const r = await fetch(`${SUPABASE_URL}/storage/v1/object/${BELEGE_BUCKET}/${path}`, {
     method: 'POST', headers: { ...sbHeaders(), 'Content-Type': mime, 'x-upsert': 'true' }, body: buf });
