@@ -41,11 +41,13 @@ Module._load = function (request, parent, isMain) {
 /* ---------- environment the real server.js requires at load time ---------- */
 process.env.DATABASE_URL = 'postgres://test:test@localhost/test'; // never actually connected to - pg is intercepted above
 process.env.JWT_SECRET = 'test-secret-not-for-production';
-process.env.ALLOWED_ORIGIN = 'https://dvag-sunil.github.io';
+/* The tests run against the REAL production origin (a value set in the environment still wins). This used to be forced to a long-gone
+   github.io address, which made every test log show a CORS origin that does not exist. */
+process.env.ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://www.taxfile24.com';
 process.env.PORT = '0';
 /* The server now refuses to start without FRONTEND_URL, and the certificate module needs CERT_ENCRYPTION_KEY. Test-only
    defaults (never real secrets) so `node test/test-api.js` works locally with no setup; CI/real env values still win. */
-process.env.FRONTEND_URL = process.env.FRONTEND_URL || 'https://dvag-sunil.github.io/';
+process.env.FRONTEND_URL = process.env.FRONTEND_URL || 'https://www.taxfile24.com/';
 process.env.CERT_ENCRYPTION_KEY = process.env.CERT_ENCRYPTION_KEY || '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff';
 if (!process.env.ERIC_HERSTELLER_ID) process.env.ERIC_HERSTELLER_ID = 'TEST-ONLY-ID'; // xml-builder.js now genuinely refuses to run without a real configured value - test-only, never a production fallback
 

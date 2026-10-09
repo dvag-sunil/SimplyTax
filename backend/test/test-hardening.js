@@ -77,6 +77,17 @@ const PW = 'passw0rd-long-enough'; let n = 0;
     const gone = (await testPool.query(`SELECT 1 FROM users WHERE id=$1`, [F.id])).rows.length === 0;
     rec('Q4', 'If the storage delete fails, the account is still deleted (it is logged, and no longer ignored silently)', del.status === 200 && gone, `status=${del.status} userGone=${gone}`); }
 
+
+  /* ---------------- cross-site access (CORS): the real website is allowed, everything else is not ---------------- */
+  { const pre = (origin) => request(app).options('/api/auth/login').set('Origin', origin).set('Access-Control-Request-Method', 'POST').set('Access-Control-Request-Headers', 'content-type');
+    const ok = await pre('https://www.taxfile24.com');
+    rec('X1', 'The real website (https://www.taxfile24.com) is allowed to call the API, with cookies', ok.headers['access-control-allow-origin'] === 'https://www.taxfile24.com' && ok.headers['access-control-allow-credentials'] === 'true', JSON.stringify({ s: ok.status, h: ok.headers['access-control-allow-origin'], c: ok.headers['access-control-allow-credentials'] }));
+    const bad = [];
+    for (const o of ['https://dvag-sunil.github.io', 'https://www.taxfile24.com.evil.example', 'http://www.taxfile24.com', 'https://evil-www.taxfile24.com', 'https://taxfile24.com', 'null']) { const r = await pre(o); if (r.headers['access-control-allow-origin']) bad.push(o + ' -> ' + r.headers['access-control-allow-origin']); }
+    rec('X2', 'The old github.io address and look-alikes (extra domain suffix, http, other subdomain, null) are NOT allowed', bad.length === 0, bad.join('; '));
+    const simple = await request(app).get('/api/health').set('Origin', 'https://www.taxfile24.com'), none = await request(app).get('/api/health');
+    rec('X3', 'A normal request from the real website carries the CORS answer; a request without any Origin (curl, monitoring) still works', simple.headers['access-control-allow-origin'] === 'https://www.taxfile24.com' && none.status !== 403, `${simple.headers['access-control-allow-origin']} / ${none.status}`); }
+
   const bad = results.filter(r => !r.ok);
   console.log(`\n===== Hardening suite: ${results.length - bad.length} ok, ${bad.length} FAILED =====`); if (bad.length) console.log('Failed:', bad.map(b => b.id).join(', '));
   process.exit(bad.length ? 1 : 0);
